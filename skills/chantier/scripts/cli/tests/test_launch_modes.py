@@ -10,7 +10,7 @@ from conftest import PLUGIN_ROOT, SKILL
 
 from chantier.core.repo import Repo
 from chantier.launch import is_chantier_project
-from chantier.plugin_files import cli_command, sync_command
+from chantier.plugin_files import cli_command, sync_check_command, sync_command
 
 
 def _repo_for(tmp_path: Path, cell: str) -> Repo | None:
@@ -53,7 +53,12 @@ LAUNCH_CELLS = {
 
 def test_one_launch_two_modes_one_text(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     def command_for(
-        root: Path, *, git: bool, sync: bool = False, repo: Repo | None = None
+        root: Path,
+        *,
+        git: bool,
+        sync: bool = False,
+        check: bool = False,
+        repo: Repo | None = None,
     ) -> str | None:
         skill = root / "skills" / "chantier"
         skill.mkdir(parents=True, exist_ok=True)
@@ -61,6 +66,8 @@ def test_one_launch_two_modes_one_text(tmp_path: Path, monkeypatch: pytest.Monke
         if git:
             (root / ".git").mkdir(exist_ok=True)
         monkeypatch.setenv("CHANTIER_SKILL_DIR", str(skill))
+        if check:
+            return sync_check_command(repo)
         return sync_command(repo) if sync else cli_command(repo)
 
     for cell, (chantier, surface) in LAUNCH_CELLS.items():
@@ -72,14 +79,16 @@ def test_one_launch_two_modes_one_text(tmp_path: Path, monkeypatch: pytest.Monke
             skill = (root / "skills" / "chantier").as_posix()
             launch = command_for(root, git=git, repo=repo)
             sync = command_for(root, git=git, sync=True, repo=repo)
+            check = command_for(root, git=git, check=True, repo=repo)
             if git and chantier:
                 assert launch == f'uv run --no-sync --project "{root.as_posix()}" chantier{option}'
                 assert sync == f'uv sync --locked --project "{root.as_posix()}"'
+                assert check == f'uv sync --locked --check --project "{root.as_posix()}"'
             else:
                 assert launch == (
                     f'uvx --from "{root.as_posix()}" chantier --skill "{skill}"{option}'
                 ), cell
-                assert sync is None, cell
+                assert sync is None and check is None, cell
     d, p = tmp_path / "with space" / "dev", tmp_path / "with space" / "plugin"
     mine = _repo_for(tmp_path / "with space", "claude")
     uv = ["uv", "run", "--no-sync", "--project", d.as_posix(), "chantier"]
@@ -96,7 +105,6 @@ def test_the_four_skills_hold_one_launch_paragraph() -> None:
         text = (PLUGIN_ROOT / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
         for form in (
             "uv run --no-sync --project",
-            "uv sync --locked --project",
             "uvx --from",
             "--skill",
             ".git",
@@ -120,6 +128,8 @@ def test_the_four_skills_hold_one_launch_paragraph() -> None:
         "rule holds",
     ):
         assert phrase in paragraphs[0], phrase
+    start = (SKILL / "references" / "session-start.md").read_text(encoding="utf-8")
+    assert 'uv sync --locked --project "<plugin root>"' in start
     core = (SKILL / "references" / "startup-core.md").read_text(encoding="utf-8")
     assert "never in a shell variable" in " ".join(core.split())
 
@@ -148,3 +158,77 @@ def test_the_shipped_docs_state_the_dev_mode_rule_and_the_stale_build() -> None:
         assert "when the session's project is chantier" in text, name
         if name in ("AGENTS.md", "CONTRIBUTING.md", "session-start.md"):
             assert text.count(STALE_BUILD) == 1, name
+
+
+def _flat(path: Path) -> str:
+    return " ".join(path.read_text(encoding="utf-8").split())
+
+
+SYNC_PARAGRAPH_PHRASES = (
+    "its mode checked once",
+    'uv sync --locked --check --project "<plugin root>"',
+    "The environment is outdated",
+    "Never stop or kill",
+    "sync pending: held by",
+    "3 minutes",
+    "but a reload",
+    '"6. Sync the checkout"',
+    "Any failure of the sync or of `$CHANTIER`, in either mode, at any call, follows "
+    "`startup-core.md`, except a sync held as above (`sync pending`).",
+)
+
+SYNC_SECTION_PHRASES = (
+    "on your yes",
+    "own board and watcher",
+    "No third line",
+    "no second question",
+    "is no longer own",
+    "unless another session's watcher takes it",
+    "Name the holders of the checkout's environment",
+    "never stop or kill",
+    "sync pending: held by",
+    "but a reload",
+)
+
+
+def test_the_four_skills_hold_the_checked_sync_that_waits_and_never_kills() -> None:
+    for name in ("chantier", "chief-of-staff", "griller", "status"):
+        text = (PLUGIN_ROOT / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+        paragraph = " ".join(
+            next(ln for ln in text.splitlines() if ln.startswith("`$CHANTIER` is the CLI")).split()
+        )
+        for phrase in SYNC_PARAGRAPH_PHRASES:
+            assert phrase in paragraph, f"{name}/SKILL.md lacks: {phrase}"
+        assert "once, before the first" not in paragraph, name
+    start = _flat(SKILL / "references" / "session-start.md")
+    section = start[start.index("## 6. Sync the checkout") :]
+    for phrase in SYNC_SECTION_PHRASES:
+        assert phrase in section, f"session-start.md section 6 lacks: {phrase}"
+
+
+def test_the_cards_and_hosts_state_the_exception_the_row_and_the_for_you_item() -> None:
+    refs = SKILL / "references"
+    core = (refs / "startup-core.md").read_text(encoding="utf-8").replace("\r\n", "\n")
+    first = " ".join(core.split("\n\n")[1].split())
+    assert "report the exact error and stop" in first
+    assert "One named exception: in the dev mode, a `uv sync` that chantier's own" in first
+    assert "the session goes on unsynced with `sync pending`" in first
+    for host in ("claude-code", "copilot"):
+        lines = (refs / "hosts" / f"{host}.md").read_text(encoding="utf-8").splitlines()
+        row = next(ln for ln in lines if ln.startswith("| Name the holders of the checkout's env"))
+        assert "Get-CimInstance Win32_Process" in row, host
+        assert 'grep -F "<plugin root>/.venv/"' in row, host
+        assert "--seat <this session's id>" in row and "board already running" in row, host
+        assert host != "copilot" or row.endswith("untested |")
+    assert "the one exception is your own board and watcher, on the user's yes" in _flat(
+        refs / "chief-of-staff.md"
+    )
+    layout = _flat(refs / "status-layout.md")
+    paragraph = next(p for p in layout.split("When a CR merged since") if "nothing waits on" in p)
+    for phrase in (
+        "It is not a **For you** item: nothing waits on the user",
+        "but a sync pending more than 3 minutes",
+        "until the user answers",
+        "a later yes still counts",
+    ):
+        assert phrase in paragraph, phrase

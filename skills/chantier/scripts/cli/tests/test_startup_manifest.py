@@ -343,6 +343,12 @@ MOVED_OUT = [
     ("named startup sections only", [REFS / "foreman.md"]),
     ("startup sections of <skill>/references/foreman.md", [REFS / "chief-of-staff.md"]),
     ("Availability is not proof", [*REFS.glob("host-core-*.md")]),
+    (
+        "stop the board (the host's stop of its background shell), run `uv sync",
+        [REFS / "chief-of-staff.md"],
+    ),
+    ("sync once `$CHANTIER status` shows no gate running", [REFS / "chief-of-staff.md"]),
+    ("synced once by the steering session", [REFS / "concepts.md"]),
 ]
 
 

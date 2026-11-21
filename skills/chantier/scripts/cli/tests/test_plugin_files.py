@@ -11,8 +11,11 @@ import pytest
 from conftest import PLUGIN_ROOT, SKILL, load_script
 
 from chantier import __version__
+from chantier.commands.allow_samples import filled_allow
+from chantier.core.repo import Repo
 from chantier.playbook.copilot_catalog import normalise
 from chantier.playbook.models import MODELS, resolve
+from chantier.plugin_files import sync_check_command
 
 CLAUDE_MODELS = {"claude-sonnet-5-5", "claude-opus-5-5"}
 
@@ -354,3 +357,29 @@ def test_each_host_has_its_reference_and_the_cards_hold_no_host_tool() -> None:
         text = (SKILL / "references" / f"{card}.md").read_text(encoding="utf-8")
         body = "\n".join(ln for ln in text.splitlines() if "hosts/" not in ln)
         assert [t for t in HOST_TOOLS if t in body] == [], card
+
+
+def test_the_check_line_is_one_text_in_the_skills_the_command_and_the_p10_rule(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Byte identity: the SKILL.md check line, `<plugin root>` filled in, is the command the dev
+    mode runs and the command inside the rule P10 prints, in the Bash and PowerShell forms."""
+
+    root = tmp_path / "dev"
+    (root / "skills" / "chantier").mkdir(parents=True)
+    (root / ".git").mkdir()
+    (root / "skills" / "chantier" / "SKILL.md").write_text("x\n", encoding="utf-8")
+    monkeypatch.setenv("CHANTIER_SKILL_DIR", str(root / "skills" / "chantier"))
+    project = tmp_path / "project"
+    (project / ".claude-plugin").mkdir(parents=True)
+    (project / ".claude-plugin" / "plugin.json").write_text(
+        json.dumps({"name": "chantier"}), encoding="utf-8"
+    )
+    command = sync_check_command(Repo(project, project / ".git", {}))
+    line = 'uv sync --locked --check --project "<plugin root>"'
+    for name in ("chantier", "chief-of-staff", "griller", "status"):
+        text = (PLUGIN_ROOT / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+        assert f"`{line}`" in text, name
+    assert command == line.replace("<plugin root>", root.resolve().as_posix())
+    rules = filled_allow()
+    assert f"Bash({command})" in rules and f"PowerShell({command})" in rules

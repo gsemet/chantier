@@ -74,7 +74,8 @@ chantier is four things in one repository:
    as a plugin, it runs by `uvx --from "<plugin root>" chantier --skill "<skill folder>"`, from the
    plugin's own folder; in this checkout (a `.git` at the plugin root), when the session's project
    is chantier (the dev mode), by `uv run --no-sync --project "<root>" chantier`, the local code,
-   live, after one `uv sync --locked --project "<root>"` by the steering session (a session's
+   live, after the steering session's checked `uv sync --locked --project "<root>"`, which waits
+   for holders (a session's
    start, a batch's start, a merge that changes `uv.lock`); chantier's own sessions never run
    `uvx --from <checkout>`; other projects run the plugin mode, `uvx --from "<plugin root>"`, even
    from this checkout (see "In this checkout" below). uv caches a local source by its version, so even with `--refresh` it can
@@ -225,11 +226,13 @@ with `/reload-plugins`.
 In this checkout, `$CHANTIER` runs the local code, live, with no fetch (the dev mode: the plugin
 root holds `.git`, when the session's project is chantier); an installed plugin, and another
 project's session even from this checkout, runs the plugin mode, `uvx --from "<plugin root>"`.
-The checkout's environment is synced once by the steering session
-(`uv sync --locked --project "<root>"`) and every command then runs
+The checkout's environment is synced by the steering session
+(`uv sync --locked --project "<root>"`, after a check) and every command then runs
 `uv run --no-sync --project "<root>" chantier`, so a running board or gate never holds a file a
 command needs to rewrite (os error 32 on Windows), and another project's process never holds the
-checkout's `.venv`; chantier's own sessions never run `uvx --from <checkout>`.
+checkout's `.venv`; the sync itself runs only when the environment is out of date and no chantier
+process holds it; otherwise the session goes on unsynced with `sync pending` and stops nothing,
+but its own board and watcher on the user's yes; chantier's own sessions never run `uvx --from <checkout>`.
 
 Another project runs chantier from its checkout in plugin mode, a build uv caches by version: it
 changes at each version bump. The board server, its writer and the forge hub, started from

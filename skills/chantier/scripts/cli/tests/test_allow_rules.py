@@ -9,7 +9,7 @@ from conftest import PLUGIN_ROOT, SKILL, Chantier
 
 from chantier.commands.allow_samples import filled_allow
 from chantier.commands.permissions import PROBES, rule_matches
-from chantier.launch import dev_rule, plugin_rule, sync_rule
+from chantier.launch import dev_rule, plugin_rule, sync_check_rule, sync_rule
 
 MAX_OUTPUT_LINES = 10  # past ten lines the tool output is cut
 
@@ -51,8 +51,9 @@ def test_preflight_names_the_real_path_rules_and_the_broad_and_stale_ones(
     root = _mode_root(case, tmp_path, monkeypatch, repo)
     mode = "dev" if case == "dev" else "plugin"  # another project from the checkout: plugin mode
     plugin, dev, sync = plugin_rule(root), dev_rule(root), sync_rule(root)
-    mine = [plugin] if mode == "plugin" else [dev, sync]
-    others = [dev, sync] if mode == "plugin" else [plugin]
+    check = sync_check_rule(root)
+    mine = [plugin] if mode == "plugin" else [dev, sync, check]
+    others = [dev, sync, check] if mode == "plugin" else [plugin]
     line = _p10_of(repo, chantier, [])  # no chantier rule: the real-path rules are named
     assert all(f"add Bash({r})" in line for r in mine)
     assert not any(f"add Bash({r})" in line for r in others)
@@ -62,6 +63,7 @@ def test_preflight_names_the_real_path_rules_and_the_broad_and_stale_ones(
         "uvx --from * chantier *": [plugin] if mode == "plugin" else [],
         "uv run --no-sync --project * chantier *": [dev] if mode == "dev" else [],
         "uv sync --locked --project *": [sync] if mode == "dev" else [],
+        "uv sync *": [sync, check] if mode == "dev" else [],
         "uv run --locked --project * chantier *": [],
     }
     for broad, rules in replacing.items():
@@ -70,7 +72,8 @@ def test_preflight_names_the_real_path_rules_and_the_broad_and_stale_ones(
             assert line.startswith("P10 warn") and f"Bash({broad}) (" in line
             assert "settings.local.json" in line and "broad rules let any command through" in line
             if rules:
-                assert all(f"replaced by Bash({r}){tail}" in line for r in rules)
+                assert f"replaced by Bash({rules[0]}){tail}" in line
+                assert all(f"Bash({r}){tail}" in line.split("replaced by", 1)[1] for r in rules)
                 assert tail or " present" not in line
                 assert "no chantier command needs it" not in line
             else:
@@ -78,7 +81,7 @@ def test_preflight_names_the_real_path_rules_and_the_broad_and_stale_ones(
     gone, other = tmp_path / "gone", tmp_path / "other"
     other.mkdir()
     old = f'uvx --from "{other.as_posix()}" chantier *'
-    stale = [f"Bash({dev_rule(gone)})", f"Bash({sync_rule(gone)})"]
+    stale = [f"Bash({r(gone)})" for r in (dev_rule, sync_rule, sync_check_rule)]
     line = _p10_of(repo, chantier, [*filled_allow(), f"Bash({old})", *stale])
     assert all(r in line.split("stale chantier rules", 1)[1] for r in stale)
     assert (f"Bash({old})" in line.split("stale chantier rules", 1)[1]) == (mode == "plugin")

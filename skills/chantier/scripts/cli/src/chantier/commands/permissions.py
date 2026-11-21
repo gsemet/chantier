@@ -211,6 +211,7 @@ PROBES = (
     'uv run --no-sync --project "/elsewhere" chantier status',
     "uv run --no-sync --project . python -c x chantier y",
     'uv sync --locked --project "/elsewhere"',
+    'uv sync --locked --check --project "/elsewhere"',
     "uv run --script /elsewhere/chantier.py status",
     'uv run --locked --project "/elsewhere" chantier status',
 )
@@ -218,7 +219,7 @@ PROBES = (
 _PLUGIN_FORM = re.compile(r'(?:Bash|PowerShell)\(uvx --from "(.*)" chantier \*\)')
 _DEV_FORM = re.compile(
     r'(?:Bash|PowerShell)\((?:uv run --no-sync --project "(.*)" chantier \*|'
-    r'uv sync --locked --project "(.*)")\)'
+    r'uv sync --locked --project "(.*)"|uv sync --locked --check --project "(.*)")\)'
 )
 
 
@@ -249,7 +250,7 @@ def _replacing(rule: str, allow: list[str], samples: list[tuple[str, str, str, s
 def _stale(allow: list[str], broad: list[str], dev: bool) -> list[str]:
     """The allow rules in the form of a chantier rule that name another path than this
     install's and let no probe through: in the plugin mode a plugin-form rule of any other path;
-    in either mode a dev-form rule (dev or sync) whose folder no longer exists."""
+    in either mode a dev-form rule (dev, sync or check) whose folder no longer exists."""
     here = os.path.normcase(skill_dir().parents[1].as_posix())
     stale = []
     for r in dict.fromkeys(allow):
@@ -260,7 +261,7 @@ def _stale(allow: list[str], broad: list[str], dev: bool) -> list[str]:
             stale.append(r)
             continue
         m = _DEV_FORM.fullmatch(r)
-        path = m and (m[1] or m[2])
+        path = m and (m[1] or m[2] or m[3])
         if path and os.path.normcase(path) != here and not Path(path).is_dir():
             stale.append(r)
     return stale
