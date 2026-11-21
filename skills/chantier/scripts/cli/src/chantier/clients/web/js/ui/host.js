@@ -5,7 +5,7 @@ import { setHtml } from '../core/dom.js';
 import { forget, paint } from '../core/paint.js';
 import { ALL } from '../core/router.js';
 import { t } from '../model/words.js';
-import { moduleFor } from '../views/registry.js';
+import { entry, moduleFor } from '../views/registry.js';
 import { empty } from './parts.js';
 
 let shownKey = null;
@@ -21,7 +21,9 @@ function leave(root) {
 }
 
 // The view has what it needs: a project's record, or the board's lines on All projects.
-const ready = (state) => (state.project === ALL ? Boolean(state.board) : Boolean(state.data));
+// A view marked `offline` in the registry needs neither.
+const ready = (state) =>
+  entry(state.view).offline || (state.project === ALL ? Boolean(state.board) : Boolean(state.data));
 
 export function show(root, state) {
   const key = `${state.project}|${state.view}`;

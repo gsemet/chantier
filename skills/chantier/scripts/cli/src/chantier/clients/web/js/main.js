@@ -4,7 +4,7 @@ import { board } from './core/api.js';
 import { $, delegate } from './core/dom.js';
 import { paint } from './core/paint.js';
 import { start } from './core/refresh.js';
-import { ALL, configure, go, listen, resolve } from './core/router.js';
+import { ALL, closeTopic, configure, go, listen, resolve } from './core/router.js';
 import { snapshot, subscribe, update } from './core/store.js';
 import { confirmLeave } from './edit/markdown-editor.js';
 import { openNew } from './edit/new-idea.js';
@@ -21,6 +21,7 @@ import { heard, languageButton, navigation, projectSide } from './ui/sidebar.js'
 import { dot, pill } from './ui/writer.js';
 import { bindWriter } from './ui/writer-events.js';
 import { batchMode } from './views/batch-head.js';
+import { topicIds } from './views/help-topics.js';
 import { ids, overviewIds } from './views/registry.js';
 
 const RETRY_MS = 5000;
@@ -164,11 +165,12 @@ function listenToFrame() {
 
 // Escape closes the innermost thing first: the menu, the journal, the selection, then the panel.
 function closeInnermost() {
-  const { menu: open, panel, journalOpen, selection } = snapshot();
+  const { menu: open, panel, journalOpen, selection, helpTopic } = snapshot();
   if (open) update({ menu: false });
   else if (journalOpen) update({ journalOpen: false });
   else if (selection.length) update({ selection: [] });
   else if (panel) confirmLeave().then((ok) => ok && closePanel());
+  else if (helpTopic) closeTopic();
 }
 
 // Read the board (`board.get`) until the server answers; the refresh takes over once a project is
@@ -187,7 +189,7 @@ async function boot() {
 }
 
 setLanguage(pick(new URLSearchParams(location.search).get('lang')));
-configure(ids(), overviewIds());
+configure(ids(), overviewIds(), topicIds());
 listenToFrame();
 bindScroll($('.main'), $('#head'));
 subscribe(draw);

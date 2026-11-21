@@ -176,6 +176,7 @@ def test_the_start_up_imports_only_the_standard_library_and_chantier() -> None:
 WEB = CLI / "src" / "chantier" / "clients" / "web"
 MAX_STYLE_LINES = 300
 MAX_NESTING = 3
+HELP_DOCS = "https://github.com/gsemet/chantier"  # the one origin the Help topics' links may name
 COLOUR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch)\(")
 
 
@@ -240,7 +241,8 @@ def test_the_web_frame_is_self_contained_and_follows_the_style_rules() -> None:
     for path in sorted(p for p in WEB.rglob("*") if p.suffix in {".html", ".js", ".css"}):
         text = path.read_text(encoding="utf-8")
         problems += _reference_problems(path, text)
-        if re.search(r"https?://", text):
+        links = text.replace(HELP_DOCS, "") if path.name == "help-topics.js" else text
+        if re.search(r"https?://", links):
             problems.append(f"{path.relative_to(WEB)}: names another origin")
         if path.suffix == ".css":
             problems += _style_problems(path, text)

@@ -3,7 +3,8 @@
 // the module that draws it there. A view without `overview` opens on the last real project.
 // `count` is the number the sidebar shows beside the word; `countAll` the one it shows on "All
 // projects" (a view with none shows no number there); `badge` also puts the count in the phone's
-// bottom bar.
+// bottom bar. A view with `offline` needs no project data: it draws before the project's record
+// has arrived.
 
 import { usd } from '../core/format.js';
 import { ALL } from '../core/router.js';
@@ -14,6 +15,7 @@ import * as batch from './batch.js';
 import * as config from './config.js';
 import * as costs from './costs.js';
 import * as dashboard from './dashboard.js';
+import * as help from './help.js';
 import * as history from './history.js';
 import * as home from './home.js';
 import * as inbox from './inbox.js';
@@ -34,6 +36,7 @@ export const VIEWS = [
     countAll: inboxCount,
     badge: true,
   },
+  { id: 'help', icon: 'help', word: 'nav.help', module: help, overview: help, offline: true },
   {
     id: 'triage',
     icon: 'triage',

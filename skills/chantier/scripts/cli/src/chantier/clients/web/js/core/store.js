@@ -8,6 +8,7 @@ const data = {
   board: null, // the `board` topic: the projects of the surface, one line each
   project: null, // the id of the project shown, or '*' for All projects
   view: 'home',
+  helpTopic: null, // Help: the open topic's id (the address's h=), or null
   batchId: null, // Costs and Batch: the batch the navigator chose (its id), or null for the latest
   batchTab: 'kanban', // Batch: the open tab, `kanban`, `graph`, `gantt` or `cards` (the address's `t=`)
   data: null, // the `project` topic: the project's record
