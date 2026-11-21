@@ -214,7 +214,7 @@ def test_read_gives_effective_types_and_sets_unknown_and_refused_lines_apart(
     open_batch(repo, chantier, monkeypatch, "Alpha")
     _prepared(repo)
     found = Repo.find()
-    entries, bad, later, unknown = journal.read(found.changes)
+    entries, bad, later, unknown = journal.read(found.store, found.changes)
     assert [e["type"] for e in entries[:5]] == [
         "board@1",
         "merged@1",
@@ -255,6 +255,6 @@ def test_status_lines_skip_an_unknown_type_and_a_refused_payload_and_hide_nothin
     folder = changes(repo)
     folder.mkdir(parents=True, exist_ok=True)
     (folder / journal.FILE).write_text("".join(json.dumps(x) + "\n" for x in lines), "utf-8")
-    entries = journal.read(Repo.find().changes)[0]
+    entries = journal.read(Repo.find().store, Repo.find().changes)[0]
     out = journal.lines(entries, "b", {"CR-5"}, [])
     assert out == [schemas.config_text({**slots, "type": "config@1"})]

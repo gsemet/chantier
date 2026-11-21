@@ -171,7 +171,7 @@ def _waits_finding(repo: Repo, cr: Path, entry: Path) -> Finding | None:
     if stage_layout(repo)["batches"] in cr.parents:
         return Finding("gap", path, LAYOUT_GAP)
     try:
-        waits.read_file(cr)
+        waits.read_file(repo.store, cr)
     except waits.WaitsInvalid as e:
         return Finding("error", path, f"waits.json is not valid: {e}")
     return None

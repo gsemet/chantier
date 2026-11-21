@@ -33,7 +33,7 @@ def _cr_agents(repo: Repo, batch: str) -> dict[str, str]:
         o.id: o.cr for o in read_batch(repo, batch).orders if o.kind == "qa"
     }  # a QA driver counts under its QA folder
     found: dict[str, str] = {}
-    for e in read_events(repo.batch_dir(batch)):
+    for e in read_events(repo.store, repo.batch_dir(batch)):
         if e.kind == "agent" and e.cr and e.cr != "stack" and e.agent:
             found[e.agent] = qa_folder.get(e.cr, e.cr)
     return found
@@ -153,7 +153,7 @@ def breakdown(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def restarted_drivers(repo: Repo, batch: str) -> set[str]:
     """The Drivers that came after another on the same CR, from the log's `agent` events."""
     seen: dict[str, list[str]] = {}
-    for e in read_events(repo.batch_dir(batch)):
+    for e in read_events(repo.store, repo.batch_dir(batch)):
         if e.kind == "agent" and e.cr and e.cr != "stack" and e.agent:
             ids = seen.setdefault(e.cr, [])
             if e.agent not in ids:

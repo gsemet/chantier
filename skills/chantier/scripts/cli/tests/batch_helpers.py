@@ -11,6 +11,8 @@ import pytest
 from conftest import Chantier
 
 from chantier.core import clock
+from chantier.core.records import BatchRecord, read_batch_json
+from chantier.core.repo import Repo
 from chantier.hub import state
 
 FROM_AGENTS_MD = ("--default-branch", "main")  # what the Chief of Staff read in the rules
@@ -39,6 +41,11 @@ def record(repo: Path) -> dict[str, Any]:
     path = changes(repo) / "4-batch" / "batch.json"
     data: dict[str, Any] = json.loads(path.read_text("utf-8"))
     return data
+
+
+def batch_of(repo: Path) -> BatchRecord:
+    """The open batch's record, read as the CLI reads it."""
+    return read_batch_json(Repo.find().store, changes(repo) / "4-batch" / "batch.json")
 
 
 def write_record(repo: Path, data: dict[str, Any]) -> None:

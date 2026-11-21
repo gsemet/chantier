@@ -97,7 +97,7 @@ class World:
         return {n: {**OPEN, **self.forge.get(n, {})} for n in (int(pr_parts(x)[3]) for x in links)}
 
     def journal(self, name: str) -> list[dict[str, Any]]:
-        return journal.read(self.repo(name).changes)[0]
+        return journal.read(self.repo(name).store, self.repo(name).changes)[0]
 
 
 def merged(base: str, at: str) -> dict[str, Any]:

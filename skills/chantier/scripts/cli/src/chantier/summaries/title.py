@@ -28,12 +28,12 @@ def title_findings(repo: Repo, cr: Path, severity: Severity) -> list[Finding]:
     path = repo.rel(cr)
     found: list[Finding] = []
     try:
-        summary = store.read(cr)
+        summary = store.read(repo.store, cr)
     except store.UnreadableSummary:
         summary = None
     title, source = (summary.title, "summary.json") if summary and summary.title else (None, None)
     if title is None:
-        title, source = title_source(cr)
+        title, source = title_source(repo.store, cr)
     if source and len(title) > TITLE_MAX:
         hint = f'summary set {path} --title "<at most {TITLE_MAX} characters>"'
         if source != "summary.json":

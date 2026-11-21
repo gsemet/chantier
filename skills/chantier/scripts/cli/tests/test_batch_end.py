@@ -240,7 +240,9 @@ def test_close_names_the_merged_crs_leftovers_beside_the_dropped_ones(
     assert chantier("cancel", dropped, "--epoch", 1)[0] == 0
     assert merge(chantier, removed, own=False)[0] == 0
     assert record(repo)["status"] == "paused"
-    batch = read_batch_json(repo / ".agents" / "changes" / "4-batch" / "batch.json")
+    batch = read_batch_json(
+        Repo.find().store, repo / ".agents" / "changes" / "4-batch" / "batch.json"
+    )
     line = _to_remove(Repo.find(), batch)
     assert any(x.startswith(f"{kept} (merged) worktree") and " branch " in x for x in line)
     assert f"{folderless} (merged) branch {cr(repo, folderless)['branch']}" in line

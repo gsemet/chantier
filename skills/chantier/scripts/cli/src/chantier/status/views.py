@@ -6,10 +6,10 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from chantier.core.clock import age_minutes, now
-from chantier.core.files import read_text, subject, title_source
+from chantier.core.files import rel_in, subject, title_source
 from chantier.core.records import (
     LIVE,
     SUMMARY_FILE,
@@ -37,6 +37,9 @@ from chantier.status.words import (
     waits,
     waits_on,
 )
+
+if TYPE_CHECKING:
+    from chantier.store.base import PlanStore
 
 SCHEMA = 3
 PAST_LIMIT = 50  # merged and trashed CRs listed in the index; the totals count them all
@@ -89,18 +92,25 @@ def _documents(repo: Repo, c: CrEntry, folder: Path) -> list[dict[str, Any]]:
         ("answers", folder / "02-answers.md"),
         ("specification", spec),
     ]
+    store = repo.store
     work = folder / "work"
-    named += [(p.stem, p) for p in sorted(work.glob("*.md"))]
-    gates = sorted((work / "gates").glob("*.log"))
-    named += [("long gate log", gates[-1])] if gates else []
+    named += [(Path(n).stem, work / n) for n in store.glob(rel_in(store.root, work), "*.md")]
+    gates = store.glob(rel_in(store.root, work / "gates"), "*.log")
+    named += [("long gate log", work / "gates" / gates[-1])] if gates else []
     named.append(("evidence", folder / "evidence"))
-    docs = [{"kind": kind, "path": _link(p, folder)} for kind, p in named if p.exists()]
-    if spec.is_file():
-        text = read_text(spec, "replace")
+    docs = [
+        {"kind": kind, "path": _link(p, folder)}
+        for kind, p in named
+        if store.exists(rel_in(store.root, p))
+    ]
+    if store.is_file(rel_in(store.root, spec)):
+        text = store.read_text(rel_in(store.root, spec), "replace")
         for name in sorted(set(SPEC_LINK.findall(text))):
             target = repo.root / name
             # a URL's tail reads as a network path on Windows: this must never leave the disk
-            if not name.startswith("/") and ".." not in name and target.is_file():
+            if (
+                not name.startswith("/") and ".." not in name and target.is_file()
+            ):  # direct: a project file, outside the planning folder
                 docs.append({"kind": "project", "path": _link(target, folder), "name": name})
     return docs
 
@@ -119,7 +129,7 @@ def cr_view(
         "schema": SCHEMA,
         "updated": now(),
         "cr": c.id,
-        "title": shown_title(c.title, folder),
+        "title": shown_title(repo.store, c.title, folder),
         "batch": d.id,
         "in_batch": in_batch,
         "state": c.status,
@@ -163,7 +173,7 @@ def _row(
     waiting = waits(d, c)
     return {
         "cr": c.id,
-        "title": shown_title(c.title, folder),
+        "title": shown_title(repo.store, c.title, folder),
         "state": c.status,
         "severity": severity(c),
         "step": step(c),
@@ -187,7 +197,7 @@ def _row(
 
 
 def batch_view(repo: Repo, d: BatchRecord, folder: Path) -> dict[str, Any]:
-    events = read_events(folder)
+    events = read_events(repo.store, folder)
     return {
         "schema": SCHEMA,
         "updated": now(),
@@ -213,45 +223,57 @@ def batch_view(repo: Repo, d: BatchRecord, folder: Path) -> dict[str, Any]:
     }
 
 
-def folder_title(folder: Path) -> str:
+def folder_title(store: PlanStore, folder: Path) -> str:
     """The title of a CR folder, as the board shows it when no summary or record gives one: the
     first heading of its specification, intent or request, else its first line, else its name."""
-    return title_source(folder)[0]
+    return title_source(store, folder)[0]
 
 
-def shown_title(recorded: str, folder: Path | None) -> str:
+def shown_title(store: PlanStore, recorded: str, folder: Path | None) -> str:
     """A CR's recorded title, unless it is empty or a front matter's fence (`---`, recorded by an
     older `open`): then the folder's own title, when the folder is known."""
     if recorded and recorded.strip() != "---":
         return subject(recorded)
-    return folder_title(folder) if folder is not None and folder.is_dir() else recorded
+    if folder is not None and store.is_dir(rel_in(store.root, folder)):
+        return folder_title(store, folder)
+    return recorded
 
 
-def spec_state(folder: Path) -> str | None:
+def spec_state(store: PlanStore, folder: Path) -> str | None:
     """The spec-writer's state, read from the folder: `specifying` while the Chief of Staff's
     `work/specifying` marker exists, `specified` once the specification exists without it."""
-    if (folder / "work" / "specifying").exists():
+    rel = rel_in(store.root, folder)
+    if store.exists(f"{rel}/work/specifying"):
         return "specifying"
-    return "specified" if (folder / "03-change-spec.md").is_file() else None
+    return "specified" if store.is_file(f"{rel}/03-change-spec.md") else None
 
 
-def _backlog(paths: dict[str, Path], start: Path) -> list[dict[str, Any]]:
+def _backlog(store: PlanStore, paths: dict[str, Path], start: Path) -> list[dict[str, Any]]:
+    root = store.root
     found = [("3-ready", paths["ready"])]
-    found += [("P" + p.name[1:], p) for p in sorted(paths["backlog"].glob("P[1-4]"))]
+    found += [
+        ("P" + n[1:], paths["backlog"] / n)
+        for n in store.glob(rel_in(root, paths["backlog"]), "P[1-4]")
+    ]
     found.append(("inbox", paths["inbox"]))
     rows = []
     for priority, stage in found:
-        for item in sorted(stage.iterdir()) if stage.is_dir() else []:
-            if item.is_dir():
+        stage_rel = rel_in(root, stage)
+        for name in store.listdir(stage_rel) if store.is_dir(stage_rel) else []:
+            item = stage / name
+            if store.is_dir(f"{stage_rel}/{name}"):
                 rows.append(
                     {
                         "priority": priority,
                         "item": item.name,
-                        "title": folder_title(item),
+                        "title": folder_title(store, item),
                         "path": _link(item, start),
-                        "spec": spec_state(item),
+                        "spec": spec_state(store, item),
                         "files": sum(
-                            1 for p in item.rglob("*") if p.is_file() and p.name != SUMMARY_FILE
+                            1
+                            for _, _, names in store.walk(f"{stage_rel}/{name}")
+                            for n in names
+                            if n != SUMMARY_FILE
                         ),  # the summary is no document of the CR: the index reads the same
                     }
                 )
@@ -264,38 +286,39 @@ def when_of(name: str) -> str | None:
     return f"20{m[1]}-{m[2]}-{m[3]}T{m[4]}:{m[5]}:00Z" if m else None
 
 
-def _past(stage: Path, start: Path) -> tuple[list[dict[str, Any]], int]:
+def _past(store: PlanStore, stage: Path, start: Path) -> tuple[list[dict[str, Any]], int]:
     """The last `PAST_LIMIT` CRs of an archive or trash stage, newest first, and the stage's count.
 
     At most `PAST_LIMIT` STATUS.json files are read; a folder without one gives its title only.
     """
     # `batches` (the batches' records) and a retro-only folder (`<YYMMDD-HHMM>-<batch id>`, from
     # before the records) hold no CR: not listed, not counted
+    stage_rel = rel_in(store.root, stage)
     folders = (
         sorted(
             (
-                p
-                for p in stage.iterdir()
-                if p.is_dir()
-                and p.name != "batches"
-                and not re.fullmatch(r"\d{6}-\d{4}-batch-\d+", p.name)
+                stage / n
+                for n in store.listdir(stage_rel)
+                if store.is_dir(f"{stage_rel}/{n}")
+                and n != "batches"
+                and not re.fullmatch(r"\d{6}-\d{4}-batch-\d+", n)
             ),
             reverse=True,
         )
-        if stage.is_dir()
+        if store.is_dir(stage_rel)
         else []
     )
     out = []
     for folder in folders[:PAST_LIMIT]:
         try:
-            s = json.loads(read_text(folder / "STATUS.json"))
+            s = json.loads(store.read_text(rel_in(store.root, folder / "STATUS.json")))
         except (OSError, ValueError):
             s = {}
         pr = s.get("pr")
         out.append(
             {
                 "cr": s.get("cr"),
-                "title": shown_title(s.get("title") or "", folder),
+                "title": shown_title(store, s.get("title") or "", folder),
                 "state": s.get("state"),
                 "batch": s.get("batch"),
                 "pr": pr.get("url") if isinstance(pr, dict) else pr,
@@ -311,7 +334,7 @@ def _done_rows(repo: Repo, start: Path) -> list[dict[str, Any]]:
     """The batch's CRs waiting in `3-done`, newest merge first: they head the merged list."""
     out = []
     for folder in repo.batch_folders():
-        d = read_batch_json(folder / "batch.json")
+        d = read_batch_json(repo.store, folder / "batch.json")
         for c in d.crs:
             where = repo.planning_path(c.path) if c.path else None
             if where is None or where.parent != folder / "3-done":
@@ -319,7 +342,7 @@ def _done_rows(repo: Repo, start: Path) -> list[dict[str, Any]]:
             out.append(
                 {
                     "cr": c.id,
-                    "title": shown_title(c.title, where),
+                    "title": shown_title(repo.store, c.title, where),
                     "state": c.status,
                     "batch": d.id,
                     "pr": c.shown_pr(),
@@ -335,9 +358,9 @@ def dashboard_view(repo: Repo, paths: dict[str, Path]) -> dict[str, Any]:
     start = repo.changes
     batches = []
     for folder in repo.batch_folders():
-        d = read_batch_json(folder / "batch.json")
+        d = read_batch_json(repo.store, folder / "batch.json")
         v = batch_view(repo, d, folder)
-        events = read_events(folder)
+        events = read_events(repo.store, folder)
         active = [c for c in sorted(d.crs, key=lambda x: x.order) if c.status not in ENDED]
         batches.append(
             {
@@ -358,16 +381,16 @@ def dashboard_view(repo: Repo, paths: dict[str, Path]) -> dict[str, Any]:
                 "crs": [_row(repo, d, c, start, events) for c in active],
             }
         )
-    merged, merged_total = _past(paths["archives"], start)
+    merged, merged_total = _past(repo.store, paths["archives"], start)
     done = _done_rows(repo, start)
     merged, merged_total = (done + merged)[:PAST_LIMIT], merged_total + len(done)
-    trashed, trashed_total = _past(paths["trash"], start)
+    trashed, trashed_total = _past(repo.store, paths["trash"], start)
     return {
         "schema": SCHEMA,
         "updated": now(),
         "batches": batches,
         "active_crs": sum(len(b["crs"]) for b in batches),
-        "backlog": _backlog(paths, start),
+        "backlog": _backlog(repo.store, paths, start),
         "merged": merged,
         "merged_total": merged_total,
         "trashed": trashed,

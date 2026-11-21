@@ -149,7 +149,7 @@ def test_the_status_close_and_record_tell_a_trashed_cr_from_a_moved_one(
         assert chantier("cancel", cr_id, "--epoch", 1)[0] == 0
     out = (changes(repo) / "4-batch" / "STATUS.md").read_text("utf-8")
     assert "[⚪ dropped](" in out and "[⚪ dropped to 2-backlog/P2](" in out
-    batch = read_batch_json(changes(repo) / "4-batch" / "batch.json")
+    batch = read_batch_json(Repo.find().store, changes(repo) / "4-batch" / "batch.json")
     lines = _to_remove(Repo.find(), batch)
     assert any(x.startswith(f"{trashed} (dropped) worktree") for x in lines)
     assert not any(x.startswith(moved) for x in lines)

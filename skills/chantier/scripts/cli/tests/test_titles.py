@@ -17,6 +17,7 @@ from chantier.core.repo import Repo
 from chantier.declare.summary import TITLE_MAX as DECLARED
 from chantier.lifecycle.backlog import idea_slug
 from chantier.status.views import folder_title, shown_title
+from chantier.store import FolderStore
 
 FM = "---\ntype: cr-spec\ndescription: x\n---\n"
 CASES = [
@@ -42,11 +43,12 @@ def test_a_title_behind_a_frontmatter_is_found_recorded_and_shown(
     host(monkeypatch)
     folder = prepared(repo, chantier, "Placeholder")
     (folder / "03-change-spec.md").write_text(FM + "\n# Real title\n\nDo it.\n", encoding="utf-8")
-    assert folder_title(folder) == "Real title"
-    assert shown_title("---", folder) == "Real title"
-    assert shown_title("Kept", folder) == "Kept"
-    assert shown_title("---", None) == "---"
-    assert shown_title("---", folder / "missing") == "---"
+    store = Repo.find().store
+    assert folder_title(store, folder) == "Real title"
+    assert shown_title(store, "---", folder) == "Real title"
+    assert shown_title(store, "Kept", folder) == "Kept"
+    assert shown_title(store, "---", None) == "---"
+    assert shown_title(store, "---", folder / "missing") == "---"
     code, _, err = chantier("open", str(folder), *FROM_AGENTS_MD)
     assert code == 0, err
     assert record(repo)["crs"][0]["title"] == "Real title"
@@ -99,8 +101,8 @@ def test_a_cr_joins_with_its_plain_subject(
     assert "change-specification" not in cr["branch"]
 
 
-def test_an_old_record_is_shown_plain() -> None:
-    assert shown_title("Change Specification: Old", None) == "Old"
+def test_an_old_record_is_shown_plain(tmp_path: Path) -> None:
+    assert shown_title(FolderStore(tmp_path), "Change Specification: Old", None) == "Old"
 
 
 def test_the_title_limits_of_the_core_and_the_declaration_agree() -> None:

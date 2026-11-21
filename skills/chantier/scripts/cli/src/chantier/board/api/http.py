@@ -72,7 +72,7 @@ def _file(ctx: Context, req: Request, project_id: str) -> Reply:
     project = reads.found(ctx, project_id)
     if project is None or "path" not in req.query:
         return text(404, "not found")
-    return files.read(project.repo.changes.resolve(), req.query["path"])
+    return files.read(project.repo.store, project.repo.changes.resolve(), req.query["path"])
 
 
 def _route(ctx: Context, req: Request) -> Reply:

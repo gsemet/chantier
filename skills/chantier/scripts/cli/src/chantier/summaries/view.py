@@ -4,10 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from chantier.core.records import Origin
-from chantier.summaries import store
+from chantier.summaries import store as summaries_store
 from chantier.summaries.gaps import gap_of
+
+if TYPE_CHECKING:
+    from chantier.store import PlanStore
 
 
 @dataclass(frozen=True)
@@ -22,16 +26,16 @@ class SummaryView:
     late: bool
 
 
-def summary_view(folder: Path) -> SummaryView | None:
+def summary_view(store: PlanStore, folder: Path) -> SummaryView | None:
     """The CR's summary as the board reads it; None when the folder has no `summary.json`. An
     unreadable file is late with empty fields: the caller logs it, nothing is raised."""
     try:
-        summary = store.read(folder)
-    except store.UnreadableSummary:
+        summary = summaries_store.read(store, folder)
+    except summaries_store.UnreadableSummary:
         return SummaryView("", "", None, (), None, late=True)
     if summary is None:
         return None
-    gap = gap_of(folder)
+    gap = gap_of(store, folder)
     return SummaryView(
         summary.title or "",
         summary.summary or "",

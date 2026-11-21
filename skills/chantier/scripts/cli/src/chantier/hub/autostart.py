@@ -59,7 +59,7 @@ def not_running_line(repo: Repo) -> list[str]:
     running, paused or none), else nothing."""
     if session_key() in lock.watchers(repo.git_dir, project_name(repo)):
         return []
-    n = journal.last_seq(journal.read(repo.changes)[0])
+    n = journal.last_seq(journal.read(repo.store, repo.changes)[0])
     return [
         "watch: not running: for the Chief of Staff, start in the background: "
         + watch_command(repo, n)

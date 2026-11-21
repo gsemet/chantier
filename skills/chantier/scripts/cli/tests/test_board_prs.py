@@ -391,10 +391,10 @@ def test_status_names_what_it_cannot_read_and_prints_only_the_open_crs_of_its_ba
 def test_the_signal_file_is_local_counted_by_no_one_and_moves_the_fingerprint(board: Board) -> None:
     repo = Repo.find(readonly=True)
     root = changes(board.repo)
-    before = fingerprint.fingerprint(root)
+    before = fingerprint.fingerprint(repo.store, root)
     board.forge = {FIRST: {"state": "merged"}}
     board.get()
-    assert (root / SEEN).is_file() and fingerprint.fingerprint(root) != before
+    assert (root / SEEN).is_file() and fingerprint.fingerprint(repo.store, root) != before
     assert SEEN in files.IGNORED and SEEN in fingerprint.SINGLE
     journal.rescan(repo)
-    assert (root / SEEN).is_file() and journal.since_rescan(root) == []
+    assert (root / SEEN).is_file() and journal.since_rescan(repo.store, root) == []

@@ -116,7 +116,7 @@ class Batch:
         if path.exists():
             if self._create is not None:
                 raise ChantierError(f"batch {self.id} already exists")
-            self.record = read_batch_json(path)
+            self.record = read_batch_json(self.repo.store, path)
         else:
             self.record = self._create or BatchRecord()
         apply_batch_settings(self.repo, self.record)
@@ -262,7 +262,7 @@ def check_epoch(b: Batch, epoch: int | None) -> None:
 
 
 def read_batch(repo: Repo, batch_id: str) -> BatchRecord:
-    record = read_batch_json(repo.batch_dir(batch_id) / "batch.json")
+    record = read_batch_json(repo.store, repo.batch_dir(batch_id) / "batch.json")
     apply_batch_settings(repo, record)
     return record
 
@@ -274,7 +274,7 @@ def find_cr_batch(repo: Repo, cr_id: str, batch: str | None) -> str:
     if batch:
         return normalize_batch(batch)
     for d in reversed(repo.batch_folders()):
-        b = read_batch_json(d / "batch.json")
+        b = read_batch_json(repo.store, d / "batch.json")
         if any(c.id == cr_id for c in b.crs):
             return b.id
     raise ChantierError(f"no batch holds {cr_id}", EXIT_USAGE)
@@ -287,7 +287,7 @@ def next_cr_number(repo: Repo, roots: tuple[Path, ...] = ()) -> int:
     """Choose a number under the lifecycle lock, without reserving it on a failed move."""
     previous: int = repo.config["first_cr_number"] - 1
     # a number `restore` took off a folder: once given, a number is never given again
-    previous = max(previous, read_restored_number(repo.changes / RESTORED_NUMBER_FILE))
+    previous = max(previous, read_restored_number(repo.store, repo.changes / RESTORED_NUMBER_FILE))
     children = [c for root in roots if root.is_dir() for c in root.iterdir() if c.is_dir()]
     for child in children:
         name = re.sub(r"^(?:\d{6}-\d{4}-)+", "", child.name)  # the date is no number
@@ -295,7 +295,9 @@ def next_cr_number(repo: Repo, roots: tuple[Path, ...] = ()) -> int:
         if match:
             previous = max(previous, int(match.group(1)))
     recorded = [
-        cr.id for batch in repo.batch_folders() for cr in read_batch_json(batch / "batch.json").crs
+        cr.id
+        for batch in repo.batch_folders()
+        for cr in read_batch_json(repo.store, batch / "batch.json").crs
     ]
     for cr_id in recorded:
         match = re.fullmatch(r"CR-(\d+)", cr_id)

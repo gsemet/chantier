@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from chantier.board.backlog import description
+from chantier.store import FolderStore
 
 FM = "---\ntype: cr-intent\nid: x\n---\n"
 CASES = [
@@ -38,4 +39,4 @@ def test_description_skips_a_frontmatter(
 ) -> None:
     for name, text in files.items():
         (tmp_path / name).write_bytes(text.encode("utf-8"))
-    assert description(tmp_path) == expected
+    assert description(FolderStore(tmp_path), tmp_path) == expected

@@ -12,6 +12,7 @@ from chantier.board.backlog import backlog_items
 from chantier.board.crs import cr_rows
 from chantier.core import waits
 from chantier.core.batch import read_batch
+from chantier.store import FolderStore
 
 LINK = "https://github.com/acme/alpha/pull/10"
 
@@ -42,5 +43,5 @@ def test_a_backlog_item_carries_the_open_waits_of_its_file(tmp_path: Path) -> No
     (folder / "01-intent.md").write_text("# A\n", encoding="utf-8")
     (folder / waits.FILE).write_text(waits.file_text([_w("w1", True), _w("w2")]), encoding="utf-8")
     row = {"item": "a", "title": "A", "path": "1-inbox/a", "priority": "inbox"}
-    (item,) = backlog_items(tmp_path, [row])["inbox"]
+    (item,) = backlog_items(FolderStore(tmp_path), tmp_path, [row])["inbox"]
     assert [w["id"] for w in item["open_waits"]] == ["w2"]

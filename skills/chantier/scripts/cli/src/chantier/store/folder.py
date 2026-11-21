@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import contextlib
+import os
+import stat
+import threading
 import time
 from collections.abc import Iterator
 from pathlib import Path
@@ -18,6 +21,7 @@ from chantier.core.errors import (
 from chantier.core.files import (
     ensure_gitignore,
     read_text,
+    rel_in,
     retry,
     try_lock,
     unlock,
@@ -29,6 +33,7 @@ from chantier.store.base import LOCAL_FILES, READ_ONLY, guard, is_published
 
 LOCK_WAIT_S = 30  # how long `lock()` waits for another holder
 LOCK_FILE = ".lifecycle.lock"
+_REPARSE = 0x400  # FILE_ATTRIBUTE_REPARSE_POINT: a Windows symlink or junction
 
 
 class FolderStore:
@@ -39,22 +44,107 @@ class FolderStore:
 
     def __init__(self, changes: Path):
         self.root = changes
+        self._real: Path | None = None  # `root.resolve()`, once: the guard runs on each read
+        self._scope = threading.local()  # the folders `reading()` of a thread has checked
 
     @property
     def config_path(self) -> Path | None:
         return None
 
     def _p(self, rel: str, root_ok: bool = False) -> Path:
-        return guard(self.root, rel, root_ok)
+        if self._real is None:
+            self._real = self.root.resolve()
+        return guard(self.root, rel, root_ok, self._real)
 
-    def read_text(self, rel: str) -> str:
-        return read_text(self._p(rel))
+    @contextlib.contextmanager
+    def reading(self) -> Iterator[None]:
+        """One read-only pass over the folder (a board state): a folder it has checked for links
+        is not checked again until the pass ends. Nothing lasts across passes, and a thread
+        outside a pass checks on every read."""
+        if getattr(self._scope, "seen", None) is not None:
+            yield
+            return
+        self._scope.seen = set()
+        try:
+            yield
+        finally:
+            self._scope.seen = None
+
+    def _r(self, rel: str, root_ok: bool = False, content: bool = False) -> Path:
+        """`_p` for a read: a `rel` of plain names is checked lexically and by one `lstat` per
+        component under the root, the leaf included (a component already checked in the same
+        `reading()` pass is skipped); a symlink or junction on the way, or anything but plain
+        names, gets the full guard (`resolve`). Writes keep `_p`."""
+        parts = rel.split("/")
+        if any(p in ("", ".", "..") or ":" in p or "\\" in p or "\x00" in p for p in parts):
+            return self._p(rel, root_ok)
+        seen: set[str] | None = getattr(self._scope, "seen", None)
+        base = os.fspath(self.root)
+        prefix = ""
+        for part in parts:
+            prefix = f"{prefix}/{part}" if prefix else part
+            if seen is not None and prefix in seen:
+                continue
+            try:
+                st = os.lstat(f"{base}/{prefix}")
+            except OSError:
+                break  # absent: nothing below it can be a link, the read itself reports it
+            if stat.S_ISLNK(st.st_mode) or getattr(st, "st_file_attributes", 0) & _REPARSE:
+                return self._p(rel, root_ok)
+            if seen is not None:
+                seen.add(prefix)
+        return self.root / rel
+
+    def read_text(self, rel: str, errors: str = "strict") -> str:
+        return read_text(self._r(rel, content=True), errors)
+
+    def read_bytes(self, rel: str, limit: int | None = None) -> bytes:
+        path = self._r(rel, content=True)
+        if limit is None:
+            return retry(path.read_bytes)
+        return retry(self._head, path, limit)
+
+    @staticmethod
+    def _head(path: Path, limit: int) -> bytes:
+        with path.open("rb") as f:
+            return f.read(limit)
 
     def exists(self, rel: str) -> bool:
-        return self._p(rel, True).exists()
+        return self._r(rel, True).exists()
+
+    def is_file(self, rel: str) -> bool:
+        return self._r(rel, True).is_file()
+
+    def is_dir(self, rel: str) -> bool:
+        return self._r(rel, True).is_dir()
 
     def listdir(self, rel: str) -> list[str]:
-        return sorted(p.name for p in self._p(rel, True).iterdir())
+        return sorted(p.name for p in self._r(rel, True).iterdir())
+
+    def glob(self, rel: str, pattern: str) -> list[str]:
+        """The names directly in the folder `rel` that match `pattern` (`Path.glob`'s rules)."""
+        return sorted(p.name for p in self._r(rel, True).glob(pattern))
+
+    def stat(self, rel: str) -> tuple[int, int] | None:
+        try:
+            st = self._r(rel, True).stat()
+        except OSError:
+            return None
+        return st.st_size, st.st_mtime_ns
+
+    def walk(self, rel: str) -> Iterator[tuple[str, list[str], list[str]]]:
+        """As `os.walk`, top-down: the folder's rel (`.` for the root), its folder names (edit
+        in place to prune) and its file names. A symlinked folder is listed, never entered; an
+        absent folder gives nothing. The guard runs once, on `rel`."""
+        top = self._r(rel, True)
+        base, cut = rel_in(self.root, top), len(os.fspath(top))
+        for folder, dirs, files in os.walk(top):
+            tail = folder[cut:].replace(os.sep, "/").strip("/")
+            yield (
+                (base if base != "." else "") + ("/" if base != "." and tail else "") + tail or ".",
+                dirs,
+                files,
+            )
 
     def write_text(self, rel: str, text: str) -> None:
         write_file(self._p(rel), text)

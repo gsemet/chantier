@@ -127,7 +127,7 @@ def _close_files(k: Closing, record: BatchRecord) -> tuple[Rec, str]:
                 c.model_copy(
                     update={
                         "title": shown_title(
-                            c.title, k.repo.planning_path(c.path) if c.path else None
+                            k.repo.store, c.title, k.repo.planning_path(c.path) if c.path else None
                         )
                     }
                 )

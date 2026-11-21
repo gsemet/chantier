@@ -8,15 +8,19 @@ import hashlib
 import json
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from chantier.board import costs, journal, prs, reads
 from chantier.board.api import ops, times
 from chantier.board.context import Context
 from chantier.board.projects import Project
 from chantier.core import clock
+from chantier.core.files import rel_in
 from chantier.hub import journal as forge_journal
 from chantier.hub import schemas
+
+if TYPE_CHECKING:
+    from chantier.store import PlanStore
 
 Reading = tuple[str, dict[str, Any] | None] | None
 Read = Callable[[Context, Any, str | None], Reading]
@@ -84,26 +88,21 @@ def _prs(ctx: Context, project: Project, a: Any, last: str | None) -> Reading:
 
 
 def _journal(ctx: Context, project: Project, a: Any, last: str | None) -> Reading:
-    path = project.repo.changes / journal.FILE
-    try:
-        info = path.stat()
-        rev = f"{info.st_size}:{info.st_mtime_ns}"
-    except OSError:
-        rev = "-"
+    store = project.repo.store
+    info = store.stat(rel_in(store.root, project.repo.changes / journal.FILE))
+    rev = "-" if info is None else f"{info[0]}:{info[1]}"
     return _unchanged(rev, last, lambda: ops.journal_data(project))
 
 
-def _entries(ctx: Context, changes: Path) -> list[dict[str, Any]]:
+def _entries(ctx: Context, store: PlanStore, changes: Path) -> list[dict[str, Any]]:
     """The forge journal's lines, read again only when the file's size or time moved."""
     path = changes / forge_journal.FILE
-    try:
-        info = path.stat()
-    except OSError:
+    mark = store.stat(rel_in(store.root, path))
+    if mark is None:
         return []
-    mark = (info.st_size, info.st_mtime_ns)
     kept = ctx.journal_seen.get(path)
     if kept is None or kept[0] != mark:
-        kept = ctx.journal_seen[path] = (mark, forge_journal.read(changes)[0])
+        kept = ctx.journal_seen[path] = (mark, forge_journal.read(store, changes)[0])
     return kept[1]
 
 
@@ -121,7 +120,7 @@ def _told(entry: dict[str, Any]) -> dict[str, Any]:
 
 
 def _events(ctx: Context, project: Project, a: Any, last: str | None) -> Reading:
-    entries = _entries(ctx, project.repo.changes)
+    entries = _entries(ctx, project.repo.store, project.repo.changes)
     if last is not None and last.isdigit():
         cursor = int(last)
     else:

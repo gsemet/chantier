@@ -67,11 +67,14 @@ def ticket_cr(p: Path, drop: bool) -> str | None:
 def next_merge_cr(queue: Path) -> str | None:
     """The CR the user merges next, read from the batch's `batch.json` beside the queue (none in
     a parallel batch, or with no batch). It only reads."""
+    from chantier.store import FolderStore  # noqa: PLC0415 - the store imports modules above
+
+    store = FolderStore(queue.parent)  # the planning folder; reads are the same on every backend
     path = queue.parent / "4-batch" / "batch.json"
-    if not path.is_file():
+    if not store.is_file("4-batch/batch.json"):
         return None
     try:
-        c = next_merge(read_batch_json(path))
+        c = next_merge(read_batch_json(store, path))
     except ChantierError:
         return None
     return c.id if c else None

@@ -91,7 +91,7 @@ def _join_factory(repo: Repo, item: str, moved: list[str]) -> list[str]:
     folders = repo.batch_folders()
     if not folders:
         return []
-    record = read_batch_json(folders[0] / "batch.json")
+    record = read_batch_json(repo.store, folders[0] / "batch.json")
     if not record.factory:
         return []
     from chantier.commands.orders import add_order  # noqa: PLC0415 - slow
@@ -137,7 +137,7 @@ def _owners(repo: Repo, source: Path) -> tuple[tuple[str, CrEntry] | None, list[
     """The open batch's CR that owned this folder (batch id, CR), and the slugs of its other CRs."""
     known, batch_crs = None, []
     for batch_dir in repo.batch_folders():
-        record = read_batch_json(batch_dir / "batch.json")
+        record = read_batch_json(repo.store, batch_dir / "batch.json")
         for cr in (c for c in record.crs if c.path):
             path = cr.path or ""
             if repo.planning_path(path, "recorded CR path") == source:

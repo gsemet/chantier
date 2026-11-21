@@ -37,16 +37,19 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from chantier.board.crs import link_of
 from chantier.core import clock
-from chantier.core.files import read_text
 from chantier.core.records import BatchRecord
+from chantier.core.files import rel_in
 from chantier.core.repo import Repo
 from chantier.hub import schemas
 from chantier.hub.schemas import PUBLISHED, config_text, merged_text, wait_cleared_text
 from chantier.lifecycle.stages import changes_lock
+
+if TYPE_CHECKING:
+    from chantier.store.base import PlanStore
 
 FILE = "forge-journal.jsonl"
 VERSION = 2
@@ -98,21 +101,21 @@ def _effective(entry: dict[str, Any]) -> tuple[dict[str, Any], str]:
 
 
 def read(
-    changes: Path,
+    store: PlanStore, changes: Path
 ) -> tuple[list[dict[str, Any]], list[int], list[tuple[int, int]], list[tuple[int, str]]]:
     """The lines that are JSON objects, each with its effective `type`, `source` and `audience`;
     the numbers (from 1) of the lines that are not, with those of a published type whose payload
     its model refuses; `(number, version)` of the lines of a newer version; and `(number, type)`
     of the version 2 lines of a type not published. Those lines are among the first, with an empty
     audience."""
-    path = changes / FILE
-    if not path.is_file():
+    rel = rel_in(store.root, changes / FILE)
+    if not store.is_file(rel):
         return [], [], [], []
     found: list[dict[str, Any]] = []
     bad: list[int] = []
     later: list[tuple[int, int]] = []
     unknown: list[tuple[int, str]] = []
-    for n, line in enumerate(read_text(path, "replace").splitlines(), 1):
+    for n, line in enumerate(store.read_text(rel, "replace").splitlines(), 1):
         if not line.strip():
             continue
         try:
@@ -273,7 +276,7 @@ def append(repo: Repo, events: list[dict[str, Any]], source: str) -> list[dict[s
     if not events:
         return []
     with changes_lock(repo):
-        entries = read(repo.changes)[0]
+        entries = read(repo.store, repo.changes)[0]
         seen = {_key(e) for e in entries}
         seq = last_seq(entries)
         written: list[dict[str, Any]] = []

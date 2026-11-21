@@ -17,7 +17,7 @@ def watch_lines(repo: Repo, d: BatchRecord) -> list[str]:
     lines = [hub_line(repo)] if d.status == "running" else []
     project = project_name(repo)
     if autostart.session_key() in lock.watchers(repo.git_dir, project):
-        last = journal.last_seq(journal.read(repo.changes)[0])
+        last = journal.last_seq(journal.read(repo.store, repo.changes)[0])
         lines.append(
             f"watch: this session's watcher runs; pull path: {autostart.pull_command(repo, last)}"
         )

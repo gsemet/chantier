@@ -35,7 +35,7 @@ def findings(repo: Repo) -> tuple[list[Finding], int]:
     found = [*placement(repo), *shape(repo), *broken_links(repo)]
     unbatched = {paths["inbox"], paths["ready"], *(paths["backlog"] / p for p in PRIORITIES)}
     for cr in [*live, *closed]:
-        found += summary_findings(repo.rel(cr), cr, cr.parent == trash)
+        found += summary_findings(repo.store, repo.rel(cr), cr, cr.parent == trash)
         # a CR not yet in a batch must have a short title; later ones are history
         severity: Severity = "error" if cr.parent in unbatched else "gap"
         for f in title_findings(repo, cr, severity):
@@ -43,7 +43,7 @@ def findings(repo: Repo) -> tuple[list[Finding], int]:
             text = f.text.partition(" → ")[0] if cr.parent == trash else f.text
             found.append(Finding(f.severity, f.path, text))
     for cr in live:
-        gap = gap_of(cr)  # None for a folder with no covered file
+        gap = gap_of(repo.store, cr)  # None for a folder with no covered file
         if gap and gap.kind not in ("unreadable", "no heading", "long title"):
             path, _, text = gap_line(repo, gap).partition(": ")
             found.append(Finding("gap", path, text))

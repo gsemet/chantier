@@ -164,7 +164,7 @@ def _spec_text(specification: Path) -> str:
 
 def ensure_unclaimed(repo: Repo, directory: Path) -> None:
     for batch_dir in repo.batch_folders():
-        batch = read_batch_json(batch_dir / "batch.json")
+        batch = read_batch_json(repo.store, batch_dir / "batch.json")
         for cr in batch.crs:
             if cr.status in {"cancelled", "merged"} or not cr.path:
                 continue

@@ -93,7 +93,7 @@ def test_a_version_zero_line_reads_as_the_projects_and_a_newer_one_wakes_no_one(
     later = {"v": 3, "seq": 2, "t": "t", "type": "merged@1", "source": "x", "audience": ["project"]}
     raw(repo, old, later)
     found = Repo.find()
-    entries, bad, newer, unknown = journal.read(found.changes)
+    entries, bad, newer, unknown = journal.read(found.store, found.changes)
     assert (entries[0]["source"], entries[0]["audience"]) == ("board", ["project"])
     assert (bad, newer, unknown, entries[1]["audience"]) == ([], [(2, 3)], [], [])
     assert entries[0]["type"] == "board@1"

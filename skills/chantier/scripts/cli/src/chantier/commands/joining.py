@@ -65,11 +65,11 @@ def check_joins(repo: Repo, items: list[str], extra: tuple[Path, ...] = ()) -> N
     repo.check_publish([*extra, *join_paths(repo, directories)])
 
 
-def _waits_of(directory: Path, cr_id: str) -> list[dict[str, Any]] | None:
+def _waits_of(repo: Repo, directory: Path, cr_id: str) -> list[dict[str, Any]] | None:
     """The waits of the prepared folder's `waits.json`; None with no file; a file that is not
     valid refuses the join, before anything moves."""
     try:
-        return waits.read_file(directory)
+        return waits.read_file(repo.store, directory)
     except waits.WaitsInvalid as e:
         raise ChantierError(
             f"{cr_id}: {waits.FILE} is not valid: {e}; fix it or remove it, then open again",
@@ -98,7 +98,7 @@ def join_cr(b: Batch, item: str, kind: str = "change") -> tuple[CrEntry, str | N
     slug = re.sub(r"^(?:CR-)?\d+-", "", prepared.directory.name, flags=re.I)
     cdir = paths["pending"] / f"{number:03d}-{slugify(slug)}"
     origin = repo.rel(prepared.directory)
-    found = _waits_of(prepared.directory, cr_id)
+    found = _waits_of(repo, prepared.directory, cr_id)
     b.move(prepared.directory, cdir)
     title = prepared.title
     spec = prepared.specification.relative_to(prepared.directory).as_posix()

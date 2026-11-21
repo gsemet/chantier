@@ -9,7 +9,12 @@ import sys
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import IO, Any, TypeVar
+from typing import IO, TYPE_CHECKING, Any, TypeVar
+
+from chantier.core.errors import EXIT_USAGE, ChantierError
+
+if TYPE_CHECKING:
+    from chantier.store import PlanStore
 
 if sys.platform == "win32":
     import msvcrt
@@ -50,13 +55,13 @@ def subject(title: str) -> str:
 TITLE_FILES = ("03-change-spec.md", "01-intent.md", "intake/request.md")
 
 
-def title_source(folder: Path) -> tuple[str, str | None]:
+def title_source(store: PlanStore, folder: Path) -> tuple[str, str | None]:
     """A CR folder's own title and the file it is read from (None when it is the folder's name):
     the first heading of its specification, intent or request, else that file's first line."""
     for name in TITLE_FILES:
-        path = folder / name
-        if path.is_file():
-            title = subject(markdown_title(read_text(path, "replace")))
+        rel = rel_in(store.root, folder / name)
+        if store.is_file(rel):
+            title = subject(markdown_title(store.read_text(rel, "replace")))
             if title:
                 return title, name
     return folder.name, None
@@ -130,6 +135,22 @@ def write_bytes(path: Path, data: bytes) -> None:
 
 def write_json(path: Path, data: Any, *, ensure_ascii: bool = True) -> None:
     write_file(path, json.dumps(data, indent=2, ensure_ascii=ensure_ascii) + "\n")
+
+
+def rel_in(root: Path, path: Path) -> str:
+    """`path`'s place under `root` as a forward-slash rel (`.` for the root itself), by its text
+    alone: no resolve, no disk. Only a path not lexically under `root` is resolved, and refused,
+    as the store's guard refuses it, when it still leaves `root`."""
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        pass
+    try:
+        return path.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        raise ChantierError(
+            f"path must be inside the planning folder: {path}", EXIT_USAGE
+        ) from None
 
 
 def is_lock(name: str) -> bool:

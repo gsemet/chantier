@@ -12,12 +12,15 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from chantier.core.errors import EXIT_CONFLICT, ChantierError
-from chantier.core.files import read_text
+from chantier.core.files import rel_in
 from chantier.core.records import BatchRecord
 from chantier.core.repo import RECORDS, Repo
+
+if TYPE_CHECKING:
+    from chantier.store import PlanStore
 
 Rec = dict[str, Any]  # a record, as its JSON reads
 SCHEMA = 1
@@ -50,9 +53,9 @@ def write_record(repo: Repo, path: Path, record: Rec) -> None:
     repo.store.write_json(repo.rel(path), record, ensure_ascii=False)
 
 
-def read_record(path: Path) -> Rec | None:
+def read_record(store: PlanStore, path: Path) -> Rec | None:
     try:
-        data = json.loads(read_text(path))
+        data = json.loads(store.read_text(rel_in(store.root, path)))
     except (OSError, ValueError):
         return None
     return data if isinstance(data, dict) else None
@@ -97,7 +100,7 @@ def reserve_record(repo: Repo, data: BatchRecord) -> Path:
     batch, whose planning folder was not pulled: refused, nothing written."""
     number = number_of(data.id)
     path = record_path(repo, number)
-    if path.exists():
+    if repo.store.exists(rel_in(repo.store.root, path)):
         raise ChantierError(
             f"{data.id} is already recorded in {repo.rel(path)}; pull the "
             "planning folder and open again",
@@ -109,12 +112,13 @@ def reserve_record(repo: Repo, data: BatchRecord) -> Path:
 
 def last_closed(repo: Repo) -> Rec | None:
     """The record with the highest number whose state is `closed`."""
+    store = repo.store
     found = []
-    for path in records_dir(repo).glob("batch-*.json"):
-        if m := re.fullmatch(r"batch-(\d+)\.json", path.name):
-            found.append((int(m[1]), path))
+    for name in store.glob(rel_in(store.root, records_dir(repo)), "batch-*.json"):
+        if m := re.fullmatch(r"batch-(\d+)\.json", name):
+            found.append((int(m[1]), records_dir(repo) / name))
     for _, path in sorted(found, reverse=True):
-        record = read_record(path)
+        record = read_record(store, path)
         if record and record.get("state") == "closed":
             return record
     return None
@@ -126,22 +130,25 @@ def last_closed_note(repo: Repo) -> str:
     return f"; last closed: {record['batch']}" if record else "; no batch closed yet"
 
 
-def read_retro(folder: Path) -> str | None:
+def read_retro(store: PlanStore, folder: Path) -> str | None:
     """`4-batch/retro.md`'s text; None when there is no retro: missing, or no bytes but
     whitespace."""
-    retro = folder / "retro.md"
+    rel = rel_in(store.root, folder / "retro.md")
     try:
-        if not retro.is_file() or not retro.read_bytes().strip():
+        if not store.is_file(rel) or not store.read_bytes(rel).strip():
             return None
-        return read_text(retro, "replace")
+        return store.read_text(rel, "replace")
     except OSError:
         return None
 
 
 def check_closable(repo: Repo, number: int) -> None:
     """Refuses (exit 3) a batch whose `batch-NN.md` exists or whose record says `closed`."""
-    existing = read_record(record_path(repo, number))
-    if report_path(repo, number).exists() or (existing and existing.get("state") == "closed"):
+    store = repo.store
+    existing = read_record(store, record_path(repo, number))
+    if store.exists(rel_in(store.root, report_path(repo, number))) or (
+        existing and existing.get("state") == "closed"
+    ):
         raise ChantierError(
             f"refusing to overwrite {repo.rel(report_path(repo, number))}: "
             f"{name_of(number)} is already closed, nothing was closed",
@@ -159,7 +166,7 @@ def write_close(repo: Repo, record: Rec, markdown: str) -> None:
 def undo_close(repo: Repo, number: int, old: bytes | None) -> None:
     """Put the JSON's old bytes back (none: remove it) and remove the Markdown this close wrote."""
     for path in (report_path(repo, number), *([record_path(repo, number)] if old is None else [])):
-        if path.exists():
+        if repo.store.exists(rel_in(repo.store.root, path)):
             repo.store.remove(repo.rel(path))
     if old is not None:
         repo.store.write_bytes(repo.rel(record_path(repo, number)), old)

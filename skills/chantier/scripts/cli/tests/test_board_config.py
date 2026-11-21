@@ -127,7 +127,9 @@ def test_a_save_writes_one_config_line_per_changed_key_and_a_dry_run_none(
     found = Repo.find(project="demo", readonly=True)
 
     def lines() -> list[dict[str, Any]]:
-        return [e for e in forge_journal.read(found.changes)[0] if e["type"] == "config@1"]
+        return [
+            e for e in forge_journal.read(found.store, found.changes)[0] if e["type"] == "config@1"
+        ]
 
     def change(value: Any) -> dict[str, Any]:
         if name in ("slots", "parallel"):
@@ -228,4 +230,6 @@ def test_a_config_event_its_model_refuses_leaves_the_save_and_names_the_skipped_
     assert code == OK and answer["ok"] is True
     assert answer["error"].startswith("skipped: journal payload config@1:")
     assert answer["sha256"] != sha and answer["journal"]
-    assert [e for e in forge_journal.read(found.changes)[0] if e["type"] == "config@1"] == []
+    assert [
+        e for e in forge_journal.read(found.store, found.changes)[0] if e["type"] == "config@1"
+    ] == []

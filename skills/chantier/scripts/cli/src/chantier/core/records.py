@@ -15,7 +15,10 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from chantier.core.errors import ChantierError
-from chantier.core.files import read_json, read_text
+from chantier.core.files import rel_in
+
+if TYPE_CHECKING:
+    from chantier.store import PlanStore
 
 DEFAULT_MAX_ROUNDS = 3
 SUMMARY_FILE = "summary.json"
@@ -326,10 +329,10 @@ class CrSummary(Record):
         return self.model_dump(mode="json", exclude_unset=True, by_alias=True)
 
 
-def read_batch_json(path: Path) -> BatchRecord:
+def read_batch_json(store: PlanStore, path: Path) -> BatchRecord:
     """A `batch.json`, in today's words. Nothing is written here; the next write through
     `Batch` stores the new words."""
-    data = read_json(path)
+    data = json.loads(store.read_text(rel_in(store.root, path)))
     if not isinstance(data, dict):
         return BatchRecord()
     try:
@@ -356,11 +359,13 @@ def round_limit(d: BatchRecord, c: CrEntry) -> int:
     return c.rounds or (d.settings or BatchSettings()).max_rounds
 
 
-def read_restored_number(path: Path) -> int:
+def read_restored_number(store: PlanStore, path: Path) -> int:
     """The number `restore` last took off a folder; 0 when there is none or the file is
     unreadable."""
     try:
-        return RestoredRecord.model_validate_json(read_text(path)).last_number
+        return RestoredRecord.model_validate_json(
+            store.read_text(rel_in(store.root, path))
+        ).last_number
     except (OSError, ValueError):
         return 0
 
@@ -370,11 +375,11 @@ def restored_bytes(number: int) -> bytes:
     return (json.dumps(RestoredRecord(last_number=number).to_data()) + "\n").encode("utf-8")
 
 
-def read_events(folder: Path) -> list[EventRecord]:
+def read_events(store: PlanStore, folder: Path) -> list[EventRecord]:
     """The batch's `events.jsonl`, in order; a half-written last line is skipped."""
-    path = folder / "events.jsonl"
+    rel = rel_in(store.root, folder / "events.jsonl")
     out = []
-    for line in read_text(path).splitlines() if path.exists() else []:
+    for line in store.read_text(rel).splitlines() if store.exists(rel) else []:
         try:
             out.append(EventRecord.model_validate_json(line))
         except ValueError:  # the last line of a process killed while appending

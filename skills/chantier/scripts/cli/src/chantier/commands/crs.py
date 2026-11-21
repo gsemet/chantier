@@ -55,7 +55,7 @@ def cr_worktree(c: CrEntry) -> Path:
 
 
 def cr_events(repo: Repo, batch: str, cr_id: str) -> list[EventRecord]:
-    return [e for e in read_events(repo.batch_dir(batch)) if e.cr == cr_id]
+    return [e for e in read_events(repo.store, repo.batch_dir(batch)) if e.cr == cr_id]
 
 
 def short_head(head: str | None) -> str:
