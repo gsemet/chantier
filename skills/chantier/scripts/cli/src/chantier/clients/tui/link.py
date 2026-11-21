@@ -3,11 +3,14 @@ subscriptions, and the server's `now`.
 
 The WebSocket first (`ws(s)://<base>/api/v1/ws`, the key in the header, `hello` with protocol 1),
 then, in `auto`, the HTTP long-poll (`POST <base>/api/v1/poll`) when the socket does not open or
-gives no `welcome` within 5 s. A refused key or protocol ends the run with the server's sentence,
-never retried on the other transport. A lost link (no frame for 15 s, a close, a failed poll) is
+gives no `welcome` within 5 s (until one transport answers, no `Linked` with a transport comes, so
+a caller can tell a server that holds its port and does not answer). A refused key or protocol
+ends the run with the server's sentence (`Refusal`, its `kind` `key` or `protocol`), never retried
+on the other transport. A lost link (no frame for 15 s, a close, a failed poll) is
 retried every 5 s without end; the `events` subscriptions then carry `after: <the last seq seen>`,
 so no journal line is lost or shown twice. It sends `hello`, `sub`, `unsub` and the poll, and
-nothing else. `websockets` loads when a socket opens."""
+nothing else; the client's name in `hello` and the `User-Agent` is the caller's (`chantier live`'s
+by default, a watcher's for `chantier watch`). `websockets` loads when a socket opens."""
 
 from __future__ import annotations
 
@@ -87,9 +90,20 @@ class NoSocket(Exception):
     """The WebSocket did not open or said no `welcome`: HTTP, in `auto`."""
 
 
-def refused(sentence: str) -> ChantierError:
+KEY, PROTOCOL_KIND = "key", "protocol"
+
+
+class Refusal(ChantierError):
+    """A refused key or protocol: `kind` (`key` or `protocol`) and the server's `sentence`."""
+
+    def __init__(self, sentence: str, kind: str) -> None:
+        self.sentence, self.kind = " ".join(sentence.split()), kind
+        super().__init__(f"live: {self.sentence}", EXIT_EXTERNAL)
+
+
+def refused(sentence: str, kind: str = KEY) -> Refusal:
     """A refused key or protocol: the run ends with the server's sentence."""
-    return ChantierError(f"live: {' '.join(sentence.split())}", EXIT_EXTERNAL)
+    return Refusal(sentence, kind)
 
 
 class Link:
@@ -107,6 +121,7 @@ class Link:
     ) -> None:
         self.base = base if base.endswith("/") else base + "/"
         self.key, self.transport, self.proxies = key, transport, proxies
+        self.client = CLIENT  # the name its hello and User-Agent give; another client sets its own
         self.sleep = sleep
         self.wants: dict[str, Wanted] = {}
         self.revs: dict[str, str] = {}
@@ -208,7 +223,7 @@ class Link:
             opened = connect(
                 self.ws_address(),
                 additional_headers={HEADER: self.key},
-                user_agent_header=CLIENT,
+                user_agent_header=self.client,
                 compression=None,
                 proxy=True if self.proxies else None,
                 open_timeout=OPEN_S,
@@ -221,7 +236,7 @@ class Link:
         except Exception as e:
             raise NoSocket(f"the WebSocket did not open: {e}") from e
         self._ws = opened.__enter__()  # the library's context: `_close` leaves it
-        self._send({"t": "hello", "protocol": PROTOCOL, "client": CLIENT})
+        self._send({"t": "hello", "protocol": PROTOCOL, "client": self.client})
         deadline = time.monotonic() + OPEN_S
         while True:
             frame = self._frame(max(0.0, deadline - time.monotonic()), NoSocket)
@@ -244,7 +259,8 @@ class Link:
         except ConnectionClosed as e:
             code, reason = (e.rcvd.code, e.rcvd.reason) if e.rcvd is not None else (None, "")
             if code in (BAD_KEY, OTHER_PROTOCOL):
-                raise refused(reason or f"the board closed the link ({code})") from e
+                kind = KEY if code == BAD_KEY else PROTOCOL_KIND
+                raise refused(reason or f"the board closed the link ({code})", kind) from e
             raise lost(f"the board closed the link ({code})") from e
         except OSError as e:
             raise lost(f"the link failed: {e}") from e
@@ -256,8 +272,8 @@ class Link:
 
     def _fault(self, frame: dict[str, Any]) -> None:
         error = str(frame.get("error") or frame.get("code"))
-        if frame.get("code") in ("key", "protocol"):
-            raise refused(error)
+        if frame.get("code") in (KEY, PROTOCOL_KIND):
+            raise refused(error, str(frame.get("code")))
         raise Lost(f"the board ended the link: {error}")
 
     def _send(self, frame: dict[str, Any]) -> None:
@@ -311,7 +327,7 @@ class Link:
         request = urllib.request.Request(
             urllib.parse.urljoin(self.base, "api/v1/poll"),
             json.dumps({"subs": subs}).encode("utf-8"),
-            {HEADER: self.key, "Content-Type": "application/json", "User-Agent": CLIENT},
+            {HEADER: self.key, "Content-Type": "application/json", "User-Agent": self.client},
             method="POST",
         )
         with self._opener().open(request, timeout=timeout) as r:

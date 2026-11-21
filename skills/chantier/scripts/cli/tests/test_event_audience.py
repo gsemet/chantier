@@ -15,6 +15,7 @@ import pytest
 from batch_helpers import changes, host, open_batch
 from conftest import PLUGIN_ROOT, Chantier, Surface
 from forge_world import QUIET
+from watch_fakes import served
 
 from chantier import __version__
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE
@@ -98,7 +99,7 @@ def test_a_version_zero_line_reads_as_the_projects_and_a_newer_one_wakes_no_one(
     assert (entries[0]["source"], entries[0]["audience"]) == ("board", ["project"])
     assert (bad, newer, unknown, entries[1]["audience"]) == ([], [(2, 3)], [], [])
     assert entries[0]["type"] == "board@1"
-    w = Watch(found, 0, __version__)
+    w = Watch(found, 0, __version__, board=served(found))
     assert w.poll(0.0) is None and w.cursor == SECOND  # the cursor passes the newer line
     assert w.poll(float(QUIET)) == EVENTS
     w.close()
@@ -134,7 +135,7 @@ def test_a_watcher_ends_on_the_lines_for_it_and_passes_the_others(
     audience, wanted, key, ends = case
     monkeypatch.setattr(autostart, "session_key", lambda: key)
     found = Repo.find()
-    w = Watch(found, 0, __version__, Rules(wanted))
+    w = Watch(found, 0, __version__, Rules(wanted), served(found))
     journal.append(found, [{**BOARD, "audience": audience}], "board")
     got = [w.poll(float(t)) for t in range(int(QUIET) + 5)]
     w.close()
@@ -170,10 +171,10 @@ def test_the_start_line_lists_the_subscription_and_a_bad_for_is_refused_with_not
         ),
     ):
         monkeypatch.setattr(autostart, "session_key", lambda key=key: key)
-        w = Watch(found, 3, __version__, Rules(wanted))
-        line = w.start_line()
+        w = Watch(found, 3, __version__, Rules(wanted), served(found))
+        line = w.start()[0]
         w.close()
-        assert line.startswith(f"watch: {found.root.name} from cursor 3 for {listed}, the hub")
+        assert line == f"watch: {found.root.name} from cursor 3 for {listed}"
 
 
 def test_the_rate_limit_keeps_a_watcher_up_for_wake_every_and_the_shipped_value_changes_nothing(
@@ -186,7 +187,7 @@ def test_the_rate_limit_keeps_a_watcher_up_for_wake_every_and_the_shipped_value_
     assert tree.value["events"][1].value["wake_every"][1].value == shipped["text"]
     ends = {}
     for name, every in (("shipped", hub_times.wake_every_s(shipped["seconds"])), ("60s", 60.0)):
-        w = Watch(found, 0, __version__, Rules(wake_every=every))
+        w = Watch(found, 0, __version__, Rules(wake_every=every), served(found))
         journal.append(found, [{**BOARD, "text": name}], "board")
         ends[name] = next(t for t in range(120) if w.poll(float(t)) == EVENTS)
         w.close()
@@ -294,8 +295,8 @@ def test_a_problem_in_the_events_block_refuses_the_watcher_and_one_elsewhere_is_
     assert (rules["seconds"], rules["events_problems"]) == (120, [])  # the rule is still read
     assert rules["other"].startswith('chantier.yaml:3: unknown key "colour"')
     found = Repo.find()
-    w = Watch(found, 0, __version__, Rules(note=rules["other"]))
-    line = w.start_line()
+    w = Watch(found, 0, __version__, Rules(note=rules["other"]), served(found))
+    line = w.start()[0]
     w.close()
     assert line.endswith(f"; configuration: {rules['other']}") and rules["other"] in line
 

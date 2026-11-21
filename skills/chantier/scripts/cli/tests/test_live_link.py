@@ -28,11 +28,11 @@ from chantier.board.api import times
 from chantier.board.api.push import PushLoop, PushThread
 from chantier.board.app import make_server
 from chantier.board.context import Context
-from chantier.board.projects import Projects
+from chantier.board.projects import Projects, project_name
 from chantier.board.seats import Seats
 from chantier.cli import main
 from chantier.clients.tui import link as link_module
-from chantier.clients.tui.link import Event, Link
+from chantier.clients.tui.link import KEY, Event, Link, Linked, Refusal
 from chantier.clients.tui.model import Model
 from chantier.commands import live as live_command
 from chantier.core import clock
@@ -40,6 +40,8 @@ from chantier.core.errors import EXIT_EXTERNAL, EXIT_USAGE
 from chantier.core.repo import Repo
 from chantier.hub import journal as forge_journal
 from chantier.hub import state
+from chantier.hub.feed import Board as WatchBoard
+from chantier.hub.watch_lines import told
 
 T0 = "2030-01-01T00:00:00Z"  # the lease taken at T0 is live until 00:10:00
 WAIT_S = 10.0
@@ -206,6 +208,45 @@ def test_the_command_lines_refusals(
     monkeypatch.setitem(SEEDED_COMMON_DIRS, _key(other), str(other / ".git"))
     code, _, err = _cli("live", "--once")
     assert code == EXIT_EXTERNAL and "no board runs for this surface" in err, err
+
+
+def _drained(feed: Any, done: Any) -> list[Any]:
+    """What a watcher's feed gives until `done` holds of it, within `WAIT_S`."""
+    got: list[Any] = []
+    deadline = time.monotonic() + WAIT_S
+    while not done(got):
+        assert time.monotonic() < deadline, got
+        got += feed.drain()
+        threading.Event().wait(0.02)
+    feed.close()
+    return got
+
+
+def test_the_watchers_feed_gives_a_journal_line_and_a_wrong_keys_refusal(live: Live) -> None:
+    found = Repo.find(readonly=True)
+    recorded = state.live_server(found.git_dir)
+    assert recorded is not None
+    server, key = recorded
+    project = project_name(found)
+    last = forge_journal.last_seq(forge_journal.read(found.store, found.changes)[0])
+    feed = WatchBoard().link(server, key, project, last)
+    event = forge_journal.board_event("new", ["watch"], "probe watch")
+    forge_journal.append(Repo.find(readonly=True), [event], "board")
+
+    def came(got: list[Any]) -> bool:
+        return any(
+            isinstance(x, Event) and any(e["seq"] > last for e in x.data["lines"]) for x in got
+        )
+
+    got = _drained(feed, came)
+    assert isinstance(got[0], Linked) and got[0].transport == "ws"
+    lines = [e for x in got if isinstance(x, Event) for e in x.data["lines"]]
+    assert [told(e) for e in lines if e["seq"] > last] == [forge_journal.event_text(event)]
+    refused = _drained(
+        WatchBoard().link(server, "wrong", project, last),
+        lambda got: any(isinstance(x, Refusal) for x in got),
+    )
+    assert [(x.kind, NEEDS_KEY in x.sentence) for x in refused] == [(KEY, True)]
 
 
 def _imports(path: Path) -> set[str]:

@@ -22,9 +22,9 @@ from chantier.hub import times as hub_times
 
 
 class Hub:
-    """What the process that holds the hub lock (the surface server, or a watcher when none
-    runs) does: its cycle and its `hub` entry. An entry that cannot be written is written again
-    at the next cycle; the lock is kept."""
+    """What the surface server does as the hub, the hub lock held (`loop.py`; no other process
+    takes that lock, a watcher included): its cycle and its `hub` entry. An entry that cannot be
+    written is written again at the next cycle; the lock is kept."""
 
     def __init__(self, repo: Repo, version: str = __version__) -> None:
         self.repo = repo

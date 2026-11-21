@@ -1,5 +1,5 @@
-"""The surface server: the hub election between it and the watchers, the `hub` entry it keeps, the
-hub loop of `chantier board` and the writers of `server.json`. No test reaches a forge and none
+"""The surface server, the only forge hub: the `hub` entry it keeps, the hub loop of
+`chantier board` and the writers of `server.json`. No test reaches a forge and none
 sleeps: the loop is driven with an injected monotonic time."""
 
 from __future__ import annotations
@@ -11,69 +11,15 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from batch_helpers import DEAD, name_server
 from forge_world import BOARD_LINE, CALLS, CYCLE, MAIN, NEW_VERSION, T1, World, merged, shape
 
-from chantier import procs
 from chantier.core.repo import Repo
 from chantier.hub import journal, lock, state
-from chantier.hub.cycle import Hub
 from chantier.hub.loop import HubLoop, HubThread
-from chantier.hub.watch import Watch
 
 
 def seen() -> bool:  # a client observes the server
     return True
-
-
-@pytest.fixture
-def dead_is_dead(monkeypatch: pytest.MonkeyPatch) -> None:
-    real = procs.alive_since
-    monkeypatch.setattr(
-        procs, "alive_since", lambda pid, *a, **k: pid != DEAD and real(pid, *a, **k)
-    )
-
-
-@pytest.mark.parametrize("server", [False, True], ids=["no-server", "live-server"])
-def test_one_watcher_holds_the_hub_lock_and_the_next_takes_it(
-    repo: Path, dead_is_dead: None, server: bool
-) -> None:
-    found = Repo.find()
-    git = found.git_dir
-    if server:
-        name_server(git)
-    first, second = lock.HubLock(git), lock.HubLock(git)
-    assert (first.acquire(), second.acquire()) == (True, False)
-    hub = Hub(found, NEW_VERSION)
-    held = state.live_entry(git, state.HUB)
-    assert held is not None
-    assert (held["pid"], held["version"]) == (os.getpid(), NEW_VERSION)
-    hub.close()
-    first.release()
-    assert state.live_entry(git, state.HUB) is None
-    assert not (git / "chantier" / "hub.json").exists()
-    assert second.acquire() is True
-    second.release()
-    # the election: with no server the first watcher is the hub; with a live one, none elects
-    w = Watch(found, 0, NEW_VERSION)
-    w.poll(0.0)
-    assert (w.hub is not None) is (not server)
-    if server:
-        assert not w.lock.held and state.live_entry(git, state.HUB) is None
-        name_server(git, DEAD)  # the server was killed: its entry names a dead process
-        w.poll(1.0)
-        assert w.hub is not None and state.live_entry(git, state.HUB) is not None
-    # a server appears: the hub watcher ends its cycle, removes its entry and lets the lock go
-    name_server(git)
-    w.poll(2.0)
-    assert w.hub is None and state.live_entry(git, state.HUB) is None
-    probe = lock.HubLock(git)
-    assert probe.acquire()
-    probe.release()
-    name_server(git, DEAD)  # and once none is live, the next poll takes the lock again
-    w.poll(3.0)
-    assert w.hub is not None
-    w.close()
 
 
 def test_a_hub_entry_that_cannot_be_written_is_written_at_the_next_cycle(
@@ -155,11 +101,11 @@ def test_the_servers_hub_loop_elects_cycles_when_due_and_lets_go(
     git = alpha.git_dir
     world.forge = {10: merged(MAIN, T1)}
     loop = HubLoop(alpha, NEW_VERSION)
-    watcher = lock.HubLock(git)
-    assert watcher.acquire()  # a watcher is the hub: the server serves and waits
+    other = lock.HubLock(git)
+    assert other.acquire()  # another server holds the lock: this one serves and waits
     loop.poll(0.0, seen)
     assert loop.hub is None and not world.calls
-    watcher.release()  # it yielded: within one poll the server is the hub
+    other.release()  # it stopped: within one poll this server is the hub
     loop.poll(1.0, seen)
     assert loop.hub is not None and len(world.calls) == CALLS
     held = state.live_entry(git, state.HUB)

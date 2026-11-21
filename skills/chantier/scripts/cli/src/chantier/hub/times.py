@@ -1,5 +1,5 @@
-"""The hub's two constants and the one environment variable that shortens them (see the
-package's docstring)."""
+"""The hub's and the watcher's constants and the one environment variable that shortens them
+(see the package's docstring)."""
 
 from __future__ import annotations
 
@@ -7,19 +7,23 @@ import os
 
 CYCLE_S = 20.0  # the hub reads the forge at most this often (the board's page keeps its own 10 s)
 QUIET_S = 20.0  # a watcher ends this long after the last new event of its project
+IDLE_END_S = 7200.0  # a watcher with no event for it that wakes ends this long after its start
 POLL_S = 1.0  # a watcher looks about this often
 TEST_ENV = "CHANTIER_HUB_TEST_TIMES"
+FIELDS = (2, 3)  # `<cycle>:<quiet>[:<idle_end>]`
 
 
-def _test() -> tuple[float, float] | None:
+def _test() -> tuple[float, float, float] | None:
     text = os.environ.get(TEST_ENV)
     if not text:
         return None
     try:
-        cycle, quiet = (float(x) for x in text.split(":"))
+        found = [float(x) for x in text.split(":")]
     except ValueError:
         return None
-    return (cycle, quiet) if cycle > 0 and quiet > 0 else None
+    if len(found) not in FIELDS or min(found) <= 0:
+        return None
+    return found[0], found[1], found[2] if len(found) == FIELDS[1] else IDLE_END_S
 
 
 def cycle_s() -> float:
@@ -30,6 +34,11 @@ def cycle_s() -> float:
 def quiet_s() -> float:
     test = _test()
     return test[1] if test else QUIET_S
+
+
+def idle_end_s() -> float:
+    test = _test()
+    return test[2] if test else IDLE_END_S
 
 
 def wake_every_s(configured: float | None) -> float:

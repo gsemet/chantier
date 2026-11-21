@@ -12,6 +12,7 @@ import pytest
 from batch_helpers import host, open_batch
 from conftest import Chantier
 from forge_world import CYCLE, EXIT_USAGE, QUIET
+from watch_fakes import served
 
 from chantier import __version__, connectors
 from chantier.board.seats import SEAT_CHECK_S
@@ -79,7 +80,7 @@ def test_a_watcher_ends_twenty_seconds_after_the_last_line_that_wakes(
         (folder / "batch.json").write_text(json.dumps(data), encoding="utf-8")
     found = Repo.find()
     assert (hub_times.cycle_s(), hub_times.quiet_s()) == (CYCLE, QUIET)
-    w = Watch(found, 0, __version__)
+    w = Watch(found, 0, __version__, board=served(found))
     ended: tuple[int, str] | None = None
     for t in range(120):
         if t == 0:
@@ -126,7 +127,7 @@ def test_the_seat_of_another_session_ends_the_watcher_with_its_line(
 ) -> None:
     monkeypatch.setattr(autostart, "session_key", lambda: key)
     found = Repo.find()
-    w = Watch(found, 0, __version__)
+    w = Watch(found, 0, __version__, board=served(found))
     assert w.poll(0.0) is None
     if transcript != "no seat":
         seat_file(repo, transcript)

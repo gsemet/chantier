@@ -6,11 +6,22 @@ repository), and a new `board` reads that entry before it binds anything."""
 from __future__ import annotations
 
 import sys
+from typing import Any
 
 
 def stop_command(pid: int) -> str:
     """The platform's command; the CLI only prints it."""
     return f"taskkill /PID {pid} /T /F" if sys.platform == "win32" else f"kill {pid}"
+
+
+def silent_text(run: dict[str, Any]) -> str:
+    """The sentence for a live-recorded board that does not answer, said alike by a new `board`
+    and by a watcher."""
+    return (
+        f"a chantier board {run.get('version')} (PID {run['pid']}) holds this surface at "
+        f"{run['host']}:{run['port']} and does not answer: stop it "
+        f"({stop_command(run['pid'])}), then run board again"
+    )
 
 
 def find_pid(port: int) -> int | None:

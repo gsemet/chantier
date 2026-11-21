@@ -46,11 +46,10 @@ def from_link(link: str) -> tuple[str, str]:
 
 def recorded() -> tuple[str, str]:
     """The board recorded as running for this surface or project, on the loopback address."""
-    git_dir = open_projects().home.git_dir
-    entry = state.live_entry(git_dir, state.SERVER)
-    key = state.read(git_dir).get("key")
-    if entry is None or not isinstance(key, str) or not key:
+    found = state.live_server(open_projects().home.git_dir)
+    if found is None:
         raise ChantierError(NO_BOARD, EXIT_EXTERNAL)
+    entry, key = found
     return loopback_base(str(entry["host"]), int(entry["port"])), key
 
 
