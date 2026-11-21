@@ -14,6 +14,8 @@ export default {
   'triage.urgent': '↑ plus urgent · glisse un post-it vers le haut ou le bas',
   'triage.empty_row': 'vide : dépose un post-it ici',
   'triage.drop': 'dépose ici',
+  'triage.fold': 'Masquer les post-its de {row}',
+  'triage.unfold': 'Afficher les post-its de {row}',
   'triage.ready_counts':
     '{specified} spécifié(s), {auto} automatable(s) ⚡ : le Driver part de la demande',
   'triage.declare': 'Le batch suivant est prêt',
@@ -74,8 +76,14 @@ export default {
   'journal.rescan': 'J’ai dit « rescan » au CoS',
   'journal.close': 'Fermer',
   'journal.said': 'Le compte repart de zéro.',
-  'journal.note':
-    'Chaque changement est déjà écrit (commandes file et triage du CLI). Le board ne parle pas au Chief of Staff : dis-lui « rescan » dans le chat pour qu’il relise.',
+  'journal.what':
+    'Ce que ça compte : les changements faits depuis ce board (par exemple déplacements, nouvelles idées, labels, groupes) depuis la dernière fois que tu as appuyé sur le bouton ci-dessous. Chacun est déjà enregistré dans le dossier de planification sur cette machine.',
+  'journal.why':
+    'Pourquoi le dire au Chief of Staff : le board ne lui envoie jamais de message. Une session Chief of Staff dont le watcher (ou le chemin de lecture) tourne apprend ces changements toute seule ; une session qui ne fait tourner ni l’un ni l’autre ne les connaît pas.',
+  'journal.todo':
+    'Quoi faire : tape « rescan » dans le chat du Chief of Staff ; il relit le backlog et dit ce qui a bougé. Puis appuie sur le bouton ci-dessous pour recompter à partir de zéro.',
+  'journal.tip':
+    'Changements enregistrés par ce board depuis ton dernier « rescan » : ouvre pour les voir et savoir quoi dire au Chief of Staff.',
 
   'home.written': 'Écrit par le board',
   'home.written_sub': 'depuis ton dernier « rescan » au CoS',

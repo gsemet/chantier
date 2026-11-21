@@ -132,10 +132,11 @@ export function last(backlog, ctx) {
   });
 }
 
-// A lane of the Backlog column: its priority chip, its counts, its post-its.
+// A lane of the Backlog column: its priority chip, its counts, its fold chevron, its post-its.
 function laneOf(backlog, key, base) {
   const ctx = { ...base, column: key };
   const items = shownIn(backlog, key, ctx.filter);
+  const folded = ctx.folded.includes(key);
   return lane({
     drop: key,
     label: key,
@@ -144,6 +145,9 @@ function laneOf(backlog, key, base) {
     states: counts(items),
     body: body(key, items, ctx),
     empty: !items.length,
+    fold: key,
+    folded,
+    foldLabel: t(folded ? 'triage.unfold' : 'triage.fold', { row: key }),
   });
 }
 

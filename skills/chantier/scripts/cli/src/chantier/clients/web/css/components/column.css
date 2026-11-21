@@ -132,6 +132,44 @@
   display: none;
 }
 
+/* a folded priority row: the same thin strip, its post-its and drop text hidden, its head kept */
+.column-folded {
+  padding: var(--space-off-6) var(--space-3);
+}
+
+.column-folded .column-body {
+  display: none;
+}
+
+/* a foldable lane's whole head toggles; its chevron is a real button, pointing right when folded */
+.column-head[data-fold] {
+  cursor: pointer;
+}
+
+.column-fold {
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--ink3);
+  padding: var(--space-1);
+  border-radius: var(--radius-s);
+}
+
+.column-fold:hover {
+  background: var(--hover);
+}
+
+.column-fold[aria-expanded="false"] svg {
+  transform: rotate(-90deg);
+}
+
+@media (max-width: 760px) {
+  .column-head[data-fold] {
+    min-height: var(--nav-height);
+  }
+}
+
 /* in a lane's grid, a group's frame and the drop zone span the whole row */
 .column-grid > .grpf,
 .column-grid > .dropzone {

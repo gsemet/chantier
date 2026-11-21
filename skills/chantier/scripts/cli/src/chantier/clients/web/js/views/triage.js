@@ -12,6 +12,7 @@ import { indicator, itemsIn, labelsOf, modifiedSlugs, READY } from '../model/tri
 import { bar } from '../triage/bar.js';
 import { column, lanes, last } from '../triage/columns.js';
 import { bindDrag } from '../triage/drag.js';
+import { bindFold, foldedOf } from '../triage/fold.js';
 import { undo } from '../triage/groups.js';
 import { bindReady } from '../triage/ready.js';
 import { bindSelection, selectedNow, selectionBar } from '../triage/selection.js';
@@ -29,6 +30,7 @@ function contextOf(state) {
     ready,
     indicator: indicator(state.data.next_batch, ready),
     batch: state.data.batch,
+    folded: foldedOf(state),
   };
 }
 
@@ -47,6 +49,7 @@ export function mount(root) {
     bindReady(root),
     bindSelection(root),
     bindDrag(root),
+    bindFold(root),
     delegate(root, 'click', '[data-ungroup]', (event, el) => {
       event.stopPropagation();
       undo(el.dataset.ungroup);

@@ -46,7 +46,7 @@
 .dlist .note {
   color: var(--ink2);
   font-size: var(--text-small);
-  margin: 0;
+  margin: 0 0 var(--space-2);
 }
 
 .dlist .row {

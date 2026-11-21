@@ -6,10 +6,12 @@
 //            count's place (ellipsed), `states` the head's extras (grill counts), `act` an action under
 //            the head
 //   sub      the one-line grey sub-line (ellipsed), `body` what the column holds, `foot` what follows
-// A lane has no dot. A Backlog lane's head is `chip` (the priority chip), `count` and `states`; a
+//   fold     a foldable lane's row name, `folded` whether it is folded, `foldLabel` its chevron's label
+// A lane has no dot. A Backlog lane's head is its chevron (`fold`), `chip` (the priority chip), `count` and `states`; a
 // named lane (Triage's last column holds two) has `name`, `count`, `states` and its own `sub`, and
 // `idle` greys it; `foot` follows its body.
 import { html } from '../core/dom.js';
+import { icon } from './icons.js';
 import { dot } from './parts.js';
 
 const attr = (name, value) =>
@@ -33,13 +35,14 @@ export function column(parts = {}) {
 
 export function lane(parts) {
   const { drop, label, chip = '', name = '', count, states = '', body = '', empty = false } = parts;
-  const { sub = '', foot = '', idle = false } = parts;
+  const { sub = '', foot = '', idle = false, fold = '', folded = false, foldLabel = '' } = parts;
   const named = Boolean(name);
   const names = [
     'column-lane',
     named && 'column-named',
     idle && 'column-idle',
     empty && 'column-empty',
+    fold && folded && 'column-folded',
   ]
     .filter(Boolean)
     .join(' ');
@@ -47,5 +50,9 @@ export function lane(parts) {
   const figure = html`<span class="column-count">${count}</span>`;
   const line = sub ? html`<div class="column-sub" title="${sub}">${sub}</div>` : '';
   const grid = named ? '' : ' column-grid';
-  return html`<section class="${names}" data-col="${drop}" aria-label="${label}"><div class="column-head">${chip}${title}${figure}${states}</div>${line}<div class="column-body${grid}">${body}</div>${foot}</section>`;
+  const chevron = fold
+    ? html`<button type="button" class="column-fold" data-key="fold-${fold}" aria-expanded="${!folded}" aria-label="${foldLabel}">${icon('chev')}</button>`
+    : '';
+  const toggle = fold ? html` data-fold="${fold}"` : '';
+  return html`<section class="${names}" data-col="${drop}" aria-label="${label}"><div class="column-head"${toggle}>${chevron}${chip}${title}${figure}${states}</div>${line}<div class="column-body${grid}">${body}</div>${foot}</section>`;
 }

@@ -14,6 +14,8 @@ export default {
   'triage.urgent': '↑ more urgent · drag a post-it up or down',
   'triage.empty_row': 'empty: drop a post-it here',
   'triage.drop': 'drop here',
+  'triage.fold': 'Hide the {row} post-its',
+  'triage.unfold': 'Show the {row} post-its',
   'triage.ready_counts':
     '{specified} specified, {auto} automatable ⚡: the Driver starts from the request',
   'triage.declare': 'The next batch is ready',
@@ -74,8 +76,14 @@ export default {
   'journal.rescan': 'I said ‘rescan’ to the CoS',
   'journal.close': 'Close',
   'journal.said': 'Counted from now on.',
-  'journal.note':
-    'Each change is already written (the CLI’s file and triage commands). The board does not talk to the Chief of Staff: tell it ‘rescan’ in the chat so it reads again.',
+  'journal.what':
+    'What it counts: the changes made from this board (for example moves, new ideas, labels, groups) since you last pressed the button below. Each one is already saved in the planning folder on this machine.',
+  'journal.why':
+    'Why tell the Chief of Staff: the board never sends it a message. A Chief of Staff session whose watcher (or pull path) runs learns of these changes by itself; one running neither does not.',
+  'journal.todo':
+    'What to do: type ‘rescan’ in the Chief of Staff’s chat; it reads the backlog again and says what moved. Then press the button below to count again from zero.',
+  'journal.tip':
+    'Changes saved by this board since your last ‘rescan’: open to see them and what to tell the Chief of Staff.',
 
   'home.written': 'Written by the board',
   'home.written_sub': 'since your last ‘rescan’ to the CoS',

@@ -25,7 +25,7 @@ export const countOf = (state) => state.journal?.count ?? state.data?.journal?.c
 
 export function journalButton(state) {
   const n = countOf(state);
-  return html`<button type="button" class="drafts${n ? ' has' : ''}" data-journal="toggle" data-key="journal-button" aria-expanded="${state.journalOpen}">${tn('journal.button', n)}</button>`;
+  return html`<button type="button" class="drafts${n ? ' has' : ''}" title="${t('journal.tip')}" data-journal="toggle" data-key="journal-button" aria-expanded="${state.journalOpen}">${tn('journal.button', n)}</button>`;
 }
 
 const entryRow = (e) => html`<li><span class="when">${hhmm(e.t)}</span> ${e.text}</li>`;
@@ -35,7 +35,7 @@ export function journalPanel(state) {
   if (!state.journalOpen) return '';
   const entries = (state.journal?.entries ?? []).filter((e) => e.kind !== 'rescan');
   const list = entries.length ? entries.map(entryRow) : html`<li>${t('journal.nothing')}</li>`;
-  return html`<section class="dlist" role="dialog" aria-label="${t('journal.heading')}"><b>${t('journal.heading')}</b><ul data-scroll="journal">${list}</ul><div class="row"><button type="button" class="btn pri" data-journal="rescan" ${entries.length ? '' : 'disabled'}>${t('journal.rescan')}</button><button type="button" class="btn" data-journal="close" data-key="journal-close">${t('journal.close')}</button></div><p class="note">${t('journal.note')}</p></section>`;
+  return html`<section class="dlist" role="dialog" aria-label="${t('journal.heading')}"><b>${t('journal.heading')}</b><p class="note">${t('journal.what')}</p><p class="note">${t('journal.why')}</p><p class="note">${t('journal.todo')}</p><ul data-scroll="journal">${list}</ul><div class="row"><button type="button" class="btn pri" data-journal="rescan" ${entries.length ? '' : 'disabled'}>${t('journal.rescan')}</button><button type="button" class="btn" data-journal="close" data-key="journal-close">${t('journal.close')}</button></div></section>`;
 }
 
 async function said() {
