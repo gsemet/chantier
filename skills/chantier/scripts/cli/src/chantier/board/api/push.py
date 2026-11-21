@@ -1,7 +1,10 @@
 """The API's push: what clients watch, and the loop that looks at it. `PushLoop.poll(now)` takes
 the monotonic time (a test drives it with no sleep and no thread, as `HubLoop.poll`): every
-`PUSH_EVERY_S`, for each topic and arguments that someone watches, it reads the rev and, when it
-moved, sends the whole value once to every watcher. A topic nobody watches costs nothing."""
+`PUSH_EVERY_S`, or at once when the file watch wakes it (a project's files settled), for each topic
+and arguments that someone watches, it reads the rev and, when it moved, sends the whole value once
+to every watcher. A topic nobody watches costs nothing. `observed()` says whether any client
+watches: the forge hub reads only then, and a board started with `--stop-idle` stops after a long
+spell with none."""
 
 from __future__ import annotations
 
@@ -52,6 +55,24 @@ class PushLoop:
         self._lock = threading.Lock()
         self._next: float | None = None
         self._polls = 0  # long-polls held now
+        self._polled: float | None = None  # the monotonic time a long-poll last ended or began
+        self.woken = threading.Event()  # set by `wake`: the push thread passes at once
+
+    def wake(self) -> None:
+        """A project's files settled: the next pass runs now, not at the end of its 2 s."""
+        with self._lock:
+            self._next = None
+        self.woken.set()
+
+    def observed(self, now: float | None = None) -> bool:
+        """At least one client watches: a subscription held (a WebSocket's, or a long-poll's
+        while it is held), or a long-poll client that polled within `2 * HOLD_S` (between two
+        polls it still watches). A WebSocket that has not said `hello` holds none."""
+        now = time.monotonic() if now is None else now
+        with self._lock:
+            if self._subs or self._polls:
+                return True
+            return self._polled is not None and now - self._polled < 2 * times.hold_s()
 
     def watching(self) -> int:
         with self._lock:
@@ -145,11 +166,13 @@ class PushLoop:
             if self._polls >= times.MAX_POLLS:
                 return ops.fail(429, TOO_MANY_POLLS)
             self._polls += 1
+            self._polled = time.monotonic()
         try:
             return self._hold(wants, seconds)
         finally:
             with self._lock:
                 self._polls -= 1
+                self._polled = time.monotonic()
 
     def _hold(self, wants: list[Want], seconds: float | None) -> list[dict[str, Any]] | ops.Result:
         box = _Box()
@@ -184,8 +207,8 @@ class _Box:
 
 
 class PushThread:
-    """`PushLoop` in a daemon thread. A loop that dies ends the server: `on_death` is called
-    after an error line on stderr."""
+    """`PushLoop` in a daemon thread: a pass every `PUSH_EVERY_S`, or at once when woken. A loop
+    that dies ends the server: `on_death` is called after an error line on stderr."""
 
     def __init__(self, loop: PushLoop, on_death: Callable[[], None]) -> None:
         self.loop, self.on_death = loop, on_death
@@ -197,7 +220,11 @@ class PushThread:
 
     def _run(self) -> None:
         try:
-            while not self._done.wait(times.push_every_s()):
+            while not self._done.is_set():
+                self.loop.woken.wait(times.push_every_s())
+                self.loop.woken.clear()
+                if self._done.is_set():
+                    return
                 self.loop.poll(time.monotonic())
         except Exception as e:
             print(
@@ -209,5 +236,6 @@ class PushThread:
 
     def stop(self) -> None:
         self._done.set()
+        self.loop.woken.set()
         if self._thread.is_alive() and self._thread is not threading.current_thread():
             self._thread.join(JOIN_S)

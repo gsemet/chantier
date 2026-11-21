@@ -59,8 +59,9 @@ def _prepare_board(
     monkeypatch.setattr(running, "find_pid", lambda _port: None)
     bound: list[int] = []
 
-    def serve(_projects: object, _seats: object, sock: socket.socket, _ui: object) -> None:
+    def serve(_ctx: object, sock: socket.socket, files: Any, _args: object) -> None:
         bound.append(sock.getsockname()[1])
+        files.stop()
         sock.close()
 
     monkeypatch.setattr(command, "_run", serve)

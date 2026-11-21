@@ -22,7 +22,7 @@ from chantier.writer.record import read
 AT = "2026-11-20T10:30:00Z"
 HHMM = clock.local_hhmm(AT)
 NOT_RUNNING = "writer: not running: writes to the surface are refused; for the Chief of Staff: "
-START = "start the surface server ($CHANTIER board --seat <session id>)"
+START = lines.START
 
 
 def entry(kind: str, **more: Any) -> dict[str, Any]:

@@ -1,6 +1,6 @@
-"""`chantier board`: the surface server (the web board, and the forge hub loop in the same
-process). The options, the key, the start lines and the probe of a server already running;
-`starlette` and `uvicorn` load only once the board serves."""
+"""`chantier board`: the surface server (the web board, the watch of the planning files and the
+forge hub loop in the same process). The options, the key, the start lines and the probe of a
+server already running; `starlette`, `uvicorn` and `watchfiles` load only once the board serves."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ import errno
 import os
 import socket
 import sys
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, TypeVar
@@ -24,12 +25,15 @@ from chantier.board.address import (
     settings,
     url,
 )
+from chantier.board.api import times
 from chantier.board.api.push import PushLoop, PushThread
 from chantier.board.app import make_server
 from chantier.board.context import Context
+from chantier.board.idle import IdleStop, IdleThread
 from chantier.board.key import KeyFile, load_or_create
 from chantier.board.projects import Projects, check_planning, open_projects
 from chantier.board.seats import Seats
+from chantier.board.watch_files import NOTIFY, FileWatchThread
 from chantier.core import clock
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_USAGE, ChantierError
 from chantier.declare.board import SHIPPED_UI
@@ -49,6 +53,22 @@ BEYOND = (
     "only, plain HTTP"
 )
 NO_NETWORK = "board: no local network address found; on this machine only"
+WATCHES = "board: watches the planning files"
+CHECKS = "board: no file notifications here; checks every 5 s"
+STOPS_IDLE = "board: stops by itself after 30 min with no client (a watcher started it)"
+FORGE_WHEN_OBSERVED = (
+    "board: the running board reads the forge only while a client is subscribed (a watcher "
+    "started it); the pull path gets no forge event until one is"
+)
+BOTH_FLAGS = (
+    "--stop-idle and --forge-always do not go together: a board the pull path relies on for the "
+    "forge must not stop by itself; pass one"
+)
+
+
+def files_line(mode: object) -> str | None:
+    """The start line of the file watch's mode (`server.json`'s `files`); None for none."""
+    return WATCHES if mode == NOTIFY else CHECKS if mode else None
 
 
 def _not_started(reason: object) -> ChantierError:
@@ -118,37 +138,76 @@ def _start_writer(projects: Projects) -> WriterThread | None:
     return thread
 
 
-def _run(projects: Projects, seats: Seats, sock: socket.socket, ui: Path | None) -> None:
-    """Serve until Ctrl-C, or, for a board started with `--seat`, until its seats leave."""
-    box: list[Any] = []
+class _Stopper:
+    """The board's stop (Ctrl-C's path): the server, once made, exits its loop."""
 
-    def stop() -> None:
-        box[0].should_exit = True
+    def __init__(self) -> None:
+        self.server: Any = None
 
-    ctx = Context(
+    def __call__(self) -> None:
+        if self.server is not None:
+            self.server.should_exit = True
+
+
+def _context(projects: Projects, seats: Seats, sock: socket.socket, ui: Path | None) -> Context:
+    return Context(
         projects,
         KeyFile(state.path(projects.home.git_dir)),
         seats,
         __version__,
-        stop,
+        _Stopper(),
         ui,
         sock.getsockname()[:2],
     )
-    box.append(make_server(ctx))
-    seats.arm(stop)
-    hub = HubThread(HubLoop(projects.home), stop)
+
+
+def _watch_files(ctx: Context) -> FileWatchThread:
+    """Each project's first fingerprint (so the first page walks nothing), then the watch of the
+    planning files, its mode known when this returns."""
+    for project in ctx.projects.all():
+        ctx.settle(project)
+    git_dir = ctx.projects.home.git_dir
+    files = FileWatchThread(ctx, lambda mode: state.set_server_files(git_dir, mode))
+    files.start()
+    return files
+
+
+def _observer(args: argparse.Namespace, loop: PushLoop) -> Callable[[], bool]:
+    """What the forge hub asks before a cycle: a client observes the server, or always with
+    `--forge-always` (a host that cannot run the watcher)."""
+    return (lambda: True) if args.forge_always else loop.observed
+
+
+def _run(
+    ctx: Context, sock: socket.socket, files: FileWatchThread, args: argparse.Namespace
+) -> None:
+    """Serve until Ctrl-C, or, for a board started with `--seat`, until its seats leave, or, with
+    `--stop-idle`, after `IDLE_STOP_S` with no client. The forge hub reads only while a client
+    observes, or always with `--forge-always`."""
+    projects, stop = ctx.projects, ctx.stop
+    assert isinstance(stop, _Stopper)
+    stop.server = make_server(ctx)
+    ctx.seats.arm(stop)
+    loop = ctx.push = PushLoop(ctx)
+    observed = _observer(args, loop)
+    hub = HubThread(HubLoop(projects.home), stop, observed)
     hub.start()
-    ctx.push = PushLoop(ctx)
-    push = PushThread(ctx.push, stop)
+    push = PushThread(loop, stop)
     push.start()
+    idle = IdleThread(IdleStop(loop.observed, stop, time.monotonic())) if args.stop_idle else None
+    if idle is not None:
+        idle.start()
     writer = _start_writer(projects)
     try:
-        box[0].run(sockets=[sock])
+        stop.server.run(sockets=[sock])
     except KeyboardInterrupt:
         pass
     finally:
+        if idle is not None:
+            idle.stop()
         if writer is not None:
             writer.stop()  # its final cycle, before the server's entry goes
+        files.stop()
         push.stop()
         hub.stop()
         sock.close()
@@ -211,24 +270,41 @@ def _writing(write: Callable[[], T]) -> T:
         raise _not_started(e) from e
 
 
-def _announce(host: str, bound: int, key: str, served: str, no_network: bool = False) -> None:
+def _announce(host: str, bound: int, key: str, served: str, after: list[str]) -> None:
+    """The start lines: the link, this machine's link, the exposure, then `after` (the
+    `NO_NETWORK` line, the file watch's)."""
     print(f"board on {url(host, bound, key)} over {served}", flush=True)
     if local := local_url(host, bound, key):
         print(f"on this machine: {local}", flush=True)
     if not is_loopback(host):
         print(BEYOND.format(host=host), flush=True)
-    if no_network:
-        print(NO_NETWORK, flush=True)
+    for line in after:
+        print(line, flush=True)
 
 
-def _running_lines(there: tuple[str, int], key: str, ui_given: bool) -> list[str]:
+def _running_lines(
+    there: tuple[str, int],
+    key: str,
+    ui_given: bool,
+    entry: dict[str, Any] | None = None,
+    forge_always: bool = False,
+) -> list[str]:
+    """The lines of a board already running: its link, its exposure, its file watch (from its
+    `server` entry), what this start could not apply, and last its idle stop."""
+    entry = entry or {}
     lines = [f"board already running at {url(*there, key)}"]
     if local := local_url(*there, key):
         lines.append(f"on this machine: {local}")
     if not is_loopback(there[0]):
         lines.append(BEYOND.format(host=there[0]))
+    if found := files_line(entry.get("files")):
+        lines.append(found)
     if ui_given:
         lines.append(NOT_APPLIED)
+    if forge_always and entry.get("forge") != "always":
+        lines.append(FORGE_WHEN_OBSERVED)
+    if entry.get("stop_idle"):
+        lines.append(STOPS_IDLE)
     return lines
 
 
@@ -245,7 +321,22 @@ def _ui(arg: Path | str) -> Path | None:
     return folder
 
 
-def board(args: argparse.Namespace) -> list[str]:
+def _extra(args: argparse.Namespace, files: FileWatchThread) -> dict[str, Any]:
+    """The `server` entry's fields beyond the address: the file watch's mode, the idle stop, the
+    forge always."""
+    extra: dict[str, Any] = {"files": files.mode}
+    if args.stop_idle:
+        extra["stop_idle"] = int(times.IDLE_STOP_S)
+    if args.forge_always:
+        extra["forge"] = "always"
+    return extra
+
+
+def _options(args: argparse.Namespace) -> None:
+    """The options checked before anything is read: the two flags that do not go together, the
+    clock."""
+    if args.stop_idle and args.forge_always:
+        raise ChantierError(BOTH_FLAGS, EXIT_USAGE)
     if args.clock:
         try:
             clock.fix(args.clock)
@@ -253,6 +344,10 @@ def board(args: argparse.Namespace) -> list[str]:
             raise ChantierError(
                 f"--clock {args.clock!r}: use YYYY-MM-DDTHH:MM:SSZ", EXIT_USAGE
             ) from e
+
+
+def board(args: argparse.Namespace) -> list[str]:
+    _options(args)
     ui = _ui(args.ui)
     projects = open_projects()
     try:
@@ -271,16 +366,22 @@ def board(args: argparse.Namespace) -> list[str]:
     if there:
         if args.seat and not register_seat(*there, key, projects.home_id, args.seat):
             raise _not_started("the board already running there did not take the seat")
-        return _running_lines(there, key, args.ui != SHIPPED_UI)
+        return _running_lines(there, key, args.ui != SHIPPED_UI, run, args.forge_always)
     _writing(lambda: state.check_writable(git_dir))  # a refused write: known before any bind
     from_config = args.port is None and "port" in load_board(projects.home)[0]
     sock = _bind(host, port, lambda: _held_by(host, port, key, from_config))
     bound, served = sock.getsockname()[1], projects.served.as_posix()
+    ctx = _context(projects, seats, sock, ui)
+    files = _watch_files(ctx)  # the mode is known before the start line
+    extra = _extra(args, files)
     try:
-        _writing(lambda: state.write_server(git_dir, host, bound, __version__, served))
+        _writing(lambda: state.write_server(git_dir, host, bound, __version__, served, **extra))
     except ChantierError:
+        files.stop()
         sock.close()
         raise
-    _announce(host, bound, key, served, no_network)
-    _run(projects, seats, sock, ui)
+    _announce(
+        host, bound, key, served, [NO_NETWORK] * no_network + [files_line(files.mode) or WATCHES]
+    )
+    _run(ctx, sock, files, args)
     return []

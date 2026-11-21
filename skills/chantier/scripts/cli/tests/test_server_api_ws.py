@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from api_client import settled
 from conftest import SEEDED_COMMON_DIRS, _key
 from websockets.exceptions import ConnectionClosed, InvalidStatus  # noqa: TID253
 from websockets.sync.client import ClientConnection, connect  # noqa: TID253
@@ -136,6 +137,7 @@ def test_a_socket_says_hello_gets_welcome_and_watches_a_project(served: Served) 
     mine = served.repo.changes / "1-inbox" / "idea" / "intake"
     mine.mkdir(parents=True)
     (mine / "request.md").write_text("an idea\n", encoding="utf-8")
+    settled(served.ctx)
     moved = next_of(ws, "event", lambda f: f["rev"] != first["rev"])
     assert moved["data"]["rev"] == moved["rev"]
     ws.send(json.dumps({"t": "unsub", "id": "p"}))

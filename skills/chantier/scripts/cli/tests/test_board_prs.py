@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from api_client import call_route
+from api_client import call_route, settled
 from batch_helpers import changes, record, write_record
 from conftest import Chantier
 from stack_world import Batch, stack_of
@@ -74,9 +74,8 @@ class Board:
         return {r["cr"]: r for r in self.get()[1]["rows"]}
 
     def edit(self, **batch: Any) -> None:
-        data = record(self.repo)
-        data.update(batch)
-        write_record(self.repo, data)
+        write_record(self.repo, {**record(self.repo), **batch})
+        settled(self.ctx)  # the file watch's walk once the write is quiet
 
     def planning(self) -> dict[str, bytes]:
         root = changes(self.repo)
@@ -170,7 +169,7 @@ def test_two_reads_within_ten_seconds_are_one_forge_call_and_a_new_pr_reads_agai
     assert len(board.calls) == TWO_CALLS
     data = record(board.repo)
     data["crs"][3]["pr"] = LINK.format(NEW_PR)
-    write_record(board.repo, data)
+    board.edit(crs=data["crs"])
     board.now = 11.0
     assert board.get()[1]["rows"][3]["number"] == NEW_PR and len(board.calls) == THREE_CALLS
 

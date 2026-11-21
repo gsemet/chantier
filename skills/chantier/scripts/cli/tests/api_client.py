@@ -12,6 +12,14 @@ from chantier.board import routes
 from chantier.board.context import Context, Request
 
 
+def settled(ctx: Context) -> None:
+    """What the file watch does once a test's own write is quiet: each project walked once, its
+    kept fingerprint moved (the board reads no file per pass any more)."""
+    ctx.projects.refresh()
+    for project in ctx.projects.all():
+        ctx.settle(project)
+
+
 def call_op(
     ctx: Context,
     secret: str | None,

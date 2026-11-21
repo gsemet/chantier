@@ -3,13 +3,13 @@ project lookup and the whole board's payload. No `Request`, no `Reply`: plain da
 
 from __future__ import annotations
 
+import hashlib
 import os
 from typing import Any
 
 from chantier.board import costs, writer_api
 from chantier.board.address import local_url
 from chantier.board.context import Context
-from chantier.board.fingerprint import fingerprint
 from chantier.board.projects import Project
 from chantier.board.state import origin_of, project_line, project_paths, project_state
 from chantier.core import clock
@@ -23,13 +23,14 @@ def local_link(ctx: Context) -> str | None:
 
 
 def state_of(ctx: Context, project: Project, ask: bool) -> tuple[dict[str, Any], str]:
-    """The project's state and its fingerprint. `ask`: a page looks, so the 5-minute rule runs."""
+    """The project's state and its rev: the settled fingerprint (`ctx.rev`, no walk) with the live
+    cost's mark. `ask`: a page looks, so the 5-minute rule runs."""
     live = ctx.live(project)
     last = ctx.cache.peek(project.id)
     running = bool(last and last["batch"] and last["batch"]["state"] == "running")
     if ask:
         live.ask(running)
-    print_ = fingerprint(project.repo.store, project.repo.changes, live.mark())
+    print_ = hashlib.sha256(f"{ctx.rev(project)}\n{live.mark()}".encode()).hexdigest()
     state = ctx.cache.get(
         project.id,
         print_,

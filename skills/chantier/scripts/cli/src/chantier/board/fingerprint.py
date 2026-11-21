@@ -3,6 +3,7 @@ no read, so an unchanged project answers `304` without opening a file."""
 
 from __future__ import annotations
 
+import fnmatch
 import hashlib
 import threading
 from collections.abc import Callable
@@ -22,6 +23,23 @@ SHALLOW = ("5-archives", "6-trash", "5-archives/batches")
 SINGLE = ("seat.json", "next-batch.json", "board-journal.jsonl", "forge-journal.jsonl")
 # a `lease hold`'s record at the root: one that starts or ends moves a CR row's `lease.holds`
 HOLDS = ".lease-hold.*.run"
+
+
+def counts_for(rel: str) -> bool:
+    """A change at `rel` (under the planning folder, forward slashes) moves what `fingerprint`
+    reads: one of the single files, a `lease hold`'s record, anything under a stage folder, or
+    an entry of the archives and the trash (or what is in it: its time moves). Locks never."""
+    parts = rel.split("/")
+    if rel in ("", ".") or any(is_lock(p) for p in parts):
+        return False
+    if len(parts) == 1 and (parts[0] in SINGLE or fnmatch.fnmatchcase(parts[0], HOLDS)):
+        return True
+    if parts[0] in DEEP:
+        return True
+    return any(
+        parts[: len(top)] == top and len(parts) <= len(top) + 2
+        for top in (s.split("/") for s in SHALLOW)
+    )
 
 
 def _join(base: str, name: str) -> str:

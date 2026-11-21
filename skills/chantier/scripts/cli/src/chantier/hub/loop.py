@@ -1,6 +1,9 @@
 """The surface server's hub loop: a thread of `chantier board` that tries `hub.lock` (never
-waiting) every `poll_s()` until it holds it, then runs `Hub.cycle` whenever `Hub.due` says so.
-`HubLoop.poll(now)` takes the monotonic time, so a test drives it with no sleep and no thread."""
+waiting) every `poll_s()` until it holds it, then runs `Hub.cycle` whenever `Hub.due` says so and
+a client observes the server (`observed`: the push loop's, or always for `--forge-always`); with
+none, the hub keeps its lock and its entry, marked idle, and reads nothing.
+`HubLoop.poll(now, observed)` takes the monotonic time, so a test drives it with no sleep and no
+thread."""
 
 from __future__ import annotations
 
@@ -24,11 +27,16 @@ class HubLoop:
         self.lock = lock.HubLock(repo.git_dir)
         self.hub: Hub | None = None
 
-    def poll(self, now: float) -> None:
-        """One look: the election while the lock is not held, then the cycle when due."""
+    def poll(self, now: float, observed: Callable[[], bool]) -> None:
+        """One look: the election while the lock is not held, then the cycle when due and a
+        client observes; idle otherwise (the first observer then gets a cycle at once)."""
         if self.hub is None and self.lock.acquire():
             self.hub = Hub(self.repo, self.version)
-        if self.hub is not None and self.hub.due(now):
+        if self.hub is None:
+            return
+        if not observed():
+            self.hub.set_idle(True)
+        elif self.hub.due(now):
             self.hub.cycle(now)
 
     def note_error(self, e: Exception) -> None:
@@ -48,8 +56,10 @@ class HubThread:
     """`HubLoop` in a daemon thread. A loop that dies ends the server: `on_death` is called after
     an error line on stderr."""
 
-    def __init__(self, loop: HubLoop, on_death: Callable[[], None]) -> None:
-        self.loop, self.on_death = loop, on_death
+    def __init__(
+        self, loop: HubLoop, on_death: Callable[[], None], observed: Callable[[], bool]
+    ) -> None:
+        self.loop, self.on_death, self.observed = loop, on_death, observed
         self._done = threading.Event()
         self._thread = threading.Thread(target=self._run, name="forge-hub", daemon=True)
 
@@ -60,7 +70,7 @@ class HubThread:
         try:
             while True:
                 try:
-                    self.loop.poll(time.monotonic())
+                    self.loop.poll(time.monotonic(), self.observed)
                 except Exception as e:  # one bad cycle does not end the server
                     self.loop.note_error(e)
                 if self._done.wait(hub_times.poll_s()):

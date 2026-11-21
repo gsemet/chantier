@@ -22,6 +22,10 @@ from chantier.hub.loop import HubLoop, HubThread
 from chantier.hub.watch import Watch
 
 
+def seen() -> bool:  # a client observes the server
+    return True
+
+
 @pytest.fixture
 def dead_is_dead(monkeypatch: pytest.MonkeyPatch) -> None:
     real = procs.alive_since
@@ -119,7 +123,7 @@ def test_two_writers_of_server_json_lose_neither_entry(repo: Path) -> None:
 
 
 class Dies:
-    def poll(self, _now: float) -> None:
+    def poll(self, _now: float, _observed: object) -> None:
         raise RuntimeError("boom")
 
     def note_error(self, _e: Exception) -> None:
@@ -133,7 +137,7 @@ class BadCycle:
         self.noted: list[Exception] = []
         self.polls = 0
 
-    def poll(self, _now: float) -> None:
+    def poll(self, _now: float, _observed: object) -> None:
         self.polls += 1
         if self.polls == 1:
             raise ValueError("bad line")
@@ -153,17 +157,17 @@ def test_the_servers_hub_loop_elects_cycles_when_due_and_lets_go(
     loop = HubLoop(alpha, NEW_VERSION)
     watcher = lock.HubLock(git)
     assert watcher.acquire()  # a watcher is the hub: the server serves and waits
-    loop.poll(0.0)
+    loop.poll(0.0, seen)
     assert loop.hub is None and not world.calls
     watcher.release()  # it yielded: within one poll the server is the hub
-    loop.poll(1.0)
+    loop.poll(1.0, seen)
     assert loop.hub is not None and len(world.calls) == CALLS
     held = state.live_entry(git, state.HUB)
     assert held is not None and held["pid"] == os.getpid()
     journal.append(alpha, [BOARD_LINE], "board")
-    loop.poll(2.0)  # not due
+    loop.poll(2.0, seen)  # not due
     assert len(world.calls) == CALLS
-    loop.poll(1.0 + CYCLE)  # due: the merge is not written twice
+    loop.poll(1.0 + CYCLE, seen)  # due: the merge is not written twice
     assert len(world.calls) == 2 * CALLS
     kinds = [(e["source"], e["type"]) for e in world.journal("alpha")]
     assert kinds == [("hub", "merged@1"), ("board", "board@1")]
@@ -174,7 +178,7 @@ def test_the_servers_hub_loop_elects_cycles_when_due_and_lets_go(
     again.release()
     # a bad cycle is noted and the thread goes on to the next one
     bad = BadCycle()
-    thread = HubThread(bad, lambda: None)
+    thread = HubThread(bad, lambda: None, seen)
     runner = threading.Thread(target=thread._run)
     runner.start()
     for _ in range(200):
@@ -186,5 +190,5 @@ def test_the_servers_hub_loop_elects_cycles_when_due_and_lets_go(
     assert bad.polls > 1 and [str(e) for e in bad.noted] == ["bad line"]
     # a loop that cannot even note its error ends the server, with a line
     ended: list[int] = []
-    HubThread(Dies(), lambda: ended.append(1))._run()
+    HubThread(Dies(), lambda: ended.append(1), seen)._run()
     assert ended == [1] and "the forge hub stopped: boom" in capsys.readouterr().err

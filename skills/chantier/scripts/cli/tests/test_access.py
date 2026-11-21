@@ -20,13 +20,13 @@ from test_store_command_table import states  # noqa: F401 - the surface states (
 from chantier.core import clock
 from chantier.core.errors import EXIT_USAGE
 from chantier.hub import state
+from chantier.writer.lines import START
 
 T0 = "2030-01-01T00:00:00Z"  # CR one's lease 1 expires at 00:10:00
 ME = "uuid-me"
 WITH_EPOCH_LINE, TWO_LINES = 3, 2
 Ask = Callable[..., list[str]]
 Change = Callable[[dict[str, Any]], None]
-START = "start the surface server ($CHANTIER board --seat <session id>)"
 
 
 @pytest.fixture(scope="session")

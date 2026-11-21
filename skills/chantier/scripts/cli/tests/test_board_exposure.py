@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import socket
 from pathlib import Path
 
 import pytest
@@ -15,6 +16,7 @@ from chantier.board import address, command, guard
 from chantier.board import key as keys
 from chantier.board.context import Request
 from chantier.board.projects import open_projects
+from chantier.board.watch_files import FileWatchThread
 from chantier.core.errors import ChantierError
 from chantier.core.repo import Repo
 from chantier.playbook.board_check import HOST_NOT_NETWORK
@@ -72,6 +74,13 @@ def test_a_fixed_host_in_chantier_yaml_is_refused_with_the_way_to_give_it(
         address.settings(port, None, None)
 
 
+def _served(_ctx: object, sock: socket.socket, files: FileWatchThread, _args: object) -> None:
+    """The board serves nothing: its socket closed, its file watch stopped (Windows lets the test
+    folder go)."""
+    files.stop()
+    sock.close()
+
+
 def _start(chantier: Chantier, repo: Path, config: str | None) -> list[str]:
     prepared(repo, chantier, "Board one")
     if config:
@@ -87,26 +96,26 @@ def test_start_lines_with_network_and_the_default(
 ) -> None:
     _route(monkeypatch, route)
     monkeypatch.setattr(command, "probe", lambda *_a, **_k: None)
-    monkeypatch.setattr(command, "_run", lambda _p, _s, sock, _u: sock.close())
+    monkeypatch.setattr(command, "_run", _served)
     out = _start(chantier, repo, NETWORK)
-    lines_with_network = ("link", "local", "beyond")
+    lines_with_network = ("link", "local", "beyond", "files")
     if route == LAN:
         assert out[0].startswith(f"board on http://{LAN}:") and " over " in out[0]
         assert out[1].startswith("on this machine: http://127.0.0.1:")
         assert out[2].startswith("board: listens on the local network (0.0.0.0)")
-        assert len(out) == len(lines_with_network)
+        assert len(out) == len(lines_with_network) and out[-1] == command.WATCHES
     else:
         assert out[0].startswith("board on http://127.0.0.1:")
-        assert out[1:] == [command.NO_NETWORK]
+        assert out[1:] == [command.NO_NETWORK, command.WATCHES]
 
 
 def test_the_default_start_prints_one_line(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(command, "probe", lambda *_a, **_k: None)
-    monkeypatch.setattr(command, "_run", lambda _p, _s, sock, _u: sock.close())
+    monkeypatch.setattr(command, "_run", _served)
     out = _start(chantier, repo, None)
-    assert len(out) == 1 and out[0].startswith("board on http://127.0.0.1:")
+    assert out[0].startswith("board on http://127.0.0.1:") and out[1:] == [command.WATCHES]
 
 
 def test_the_cookie_lasts_30_days_and_the_exchange_sets_it() -> None:

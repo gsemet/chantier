@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 
 from chantier.commands.registry import NO_BATCH, Subparsers, add_command
@@ -49,8 +50,25 @@ def register(sub: Subparsers) -> None:
         help="the folder of static files the board serves at `/` (default: the shipped web "
         "client); `none`: the API only, no page",
     )
+    _switches(s)
+
+
+def _switches(s: argparse.ArgumentParser) -> None:
+    """The board's on/off options."""
     s.add_argument(
         "--new-key",
         action="store_true",
         help="replace the board's key: the old link stops working",
+    )
+    s.add_argument(
+        "--stop-idle",
+        action="store_true",
+        help="stop by itself after 30 minutes with no client (no page, no watcher, no chantier "
+        "live), after the writer's last cycle: what a watcher passes to the board it starts",
+    )
+    s.add_argument(
+        "--forge-always",
+        action="store_true",
+        help="read the forge every 20 s with or without a client, for a host that cannot run "
+        "the watcher (not with --stop-idle)",
     )
