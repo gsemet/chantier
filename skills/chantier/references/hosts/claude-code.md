@@ -264,9 +264,9 @@ In the rules below, `origin` is the project's remote name.
 | `Bash(git push --force-with-lease -u origin chantier/*)` and `PowerShell(…)` | a Driver's push after a rebase, and the stack driver's restack, one command per branch (`driver.md`, Push) | a lease-protected force push of any `chantier/` branch; a Driver pushes only its own CR's branch (`driver.md`, Push); the rule's `*` does not enforce that, the card does | documented (rule form) |
 | `Bash(git -C * push --force-with-lease -u origin chantier/*)` and `PowerShell(…)` | the same from outside the worktree, the form refused 4 times as "Git Destructive" | as above, in any repository the `-C` path names; a Driver pushes only its own CR's branch (`driver.md`, Push); the rule's `*` does not enforce that, the card does | documented (rule form); **refused with the rule set**: batch-23, CR-318, a Driver in auto mode, `Permission for this action was denied by the Claude Code auto mode classifier. Reason: [Destructive or Unwanted Actions].` |
 | `Bash(git push --force-with-lease=chantier/* origin *chantier/*)` and `PowerShell(…)` | the steering session's route for a refused force push: `git push --force-with-lease=<branch>:<expected> <remote> <sha>:refs/heads/<branch>` | as above | documented (rule form) |
-| `Bash(uv run --no-sync --project * chantier *)` and `PowerShell(…)` | every `$CHANTIER` command in chantier's own checkout, the dev mode (`merge`, `ship`, `spawn`… were refused 5 times) | any local project whose script is named `chantier` | **unproved**: whether auto mode drops it as a "package-manager run command" is not documented (checked 2026-11-09); trial: enter auto mode with the rule set, run `$CHANTIER status`, see whether the classifier is asked |
-| `Bash(uv sync --locked --project *)` and `PowerShell(…)` | the steering session's one sync of chantier's own checkout, at a session's or a batch's start and after a merge that changes `uv.lock` (the dev mode) | any local project, synced from its lockfile | documented (rule form) |
-| `Bash(uvx --from * chantier *)` and `PowerShell(…)` | every `$CHANTIER` command of an installed plugin, the plugin mode | any package that `uvx` can run from any source, named `chantier` | **unproved**: whether auto mode drops it as a "package-manager run command" is not documented (checked 2026-11-09); trial: enter auto mode with the rule set, run `$CHANTIER status`, see whether the classifier is asked |
+| `Bash(uv run --no-sync --project "<checkout>" chantier *)` and `PowerShell(…)`, `<checkout>` filled with the checkout's real path as P10 prints it | every `$CHANTIER` command in chantier's own checkout, the dev mode (`merge`, `ship`, `spawn`… were refused 5 times) | every chantier subcommand of the checkout at that path (`gate` and `lease hold` still run the command they are given, until the CR `gate-hold-narrowing`) | rule matching proved (main session, `dontAsk`; 2026-11-21, Claude Code 2.1.326, Windows 11); auto mode and a Driver (subagent) **unproved**: whether auto mode drops it as a "package-manager run command" is not documented (checked 2026-11-09); trial: enter auto mode with the rule set, run `$CHANTIER status`, see whether the classifier is asked |
+| `Bash(uv sync --locked --project "<checkout>")` and `PowerShell(…)`, `<checkout>` filled the same way | the steering session's one sync of chantier's own checkout, at a session's or a batch's start and after a merge that changes `uv.lock` (the dev mode) | a sync of the checkout at that path, from its lockfile | rule matching proved (main session, `dontAsk`; 2026-11-21, Claude Code 2.1.326, Windows 11); auto mode and a Driver (subagent) **unproved** |
+| `Bash(uvx --from "<plugin root>" chantier *)` and `PowerShell(…)`, `<plugin root>` filled with the plugin's real path as P10 prints it | every `$CHANTIER` command of an installed plugin, the plugin mode | every chantier subcommand of the plugin at that path (`gate` and `lease hold` still run the command they are given, until the CR `gate-hold-narrowing`) | rule matching proved (main session, `dontAsk`; 2026-11-21, Claude Code 2.1.326, Windows 11); auto mode and a Driver (subagent) **unproved**: whether auto mode drops it as a "package-manager run command" is not documented (checked 2026-11-09); trial: enter auto mode with the rule set, run `$CHANTIER status`, see whether the classifier is asked |
 | `Bash(gh pr create*)` and `PowerShell(…)` | a Driver opens its PR (refused once as "Git Destructive") | any PR on any repository `gh` can reach | documented (rule form) |
 | `Bash(gh pr edit*)` and `PowerShell(…)` | a Driver's body (`--body-file`) and the stack driver's retarget (`--base`); refused in batch-15 | any edit of any PR `gh` can reach | documented (rule form) |
 | `Bash(gh pr ready*)` and `PowerShell(…)` | a PR turned ready, or back to draft (`--undo`) | a PR turned ready, or back to draft | documented (rule form) |
@@ -282,6 +282,25 @@ In the rules below, `origin` is the project's remote name.
 | `Bash(glab mr reopen*)` and `PowerShell(…)` | a restored CR's MR reopens | reopening any MR `glab` can reach | documented (rule form) |
 | `Bash(glab ci status*)` and `PowerShell(…)` | a Driver reads its CI on GitLab (`glab ci status --live`) | read-only | documented (rule form) |
 | `SendMessage` | the Foreman and the Drivers message each other (refused twice) | any message between this session's agents and sessions | **unproved**: `SendMessage` as a rule is not documented (absent from tools-reference, checked 2026-11-09); trial: set it, enter auto mode, have the Foreman message a Driver |
+
+A broad chantier rule, a `*` where the path belongs (`uvx --from * chantier *`,
+`uv run --no-sync --project * chantier *`, `uv sync --locked --project *`, `uv sync *`, and the
+older `uv run --script * *` and `uv run --locked --project * chantier *`), lets any command
+through: `uvx` runs any package from any source, and the middle `*` of the `uv run` forms matches
+`uv run --no-sync --project . python -c ... chantier x`. P10 judges by matching, finds each
+broad rule in your settings, names it with its file and the real-path rule that replaces it
+(marked `present` when it is set too), or says "no chantier command needs it"; it warns even when
+every command is allowed. The Chief of Staff offers to add the replacing rules at once, and you
+remove the broad rule by hand: chantier never removes or edits a rule of yours, so no command
+meets a prompt in between.
+
+The plugin's real path changes when the host moves the plugin's folder (an update, if the host's
+folder holds the version: **unproved**): the old rule then stops matching, P10 names the new rule
+as missing and the old one as stale, with its file, and the Chief of Staff asks again, one
+question per update; you remove the stale rule by hand. In the plugin mode P10 takes any other
+plugin-form path as an old copy, on the assumption of one plugin copy per install (**unproved**);
+in the dev mode it leaves plugin-form rules alone, and names a dev rule stale only when its
+folder no longer exists.
 
 There is no `gh api` rule: it would allow any API write. The stack on the forge is changed only
 by `$CHANTIER forge-stack` (covered by the two `chantier` rules) or the `gh stack` extension.
@@ -308,12 +327,12 @@ The same rules as one block, ready to paste into the `permissions.allow` array o
       "PowerShell(git -C * push --force-with-lease -u origin chantier/*)",
       "Bash(git push --force-with-lease=chantier/* origin *chantier/*)",
       "PowerShell(git push --force-with-lease=chantier/* origin *chantier/*)",
-      "Bash(uv run --no-sync --project * chantier *)",
-      "PowerShell(uv run --no-sync --project * chantier *)",
-      "Bash(uv sync --locked --project *)",
-      "PowerShell(uv sync --locked --project *)",
-      "Bash(uvx --from * chantier *)",
-      "PowerShell(uvx --from * chantier *)",
+      "Bash(uv run --no-sync --project \"<checkout>\" chantier *)",
+      "PowerShell(uv run --no-sync --project \"<checkout>\" chantier *)",
+      "Bash(uv sync --locked --project \"<checkout>\")",
+      "PowerShell(uv sync --locked --project \"<checkout>\")",
+      "Bash(uvx --from \"<plugin root>\" chantier *)",
+      "PowerShell(uvx --from \"<plugin root>\" chantier *)",
       "Bash(gh pr create*)",
       "PowerShell(gh pr create*)",
       "Bash(gh pr edit*)",
@@ -378,7 +397,7 @@ nobody may be there to answer its prompt.
 
 | Capability | Used when | Commands its agents run | Rules | Trial before the go | Mark |
 | --- | --- | --- | --- | --- | --- |
-| Every batch | always | `$CHANTIER ...` (dev: `uv run --no-sync --project <checkout> chantier ...`, after one `uv sync --locked --project <checkout>` by the steering session; plugin: `uvx --from <plugin> chantier ...`); a Driver's push `git push -u <remote> chantier/...` and `git -C <worktree> push -u <remote> chantier/...`; the force push after a rebase `git [-C <worktree>] push --force-with-lease -u <remote> chantier/...`; the steering session's route `git push --force-with-lease=<branch>:<sha> <remote> <sha>:refs/heads/<branch>`; on GitHub `gh pr create`, `edit` (with `--base`), `ready` (with `--undo`), `checks`, `view`, `close`, `reopen`; on GitLab `glab mr create`, `update`, `view`, `close`, `reopen`, `glab ci status`; `SendMessage` | `git push -u origin chantier/*`<br>`git -C * push -u origin chantier/*`<br>`git push --force-with-lease -u origin chantier/*`<br>`git -C * push --force-with-lease -u origin chantier/*`<br>`git push --force-with-lease=chantier/* origin *chantier/*`<br>`uv run --no-sync --project * chantier *`<br>`uv sync --locked --project *`<br>`uvx --from * chantier *`<br>`gh pr create*`<br>`gh pr edit*`<br>`gh pr ready*`<br>`gh pr checks*`<br>`gh pr view*`<br>`gh pr close*`<br>`gh pr reopen*`<br>`glab mr create*`<br>`glab mr update*`<br>`glab mr view*`<br>`glab mr close*`<br>`glab mr reopen*`<br>`glab ci status*`<br>and the bare tool rule SendMessage | `$CHANTIER preflight`; `git -C <main checkout> push --force-with-lease -u <remote> chantier/preflight-trial --dry-run`; `gh pr view --json number` (GitHub) or `glab mr view` (GitLab) | documented (rule form); the `chantier` and SendMessage rules **unproved** (see the table above); a Driver's `git -C` force push was refused with its rule set (batch-23, CR-318); a refusal goes the route of `driver.md` |
+| Every batch | always | `$CHANTIER ...` (dev: `uv run --no-sync --project "<checkout>" chantier ...`, after one `uv sync --locked --project "<checkout>"` by the steering session; plugin: `uvx --from "<plugin root>" chantier ...`; the two placeholders filled with the real path P10 prints); a Driver's push `git push -u <remote> chantier/...` and `git -C <worktree> push -u <remote> chantier/...`; the force push after a rebase `git [-C <worktree>] push --force-with-lease -u <remote> chantier/...`; the steering session's route `git push --force-with-lease=<branch>:<sha> <remote> <sha>:refs/heads/<branch>`; on GitHub `gh pr create`, `edit` (with `--base`), `ready` (with `--undo`), `checks`, `view`, `close`, `reopen`; on GitLab `glab mr create`, `update`, `view`, `close`, `reopen`, `glab ci status`; `SendMessage` | `git push -u origin chantier/*`<br>`git -C * push -u origin chantier/*`<br>`git push --force-with-lease -u origin chantier/*`<br>`git -C * push --force-with-lease -u origin chantier/*`<br>`git push --force-with-lease=chantier/* origin *chantier/*`<br>`uv run --no-sync --project "<checkout>" chantier *`<br>`uv sync --locked --project "<checkout>"`<br>`uvx --from "<plugin root>" chantier *`<br>`gh pr create*`<br>`gh pr edit*`<br>`gh pr ready*`<br>`gh pr checks*`<br>`gh pr view*`<br>`gh pr close*`<br>`gh pr reopen*`<br>`glab mr create*`<br>`glab mr update*`<br>`glab mr view*`<br>`glab mr close*`<br>`glab mr reopen*`<br>`glab ci status*`<br>and the bare tool rule SendMessage | `$CHANTIER preflight`; `git -C <main checkout> push --force-with-lease -u <remote> chantier/preflight-trial --dry-run`; `gh pr view --json number` (GitHub) or `glab mr view` (GitLab) | documented (rule form); the `chantier` and SendMessage rules **unproved** (see the table above); a Driver's `git -C` force push was refused with its rule set (batch-23, CR-318); a refusal goes the route of `driver.md` |
 | A stack | `--mode stack` (or `order mode --note stack`, from any mode) | the above, plus the native stack: `gh stack ...` when the user took the `gh stack` extension, else `$CHANTIER forge-stack create\|rebuild\|show\|unstack` (covered by the `chantier` rule; it calls the stacks API itself) | `gh stack*` | `gh stack view`; with `forge-stack`, the stacks API probe of P9 | **unproved** (the rule form of an extension command) |
 | A release on its own | `--autonomous-releases N` at `open`, or `order grant <release-cr> --note "releases=<n>..."` | the merge of the release PR by the steering session (`gh pr merge <pr> --<the project's method>`, or on GitHub for a PR in a native stack `gh api -X PUT repos/<owner>/<repo>/pulls/<pr>/merge-async ...` and its result `gh api -X GET .../merge-async/<uuid>`, after the stack read `gh api -X GET repos/<owner>/<repo>/stacks ...`; `glab mr merge ...`), the tag push (`git push <remote> v1.2.3`), the publication (`gh release create v1.2.3 ...`, `glab release create v1.2.3 ...`), and what the project's procedure names (for chantier: `just tag`, `uv run --script scripts/release_notes.py ...`: the project's own, no rule offered) | `gh pr merge*`<br>`gh api -X GET repos/*/stacks*`<br>`gh api -X PUT repos/*/pulls/*/merge-async*`<br>`gh api -X GET repos/*/pulls/*/merge-async/*`<br>`glab mr merge*`<br>`git push origin v*`<br>`gh release create*`<br>`glab release create*` | `git push <remote> v0.0.0-preflight-trial --dry-run`; `gh release create`, the merge and the asynchronous merge: no trial, P10's rule check only | documented (rule form); the merge route for a PR in a native stack is unproved by an agent. Risk: any merge of any PR `gh` can reach, any asynchronous merge of any PR `gh` can reach (it merges every open PR below it in its stack), a push of any `v*` tag, any release on any repository `gh` can reach |
 | Fixes on a grant | `--grant-fixes` at `open`, or `order grant ... fixes=on` | the merge of a fix PR by the steering session (`gh pr merge ...`, or for a PR in a native stack the stack read and the asynchronous merge of the release row, `glab mr merge ...`) | `gh pr merge*`<br>`gh api -X GET repos/*/stacks*`<br>`gh api -X PUT repos/*/pulls/*/merge-async*`<br>`gh api -X GET repos/*/pulls/*/merge-async/*`<br>`glab mr merge*` | no harmless form: no trial, P10's rule check only | documented (rule form); the route for a PR in a native stack is unproved by an agent. Risk: any merge of any PR `gh` can reach, any asynchronous merge of any PR `gh` can reach (it merges every open PR below it in its stack) |
@@ -445,7 +464,7 @@ and chantier does not do them unasked. Each with why:
   their commands"):
   - an allow rule resolves a matching command at once, before the classifier (documented), for the steering session; for a Driver, see batch-23 above: a
     trial that runs where P10 says a rule matches proves the host honours that rule's form, which
-    settles the unproved rows (`uv run --no-sync ... chantier *`, `uvx --from * chantier *`, `gh stack*`);
+    settles the unproved rows (the auto-mode fate of `uv run --no-sync --project "<checkout>" chantier *` and `uvx --from "<plugin root>" chantier *`, `gh stack*`);
   - the host offers no way to try a rule ahead for the commands with no harmless form (`gh
     release create`, `gh pr merge`, `gh api -X PUT .../merge-async`, `gh pr edit --base`, `SendMessage`): the classifier judges
     them at run time. Their only check before the go is P10's rule match;
@@ -469,7 +488,7 @@ Each **unproved**, not documented (checked 2026-11-09):
   (<https://code.claude.com/docs/en/tools-reference>). Seen 177 times in the user's week, mostly
   from subagents.
 - PowerShell assignments and allow rules; `SendMessage` as a rule; plugin names in `Agent(…)`;
-  the auto-mode fate of `uv run --no-sync --project * chantier *` and `uvx --from * chantier *` (as above).
+  the auto-mode fate of `uv run --no-sync --project "<checkout>" chantier *` and `uvx --from "<plugin root>" chantier *` (as above).
 - Whether a running session picks up a change of the settings files: not checked; the block of
   "Allow rules to add" says to start a new session.
 
@@ -851,7 +870,9 @@ block above.
 - **You should see:** at the next preflight, `P10 ok`, or a P10 line that no longer names them.
 
 The Chief of Staff fills in only the list of rules: the strings P10 named, in their table order,
-with the project's remote name in place of `origin`, complete, no placeholder. Each was run by
+with the project's remote name in place of `origin` and the real path in place of `<checkout>` or
+`<plugin root>`, complete, no placeholder. A path holding a `'` breaks the quoting of the two
+command lines below: the Chief of Staff says so instead of giving them. Each was run by
 hand on a scratch home folder in three cases (file absent, file with other keys, file already
 holding some of the rules), twice each: valid JSON, no byte-order mark, no duplicate, nothing
 removed, and `preflight` reads it back as `P10 ok`.

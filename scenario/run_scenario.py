@@ -977,7 +977,9 @@ def scenario(w: World) -> None:
     check("the P10 warning names no `release create` rule (a publication stays asked by the host)",
           "release create" not in p10, p10)
     sys.path.insert(0, str(SKILL / "scripts" / "cli" / "src"))
-    from chantier.commands.permissions import RECOMMENDED_ALLOW
+    from chantier.commands.allow_samples import filled_allow
+    from chantier.launch import dev_rule, plugin_rule
+    from chantier.plugin_files import is_dev_checkout
 
     (home / ".claude").mkdir(parents=True)
     user = ["git push --force-with-lease -u origin chantier/*",
@@ -1009,7 +1011,7 @@ def scenario(w: World) -> None:
               "does not count", "gh stack view" not in p10_line(XDG_DATA_HOME=str(w.root / "xdg"),
                                                                 LOCALAPPDATA=str(w.root / "xdg")))
     (home / ".claude" / "settings.json").write_text(
-        json.dumps({"permissions": {"allow": list(RECOMMENDED_ALLOW)}}), encoding="utf-8")
+        json.dumps({"permissions": {"allow": list(filled_allow())}}), encoding="utf-8")
     code, out = w.chantier("preflight", env=homes)
     check("preflight says P10 ok once the rules are in the home settings", code == 0
           and any(ln.startswith("P10 ok") for ln in out), str(out))
@@ -1019,6 +1021,24 @@ def scenario(w: World) -> None:
           code == 0 and "gh release create*" in rel and "gh pr merge*" in rel
           and "gh api -X PUT repos/*/pulls/*/merge-async*" in rel
           and out[-1] == "preflight passed", rel)
+    broad = ["uvx --from * chantier *", "uv run --no-sync --project * chantier *",
+             "uv run --script * *"]
+    (home / ".claude" / "settings.json").write_text(
+        json.dumps({"permissions": {"allow": [f"Bash({r})" for r in broad]}}), encoding="utf-8")
+    code, out = w.chantier("preflight", env=homes)
+    p10 = next((ln for ln in out if ln.startswith("P10")), "")
+    mine = {"uvx --from * chantier *": None if is_dev_checkout() else plugin_rule,
+            "uv run --no-sync --project * chantier *": dev_rule if is_dev_checkout() else None,
+            "uv run --script * *": None}
+    root = SKILL.parents[1].resolve()
+    check("preflight (P10) names a broad chantier rule as letting any command through, with its "
+          "file, the real-path rule that replaces it only for the scenario's mode, and still "
+          "passes", code == 0 and out[-1] == "preflight passed" and p10.startswith("P10 warn")
+          and "broad rules let any command through" in p10
+          and all(f"Bash({r}) (" in p10 and "settings.json" in p10 for r in broad)
+          and all(f"replaced by Bash({fn(root)})" in p10 for fn in mine.values() if fn)
+          and p10.count("no chantier command needs it") == sum(fn is None for fn in mine.values()),
+          p10)
     check("nothing was written in the working tree", w.sh("git", "status", "--porcelain") == "")
     _, out = w.chantier("rules")
     check("`rules` lists the project's instructions and what they link, with line counts",

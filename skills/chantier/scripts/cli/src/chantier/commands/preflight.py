@@ -9,7 +9,8 @@ from pathlib import Path
 
 from chantier import __version__
 from chantier.autosync.site import GUIDELINES
-from chantier.commands.permissions import CAPABILITIES, SETTINGS_SHOWN, commands_not_allowed
+from chantier.commands.allow_samples import CAPABILITIES
+from chantier.commands.permissions import SETTINGS_SHOWN, commands_not_allowed
 from chantier.commands.writer_line import entry as writer_entry
 from chantier.commands.writer_line import line as writer_line
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
@@ -199,13 +200,18 @@ def _check_allow(r: _Report, repo: Repo | None, wanted: set[str]) -> None:
         label = CAPABILITIES[cap]
         r.check(
             "P10",
-            not gap.missing,
+            not gap.missing and not gap.advice,
             f"{label}: the commands its agents run are allowed by your settings{note}",
-            f"{label}: {gap.missing} of {gap.total} commands its agents run are not allowed by "
-            f"your settings ({SETTINGS_SHOWN}){note}: {'; '.join(gap.named)}"
-            f"{'; denied: ' + '; '.join(gap.blocked) if gap.blocked else ''}; "
-            f"{_WHY.format(cap=label)}; the rules are in hosts/claude-code.md, "
-            '"Capabilities and their commands"',
+            (
+                f"{label}: {gap.missing} of {gap.total} commands its agents run are not allowed "
+                f"by your settings ({SETTINGS_SHOWN}){note}: {'; '.join(gap.named)}"
+                f"{'; denied: ' + '; '.join(gap.blocked) if gap.blocked else ''}; "
+                f"{_WHY.format(cap=label)}; the rules are in hosts/claude-code.md, "
+                '"Capabilities and their commands"'
+                if gap.missing
+                else f"{label}: the commands its agents run are allowed by your settings{note}"
+            )
+            + gap.advice,
             warn=True,
         )
     left = [label for cap, label in CAPABILITIES.items() if cap not in gaps]

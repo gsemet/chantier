@@ -108,7 +108,7 @@ only on the user's yes. Asked once per session per capability (the table "Capabi
 commands" of your host's reference):
 
 - **The question.** One question in the first message, after the P5/P10 lines: "add these rules
-  to `~/.claude/settings.json`?" It lists each rule P10 named, with its risk taken from the "Risk
+  to `~/.claude/settings.json`?" It lists each rule P10 named, with its real path as P10 printed it, and its risk taken from the "Risk
   accepted" column of the table "Allow rules" (or the Mark column of "Capabilities and their
   commands") of your host's reference. At a first turn the question covers the capability "every
   batch" only. At the go, it covers the capabilities the batch uses, with what is still missing;
@@ -121,6 +121,14 @@ commands" of your host's reference):
   (batch-23); a refused one comes to you, and you run it when it is legitimate. Add in one line
   that whether this running session picks up the change is unproved: a session or agent started
   afterwards reads it.
+- **Broad rules.** When P10 names a broad rule in a settings file (one that lets any command
+  through), say it once per session as a strong warning, with the file and "lets any command
+  through". In the same question, offer to add at once the real-path rules P10 named beside it, not
+  those marked `present`, on the user's yes. The user removes the broad rule by hand: never remove
+  it, never edit it ("nothing else is written" stands).
+- **Stale rules.** When P10 names a stale rule (one that no longer matches the plugin's path), name
+  it in the same question as the new rule, with its file, for the user to remove by hand: one
+  question per update.
 - **On a no.** Say once, per capability, what will stop: for every batch, a Driver's force push
   after a rebase goes Driver -> Foreman -> Chief of Staff, and an unattended batch waits at the
   first one; for a release on its own, "the release will stop at the merge or the publication and

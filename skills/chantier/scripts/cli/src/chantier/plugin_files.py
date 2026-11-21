@@ -11,6 +11,7 @@ from chantier import __version__
 from chantier.core.clock import stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.repo import Repo
+from chantier.launch import dev_launch, plugin_launch, sync_line
 from chantier.playbook import escalation, events, layers, limits, timing
 
 if TYPE_CHECKING:
@@ -79,8 +80,8 @@ def cli_command(repo: Repo | None = None) -> str:
     root = skill.parents[1]
     option = f' --project "{repo.project_folder.as_posix()}"' if repo and repo.external else ""
     if is_dev_checkout():
-        return f'uv run --no-sync --project "{root.as_posix()}" chantier{option}'
-    return f'uvx --from "{root.as_posix()}" chantier --skill "{skill.as_posix()}"{option}'
+        return f"{dev_launch(root)}{option}"
+    return f"{plugin_launch(root, skill)}{option}"
 
 
 def sync_command() -> str | None:
@@ -88,7 +89,7 @@ def sync_command() -> str | None:
     session at named moments; None in the plugin mode."""
     if not is_dev_checkout():
         return None
-    return f'uv sync --locked --project "{skill_dir().parents[1].as_posix()}"'
+    return sync_line(skill_dir().parents[1])
 
 
 def own_transcript(host: str) -> str | None:
