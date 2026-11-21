@@ -25,7 +25,7 @@ from chantier.core.batch import Batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.records import CrEntry
 from chantier.gate_slots import slot_of
-from chantier.rails import ENDED, all_merged, is_release
+from chantier.rails import ENDED, is_release
 from chantier.rails_release import (
     check_grant,
     check_granted_fix,
@@ -189,7 +189,7 @@ def _merged(w: Word) -> list[str]:
     if c.kind != "release":
         c.unset("held")  # merged on the default branch: no longer held
         lines = merge_done(b, c)
-        w.ended = all_merged(b.record)
+        w.ended = True  # `end_of_batch` pauses the batch, or says what keeps it open
         return [lines[0], *stopped]
     release_merged(b, c)
     return [f"merged {cr_id}: the procedure goes on with a new Release driver", *stopped]

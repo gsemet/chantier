@@ -53,7 +53,7 @@ them), or wait for the next batch.
 After the preflight, the plan and your go, the Chief of Staff opens the batch in direct mode and
 starts the Drivers itself, several in parallel on the free slots. A CR that needs you is parked
 as blocked with its question, and the Chief of Staff tells you at once, in the shape of a
-progress report; the others go on. Past the budget, nothing new starts until you answer. Parallel
+progress report; the others go on. A CR that waits on something outside the batch (your trial or answer, an approval, an outside pipeline or merge) is parked by the Chief of Staff: its slot is free, it leaves the stack and the series order, the CRs that wait with it (a started series successor included) wait too, and it comes back on top once its wait is cleared. `close` and the release wait for it. Past the budget, nothing new starts until you answer. Parallel
 (the default), series and stacked pull requests work as in Foreman mode: parallel CRs are all based
 on the default branch and rebased after each merge, a series goes one CR after the other, each on
 the previous one's branch, and a stack driver makes one native stack afterwards, which you merge in one action from the top PR or one PR at a time from the bottom, as you choose; a change inserted into a stack ready to merge sends the PRs above it back to draft until the stack is verified again.

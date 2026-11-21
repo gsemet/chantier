@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from chantier.core.records import BatchRecord, CrEntry, round_limit
 from chantier.core.repo import Repo
+from chantier.core.waits import open_counted, what
 from chantier.rails import over_budget, slot_free, waits_all
 from chantier.stack_words import (
     PR_IN_DRAFT,
@@ -20,15 +21,18 @@ ASKING = {"question", "approval", "merge", "fix", "infra", "budget", "refused", 
 ENDED = {"merged", "cancelled"}
 
 
+def parked_reason(c: CrEntry) -> bool:
+    """A blocked CR the Foreman parked: its reason starts with `parked:`."""
+    return c.status == "blocked" and (c.blocked_reason or "").startswith("parked:")
+
+
 def step(c: CrEntry) -> str:
     status = c.status
-    if status == "queued":
-        return "Queued"
-    if status == "ready":
-        return "Notify"
+    if status in {"queued", "ready"}:
+        return "Queued" if status == "queued" else "Notify"
     if status == "blocked":
         word = (c.blocked_reason or "").split(":")[0].split(" ")[0].lower()
-        return word.capitalize() if word in ASKING else "Blocked"
+        return "Parked" if parked_reason(c) else word.capitalize() if word in ASKING else "Blocked"
     if status in ENDED:
         return "Merged" if status != "cancelled" else "Dropped"
     if c.kind == "release":
@@ -84,11 +88,22 @@ def next_to_start(d: BatchRecord) -> str | None:
 _PHASE_WORDS = {"conflict-resolver": "conflict resolver", "pr": "PR", "ci": "CI"}
 
 
+def _blocked_text(c: CrEntry) -> str | None:
+    if parked_reason(c):
+        mine = open_counted(c)
+        return (
+            f"parked: waits for {'; '.join(what(w) for w in mine)}"
+            if mine
+            else "parked: wait cleared"
+        )
+    return None if waits_on(c) else "waits for the user"
+
+
 def phase_text(c: CrEntry) -> str | None:
     """The step a CR shows, the text every surface copies: its Driver's recorded step while it
     works, "waits for the user" when it is blocked and nobody else is on it."""
-    if c.status == "blocked" and not waits_on(c):
-        return "waits for the user"
+    if c.status == "blocked":
+        return _blocked_text(c)
     if c.status != "working" or not c.phase:
         return None
     n = _round(c)

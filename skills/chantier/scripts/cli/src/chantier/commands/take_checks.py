@@ -9,6 +9,7 @@ from chantier.core.records import BatchRecord, CrEntry, Lease
 from chantier.core.repo import Repo
 from chantier.lifecycle.stages import cr_directory, stage_layout
 from chantier.rails import check_take
+from chantier.stack_apart import refuse_parked_waiting
 from chantier.stacks import refuse_held
 
 
@@ -26,6 +27,7 @@ def check_take_all(  # noqa: PLR0913 - the keywords say what each is
     epoch, checked before it, are `take`'s own (a check added before this one is not answered
     by `access`). `read_only`: no dead lease-hold record is removed."""
     refuse_held(c)
+    refuse_parked_waiting(c)
     check_take(d, c, note)
     old = leases.check_free(repo, d, c.id, reclaim, drop=not read_only)
     if c.status != "working":

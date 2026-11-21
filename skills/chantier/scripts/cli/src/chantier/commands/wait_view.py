@@ -8,6 +8,7 @@ from typing import Any
 from chantier.core import waits
 from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
+from chantier.core.waits import open_counted, what
 
 GITLAB_NOTE = " (GitLab approval: cleared by hand until proved)"
 OUTSIDE_NOTE = " (not in the batch's repository: cleared by hand)"
@@ -25,11 +26,6 @@ def unseen_keys(repo: Repo) -> set[str]:
     return {str(x) for x in found} if isinstance(found, list) else set()
 
 
-def open_counted(c: CrEntry) -> list[dict[str, Any]]:
-    """The CR's open waits, none for a CR the record holds merged, dropped or cancelled."""
-    return waits.open_of(c.waits) if waits.counted(c.status) else []
-
-
 def _suffix(w: dict[str, Any], key: str, notes: tuple[set[str], set[str]]) -> str:
     from chantier.hub import waits as hub_waits  # noqa: PLC0415 - slow import
 
@@ -39,14 +35,6 @@ def _suffix(w: dict[str, Any], key: str, notes: tuple[set[str], set[str]]) -> st
     if key in outside:
         return OUTSIDE_NOTE
     return UNSEEN_NOTE if key in unseen else ""
-
-
-def what(w: dict[str, Any]) -> str:
-    since = f" since {waits.hhmm(w['since'])}"
-    if w["type"] == "answer":
-        return f'{w["id"]} answer{since}: "{w["ref"]}"'
-    shown = waits.short(w["ref"]) if w["type"] == "pipeline" else w["ref"]
-    return f"{w['id']} {w['type']} on {shown}{since}"
 
 
 def wait_line(repo: Repo, d: BatchRecord, c: CrEntry) -> str | None:

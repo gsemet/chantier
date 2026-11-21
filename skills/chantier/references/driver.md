@@ -1278,10 +1278,21 @@ resolving goes to a `conflict-resolver`, and the proofs a move touched are judge
 rule above (a `verifier` given the move, an `inspector` when the patch changed, always after a
 `conflict-resolver`); one that needs code goes the way "A conflict that needs code" says.
 
+**A CR parked.** Taken with a note `park: <cr>` (the CR left the stack for an outside wait, as a
+held one: its base is the default branch, and the CRs that wait with it, its dependents, stay
+out of the stack too): the steps of "A CR held out of the stack", for the parked CR and its
+dependents; its PR is turned to a draft and left out by `forge-stack rebuild` (`parked out of the
+stack`), and a dependent's PR with it (`waits with`). When it comes back, it is a working CR
+that joins on top, as for `unhold`.
+
 With `unhold: <cr>`, the CR comes back on top: it is a ready CR that joins, handled as "A draft
 that turns ready to merge" (ordered below the drafts, rebased, `forge-stack rebuild`, turned
 ready, `stack --out-of-draft <cr>`). The final-order take orders only the CRs of `chain` (held
 CRs apart).
+
+A note `rebase: <cr> dropped` (a parked or held CR with dependents was dropped, in a series or
+parallel batch): rebase onto the default branch, or onto the branch the `worktree:` line names,
+without the dropped CR's commits, as for `rebase: <cr> moved`.
 
 A dropped CR with an open PR and nothing on its branch needs only steps 4 and 5; one with no PR
 and nothing on its branch needs nothing from you.

@@ -7,15 +7,16 @@ from __future__ import annotations
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.records import BatchRecord, CrEntry, GateWaiver
 from chantier.core.repo import Repo
-from chantier.rails import ENDED, series_predecessor
+from chantier.rails import (
+    ENDED,
+    apart,
+    base_owner,
+    is_held,
+    out_of_order,
+    series_predecessor,
+)
 
 FORMING = 2  # the ready CRs with a PR that make the first stack due (`stack_due`)
-
-
-def is_held(c: CrEntry) -> bool:
-    """A CR held out of the stack (`order hold`): open and carrying the hold's order id. A CR
-    merged or cancelled with a stale `held` reads as not held."""
-    return bool(c.held) and c.status not in ENDED
 
 
 def refuse_held(c: CrEntry) -> None:
@@ -43,7 +44,9 @@ def chain(b_data: BatchRecord) -> list[CrEntry]:
         [
             x
             for x in b_data.crs
-            if x.status not in {"cancelled", "merged"} and x.kind != "fix" and not is_held(x)
+            if x.status not in {"cancelled", "merged"}
+            and x.kind != "fix"
+            and not out_of_order(b_data.crs, x, b_data.mode)
         ],
         key=lambda x: (x.kind == "release", x.order),
     )
@@ -61,7 +64,7 @@ def top_cr(b_data: BatchRecord, landed: frozenset[str] = frozenset()) -> CrEntry
         if x.status not in ENDED
         and x.id not in landed
         and x.kind not in {"release", "fix"}
-        and not is_held(x)
+        and not out_of_order(b_data.crs, x, b_data.mode)
     ]
     return max(open_, key=lambda x: x.order, default=None)
 
@@ -107,7 +110,9 @@ def next_merge(b_data: BatchRecord) -> CrEntry | None:
     open_ = [
         x
         for x in b_data.crs
-        if x.status not in ENDED and x.kind not in {"release", "fix"} and not is_held(x)
+        if x.status not in ENDED
+        and x.kind not in {"release", "fix"}
+        and not out_of_order(b_data.crs, x, b_data.mode)
     ]
     return min(open_, key=lambda x: x.order, default=None)
 
@@ -206,12 +211,16 @@ def _nearest_open(
 def start_on_for(
     b_data: BatchRecord, c: CrEntry, landed: frozenset[str] = frozenset()
 ) -> str | None:
-    """The branch a CR taken from `queued` in a stack batch is to start on, to record on it: for a
-    CR that is neither a release nor a fix and has no open dependency, the branch of the nearest
-    CR below it in `chain` that has a PR (`stack_start`'s rule 2), else None (the default branch).
-    None in a parallel or series batch and for any other CR; a CR with an open dependency gets
-    none, its base follows its dependencies' places. A CR of `landed` (its PR seen merged on the
-    forge) reads as ended."""
+    """The branch a CR taken from `queued` is to start on, to record on it: in a stack batch, for
+    a CR that is neither a release nor a fix and has no open dependency, the branch of the nearest
+    CR below it in `chain` that has a PR (`stack_start`'s rule 2), else None (the default branch);
+    in a series batch, the branch of an open `series_predecessor` (the one `start_base`'s series
+    rule gives). None in a parallel batch and for any other CR; a stack CR with an open
+    dependency gets none, its base follows its dependencies' places. A CR of `landed` (its PR seen
+    merged on the forge) reads as ended."""
+    if b_data.mode == "series":
+        pred = series_predecessor(b_data.crs, c) if _alone(c) else None
+        return pred.branch if pred and pred.status != "merged" and pred.id not in landed else None
     if b_data.mode != "stack" or not _alone(c) or _open_after(b_data, c, landed):
         return None
     below = _below_with_pr(b_data, c, landed)
@@ -220,14 +229,29 @@ def start_on_for(
 
 def _live_start(b_data: BatchRecord, c: CrEntry, landed: frozenset[str] = frozenset()) -> bool:
     """True when `c.start_on` names the branch of a CR that is neither ended (nor in `landed`)
-    nor held."""
+    nor out of order (apart, or waiting with an apart CR)."""
     owner = next((x for x in b_data.crs if x.branch == c.start_on), None) if c.start_on else None
     return (
         owner is not None
         and owner.status not in ENDED
         and owner.id not in landed
-        and not is_held(owner)
+        and not out_of_order(b_data.crs, owner, b_data.mode)
     )
+
+
+def _dependent_base(b_data: BatchRecord, c: CrEntry) -> str | None:
+    """The shared base rule: a dependent's base is the branch of the last out-of-order CR among
+    its candidates; None for a CR that is not a dependent (or is a fix or a release)."""
+    if c.kind in {"release", "fix"}:
+        return None
+    owner = base_owner(b_data.crs, c, b_data.mode)
+    return owner.branch if owner is not None else None
+
+
+def _outside_base(b_data: BatchRecord, c: CrEntry, default: str) -> str | None:
+    """The base of a CR out of order, before the series and stack rules: an apart CR is on the
+    default branch, a dependent on its base owner's branch; None for any other CR."""
+    return default if apart(c) else _dependent_base(b_data, c)
 
 
 def stack_start(
@@ -263,16 +287,20 @@ def start_base(
     if c.kind == "release":
         top = top_cr(b_data, landed)
         return top.branch if top else default
-    if is_held(c):  # outside the stack: on the default branch
-        return default
+    if (outside := _outside_base(b_data, c, default)) is not None:
+        return outside
     if b_data.mode == "series":
         pred = series_predecessor(b_data.crs, c)
         open_pred = pred is not None and pred.status != "merged" and pred.id not in landed
         return pred.branch if pred and open_pred else default
     stackable = b_data.mode == "stack" and c.kind != "fix"
     owner = next((x for x in b_data.crs if x.branch == c.start_on), None) if c.start_on else None
-    held_owner = owner is not None and owner.status not in ENDED and is_held(owner)
-    if stackable and not held_owner and (not c.stacked or c.start_on):  # a held owner: not here
+    held_owner = (
+        owner is not None
+        and owner.status not in ENDED
+        and out_of_order(b_data.crs, owner, b_data.mode)
+    )
+    if stackable and not held_owner and (not c.stacked or c.start_on):  # an owner out of order
         return stack_start(b_data, c, repo, landed)
     if c.after and c.kind != "fix":
         open_ = _open_after(b_data, c, landed)
@@ -290,8 +318,8 @@ def stack_base(b_data: BatchRecord, c: CrEntry, repo: Repo, planned: bool = Fals
     default: str = repo.config["default_branch"]
     if c.kind == "release":  # the top of the stack: on the top CR's branch
         return start_base(b_data, c, repo)
-    if is_held(c):  # outside the stack: on the default branch
-        return default
+    if (outside := _outside_base(b_data, c, default)) is not None:
+        return outside
     if not c.stacked:
         if c.kind != "fix":
             return stack_start(b_data, c, repo)

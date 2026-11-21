@@ -23,14 +23,16 @@ from chantier.commands.driver_checks import (
 )
 from chantier.commands.endpause import end_of_batch
 from chantier.commands.facts import cr_facts, stack_lines
+from chantier.commands.park import unpark
 from chantier.commands.take_checks import check_take_all
 from chantier.commands.waits import add_to_cr
 from chantier.core import leases
 from chantier.core.batch import Batch, check_epoch, find_cr_batch, require_epoch, resolve_batch
 from chantier.core.clock import now, stamp
-from chantier.core.errors import ChantierError
-from chantier.core.records import LIVE, BatchRecord, CrEntry
+from chantier.core.errors import EXIT_PRECONDITION, ChantierError
+from chantier.core.records import LIVE, BatchRecord, CrEntry, Lease
 from chantier.core.repo import Repo
+from chantier.core.waits import hhmm
 from chantier.driver_prompt import DriverBlock, driver_prompt_lines, driver_row
 from chantier.hub import journal
 from chantier.hub.autostart import not_running_line
@@ -39,11 +41,11 @@ from chantier.lifecycle.stages import changes_lock, cr_directory, done_cr, start
 from chantier.playbook.lines import team_lines, timing_lines
 from chantier.plugin_files import archive_path, cli_command, recorded_timing
 from chantier.rails import (
-    all_merged,
     check_budget,
     check_round,
     check_stray_round,
     held,
+    is_parked,
     worktree_print,
 )
 from chantier.stack_words import PR_IN_DRAFT, READY_TO_MERGE, draft_clause, ready_word
@@ -121,6 +123,33 @@ def _start_work(repo: Repo, b: Batch, c: CrEntry) -> None:
     repo.store.make_folder(repo.rel(work(repo, c)), True)
 
 
+def _record_take(
+    repo: Repo, b: Batch, c: CrEntry, args: argparse.Namespace, lease: Lease
+) -> tuple[str, frozenset[str]]:
+    """What `take` records on the CR: the way back of a parked one, the note, the start base, the
+    status and the log line. Returns the first line's tail and the merged CRs the journal shows."""
+    d = b.record
+    restart = c.status == "working"  # a new Driver on a CR already working
+    was_parked = is_parked(c)
+    back = unpark(b, c) if was_parked else ""  # on top, its dependents above it
+    if c.status in {"ready", "blocked", "working"}:
+        c.append("notes", f"back to a Driver: {args.note}")
+    landed = journal.seen_merged(journal.read(repo.store, repo.changes)[0], d)
+    if c.status == "queued" and (start_on := start_on_for(d, c, landed)):
+        c.start_on = start_on  # the start base is fixed at the first take
+    b.touch(c, status="working", blocked_reason=None)
+    c.clear_phase()
+    b.log(
+        "take",
+        c.id,
+        note=args.note,
+        lease=lease.n,
+        **({"restart": True} if restart else {}),
+        **({"parked": True} if was_parked else {}),
+    )
+    return back, landed
+
+
 def take(args: argparse.Namespace) -> list[str]:
     """The Foreman gives a CR to a Driver (or the stack to its driver): the rails refuse what the
     batch does not allow (a slot, the budget, a CR that has nothing to do), the state records
@@ -145,15 +174,7 @@ def take(args: argparse.Namespace) -> list[str]:
         reopened = _reopen(b)
         leases.reclaim(b, c.id, old)
         lease = leases.start(d, c.id)
-        restart = c.status == "working"  # a new Driver on a CR already working
-        if c.status in {"ready", "blocked", "working"}:
-            c.append("notes", f"back to a Driver: {args.note}")
-        landed = journal.seen_merged(journal.read(repo.store, repo.changes)[0], d)
-        if c.status == "queued" and (start_on := start_on_for(d, c, landed)):
-            c.start_on = start_on  # the start base is fixed at the first take
-        b.touch(c, status="working", blocked_reason=None)
-        c.clear_phase()
-        b.log("take", c.id, note=args.note, lease=lease.n, **({"restart": True} if restart else {}))
+        back, landed = _record_take(repo, b, c, args, lease)
         _start_work(repo, b, c)
         facts = cr_facts(repo, batch, d, c, landed)
         block = _cr_driver_block(repo, batch, c, facts)
@@ -162,7 +183,7 @@ def take(args: argparse.Namespace) -> list[str]:
         skeleton = driver_prompt_lines(row, d, block)
     return [
         f"took {c.id} ({len(held(d))} of {d.slots} slots held), lease {lease.n} until "
-        f"{leases.hms(lease.expires)}",
+        f"{leases.hms(lease.expires)}{back}",
         *reopened,
         *facts,
         *skeleton,
@@ -243,6 +264,12 @@ def _handback_locked(
         RenderedBatch(repo, find_cr_batch(repo, args.cr, args.batch), actor="driver") as b,
     ):
         c = live_cr(b, args.cr, args.result)
+        if is_parked(c):
+            raise ChantierError(
+                f"handback: {c.id} is parked (since {hhmm(c.parked or '')}): take it back first "
+                f'(`take {c.id} --note "wait cleared: <what>" --epoch <n>`)',
+                EXIT_PRECONDITION,
+            )
         was_blocked = c.status == "blocked"  # a ready hand-back from the Driver that blocked
         if not was_blocked:  # a blocked hand-back ended the lease already
             leases.claim(b, c.id, args.lease, what=f"handback {c.id}", required=True)
@@ -261,8 +288,7 @@ def _handback_locked(
             b.log("handback", args.cr, result=args.result, note=note)
             done_cr(b, c)
             b.touch(c, status="merged")
-            if all_merged(b.record):
-                ended.append(b.id)
+            ended.append(b.id)  # `end_of_batch` pauses it, or says what keeps it open
             return [line, f"{args.cr} released, in 3-done"]
         if not c.pr:
             raise ChantierError(f"{args.cr}: ready means a PR recorded (`chantier ship`)")

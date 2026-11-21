@@ -13,6 +13,7 @@ from chantier.commands.cost.breakdown import cost_groups, cost_summary
 from chantier.commands.cost.pricing import TO_DATE
 from chantier.commands.cost.receipt import cost_receipt
 from chantier.commands.cost.sessions import chief_line, chief_read, cost_rows, foreman_uuid
+from chantier.commands.leftover import DESTINATIONS, left, way_back
 from chantier.core import leases
 from chantier.core.batch import check_epoch, require_epoch, resolve_batch
 from chantier.core.batch_records import Rec, check_closable, number_of, read_retro
@@ -118,6 +119,12 @@ def _close_target(
         )
     d = datas[pick[0]]
     if d.status != "paused":
+        if rest := left(d):  # before `check_idle`: it counts these CRs among what runs
+            raise ChantierError(
+                f"cannot close {d.id}: {'; '.join(way_back(d, c) for c in rest)}; or send it out "
+                f"(`order drop <cr> --note <{DESTINATIONS}>`). Nothing was deleted.",
+                EXIT_PRECONDITION,
+            )
         check_idle(repo, d, stopped)
         raise ChantierError(
             f"cannot close {d.id}: it is {d.status}, not paused; "

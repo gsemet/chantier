@@ -50,6 +50,7 @@ from chantier.rails import (
     waits_all,
 )
 from chantier.rails_release import record_ask
+from chantier.stack_apart import parked_lines
 from chantier.stack_words import state_word
 from chantier.stacks import held_lines, stack_line
 from chantier.status.gate import gate_view
@@ -359,6 +360,7 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
     ]
     lines += stack_line(d)
     lines += held_lines(d, repo)
+    lines += parked_lines(d)
     lines += _stack_driver_lines(d, repo)
     lines += _order_lines(d, repo)
     lines += _seen_lines(repo, d)

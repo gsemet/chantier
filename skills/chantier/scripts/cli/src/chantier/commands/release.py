@@ -16,7 +16,7 @@ from chantier.gate_slots import mtime, slot_of
 from chantier.lifecycle.moveout import check_drop_free, close_pr_clause, leave_batch
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock
-from chantier.rails import all_merged, spent_text
+from chantier.rails import spent_text
 from chantier.rails_release import fix_go, release_go
 
 
@@ -144,11 +144,11 @@ def cancel(args: argparse.Namespace) -> list[str]:
         b.touch(c, status="cancelled", agent=None)
         to = c.left_to or TRASH
         b.log("cancel", args.cr, killed=killed, path=c.path, to=to)
-        done, batch_id = all_merged(b.record), b.id
+        batch_id = b.id
         clause = close_pr_clause(b, c)
     here = "" if to == TRASH else f" to {to}"
     return [
         f"cancelled {args.cr}{here}; stopped {len(killed)}: {' '.join(killed) or 'none'}",
         *([clause.removeprefix("; ")] if clause else []),
-        *(end_of_batch(repo, batch_id, f"cancel {args.cr}") if done else []),
+        *end_of_batch(repo, batch_id, f"cancel {args.cr}"),
     ]

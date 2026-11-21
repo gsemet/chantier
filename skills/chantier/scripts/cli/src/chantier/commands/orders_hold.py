@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from chantier.commands.orders_word import Word, target
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
-from chantier.rails import ENDED
-from chantier.stacks import is_held
+from chantier.rails import ENDED, is_held
+from chantier.stack_apart import leave_stack_starts
 
 
 def hold(w: Word) -> list[str]:
@@ -42,11 +42,8 @@ def hold(w: Word) -> list[str]:
             f"order hold: {waiting[0]} depends on {cr_id}: it cannot stand in the stack without it",
             EXIT_PRECONDITION,
         )
-    for x in b.record.crs:  # the CRs that started on its branch now start on the default branch
-        if x.id != cr_id and x.status not in ENDED and x.start_on == c.branch:
-            x.unset("start_on")
-            b.touch(x)
-    c.unset("start_on")
+    c.held = w.order_id  # held first, so the shared helper reads it apart
+    leave_stack_starts(b, c)
     b.touch(c, held=w.order_id, stacked=False)
     b.log("hold", cr_id, order=w.order_id)
     return [
