@@ -207,16 +207,19 @@ def test_the_board_line_tells_the_chief_of_staff_what_to_do(
 
 
 def test_the_shipped_files_name_the_lane() -> None:
-    web = {p.name: p.read_text("utf-8") for p in (WEB / "js").rglob("*.js")}
+    web = {
+        p.relative_to(WEB / "js").as_posix(): p.read_text("utf-8")
+        for p in (WEB / "js").rglob("*.js")
+    }
     model = (WEB / "js/model/triage.js").read_text("utf-8")
-    assert "drop: RUNNING" in web["columns.js"] and "triage.running'" not in web["columns.js"]
+    cols = web["triage/columns.js"]
+    assert "drop: RUNNING" in cols and "triage.running'" not in cols
     assert (
-        "triage.idle" not in web["columns.js"]
-        and "ctx.batch"
-        not in web["columns.js"].split("function readyFoot")[1].split("// The Inbox")[0]
+        "triage.idle" not in cols
+        and "ctx.batch" not in cols.split("function readyFoot")[1].split("// The Inbox")[0]
     )
-    assert "TARGETS.map" in web["selection.js"] and "RUNNING = 'running-batch'" in model
-    for name in ("en-write.js", "fr-write.js"):
+    assert "TARGETS.map" in web["triage/selection.js"] and "RUNNING = 'running-batch'" in model
+    for name in ("i18n/en-write.js", "i18n/fr-write.js"):
         keys = ("running_lane", "no_running", "state_specifying", "state_written", "state_queued")
         assert all(f"'triage.{k}'" in web[name] for k in keys)
         assert "'triage.running'" not in web[name] and "'triage.idle'" not in web[name]
