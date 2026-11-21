@@ -11,19 +11,22 @@ import threading
 import time
 from pathlib import Path
 from typing import Any
+from unittest.mock import ANY
 
 import pytest
 from conftest import Chantier
 from forge_world import CALLS, CYCLE, MAIN, NEW_VERSION, T1, World, merged
+from test_board_running import _answer, _prepare_board
 from test_file_watch import _ctx
 
+from chantier import __version__
 from chantier.board import command, idle
 from chantier.board import key as keys
 from chantier.board.api import ops, times
 from chantier.board.api.push import PushLoop
 from chantier.board.context import Context
 from chantier.board.idle import IdleStop
-from chantier.board.projects import Projects
+from chantier.board.projects import Projects, open_projects
 from chantier.board.seats import Seats
 from chantier.board.watch_files import CHECK, NOTIFY
 from chantier.core.errors import EXIT_USAGE
@@ -52,13 +55,13 @@ def test_the_idle_stop_counts_from_the_last_observed_moment(
 
 
 class _Server:
-    """`make_server`'s stand-in: serves until `should_exit`, within `WAIT_S`."""
+    """`make_server`'s stand-in: serves until `should_exit`, within `wait` seconds."""
 
-    def __init__(self, order: list[str]) -> None:
-        self.should_exit, self.order = False, order
+    def __init__(self, order: list[str], wait: float = WAIT_S) -> None:
+        self.should_exit, self.order, self.wait = False, order, wait
 
     def run(self, sockets: list[socket.socket]) -> None:
-        end, tick = time.monotonic() + WAIT_S, threading.Event()
+        end, tick = time.monotonic() + self.wait, threading.Event()
         while not self.should_exit and time.monotonic() < end:
             tick.wait(0.02)
         self.order.append("stopped" if self.should_exit else "timed out")
@@ -72,12 +75,24 @@ class _Stub:
         self.order.append(self.name)
 
 
+@pytest.mark.parametrize(
+    ("stop_idle", "seated", "first"),
+    [(True, False, "stopped"), (True, True, "stopped"), (False, False, "timed out")],
+    ids=["idle-stop", "seats-do-not-observe", "no-flag-no-stop"],
+)
+@pytest.mark.usefixtures("repo")
 def test_an_idle_board_stops_and_its_writer_runs_before_its_entry_goes(
-    repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    stop_idle: bool,
+    seated: bool,
+    first: str,
 ) -> None:
+    """With `--stop-idle`, a board with no client stops, a registered seat being no observer;
+    without it, a board idle five times the delay still serves until stopped by other means."""
     monkeypatch.setenv(times.TEST_ENV, "2:30:1:1:5:0.2")  # the idle stop after 0.2 s
     order: list[str] = []
-    monkeypatch.setattr(command, "make_server", lambda _ctx: _Server(order))
+    monkeypatch.setattr(command, "make_server", lambda _ctx: _Server(order, 1.0))
     monkeypatch.setattr(command, "_start_writer", lambda _p: _Stub(order, "writer"))
     real = state.remove_entry
 
@@ -90,11 +105,13 @@ def test_an_idle_board_stops_and_its_writer_runs_before_its_entry_goes(
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))
     base = _ctx()
+    if seated:
+        assert base.seats.add(base.projects.home_id, "session-1") and base.seats.count() == 1
     ctx = command._context(base.projects, base.seats, sock, None)
     files: Any = _Stub(order, "files")
-    command._run(ctx, sock, files, argparse.Namespace(stop_idle=True, forge_always=False))
-    assert order == ["stopped", "writer", "files", "entry"]
-    assert idle.STOPPED in capsys.readouterr().out
+    command._run(ctx, sock, files, argparse.Namespace(stop_idle=stop_idle, forge_always=False))
+    assert order == [first, "writer", "files", "entry"]
+    assert (idle.STOPPED in capsys.readouterr().out) is stop_idle
 
 
 @pytest.fixture
@@ -153,6 +170,44 @@ def test_a_client_observes_with_a_socket_sub_or_a_recent_long_poll(repo: Path) -
     now = time.monotonic()
     assert loop.observed(now) is True
     assert loop.observed(now + 2 * times.hold_s() + 1) is False
+
+
+@pytest.mark.parametrize(
+    ("forge", "told"), [(None, True), ("always", False)], ids=["watcher-board", "forge-board"]
+)
+def test_a_second_board_with_the_forge_always_registers_its_seat_and_says_the_forge_rule(
+    repo: Path,
+    chantier: Chantier,
+    monkeypatch: pytest.MonkeyPatch,
+    forge: str | None,
+    told: bool,
+) -> None:
+    """`board --seat <id> --forge-always` on a running board started without the flag (by a
+    watcher): its seat registered, and the `FORGE_WHEN_OBSERVED` line; none on a board that
+    reads the forge always."""
+    served = open_projects().served.as_posix()
+    rec: dict[str, Any] = {
+        "pid": 4242,
+        "host": "127.0.0.1",
+        "port": THERE[1],
+        "version": __version__,
+        "served": served,
+        "started": "2026-01-01T00:00:00Z",
+        "files": NOTIFY,
+        **({"forge": forge} if forge else {}),
+    }
+    _prepare_board(repo, chantier, monkeypatch, (True, rec, _answer(served, __version__)))
+    seats: list[tuple[Any, ...]] = []
+
+    def register(*a: Any) -> bool:
+        seats.append(a)
+        return True
+
+    monkeypatch.setattr(command, "register_seat", register)
+    code, out, err = chantier("board", "--seat", "s-1", "--forge-always")
+    assert code == 0, err
+    assert seats == [("127.0.0.1", THERE[1], ANY, open_projects().home_id, "s-1")]
+    assert (command.FORGE_WHEN_OBSERVED in out) is told and command.WATCHES in out
 
 
 def test_the_two_flags_together_are_a_usage_error(repo: Path, chantier: Chantier) -> None:

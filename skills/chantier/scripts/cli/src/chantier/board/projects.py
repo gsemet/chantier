@@ -60,11 +60,14 @@ class Projects:
         with self._lock:
             if names == sorted(self._items):
                 return
-            self._items = {n: self._items.get(n) or _project(n) for n in names}
+            self._items = {n: self._items.get(n) or _project(self.surface, n) for n in names}
 
 
-def _project(name: str) -> Project:
-    return Project(name, Repo.find(project=name, readonly=True))
+def _project(surface: Path, name: str) -> Project:
+    """A project of the surface by its folder, never by its bare name: a bare name is looked for
+    in the surface of the working folder, which for a board started from a project's code clone
+    (a watcher starts it there) is not the surface."""
+    return Project(name, Repo.find(project=str(surface / "projects" / name), readonly=True))
 
 
 def _surface_root() -> Path:
@@ -80,14 +83,14 @@ def open_projects() -> Projects:
         home = Repo.find(readonly=True)
     except SurfaceChoice as e:
         surface = _surface_root()
-        first = _project(e.names[0])
-        return Projects(first.repo, surface, [_project(n) for n in e.names[1:]])
+        first = _project(surface, e.names[0])
+        return Projects(first.repo, surface, [_project(surface, n) for n in e.names[1:]])
     if not home.external:
         return Projects(home, None, [])
     surface = home.surface_root
     mine = project_name(home)
     names = [n for n in surface_projects(surface) if n != mine]
-    return Projects(home, surface, [_project(n) for n in names])
+    return Projects(home, surface, [_project(surface, n) for n in names])
 
 
 def check_planning(projects: Projects) -> None:

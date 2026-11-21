@@ -26,6 +26,10 @@ NO_TRANSCRIPT = (
     "session's; no board started; ended: for the Chief of Staff, take the seat again from this "
     "session ({cli} seat take <session id>), then start again: {watch}"
 )
+UNREADABLE_SEAT = (
+    "watch: the seat of {project} cannot be read ({error}), so no board started; ended: for the "
+    "Chief of Staff, take the seat again ({cli} seat take <session id>), then start again: {watch}"
+)
 NOT_STARTED = (
     "watch: the board did not start within 20 s: for the Chief of Staff, start it with {cli} "
     "board --seat {session} and read its error"

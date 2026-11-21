@@ -52,7 +52,11 @@
   network, behind a key (in its URL for the web client, in a header or a WebSocket's first message
   for any other client), through one published API over a WebSocket, and over HTTP as the same
   protocol for a network where a WebSocket does not pass, behind a proxy for instance (not a
-  fallback): it serves the record and the planning folder's files, and the web client's files (another folder's with
+  fallback): it serves the record and the planning folder's files (it alone reads the planning
+  files for the live clients, told of changes by the system's file notifications (inotify,
+  FSEvents, ReadDirectoryChangesW), or, on a system where none works, by a check every 5 s (the
+  user's own decision of 2026-11-21, not a fallback), and publishes 1 s after the last change),
+  and the web client's files (another folder's with
   `--ui <folder>`, none with `--ui none`), one client among others, and it
   edits the backlog (the inbox, `2-backlog/P1`...`P4`, `3-ready`: files and folder moves) and
   each role's agent, model and escalation, per host, and the two limits (`specifying.parallel`,
@@ -77,12 +81,17 @@
   only its journal lines (its `board@1` line, action `running-batch`, which the Chief of Staff
   turns into `order add`);
   it takes its dependencies like the rest of the CLI and knows no role. The same process is the
-  forge hub while it runs (one per planning surface and machine, started by the Chief of Staff on
-  the user's yes): it holds the OS file lock in the git folder (`chantier/hub.lock`) and, with
-  none running, the one watcher of the surface that holds that lock is the hub and yields it when
-  a server starts. The hub reads the forge, read-only, with the user's
+  forge hub while it runs (one per planning surface and machine, started by a session's watcher,
+  detached, when none runs and the session holds the seat, on the user's one yes for the watcher
+  and the board, or by the Chief of Staff on a host that cannot run the watcher; one a watcher
+  started stops by itself when its seat leaves or 30 minutes after its last subscribed client,
+  after its writer's last cycle): it holds the OS file lock in the git folder
+  (`chantier/hub.lock`). The hub reads the forge, read-only, with the user's
   own `gh` or `glab`, on its own (no agent asks it), and needs the network for that: at most once
-  every 20 s, through the connector of its forge (GitHub with `gh`, GitLab with `glab`), one
+  every 20 s while at least one client is subscribed to the server (a board page, a session's
+  watcher, `chantier live`), and not otherwise, but for a board started with `--forge-always` by
+  the Chief of Staff on a host that cannot run the watcher, which reads it every 20 s with or
+  without a client (the user's answer of 2026-11-21), through the connector of its forge (GitHub with `gh`, GitLab with `glab`), one
   query per project of the surface for which the interest registry holds a PR or MR, and only
   those: today, the PRs of a project's running batch while one of them is not held merged or
   cancelled, and the PRs or MRs that the open approval, pipeline and merge waits of the running
@@ -90,10 +99,13 @@
   folder, never published) one line per merge the record does not hold, per CI turning red on
   a PR ready to merge and per wait of a running batch's CR that the forge shows met
   (`wait-cleared@1`), and nothing else; each session's watcher, run for the Chief of Staff's
-  whole session, with or without a batch, reads only its project's journal (the hub's lines, the
-  board's, the writer's and an outside poller's `issue@1` lines), never the forge, and ends 20 s after the last new event for it that wakes, and no
+  whole session, with or without a batch, subscribes to the surface server's `events` topic for
+  its project (the hub's lines, the board's, the writer's and an outside poller's `issue@1`
+  lines), never reads the journal file or the forge, and starts the server, detached, when none
+  runs and its session holds the seat, and ends 20 s after the last new event for it that wakes, and no
   sooner than `events.wake_every` after its start, which wakes its session, or when the project's
-  seat is another session's; the
+  seat is another session's, or 2 h after its start with no event for it that wakes (so a watcher
+  an ended session left behind stops); the
   hub records nothing in a batch, runs no git and messages no agent (the server runs no git but its writer's); every journal line, the CLI commands' included in their own process, goes through the one append function; an outside poller (the user's own program, never
   started by chantier) writes into a project's journal only through `journal add`, only `issue@1`
   lines, and only for an issue a CR's `issue:` line names; each watcher holds a lock of

@@ -335,9 +335,11 @@ does a unit that is not in `UNITS` and a test that does not exist.
   <time>; for the Chief of Staff: order merged <cr>`, and so does the Foreman's heartbeat form
   (`status --refresh --batch --epoch`) with the batch's orders unchanged; after `order merged` the
   line no longer prints (unit: surface-board);
-- the forge hub and `chantier watch` (CR-358), on a two-project surface with the fake `gh`, the
-  test seam `CHANTIER_HUB_TEST_TIMES` shortening the cycle and the quiet, the watchers background
-  processes:
+- the forge hub and `chantier watch` (CR-358, CR-429), on a two-project surface with the fake `gh`,
+  the test seams `CHANTIER_HUB_TEST_TIMES` and `CHANTIER_API_TEST_TIMES` shortening the cycle, the
+  quiet and the board's waits, the surface's `chantier.yaml` naming a free `board.port`, the
+  watchers background processes and the board a watcher starts killed through `server.json` at the
+  step's end:
   - `status` of a running batch with no watcher prints `forge hub: none running` and, as its last
     line, `watch: not running: for the Chief of Staff, start in the background: <command>` (the
     command ends `watch --after 0`, no `--batch`, then `; after the user's no, at each user
@@ -348,40 +350,62 @@ does a unit that is not in `UNITS` and a test that does not exist.
     test_watch_events.py::test_watch_refusals_and_the_pull_path,
     test_forge_hub.py::test_status_and_the_start_line_name_the_journal_the_hub_and_its_version,
     test_watcher_autostart.py::test_the_outputs_end_with_the_line_when_no_watcher_of_this_session_runs);
-  - project A's watcher takes the hub lock (`, the hub`), project B's is not the hub, the `hub`
-    entry of `server.json` names one PID and a read per project, `status` names that PID
-    (`a watcher`), and each cycle makes one `api graphql` call per project with an open PR, never
-    two hubs' worth (unit: surface-board) (test:
-    test_forge_hub.py::test_the_start_line_names_a_board_of_another_version_and_the_watcher_is_never_the_hub,
+  - with no board, A's watcher, its session holding A's seat, starts one, detached: its start line
+    ends `; started the board (PID <n>)`, the PID `server.json` names, and the board's `board:
+    watches the planning files` line follows; B's watcher subscribes to the same board and starts
+    none; the `hub` entry of `server.json` names the board's PID, never a watcher's, with a read per
+    project; `status` prints `forge hub: PID <board pid>, the surface server, last read <t>`; each
+    cycle makes one `api graphql` call per project with an open PR (unit: surface-board) (test:
+    test_watch_board.py::test_the_seat_rule_with_and_without_a_running_board,
+    test_watch_board.py::test_the_start_is_detached_on_each_system,
+    test_watch_board.py::test_the_boards_lines_follow_the_start_line,
     test_forge_hub.py::test_a_hub_cycle_reads_only_what_there_is_to_read_and_is_due_every_twenty_seconds);
   - A's PR merged on the forge: A's watcher ends with `forge saw merged: ... order merged <cr>` and
     `watch: <batch> still running: for the Chief of Staff, start again in the background now:
-    <command> watch --after 1`, the merge written once (`source: hub`); B's watcher keeps running,
-    takes the lock and the next cycles still read the forge (unit: surface-board) (test:
-    test_forge_hub.py::test_a_hub_cycle_writes_each_event_once,
+    <command> watch --after 1`, the merge written once (`source: hub`); B's watcher keeps running
+    and the board keeps reading the forge; neither project's record changes (unit: surface-board)
+    (test: test_forge_hub.py::test_a_hub_cycle_writes_each_event_once,
     test_watch_events.py::test_a_watcher_ends_twenty_seconds_after_the_last_line_that_wakes);
-  - two of A's merges within the quiet give one end with both lines; a watcher restarted with
-    `--after <n>` replays nothing (unit: surface-board) (test:
-    test_watch_events.py::test_a_watcher_ends_twenty_seconds_after_the_last_line_that_wakes);
+  - two of A's merges within the quiet give one end with both lines, for a `--for role:griller`
+    watcher too; a watcher restarted with `--after <n>` subscribes, starts no board and replays
+    nothing (unit: surface-board) (test:
+    test_watch_events.py::test_a_watcher_ends_twenty_seconds_after_the_last_line_that_wakes,
+    test_watch_board.py::test_a_lost_link_is_opened_again_from_the_cursor_and_repeats_no_line);
   - a ready PR's checks failing print `forge saw checks red` at the watcher's end and never in
     `status` (unit: surface-board) (test:
     test_forge_hub.py::test_status_and_the_start_line_name_the_journal_the_hub_and_its_version);
   - `order merged <cr>` twice: the second answers `<cr> already merged` (unit: surface-board);
-  - a merge the board's PRs page reads first: the page writes the line (`source: board`), the hub's
-    reads of it write no second line and the watcher wakes on the board's line (unit:
-    surface-board) (test: test_forge_hub.py::test_the_board_and_the_hub_share_the_journal_once);
+  - with every watcher ended and no page open, the board still runs, its `hub` entry says `idle`,
+    `status` prints `forge hub: PID <n>, the surface server, idle (no client subscribed)` and the
+    fake `gh` is called no more (unit: surface-board) (test:
+    test_board_idle.py::test_the_hub_reads_the_forge_only_while_a_client_observes,
+    test_forge_hub.py::test_the_hub_line_names_the_surface_server_and_says_idle_while_no_client_is_subscribed);
+  - a merge the board's PRs page reads first: the page writes the line (`source: board`), a watcher
+    wakes on it, and the hub, observed again, reads the forge at once and writes no second line
+    (unit: surface-board) (test: test_forge_hub.py::test_the_board_and_the_hub_share_the_journal_once,
+    test_board_idle.py::test_a_client_observes_with_a_socket_sub_or_a_recent_long_poll);
   - A's batch paused (every CR merged or dropped): A's watcher keeps running, and `status` still
     holds the `pull path` line; a board write on A (`new`) ends it with the `board wrote (new)`
     line and the restart of its batch; `watch --once --after 5` prints the same line, then
     `watch: cursor 6; next, at the user's next message: <command> watch --once --after 6`, and
     takes no lock; a board write on the other project does not end A's watcher and lands in that
     project's journal only; another session's `seat take` ends A's watcher with `watch: the seat of
-    demo is another session's now; ended`; a PR merged then writes no line for A and the hub reads
-    none of its PRs (unit: surface-board) (test:
+    demo is another session's now; ended`, and the board A's watcher started, which follows that
+    seat, stops (unit: surface-board) (test:
     test_watch_events.py::test_watch_refusals_and_the_pull_path,
     test_watch_events.py::test_the_pull_path_prints_the_lines_past_the_cursor_and_takes_no_lock,
     test_watch_events.py::test_the_seat_of_another_session_ends_the_watcher_with_its_line,
     test_watch_events.py::test_the_board_and_config_lines_are_never_duplicates_and_status_holds_none);
+  - a watcher of a project with no seat and no board ends with `watch: no seat for <project>, so no
+    board started; ended: ...`, exit 1, and starts no board (unit: surface-board) (test:
+    test_watch_board.py::test_the_seat_rule_with_and_without_a_running_board);
+  - a board started by hand with `--forge-always`: a watcher of a project with no seat subscribes to
+    it; a journal of version 0 lines is kept as written; with no client subscribed the hub still
+    calls the fake `gh` each cycle; a PR merged after A's pause writes no line for A and the hub no
+    longer reads its PRs; the other project's merge is written once by the hub and `watch --once
+    --after 2` prints it (unit: surface-board) (test:
+    test_board_idle.py::test_with_the_forge_always_the_hub_reads_with_no_client,
+    test_board_idle.py::test_the_two_flags_together_are_a_usage_error);
   - the journal is ignored by git (`git check-ignore`), the record (`batch.json`, `events.jsonl`)
     is unchanged by the hub, a forge error lands in the `hub` entry and not in the journal, and no `gh`
     call is made but read-only `api graphql` queries (unit: surface-board) (test:
@@ -389,30 +413,40 @@ does a unit that is not in `UNITS` and a test that does not exist.
     test_surface_server.py::test_a_hub_entry_that_cannot_be_written_is_written_at_the_next_cycle);
   - an outside poller (CR-410): two CRs name one Jira link on their `issue:` lines (one in the inbox,
     one triaged to `2-backlog/P2/`); `interests --kind issue --json` lists the link twice
-    (`tracker` `jira`, `read_by` `outside`, exit 0); a watcher running, `journal add issue@1 --json
-    -` with the payload on stdin writes `journal: seq <n> issue@1 commented on <link> (<folders>)`
-    and the watcher ends on `tracker saw commented on <link> (<folders>): "<text>"; for the Chief of
-    Staff: tell the user in one line, record nothing`; the same add again says `journal: already
-    there (seq <n>)`; a ref no CR names (exit 2), a payload with a `cr` key (exit 1) and the type
-    `merged@1` (exit 2) are refused, the journal unchanged each time; the fake `gh` is never called
-    (unit: surface-board) (test: test_outside_poller.py::test_journal_add_writes_the_event_once,
+    (`tracker` `jira`, `read_by` `outside`, exit 0); a board started by hand and a watcher
+    subscribed to it, `journal add issue@1 --json -` with the payload on stdin writes `journal: seq
+    <n> issue@1 commented on <link> (<folders>)` and the watcher ends on `tracker saw commented on
+    <link> (<folders>): "<text>"; for the Chief of Staff: tell the user in one line, record
+    nothing`; the same add again says `journal: already there (seq <n>)`; a ref no CR names (exit
+    2), a payload with a `cr` key (exit 1) and the type `merged@1` (exit 2) are refused, the journal
+    unchanged each time; the fake `gh` is never called (unit: surface-board) (test:
+    test_outside_poller.py::test_journal_add_writes_the_event_once,
     test_outside_poller.py::test_journal_add_refuses_what_it_must_and_writes_nothing,
     test_forge_hub.py::test_the_hub_never_collects_the_issues_provider);
-  - the surface server (CR-386), on the same surface: `chantier board --port 0` runs in the
-    background, `server.json` names its PID in `server` and, within one cycle, in `hub`, `status`
-    prints `forge hub: PID <board pid>, the surface server, ...`, and no `board.json` or `hub.json`
-    is left; a second `board --port 0` prints `board already running at`, also with `--seat` from
-    the other project; a `board.json` prepared with a key and a live older `running` record
-    refuses `board` with the stop command and its key lands in `server.json`; a watcher of A
-    started while the board runs has no `, the hub` and ends on A's merge with `forge saw merged:
-    ... order merged <cr>`, the line written once with `source: "hub"`; a watcher that was the hub
-    when the board starts yields (`status` names the server's PID within one cycle, one `api
-    graphql` per project per cycle); the board killed hard, a running watcher takes the lock at its
-    next poll, `status` prints `forge hub: PID <watcher pid>, a watcher, ...` and the next merge
-    still wakes it; the record is unchanged by the server and the git folder's `chantier/` holds
-    only `server.json`, `server.json.lock`, `hub.lock` and the `watch-<project>/<session>.lock`
-    files (unit: surface-board) (test:
-    test_surface_server.py::test_the_servers_hub_loop_elects_cycles_when_due_and_lets_go,
+  - the surface server (CR-386, CR-429), on the same surface: `chantier board --port 0` started by
+    hand prints `board: watches the planning files`, `server.json` names its PID in `server` and in
+    `hub` with its file watch, `status` prints `forge hub: PID <board pid>, the surface server, idle
+    (no client subscribed)`, and no `board.json` or `hub.json` is left; a `project` subscription
+    over a WebSocket gets an event for a CR filed by the CLI, and a `backlog.move` over HTTP reaches
+    it as an event with a new `rev` within 3 s; a second `board --port 0` prints `board already
+    running at`, also with `--seat` from the other project; a `board.json` prepared with a key and a
+    live older `running` record refuses `board` with the stop command and its key lands in
+    `server.json`; a watcher of A started while the board runs subscribes, starts no board, and ends
+    on A's merge with `forge saw merged: ... order merged <cr>`, the line written once with
+    `source: "hub"`; the board killed hard, the running watcher starts a new one, `status` names the
+    new PID with a `last read`, and the next merge still wakes it; the board a watcher started
+    outlives the watcher and stops once its seat is released; a watcher with no event ends with
+    `watch: no event for <name> in 2 h; ended, ...`, then its board stops by itself with no
+    subscriber, its writer's final cycle having pushed the CR filed just before; the record is
+    unchanged by the server and the git folder's `chantier/` holds only `server.json`,
+    `server.json.lock`, `hub.lock`, `writer.lock`, `writer.wake` and the
+    `watch-<project>/<session>.lock` files (unit: surface-board) (test:
+    test_board_idle.py::test_the_start_line_says_the_file_watch,
+    test_file_watch.py::test_the_push_loop_walks_nothing_per_pass_and_one_settle_moves_the_topics,
+    test_file_watch.py::test_the_notification_backend_sees_a_write,
+    test_board_idle.py::test_an_idle_board_stops_and_its_writer_runs_before_its_entry_goes,
+    test_watch_board.py::test_a_watcher_with_no_event_that_wakes_ends_after_the_idle_end,
+    test_watch_board.py::test_a_refusal_a_silent_board_or_a_board_gone_ends_the_watcher,
     test_surface_server.py::test_two_writers_of_server_json_lose_neither_entry,
     test_board_running.py::test_new_key_keeps_the_running_record_and_the_exit_removes_only_its_own);
 - the two limits `specifying.parallel` and `batch.slots` (CR-383): the board's `config.put` op writes
