@@ -137,9 +137,16 @@
 - The CLI is one Python package declared in the root `pyproject.toml`, its dependencies listed
   there once and locked in `uv.lock`. One method runs it, `uvx --from <source> chantier`: as a
   plugin, from the plugin's own folder; in chantier's own checkout (a `.git` at the plugin root),
+  when the session's project is chantier (the dev mode),
   `uv sync --locked --project` once at the moments the cards name (a session's start, a batch's
   start, after a merge that changes `uv.lock`), then `uv run --no-sync --project` runs the local
-  code, live; never `uvx --from <checkout>`. A dependency ships wheels for Linux, macOS
+  code, live; chantier's own sessions never run `uvx --from <checkout>`; other projects run the
+  plugin mode, `uvx --from <plugin root>`, even from chantier's checkout. Another project runs
+  chantier from its checkout in plugin mode, a build uv caches by version: it changes at each
+  version bump. The board server, its writer and the forge hub, started from another project's
+  session, run that build and serve every project of the surface, chantier included, with no
+  notice while the version is equal, until the next version bump or until stopped by hand and
+  started again from a chantier session. A dependency ships wheels for Linux, macOS
   and Windows and replaces hand-written code. The CLI stays portable (POSIX and Windows, UTF-8
   everywhere).
 - Tests (`tests/`) check the structure and the CLI's refusals on a prepared state, calling the CLI

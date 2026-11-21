@@ -2,7 +2,6 @@
 
 import json
 import re
-import shlex
 import subprocess
 import tomllib
 from pathlib import Path
@@ -14,7 +13,6 @@ from conftest import PLUGIN_ROOT, SKILL, load_script
 from chantier import __version__
 from chantier.playbook.copilot_catalog import normalise
 from chantier.playbook.models import MODELS, resolve
-from chantier.plugin_files import cli_command, sync_command
 
 CLAUDE_MODELS = {"claude-sonnet-5-5", "claude-opus-5-5"}
 
@@ -356,45 +354,3 @@ def test_each_host_has_its_reference_and_the_cards_hold_no_host_tool() -> None:
         text = (SKILL / "references" / f"{card}.md").read_text(encoding="utf-8")
         body = "\n".join(ln for ln in text.splitlines() if "hosts/" not in ln)
         assert [t for t in HOST_TOOLS if t in body] == [], card
-
-
-def test_one_launch_two_modes_one_text(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    def command_for(root: Path, *, git: bool, sync: bool = False) -> str | None:
-        skill = root / "skills" / "chantier"
-        skill.mkdir(parents=True)
-        (skill / "SKILL.md").write_text("x\n", encoding="utf-8")
-        if git:
-            (root / ".git").mkdir()
-        monkeypatch.setenv("CHANTIER_SKILL_DIR", str(skill))
-        return sync_command() if sync else cli_command()
-
-    dev = tmp_path / "dev"
-    plugin = tmp_path / "plugin"
-    assert command_for(dev, git=True) == f'uv run --no-sync --project "{dev.as_posix()}" chantier'
-    dev2, plugin2 = tmp_path / "dev2", tmp_path / "plugin2"
-    assert command_for(dev2, git=True, sync=True) == (
-        f'uv sync --locked --project "{dev2.as_posix()}"'
-    )
-    assert command_for(plugin2, git=False, sync=True) is None
-    skill = (plugin / "skills" / "chantier").as_posix()
-    assert command_for(plugin, git=False) == (
-        f'uvx --from "{plugin.as_posix()}" chantier --skill "{skill}"'
-    )
-    for name in ("chantier", "chief-of-staff", "griller", "status"):
-        text = (PLUGIN_ROOT / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
-        for form in (
-            "uv run --no-sync --project",
-            "uv sync --locked --project",
-            "uvx --from",
-            "--skill",
-            ".git",
-        ):
-            assert form in text, f"{name}/SKILL.md does not name `{form}`"
-        assert "git+https" not in text, f"{name}/SKILL.md hard-codes a ref"
-    core = (SKILL / "references" / "startup-core.md").read_text(encoding="utf-8")
-    assert "never in a shell variable" in " ".join(core.split())
-    d, p = tmp_path / "with space" / "dev", tmp_path / "with space" / "plugin"
-    uv = ["uv", "run", "--no-sync", "--project", d.as_posix(), "chantier"]
-    assert shlex.split(command_for(d, git=True) or "") == uv
-    uvx = ["uvx", "--from", p.as_posix(), "chantier", "--skill", f"{p.as_posix()}/skills/chantier"]
-    assert shlex.split(command_for(p, git=False) or "") == uvx

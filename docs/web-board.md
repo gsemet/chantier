@@ -219,9 +219,11 @@ board:
 - **By hand.** `chantier board --host <address> --port <n>`. With no plugin and no agent, on a
   machine where only `uv` is installed, start it from a planning surface with
   `uvx --from git+https://github.com/gsemet/chantier@v<version> chantier --project <folder> board`
-  (`<version>` is the release the surface's planners use). In chantier's own checkout, start it
-  with `uv run --no-sync --project <checkout> chantier board` after a `uv sync --locked --project
-  <checkout>`; never `uvx --from <checkout>`. From the surface's root, with no `--project`, the
+  (`<version>` is the release the surface's planners use). In chantier's own checkout, when the
+  session's project is chantier, start it with `uv run --no-sync --project <checkout> chantier
+  board` after a `uv sync --locked --project <checkout>`; never `uvx --from <checkout>` for the
+  chantier project; another project's session runs it in plugin mode
+  (`uvx --from "<plugin root>" chantier --skill "<skill folder>" board`). From the surface's root, with no `--project`, the
   board serves every project of the surface; it runs until you stop it, so a scheduled task or a
   service may start it (the surface's own setup; chantier ships none).
 - **Another UI.** `chantier board --ui <folder>` serves your own UI's static files in place of the

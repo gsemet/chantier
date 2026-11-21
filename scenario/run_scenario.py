@@ -967,9 +967,9 @@ def scenario(w: World) -> None:
           "P14 line", code == 0 and out[-1] == "preflight passed"
           and not any(ln.startswith("P14") for ln in out), str(out))
     p5 = next((ln for ln in out if ln.startswith("P5")), "")
-    check("preflight's P5 line holds the `--no-sync` and sync sentence on Windows only",
-          ("dev mode on Windows: $CHANTIER runs --no-sync; sync with uv sync --locked --project "
-           in p5) == (os.name == "nt"), p5)
+    check("preflight's P5 line holds no `--no-sync` and sync sentence: the sandbox project is not "
+          "chantier, so it runs in plugin mode even from chantier's checkout",
+          p5.startswith("P5") and "dev mode on Windows" not in p5, p5)
     p10 = next((ln for ln in out if ln.startswith("P10")), "")
     check("preflight warns (P10) on the allow rules missing from the settings, names one, and "
           "still passes", p10.startswith("P10 warn")
@@ -978,8 +978,7 @@ def scenario(w: World) -> None:
           "release create" not in p10, p10)
     sys.path.insert(0, str(SKILL / "scripts" / "cli" / "src"))
     from chantier.commands.allow_samples import filled_allow
-    from chantier.launch import dev_rule, plugin_rule
-    from chantier.plugin_files import is_dev_checkout
+    from chantier.launch import plugin_rule
 
     (home / ".claude").mkdir(parents=True)
     user = ["git push --force-with-lease -u origin chantier/*",
@@ -1027,12 +1026,12 @@ def scenario(w: World) -> None:
         json.dumps({"permissions": {"allow": [f"Bash({r})" for r in broad]}}), encoding="utf-8")
     code, out = w.chantier("preflight", env=homes)
     p10 = next((ln for ln in out if ln.startswith("P10")), "")
-    mine = {"uvx --from * chantier *": None if is_dev_checkout() else plugin_rule,
-            "uv run --no-sync --project * chantier *": dev_rule if is_dev_checkout() else None,
+    mine = {"uvx --from * chantier *": plugin_rule,  # the sandbox project is not chantier: plugin
+            "uv run --no-sync --project * chantier *": None,
             "uv run --script * *": None}
     root = SKILL.parents[1].resolve()
     check("preflight (P10) names a broad chantier rule as letting any command through, with its "
-          "file, the real-path rule that replaces it only for the scenario's mode, and still "
+          "file, the real-path rule that replaces it only for the plugin mode, and still "
           "passes", code == 0 and out[-1] == "preflight passed" and p10.startswith("P10 warn")
           and "broad rules let any command through" in p10
           and all(f"Bash({r}) (" in p10 and "settings.json" in p10 for r in broad)
@@ -1110,7 +1109,7 @@ def scenario(w: World) -> None:
               w.cr(x)["worktree"])) == w.sh("git", "rev-parse", "origin/main")
               for x in ("CR-101", "CR-102")) and not Path(w.cr("CR-103")["worktree"]).exists())
     check("`take` prints the facts for the prompt: the CLI, the cards, the base, the rounds",
-          any(ln.startswith("cli: uv run --no-sync --project ") for ln in fm.facts)
+          any(ln.startswith("cli: uvx --from ") for ln in fm.facts)
           and any(ln.startswith("cards: ") and "references/" in ln for ln in fm.facts)
           and any("base origin/main" in ln for ln in fm.facts)
           and any(ln == "rounds: 0 of 3" for ln in fm.facts), str(fm.facts))
@@ -2169,7 +2168,8 @@ def forge_hub(w: World) -> None:
         return (f"forge saw merged: {cr} {url(number)} into main at {at}; "
                 f"for the Chief of Staff: order merged {cr}")
 
-    cli_form = (f'uv run --no-sync --project "{SKILL.parents[1].resolve().as_posix()}" chantier '
+    cli_form = (f'uvx --from "{SKILL.parents[1].resolve().as_posix()}" chantier '
+                f'--skill "{SKILL.resolve().as_posix()}" '
                 f'--project "{(sw.surface / "projects" / "demo").resolve().as_posix()}"')
     not_running = "watch: not running: for the Chief of Staff, start in the background: "
 
@@ -10001,7 +10001,8 @@ def surface_config_page(w: SurfaceWorld, coder_line: Callable[..., str], frozen:
                 got.append(x)
             return got
 
-        cli_form = (f'uv run --no-sync --project "{SKILL.parents[1].resolve().as_posix()}" chantier '
+        cli_form = (f'uvx --from "{SKILL.parents[1].resolve().as_posix()}" chantier '
+                    f'--skill "{SKILL.resolve().as_posix()}" '
                     f'--project "{(w.surface / "projects" / "demo").resolve().as_posix()}"')
 
         def cursor(n: int) -> str:

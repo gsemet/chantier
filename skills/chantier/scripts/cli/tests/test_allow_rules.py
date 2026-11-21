@@ -14,10 +14,16 @@ from chantier.launch import dev_rule, plugin_rule, sync_rule
 MAX_OUTPUT_LINES = 10  # past ten lines the tool output is cut
 
 
-def _mode_root(mode: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """The plugin root of the mode under test: chantier's checkout (it holds `.git`), or a plugin
-    folder with none."""
+def _mode_root(mode: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, repo: Path) -> Path:
+    """The plugin root of the case under test: chantier's checkout (it holds `.git`) for a project
+    that is chantier (`dev`: the repository holds chantier's manifest) or another (`other`), or a
+    plugin folder with no `.git` (`plugin`)."""
     if mode == "dev":
+        (repo / ".claude-plugin").mkdir()
+        (repo / ".claude-plugin" / "plugin.json").write_text(
+            json.dumps({"name": "chantier"}), encoding="utf-8"
+        )
+    if mode in ("dev", "other"):
         return PLUGIN_ROOT.resolve()
     root = tmp_path / "plug"
     (root / "skills" / "chantier").mkdir(parents=True)
@@ -36,13 +42,14 @@ def _p10_of(repo: Path, chantier: Chantier, allow: list[str]) -> str:
     return next(ln for ln in out if ln.startswith("P10"))
 
 
-@pytest.mark.parametrize("mode", ["plugin", "dev"])
+@pytest.mark.parametrize("case", ["plugin", "dev", "other"])
 def test_preflight_names_the_real_path_rules_and_the_broad_and_stale_ones(
-    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mode: str
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, case: str
 ) -> None:
     monkeypatch.setenv("CHANTIER_HOST", "claude")
     monkeypatch.setenv("CLAUDE_CODE_ENTRYPOINT", "claude-desktop")
-    root = _mode_root(mode, tmp_path, monkeypatch)
+    root = _mode_root(case, tmp_path, monkeypatch, repo)
+    mode = "dev" if case == "dev" else "plugin"  # another project from the checkout: plugin mode
     plugin, dev, sync = plugin_rule(root), dev_rule(root), sync_rule(root)
     mine = [plugin] if mode == "plugin" else [dev, sync]
     others = [dev, sync] if mode == "plugin" else [plugin]

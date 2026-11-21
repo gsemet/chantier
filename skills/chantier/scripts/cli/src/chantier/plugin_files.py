@@ -11,7 +11,7 @@ from chantier import __version__
 from chantier.core.clock import stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.repo import Repo
-from chantier.launch import dev_launch, plugin_launch, sync_line
+from chantier.launch import dev_launch, is_chantier_project, plugin_launch, sync_line
 from chantier.playbook import escalation, events, layers, limits, timing
 
 if TYPE_CHECKING:
@@ -68,26 +68,33 @@ def is_dev_checkout() -> bool:
     return (skill_dir().parents[1] / ".git").exists()
 
 
+def is_dev_mode(repo: Repo | None) -> bool:
+    """The dev mode: chantier's own checkout (`is_dev_checkout()`) and the session's project is
+    chantier (`is_chantier_project(repo)`); the plugin mode in every other case."""
+    return is_dev_checkout() and is_chantier_project(repo)
+
+
 def cli_command(repo: Repo | None = None) -> str:
-    """How every agent runs this CLI, by the mode of the install. In chantier's own checkout (the
-    plugin root holds `.git`, a folder or a file) it runs the local code,
-    `uv run --no-sync --project "<plugin root>" chantier` (the environment is synced at named
-    moments by the steering session, with `sync_command()`, never by a command); anywhere else (a
-    host's plugin copy) it runs the plugin's own folder,
+    """How every agent runs this CLI, by the mode. The dev mode, when the plugin root holds `.git`
+    (a folder or a file: chantier's own checkout) and the session's project `repo` is chantier,
+    runs the local code, `uv run --no-sync --project "<plugin root>" chantier` (the environment is
+    synced at named moments by the steering session, with `sync_command(repo)`, never by a
+    command). The plugin mode, in every other case (a host's plugin copy, or another project even
+    when the plugin is loaded from chantier's checkout), runs the plugin's own folder,
     `uvx --from "<plugin root>" chantier --skill "<skill folder>"`.
     A planning surface adds `--project "<folder>"` after `chantier`."""
     skill = skill_dir()
     root = skill.parents[1]
     option = f' --project "{repo.project_folder.as_posix()}"' if repo and repo.external else ""
-    if is_dev_checkout():
+    if is_dev_mode(repo):
         return f"{dev_launch(root)}{option}"
     return f"{plugin_launch(root, skill)}{option}"
 
 
-def sync_command() -> str | None:
+def sync_command(repo: Repo | None = None) -> str | None:
     """The dev mode's sync line, `uv sync --locked --project "<plugin root>"`, run by the steering
-    session at named moments; None in the plugin mode."""
-    if not is_dev_checkout():
+    session at named moments; None in the plugin mode (see `cli_command`)."""
+    if not is_dev_mode(repo):
         return None
     return sync_line(skill_dir().parents[1])
 

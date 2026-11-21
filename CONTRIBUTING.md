@@ -72,10 +72,12 @@ chantier is four things in one repository:
 2. **A CLI** ([`skills/chantier/scripts/cli/`](skills/chantier/scripts/cli/)): a Python package
    declared in the root `pyproject.toml` and locked in `uv.lock`, on Linux, macOS and Windows. Installed
    as a plugin, it runs by `uvx --from "<plugin root>" chantier --skill "<skill folder>"`, from the
-   plugin's own folder; in this checkout (a `.git` at the plugin root), by `uv run --no-sync --project
-   "<root>" chantier`, the local code, live, after one `uv sync --locked --project "<root>"` by the
-   steering session (a session's start, a batch's start, a merge that changes `uv.lock`); never by
-   `uvx --from <checkout>`: uv caches a local source by its version, so even with `--refresh` it can
+   plugin's own folder; in this checkout (a `.git` at the plugin root), when the session's project
+   is chantier (the dev mode), by `uv run --no-sync --project "<root>" chantier`, the local code,
+   live, after one `uv sync --locked --project "<root>"` by the steering session (a session's
+   start, a batch's start, a merge that changes `uv.lock`); chantier's own sessions never run
+   `uvx --from <checkout>`; other projects run the plugin mode, `uvx --from "<plugin root>"`, even
+   from this checkout (see "In this checkout" below). uv caches a local source by its version, so even with `--refresh` it can
    serve an older build (on 2026-11-14 it served a board with no Triage view and no
    `js/i18n/fr-write.js`, both on main at ce00ec3). Its scope is the frame
    the agents work in: the CR lifecycle (`file`, `triage`, `abandon`, `open`, the stages,
@@ -221,11 +223,19 @@ checkout on `main`, so a merged fix to the CLI runs at once; the cards load at t
 with `/reload-plugins`.
 
 In this checkout, `$CHANTIER` runs the local code, live, with no fetch (the dev mode: the plugin
-root holds `.git`); an installed plugin runs its own folder with `uvx --from`. The checkout's
-environment is synced once by the steering session (`uv sync --locked --project "<root>"`) and
-every command then runs `uv run --no-sync --project "<root>" chantier`, so a running board or gate
-never holds a file a command needs to rewrite (os error 32 on Windows); never `uvx --from
-<checkout>`.
+root holds `.git`, when the session's project is chantier); an installed plugin, and another
+project's session even from this checkout, runs the plugin mode, `uvx --from "<plugin root>"`.
+The checkout's environment is synced once by the steering session
+(`uv sync --locked --project "<root>"`) and every command then runs
+`uv run --no-sync --project "<root>" chantier`, so a running board or gate never holds a file a
+command needs to rewrite (os error 32 on Windows), and another project's process never holds the
+checkout's `.venv`; chantier's own sessions never run `uvx --from <checkout>`.
+
+Another project runs chantier from its checkout in plugin mode, a build uv caches by version: it
+changes at each version bump. The board server, its writer and the forge hub, started from
+another project's session, run that build and serve every project of the surface, chantier
+included, with no notice while the version is equal, until the next version bump or until
+stopped by hand and started again from a chantier session.
 
 ## Daily work
 

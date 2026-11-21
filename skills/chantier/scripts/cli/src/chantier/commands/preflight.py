@@ -97,10 +97,10 @@ def _check_agents(r: _Report, host: str | None) -> None:
     )
 
 
-def _check_tools(r: _Report) -> None:
+def _check_tools(r: _Report, repo: Repo | None) -> None:
     missing = [t for t in ("uv", "git") if shutil.which(t) is None]
     sv = skill_version()
-    sync = sync_command() if os.name == "nt" else None
+    sync = sync_command(repo) if os.name == "nt" else None
     tail = (
         f"; dev mode on Windows: $CHANTIER runs --no-sync; sync with {sync} only when no "
         "chantier process runs (the board, a gate): os error 32 otherwise"
@@ -291,7 +291,7 @@ def preflight(args: argparse.Namespace) -> tuple[list[str], int]:
     _check_host(r, host, direct)
     repo = _open_project(r)
     _check_agents(r, host)
-    _check_tools(r)
+    _check_tools(r, repo)
     if repo:
         _check_project(r, repo, host)
     if host == "claude":

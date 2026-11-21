@@ -813,7 +813,8 @@ recorded.
 
 Only in the turn where the user gave the go:
 
-1. **Preflight, all or nothing.** In chantier's own checkout (the dev mode), first sync: stop the
+1. **Preflight, all or nothing.** In chantier's own checkout, when the session's project is
+   chantier (the dev mode), first sync: stop the
    board (the host's stop of its background shell), run `uv sync --locked --project "<plugin
    root>"`, then start the board again (`$CHANTIER board --seat <id>`, as `session-start.md` says);
    no gate runs then, no batch is running. A sync that fails is one line to the user with uv's
@@ -1128,7 +1129,8 @@ CR-222 → CR-225 → CR-226 → CR-228."
   order; you do not. In the direct mode you do it yourself, and note `HEAD` before it: when `git
   diff --quiet <before> HEAD -- uv.lock` says `uv.lock` changed, the note is `main checkout:
   fast-forwarded to <sha7>; uv.lock changed: sync pending`. On that note (yours or the Foreman's),
-  in chantier's own checkout, sync once `$CHANTIER status` shows no gate running: stop the board,
+  in chantier's own checkout, when the session's project is chantier (the dev mode), sync once
+  `$CHANTIER status` shows no gate running: stop the board,
   `uv sync --locked --project "<plugin root>"`, start the board again; until then say `sync
   pending` in your report's Notes.
 
