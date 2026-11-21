@@ -48,6 +48,7 @@ BEYOND = (
     "board: listens on the local network ({host}); the link holds its key: give it to the user "
     "only, plain HTTP"
 )
+NO_NETWORK = "board: no local network address found; on this machine only"
 
 
 def _not_started(reason: object) -> ChantierError:
@@ -210,12 +211,25 @@ def _writing(write: Callable[[], T]) -> T:
         raise _not_started(e) from e
 
 
-def _announce(host: str, bound: int, key: str, served: str) -> None:
+def _announce(host: str, bound: int, key: str, served: str, no_network: bool = False) -> None:
     print(f"board on {url(host, bound, key)} over {served}", flush=True)
     if local := local_url(host, bound, key):
         print(f"on this machine: {local}", flush=True)
     if not is_loopback(host):
         print(BEYOND.format(host=host), flush=True)
+    if no_network:
+        print(NO_NETWORK, flush=True)
+
+
+def _running_lines(there: tuple[str, int], key: str, ui_given: bool) -> list[str]:
+    lines = [f"board already running at {url(*there, key)}"]
+    if local := local_url(*there, key):
+        lines.append(f"on this machine: {local}")
+    if not is_loopback(there[0]):
+        lines.append(BEYOND.format(host=there[0]))
+    if ui_given:
+        lines.append(NOT_APPLIED)
+    return lines
 
 
 def _ui(arg: Path | str) -> Path | None:
@@ -245,7 +259,7 @@ def board(args: argparse.Namespace) -> list[str]:
         check_planning(projects)
     except ChantierError as e:
         raise _not_started(e) from e
-    host, port = settings(projects.home, args.host, args.port)
+    host, port, no_network = settings(projects.home, args.host, args.port)
     git_dir = projects.home.git_dir
     _writing(lambda: state.migrate(git_dir))
     key = _writing(lambda: load_or_create(projects.home, args.new_key))
@@ -257,12 +271,7 @@ def board(args: argparse.Namespace) -> list[str]:
     if there:
         if args.seat and not register_seat(*there, key, projects.home_id, args.seat):
             raise _not_started("the board already running there did not take the seat")
-        lines = [f"board already running at {url(*there, key)}"]
-        if local := local_url(*there, key):
-            lines.append(f"on this machine: {local}")
-        if args.ui != SHIPPED_UI:
-            lines.append(NOT_APPLIED)
-        return lines
+        return _running_lines(there, key, args.ui != SHIPPED_UI)
     _writing(lambda: state.check_writable(git_dir))  # a refused write: known before any bind
     from_config = args.port is None and "port" in load_board(projects.home)[0]
     sock = _bind(host, port, lambda: _held_by(host, port, key, from_config))
@@ -272,6 +281,6 @@ def board(args: argparse.Namespace) -> list[str]:
     except ChantierError:
         sock.close()
         raise
-    _announce(host, bound, key, served)
+    _announce(host, bound, key, served, no_network)
     _run(projects, seats, sock, ui)
     return []

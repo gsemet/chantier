@@ -9,6 +9,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from chantier.playbook.board_check import board_key
 from chantier.playbook.events_check import events_key
 from chantier.playbook.limits_check import batch_key, specifying_key
 from chantier.playbook.models import HOST_NAMES, NAMED_AGENT_MODEL_AT_START, resolve
@@ -25,9 +26,6 @@ ROLE_KEYS = ("agent", "model", "escalation", "skills", "tools")
 
 
 PRICE_NAMES = ("input", "cache_write_5m", "cache_write_1h", "cache_read", "output")
-
-
-BOARD_KEYS = ("host", "port")
 
 
 HOST_FILES = {"claude": "claude-code", "copilot": "copilot"}
@@ -266,35 +264,6 @@ def _prices(node: Node, kline: int, bad: Bad) -> dict[str, dict[str, Any]]:
     return out
 
 
-def _board(node: Node, kline: int, bad: Bad) -> dict[str, Any]:
-    """The `board` key: where `chantier board` listens. Both keys are optional."""
-    rec: dict[str, Any] = {}
-    if node.kind != "map" or not node.value:
-        bad(kline, f'"board" holds its keys: `host:` and `port:` ({", ".join(BOARD_KEYS)})')
-        return rec
-    for key, (line, value) in node.value.items():
-        if key not in BOARD_KEYS:
-            bad(line, f'board: unknown key "{key}": one of {", ".join(BOARD_KEYS)}')
-        elif is_reset(value):
-            continue
-        elif value.kind != "scalar" or not value.value.strip() or re.search(r"\s", value.value):
-            bad(
-                line,
-                f'board: "{key}" is one {"address" if key == "host" else "integer"} '
-                "with no whitespace",
-            )
-        elif key == "host":
-            rec["host"] = value.value
-        elif not re.fullmatch(r"[0-9]+", value.value) or not 1 <= int(value.value) <= MAX_PORT:
-            bad(line, f'board: "port" is an integer from 1 to 65535, found "{value.value}"')
-        else:
-            rec["port"] = int(value.value)
-    return rec
-
-
-MAX_PORT = 65535
-
-
 def _long_gate(node: Node, kline: int, bad: Bad) -> int:
     """The `long_gate` key: how many long gates may run at once. 1 when `parallel` is absent."""
     if node.kind != "map" or not node.value:
@@ -320,7 +289,7 @@ def _long_gate(node: Node, kline: int, bad: Bad) -> int:
 
 _KEYED: dict[str, Callable[[Node, int, Bad], Any]] = {
     "prices": _prices,
-    "board": _board,
+    "board": board_key,
     "ci": _ci,
     "long_gate": _long_gate,
     "specifying": specifying_key,

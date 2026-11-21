@@ -8,8 +8,8 @@ from chantier.commands.registry import NO_BATCH, Subparsers, add_command
 
 SHIPPED_UI = Path(__file__).resolve().parents[1] / "clients" / "web"
 HELP = (
-    "serve the board's API and the web client (or another UI: --ui) on this machine and the "
-    "local network, behind a key"
+    "serve the board's API and the web client (or another UI: --ui) on this machine (on the "
+    "local network with --host or chantier.yaml's board.host: network), behind a key"
 )
 
 
@@ -18,8 +18,10 @@ def register(sub: Subparsers) -> None:
     s = add_command(sub, "board", "chantier.board.command:board", HELP, NO_BATCH)
     s.add_argument(
         "--host",
-        help="the address to listen on (default: chantier.yaml's board.host, else 0.0.0.0, the "
-        "local network)",
+        help="the address to listen on, for this start (default: chantier.yaml's board.host: "
+        "network, this machine's local network address found at each start, else 127.0.0.1, "
+        "this machine only; 0.0.0.0 or an address of this machine on the network opens it to "
+        "the local network)",
     )
     s.add_argument(
         "--port",

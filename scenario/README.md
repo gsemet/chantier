@@ -457,6 +457,15 @@ does a unit that is not in `UNITS` and a test that does not exist.
   test_server_api.py::test_an_old_route_answers_404_even_for_a_post_a_cookie_carries,
   test_server_api_ws.py::test_a_socket_says_hello_gets_welcome_and_watches_a_project,
   test_server_api_ws.py::test_a_stopping_server_closes_each_socket_with_1001);
+- the board's exposure (CR-426): `board --port 0` with no `--host` and no `chantier.yaml` listens on
+  127.0.0.1 (`server.json` records it, one start line); with `board.host: network` it accepts either
+  outcome, as the runner's network decides: the link on a network address (`server.json` records
+  0.0.0.0, then the `on this machine:` link, then the `board: listens on the local network (` line),
+  or the link on 127.0.0.1 and the `board: no local network address found; on this machine only` line;
+  `board.host: 127.0.0.1` in `chantier.yaml` is refused by `playbook` and `board` (exit 2) with the
+  message pointing to `--host`; a second `board --new-key` on a running board prints another key, the
+  first link answers 401 and the new one 303 with `Max-Age=2592000` (unit: surface-board) (test:
+  test_board_exposure.py::test_the_default_is_this_machine_and_network_is_found_at_each_start);
 - the board's UI folder (CR-411): `board --ui <folder>` serves that folder's `index.html` with the
   policy and its `app.js`, and none of the shipped client's files; `--ui none` answers the 404 line
   outside `/api/` while `board.get` answers over HTTP; a folder with no `index.html` is refused

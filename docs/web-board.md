@@ -1,11 +1,11 @@
 
 # The web board
 
-`chantier board` serves a small web page over a planning folder, for any device on your network: your laptop, or your phone while the batch runs somewhere else. It shows the batch and its CRs, the backlog, the costs and each CR's files, and it lets you triage the backlog. It never touches a batch. It reads your forge with your own `gh` or `glab`, read-only, for a batch's PRs. The page is one client of the server's published API, [protocol 1](server-api.md): it talks to the server over a WebSocket, which pushes each change to the page as it happens, and over HTTP with a long-poll when the socket does not open (the footer then says `(HTTP)`).
+`chantier board` serves a small web page over a planning folder, for this machine, and for any device on your network when you open it to the network: your laptop, or your phone while the batch runs somewhere else. It shows the batch and its CRs, the backlog, the costs and each CR's files, and it lets you triage the backlog. It never touches a batch. It reads your forge with your own `gh` or `glab`, read-only, for a batch's PRs. The page is one client of the server's published API, [protocol 1](server-api.md): it talks to the server over a WebSocket, which pushes each change to the page as it happens, and over HTTP with a long-poll when the socket does not open (the footer then says `(HTTP)`).
 
 The pictures on this page are taken from the real board by `just docs-screenshots`, on a made-up planning surface (`docs/demo/`, see [its README](demo/README.md)): three fictional projects, the clock fixed at 2026-06-18 10:30 UTC. Nothing in them is a real project.
 
-For the other board, the pane in Claude Code, see [boards](boards.md). To start it, keep it on the machine and stop it, see [Starting the board](#starting-the-board).
+For the other board, the pane in Claude Code, see [boards](boards.md). To start it, open it to the local network and stop it, see [Starting the board](#starting-the-board).
 
 ## The views
 
@@ -157,7 +157,8 @@ The page is in English or French; a button at the bottom of the bar switches it 
 
 The board needs your own `gh` (GitHub) or `glab` (GitLab) login, and the network, for a batch's PRs only; every other view reads the planning folder.
 
-On any device, the Chief of Staff starts a small web server, `chantier board`, that serves the
+The Chief of Staff starts a small web server, `chantier board`, on this machine by default, and for
+the phone or any device of the local network once you open it to the network. It serves the
 batch with its CRs (state, round, cost, PR), the inbox, `3-ready` and the backlog, the merged and
 trashed CRs, the costs, and each CR's files (text and images). Started by a session, it stops when
 that session leaves the seat; started by hand, it serves until you stop it. It writes in the backlog only (the inbox, the priorities, `3-ready`), never in a batch:
@@ -168,13 +169,13 @@ files, and declare the next batch ready (`next-batch.json`, the time and the CRs
 (the overview of the projects) is read-only.
 
 - **The link.** The Chief of Staff gives you one link, `http://<address>:8765/?k=<key>`. When the
-  board listens on every address (the default), it prints a second line,
+  board listens on every address (`board.host: network`, or `--host 0.0.0.0`), it prints a second line,
   `on this machine: http://127.0.0.1:<port>/?k=<key>` (same key): open that one on the machine
   that runs the board, where the Costs page's image copy works (a browser allows it on a secure
   origin only). Open it
-  once: the board keeps the key in a cookie and takes it out of the address. The link is yours
+  once: the board keeps the key in a cookie, for 30 days, and takes it out of the address. The link is yours
   only; whoever has it reads the planning folder. `chantier board --new-key` replaces the key
-  and the old link stops working. The key lives in the repository's git folder
+  while the board runs: the old link, the cookies and the open pages stop working at once. The key lives in the repository's git folder
   (`chantier/server.json`), so it survives restarts and is never pushed. While the board runs,
   the same file holds its record next to the key (`server`: PID, address, port, version): one
   board serves a planning surface, on whatever port, so a second session finds it and gets its
@@ -191,16 +192,25 @@ files, and declare the next batch ready (`next-batch.json`, the time and the CRs
   and serves anyway. Without a writer, chantier refuses every write in the surface. An older
   board still serving after an upgrade runs no writer: the refusal and the `writer:` line name its
   version, PID and stop command.
-- **The local network.** By default the board listens on every address of the machine
-  (`0.0.0.0`): your phone on the same network reaches it. It speaks plain HTTP, so keep the link
-  off any network you do not trust. On Windows, the first start asks the firewall for permission:
-  that prompt is the machine's own.
-- **Keeping it on the machine.** Set the address once in `chantier.yaml` (on your word, the Chief
+- **The local network.** By default the board listens on `127.0.0.1`, this machine only. To reach
+  it from the phone, set `board.host: network` in `chantier.yaml`: the board listens on every
+  address, finds this machine's local network address at each start and names it in its link, and
+  keeps the `on this machine:` link for this machine (a shared `chantier.yaml` suits every
+  machine, and a new address from DHCP is taken at the next start); it listens on every network
+  this machine is on, a VPN's included, and with a VPN on the default route the link names the
+  VPN's address while the local network address still answers; or pass `--host <address>` for one
+  start (a fixed address in `chantier.yaml` is refused). The board then prints `board: listens on
+  the local network (...) ...`. With no network at start, it listens on this machine only and
+  prints `board: no local network address found; on this machine only`; once the network is back,
+  stop it, then start it again (a second start while it runs only says it is already running).
+  Plain HTTP: keep it off networks you do not trust; the Windows firewall prompt appears at the
+  first start on a network address only.
+- **Opening it to the local network.** Set it once in `chantier.yaml` (on your word, the Chief
   of Staff writes it):
 
 ```yaml
 board:
-  host: 127.0.0.1   # only this machine; default 0.0.0.0, the local network
+  host: network     # this machine's local network address, found at each start; default: this machine only
   port: 8765        # default 8765
 ```
 

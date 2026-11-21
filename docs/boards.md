@@ -1,6 +1,6 @@
 # Boards
 
-The CR board in Claude Code, a read-only pane over the planning folder, and the web board ([its own page](web-board.md)), served by `chantier board` to any device on the local network.
+The CR board in Claude Code, a read-only pane over the planning folder, and the web board ([its own page](web-board.md)), served by `chantier board` on this machine, or to any device on the local network when you open it.
 
 ## The CR board (Claude Code)
 
