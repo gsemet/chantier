@@ -11,6 +11,7 @@ import pytest
 
 from chantier.board import address
 from chantier.board.archived import recovered_after
+from chantier.store import FolderStore
 
 
 @pytest.mark.parametrize(
@@ -39,7 +40,10 @@ def _crs(**extra: Any) -> list[dict[str, Any]]:
 def test_recovered_after(tmp_path: Path, kind: str) -> None:
     if kind == "record":
         record = {"crs": _crs(after=["CR-1"])}
-        assert recovered_after(tmp_path, record) == {**record, "after_source": "record"}
+        assert recovered_after(FolderStore(tmp_path), tmp_path, record) == {
+            **record,
+            "after_source": "record",
+        }
         return
     if kind == "archives":
         folder = tmp_path / "5-archives" / "261101-1100-2-second"
@@ -47,10 +51,10 @@ def test_recovered_after(tmp_path: Path, kind: str) -> None:
         (folder / "depends.json").write_text(
             json.dumps({"after": ["first", "CR-1", "an-earlier-batch", "CR-9"]}), encoding="utf-8"
         )
-        out = recovered_after(tmp_path, {"crs": _crs()})
+        out = recovered_after(FolderStore(tmp_path), tmp_path, {"crs": _crs()})
         assert out["after_source"] == "archives"
         assert [c["after"] for c in out["crs"]] == [[], ["CR-1"]]
         return
-    out = recovered_after(tmp_path, {"crs": [{"cr": "CR-1"}]})
+    out = recovered_after(FolderStore(tmp_path), tmp_path, {"crs": [{"cr": "CR-1"}]})
     assert out["after_source"] == "none"
     assert out["crs"] == [{"cr": "CR-1", "after": []}]

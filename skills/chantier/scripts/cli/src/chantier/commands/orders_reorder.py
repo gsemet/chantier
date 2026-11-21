@@ -12,7 +12,7 @@ def ready_times(b: Batch) -> dict[str, int]:
     """When each CR was last handed back ready: the place of its last `handback ... ready` event
     in the batch's `events.jsonl`, which is in time order (a stamp has one-second resolution)."""
     when: dict[str, int] = {}
-    for i, e in enumerate(read_events(b.dir)):
+    for i, e in enumerate(read_events(b.repo.store, b.dir)):
         if e.kind == "handback" and e.result == "ready" and e.cr:
             when[e.cr] = i
     return when

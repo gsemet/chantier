@@ -12,6 +12,7 @@ from typing import Any
 
 from chantier.board import journal
 from chantier.core.errors import EXIT_USAGE, ChantierError
+from chantier.core.files import rel_in
 from chantier.core.records import read_batch_json
 from chantier.core.repo import Repo
 from chantier.hub import journal as forge_journal
@@ -41,10 +42,10 @@ def _word(change: dict[str, Any], view: dict[str, Any]) -> str:
 def _open_batch(repo: Repo) -> tuple[str, int] | None:
     """The id and the recorded slots of the batch running or paused, None with none."""
     path = repo.batches / "batch.json"
-    if not path.is_file():
+    if not repo.store.is_file(rel_in(repo.store.root, path)):
         return None
     try:
-        d = read_batch_json(path)
+        d = read_batch_json(repo.store, path)
     except (OSError, ValueError, ChantierError):
         return None
     return (d.id, d.slots) if d.status in ("running", "paused") else None

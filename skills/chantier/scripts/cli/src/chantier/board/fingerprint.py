@@ -4,13 +4,15 @@ no read, so an unchanged project answers `304` without opening a file."""
 from __future__ import annotations
 
 import hashlib
-import os
 import threading
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from chantier.core.files import is_lock
+from chantier.core.files import is_lock, rel_in
+
+if TYPE_CHECKING:
+    from chantier.store import PlanStore
 
 # The stage folders the state reads whole; the archives and the trash are read for their last
 # folders only, so a shallow walk of them is enough (a folder added or removed moves its parent).
@@ -22,40 +24,45 @@ SINGLE = ("seat.json", "next-batch.json", "board-journal.jsonl", "forge-journal.
 HOLDS = ".lease-hold.*.run"
 
 
-def _entry(path: Path, base: Path) -> str:
-    try:
-        info = path.stat()
-    except OSError:
-        return f"{path.relative_to(base).as_posix()}:-"
-    return f"{path.relative_to(base).as_posix()}:{info.st_size}:{info.st_mtime_ns}"
+def _join(base: str, name: str) -> str:
+    return name if base == "." else f"{base}/{name}"
 
 
-def _walk(folder: Path, base: Path, deep: bool) -> list[str]:
+def _entry(store: PlanStore, rel: str) -> str:
+    info = store.stat(rel)
+    return f"{rel}:-" if info is None else f"{rel}:{info[0]}:{info[1]}"
+
+
+def _deep(store: PlanStore, rel: str) -> list[str]:
+    """Every entry under a folder: its size and time, locks left out, the folders walked in
+    order. A folder that cannot be read gives its own `-` line."""
+    if not store.is_dir(rel):
+        return [f"{rel}:-"]
     found: list[str] = []
-    try:
-        entries = sorted(os.scandir(folder), key=lambda e: e.name)
-    except OSError:
-        return [f"{folder.relative_to(base).as_posix()}:-"]
-    for e in entries:
-        if is_lock(e.name):
-            continue
-        path = Path(e.path)
-        found.append(_entry(path, base))
-        if deep and e.is_dir(follow_symlinks=False):
-            found += _walk(path, base, True)
+    for here, dirs, names in store.walk(rel):
+        dirs[:] = sorted(d for d in dirs if not is_lock(d))
+        found += [_entry(store, _join(here, n)) for n in sorted(dirs + names) if not is_lock(n)]
     return found
 
 
-def fingerprint(changes: Path, extra: str = "") -> str:
+def _shallow(store: PlanStore, rel: str) -> list[str]:
+    try:
+        names = store.listdir(rel)
+    except OSError:
+        return [f"{rel}:-"]
+    return [_entry(store, _join(rel, n)) for n in names if not is_lock(n)]
+
+
+def fingerprint(store: PlanStore, changes: Path, extra: str = "") -> str:
     """A hash of the size and modification time of what the state reads, and of `extra` (the
     live cost's marks)."""
-    base = changes.resolve()
-    lines = [_entry(base / name, base) for name in SINGLE]
-    lines += [_entry(p, base) for p in sorted(base.glob(HOLDS))]
+    base = rel_in(store.root, changes)
+    lines = [_entry(store, _join(base, name)) for name in SINGLE]
+    lines += [_entry(store, _join(base, n)) for n in store.glob(base, HOLDS)]
     for name in DEEP:
-        lines += _walk(base / name, base, True)
+        lines += _deep(store, _join(base, name))
     for name in SHALLOW:
-        lines += _walk(base / name, base, False)
+        lines += _shallow(store, _join(base, name))
     lines.append(extra)
     return hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()
 

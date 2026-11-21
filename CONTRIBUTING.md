@@ -336,6 +336,9 @@ the plan's store, the batch, the seat), then the domain modules (`lifecycle/`, `
 `costs/`, `status/`, `rails.py`, `procs.py`, `plugin_files.py`), then `commands/` (one module per family of commands,
 each with its `register(sub)`) and `board/`, then `cli.py`.
 
+The modules listed in `tests/test_store_reads.py` read the planning folder only through the plan's store
+(`Repo.store`); a new module of `board/`, `hub/` or `status/` follows it.
+
 A dependency must replace hand-written code and ship wheels for Linux, macOS (x86_64 and arm64)
 and Windows: the root `pyproject.toml` sets `no-build = true`, so nothing is built from source. After
 a change to its dependencies, run `uv lock` (from the root); `just lint` refuses a stale lock.

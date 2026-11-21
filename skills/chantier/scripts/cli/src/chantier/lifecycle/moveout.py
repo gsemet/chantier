@@ -52,7 +52,9 @@ def remember_cr(repo: Repo, target: Path, cr_id: str, batch_id: str) -> None:
     """Note on the folder what it was, and never give its number again."""
     number = re.fullmatch(r"CR-(\d+)", cr_id)
     if number:  # the number is never given again, even once the batch is closed
-        last = max(read_restored_number(repo.changes / RESTORED_NUMBER_FILE), int(number[1]))
+        last = max(
+            read_restored_number(repo.store, repo.changes / RESTORED_NUMBER_FILE), int(number[1])
+        )
         repo.store.write_bytes(RESTORED_NUMBER_FILE, restored_bytes(last))
     intent = target / "01-intent.md"
     note = intent if intent.is_file() else target / "notes.md"

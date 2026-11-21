@@ -11,7 +11,7 @@ from chantier.board.backlog import count_files, description
 from chantier.board.times import cr_times, priority_of
 from chantier.core import leases
 from chantier.core import waits as typed_waits
-from chantier.core.files import subject
+from chantier.core.files import rel_in, subject
 from chantier.core.records import BatchRecord, CrEntry, EventRecord, Lease, round_limit
 from chantier.core.repo import Repo
 from chantier.rails import ENDED, series_predecessor
@@ -86,7 +86,9 @@ def _folder_of(repo: Repo, c: CrEntry) -> Path | None:
         folder = repo.planning_path(c.path) if c.path else None
     except OSError:
         return None
-    return folder if folder and folder.is_dir() else None
+    if folder and repo.store.is_dir(rel_in(repo.store.root, folder)):
+        return folder
+    return None
 
 
 def _row(repo: Repo, d: BatchRecord, c: CrEntry, events: list[EventRecord]) -> dict[str, Any]:
@@ -99,7 +101,7 @@ def _row(repo: Repo, d: BatchRecord, c: CrEntry, events: list[EventRecord]) -> d
         "phase": phase_text(c),
         "next_to_start": c.id == next_to_start(d),
         "cr": c.id,
-        "title": subject(shown_title(c.title, folder)),
+        "title": subject(shown_title(repo.store, c.title, folder)),
         "folder": repo.rel(folder) if folder else None,
         "state": c.status,
         "label": state_label(repo, d, c, waiting),
@@ -124,8 +126,8 @@ def _row(repo: Repo, d: BatchRecord, c: CrEntry, events: list[EventRecord]) -> d
         "handed_back_at": handed_back_at(events, c.id),
         "times": cr_times(events, c),
         "priority": priority_of(events, c),
-        "files": count_files(folder) if folder else 0,
-        "description": description(folder) if folder else "",
+        "files": count_files(repo.store, folder) if folder else 0,
+        "description": description(repo.store, folder) if folder else "",
         "chain_place": place.index(c.id) + 1 if c.id in place else None,
         "base": base,
         "gate": gate_view(repo, d, c, events),

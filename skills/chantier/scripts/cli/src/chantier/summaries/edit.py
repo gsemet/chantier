@@ -61,7 +61,7 @@ def edit_all(
     folders = list(dict.fromkeys(folders))
     repo.check_publish([folder / SUMMARY_FILE for folder in folders])
     with changes_lock(repo):
-        loaded = [(folder, store.read_or_new(folder)) for folder in folders]
+        loaded = [(folder, store.read_or_new(repo.store, folder)) for folder in folders]
         for folder, summary in loaded:
             edit(summary)
             store.write(repo, folder, summary)

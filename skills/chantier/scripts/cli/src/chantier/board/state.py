@@ -9,7 +9,7 @@ import json
 import re
 import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from chantier.board import crs
 from chantier.board.archived import recovered_after
@@ -18,7 +18,7 @@ from chantier.board.forge_kind import forge_of
 from chantier.board.journal import since_rescan
 from chantier.core.batch import apply_batch_settings
 from chantier.core.errors import ChantierError
-from chantier.core.files import read_text, subject
+from chantier.core.files import subject
 from chantier.core.git import git
 from chantier.core.records import (
     BatchRecord,
@@ -34,6 +34,9 @@ from chantier.lifecycle.stages import stage_layout
 from chantier.plugin_files import recorded_timing
 from chantier.rails import held
 from chantier.status.views import batch_view, dashboard_view
+
+if TYPE_CHECKING:
+    from chantier.store import PlanStore
 
 VIEW_KEYS = (
     "state",
@@ -126,21 +129,21 @@ def _batch(repo: Repo, d: BatchRecord, folder: Path, events: list[EventRecord]) 
     }
 
 
-def _history(changes: Path) -> list[Any]:
+def _history(store: PlanStore, changes: Path) -> list[Any]:
     """The batches' own records, newest first, as they are."""
     files = sorted(
-        (changes / RECORDS).glob("batch-*.json"),
-        key=lambda p: int(m[1]) if (m := re.search(r"(\d+)", p.name)) else 0,
+        store.glob(RECORDS.as_posix(), "batch-*.json"),
+        key=lambda name: int(m[1]) if (m := re.search(r"(\d+)", name)) else 0,
         reverse=True,
     )
     out = []
-    for path in files:
+    for name in files:
         try:
-            record = json.loads(read_text(path))
+            record = json.loads(store.read_text(f"{RECORDS.as_posix()}/{name}"))
         except (OSError, ValueError):
             continue
         closed = isinstance(record, dict) and record.get("state") == "closed"
-        out.append(recovered_after(changes, record) if closed else record)
+        out.append(recovered_after(store, changes, record) if closed else record)
     return out
 
 
@@ -156,16 +159,23 @@ def project_state(
     project_id: str, repo: Repo, surface: bool, live: dict[str, Any] | None
 ) -> dict[str, Any]:
     """The project's state, read now. Nothing is written; `now` is the caller's to add."""
+    with repo.store.reading():
+        return _project_state(project_id, repo, surface, live)
+
+
+def _project_state(
+    project_id: str, repo: Repo, surface: bool, live: dict[str, Any] | None
+) -> dict[str, Any]:
     dash = dashboard_view(repo, stage_layout(repo))
     folders = repo.batch_folders()
     batch = None
     events: list[EventRecord] = []
     if folders:
-        d = read_batch_json(folders[0] / "batch.json")
+        d = read_batch_json(repo.store, folders[0] / "batch.json")
         apply_batch_settings(repo, d)
-        events = read_events(folders[0])
+        events = read_events(repo.store, folders[0])
         batch = _batch(repo, d, folders[0], events)
-    history = _history(repo.changes)
+    history = _history(repo.store, repo.changes)
     return {
         "project": project_id,
         "surface": surface,
@@ -173,9 +183,9 @@ def project_state(
         "batch": batch,
         "forge": forge_of({"batch": batch, "history": history}, origin_of(repo.root)),
         "events": _events(events),
-        "backlog": backlog_items(repo.changes, dash["backlog"]),
+        "backlog": backlog_items(repo.store, repo.changes, dash["backlog"]),
         "next_batch": next_batch(repo),
-        "journal": {"count": len(since_rescan(repo.changes))},
+        "journal": {"count": len(since_rescan(repo.store, repo.changes))},
         "merged": dash["merged"],
         "merged_total": dash["merged_total"],
         "trashed": dash["trashed"],
@@ -202,7 +212,9 @@ def origin_of(root: Path) -> str:
     seen = _ORIGINS.get(key)
     if seen and time.monotonic() - seen[0] < _ORIGIN_TTL:
         return seen[1]
-    url = git("remote", "get-url", "origin", cwd=root, check=False) if root.is_dir() else ""
+    url = (
+        git("remote", "get-url", "origin", cwd=root, check=False) if root.is_dir() else ""
+    )  # direct: the code repository's folder, not the planning folder
     url = _USERINFO.sub(lambda m: m.group(1), url, count=1)  # a token or a password stays here
     _ORIGINS[key] = (time.monotonic(), url)
     return url
@@ -216,7 +228,9 @@ def project_paths(repo: Repo) -> dict[str, str]:
     if repo.project_dir is None or repo.surface is None:
         return where
     folder = repo.project_dir.relative_to(repo.surface).as_posix() + "/"
-    written = read_keyed(repo.project_dir / "checkout.yml").get("repo") or ".repo"
+    written = (
+        read_keyed(repo.project_dir / "checkout.yml").get("repo") or ".repo"
+    )  # direct: checkout.yml, the project's folder beside the planning folder
     return {"folder": folder, "repo": written, **where}
 
 

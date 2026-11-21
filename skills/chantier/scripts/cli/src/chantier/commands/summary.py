@@ -43,7 +43,7 @@ def lint(args: argparse.Namespace) -> tuple[list[str], int] | list[str]:
     paths = stage_layout(repo)
     folders = [_cr_folder(repo, paths, item) for item in args.folders] or cr_folders(paths)
     crs = [f for f in folders if covered_files(f)]
-    gaps = [gap for f in crs if (gap := gap_of(f))]
+    gaps = [gap for f in crs if (gap := gap_of(repo.store, f))]
     if not gaps:
         return [f"no gap ({len(crs)} CRs)"]
     return [f"{len(gaps)} gap(s) in {len(crs)} CRs", *(gap_line(repo, g) for g in gaps)], 2
@@ -70,7 +70,7 @@ def set_summary(args: argparse.Namespace) -> list[str]:
     origin = origin_of(issue_url(folder), args.tracker)
     repo.check_publish([folder / SUMMARY_FILE])
     with changes_lock(repo):
-        current = store.read_or_new(folder)
+        current = store.read_or_new(repo.store, folder)
         _require_fields(current, title, text, args.unchanged)
         if title:
             current.title = title

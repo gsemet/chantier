@@ -6,23 +6,26 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from chantier.core import clock
-from chantier.core.files import read_text
+from chantier.core.files import rel_in
 from chantier.core.repo import Repo
 from chantier.lifecycle.stages import changes_lock
+
+if TYPE_CHECKING:
+    from chantier.store import PlanStore
 
 FILE = "board-journal.jsonl"
 
 
-def _lines(changes: Path) -> list[dict[str, Any]]:
+def _lines(store: PlanStore, changes: Path) -> list[dict[str, Any]]:
     """Every line of the journal that is a JSON object; a damaged line is skipped."""
-    path = changes / FILE
-    if not path.is_file():
+    path = rel_in(store.root, changes / FILE)
+    if not store.is_file(path):
         return []
     found: list[dict[str, Any]] = []
-    for line in read_text(path, "replace").splitlines():
+    for line in store.read_text(path, "replace").splitlines():
         try:
             entry = json.loads(line)
         except ValueError:
@@ -32,9 +35,9 @@ def _lines(changes: Path) -> list[dict[str, Any]]:
     return found
 
 
-def since_rescan(changes: Path) -> list[dict[str, Any]]:
+def since_rescan(store: PlanStore, changes: Path) -> list[dict[str, Any]]:
     """The entries after the last `rescan` line."""
-    entries = _lines(changes)
+    entries = _lines(store, changes)
     last = max((i for i, e in enumerate(entries) if e.get("kind") == "rescan"), default=-1)
     return entries[last + 1 :]
 

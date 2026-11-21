@@ -29,7 +29,7 @@ def state_of(ctx: Context, project: Project, ask: bool) -> tuple[dict[str, Any],
     running = bool(last and last["batch"] and last["batch"]["state"] == "running")
     if ask:
         live.ask(running)
-    print_ = fingerprint(project.repo.changes, live.mark())
+    print_ = fingerprint(project.repo.store, project.repo.changes, live.mark())
     state = ctx.cache.get(
         project.id,
         print_,

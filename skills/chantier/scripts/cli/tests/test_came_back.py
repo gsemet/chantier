@@ -14,6 +14,7 @@ from test_batch_end import cr, patch, started
 from test_order_drop_to import PR, one
 
 from chantier.core.records import read_batch_json
+from chantier.core.repo import Repo
 
 COST = 1.5
 
@@ -102,7 +103,10 @@ def test_triage_ready_of_a_moved_out_cr_joins_a_factory_batch_under_its_number(
     assert [c["id"] for c in record(repo)["crs"]] == [cr_id]
     assert any(x.startswith(f"{cr_id} joins with its branch ") for x in out)
     assert out[-1].startswith(f"factory {record(repo)['id']}: {cr_id} joined on its own")
-    assert read_batch_json(changes(repo) / "4-batch" / "batch.json").crs[0].status == "queued"
+    assert (
+        read_batch_json(Repo.find().store, changes(repo) / "4-batch" / "batch.json").crs[0].status
+        == "queued"
+    )
     assert not list(changes(repo).rglob("formerly.json"))
     assert json.loads((changes(repo) / "restored.json").read_text("utf-8"))
 

@@ -20,7 +20,7 @@ from chantier.core.errors import (
     EXIT_USAGE,
     ChantierError,
 )
-from chantier.core.files import inside
+from chantier.core.files import inside, rel_in
 from chantier.core.records import GROUP_MAX
 from chantier.core.repo import Repo
 from chantier.hub import journal as forge_journal
@@ -114,11 +114,11 @@ def _rel(repo: Repo, folder: Path) -> str:
     return folder.relative_to(repo.changes.resolve()).as_posix()
 
 
-def _moved(slug: str, before: str, to: str, folder: Path) -> str:
+def _moved(repo: Repo, slug: str, before: str, to: str, folder: Path) -> str:
     if to == "inbox":
         return f"{slug} → inbox"
     if to == "3-ready":
-        if (folder / "03-change-spec.md").is_file():
+        if repo.store.is_file(f"{rel_in(repo.store.root, folder)}/03-change-spec.md"):
             return f"{slug} → 3-ready (specified)"
         return f"{slug} → 3-ready (automatable, no specification: your call)"
     if before in PRIORITIES:
@@ -126,8 +126,8 @@ def _moved(slug: str, before: str, to: str, folder: Path) -> str:
     return f"{slug} → {to}"
 
 
-def _group_of(folder: Path) -> str | None:
-    view = summary_view(folder)
+def _group_of(repo: Repo, folder: Path) -> str | None:
+    view = summary_view(repo.store, folder)
     return view.group if view else None
 
 
@@ -138,16 +138,16 @@ def _move_one(repo: Repo, slug: str, to: str, alone: bool) -> tuple[list[str], s
         return [], ""
     lines = backlog.move_item(repo, _rel(repo, folder), to)
     target = backlog.backlog_folder(repo, slug)
-    if alone and _group_of(target):
+    if alone and _group_of(repo, target):
         lines += change_group(repo, [target], None)  # it left its group's column
-    return lines, _moved(slug, before, to, target)
+    return lines, _moved(repo, slug, before, to, target)
 
 
 def group_members(repo: Repo, name: str) -> list[Path]:
     """The backlog's CR folders that carry this group name."""
     found = []
     for folder in backlog.backlog_folders(repo):
-        view = summary_view(folder)
+        view = summary_view(repo.store, folder)
         if view and view.group == name:
             found.append(folder)
     return found
@@ -240,7 +240,10 @@ def _file(repo: Repo, data: dict[str, Any]) -> tuple[dict[str, Any], int]:
     body, status = _answer(repo, "edit", [_attempt(item, run)])
     if body["ok"]:  # the new hash, for the next save of the same editor
         target = inside(backlog.backlog_folder(repo, item).resolve(), path)
-        body["sha256"] = backlog.sha256_of(target.read_bytes()) if target else None
+        store = repo.store
+        body["sha256"] = (
+            backlog.sha256_of(store.read_bytes(rel_in(store.root, target))) if target else None
+        )
     return body, status
 
 

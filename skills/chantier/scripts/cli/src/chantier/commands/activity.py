@@ -109,7 +109,7 @@ def activity(repo: Repo, d: BatchRecord) -> list[str]:
     ticket of the queue names it. A recorded agent the host reports stopped (`stopped_agents`)
     adds ` | Driver <id> stopped from outside, no hand-back recorded`.
     This only reads: it deletes no ticket."""
-    events = read_events(repo.batch_dir(d.id))
+    events = read_events(repo.store, repo.batch_dir(d.id))
     last, owner = _event_ages(events)
     targets = _targets(d)
     if not targets:

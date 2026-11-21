@@ -153,13 +153,13 @@ def test_the_board_reads_the_open_waits_of_a_backlog_folder_and_nothing_from_a_b
 ) -> None:
     from chantier.board.backlog import open_waits  # noqa: PLC0415
 
-    assert open_waits(tmp_path) == []
+    assert open_waits(FolderStore(tmp_path), tmp_path) == []
     done = waits.make("w1", "answer", "q", None, "n") | {"cleared_at": "t", "cleared_by": "hand"}
     live = waits.make("w2", "merge", PR, PR, "n")
     (tmp_path / waits.FILE).write_text(waits.file_text([done, live]), encoding="utf-8")
-    assert [w["id"] for w in open_waits(tmp_path)] == ["w2"]
+    assert [w["id"] for w in open_waits(FolderStore(tmp_path), tmp_path)] == ["w2"]
     (tmp_path / waits.FILE).write_text("{", encoding="utf-8")
-    assert open_waits(tmp_path) == []
+    assert open_waits(FolderStore(tmp_path), tmp_path) == []
 
 
 OTHER = "https://github.com/o/elsewhere/pull/9"

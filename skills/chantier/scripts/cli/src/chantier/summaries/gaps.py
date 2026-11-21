@@ -4,14 +4,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from chantier.core.files import heading_of, read_text
 from chantier.core.records import TITLE_MAX, CrSummary
 from chantier.core.repo import Repo
-from chantier.summaries import store
+from chantier.summaries import store as summaries_store
 from chantier.summaries.sources import Change, checksums, diff
 from chantier.summaries.title import REQUEST, WRITE
+
+if TYPE_CHECKING:
+    from chantier.store import PlanStore
 
 GapKind = Literal["unreadable", "no summary", "late", "no heading", "long title"]
 
@@ -26,15 +29,15 @@ class Gap:
     error: str = ""
 
 
-def gap_of(folder: Path) -> Gap | None:
+def gap_of(store: PlanStore, folder: Path) -> Gap | None:
     """The first gap that applies to a CR folder, or None. A folder with no covered file is not a
     CR for this check."""
     current = checksums(folder)
     if not current:
         return None
     try:
-        summary = store.read(folder)
-    except store.UnreadableSummary as e:
+        summary = summaries_store.read(store, folder)
+    except summaries_store.UnreadableSummary as e:
         return Gap("unreadable", folder, error=e.why)
     if summary is None or not summary.title or not summary.summary:
         return Gap("no summary", folder)
@@ -58,7 +61,7 @@ def gap_line(repo: Repo, gap: Gap) -> str:
     if gap.kind == "no heading":
         return f'{path}/{REQUEST}: no "# " heading → {WRITE}'
     if gap.kind == "long title":
-        size = len((store.read(gap.folder) or CrSummary()).title or "")
+        size = len((summaries_store.read(repo.store, gap.folder) or CrSummary()).title or "")
         return (
             f"{path}/summary.json: title is {size} characters: the limit is {TITLE_MAX} → "
             f'summary set {path} --title "<at most {TITLE_MAX} characters>"'

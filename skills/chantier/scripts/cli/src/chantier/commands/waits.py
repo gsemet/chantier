@@ -242,7 +242,7 @@ def _in_backlog(repo: Repo, args: argparse.Namespace) -> list[str]:
     repo.check_publish([path])
     with changes_lock(repo):
         try:
-            current = waits.read_file(folder) or []
+            current = waits.read_file(repo.store, folder) or []
         except waits.WaitsInvalid as e:
             raise ChantierError(
                 f"{repo.rel(path)}: {waits.FILE} is not valid: {e}; fix it or remove it",
@@ -321,7 +321,7 @@ def find_batch_name(names: list[str]) -> str:
 
 def _backlog_line(repo: Repo, folder: Path) -> str | None:
     try:
-        found = waits.read_file(folder)
+        found = waits.read_file(repo.store, folder)
     except waits.WaitsInvalid:
         return None
     mine = waits.open_of(found or [])

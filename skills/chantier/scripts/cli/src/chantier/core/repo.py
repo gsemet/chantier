@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from chantier.core.errors import EXIT_USAGE, ChantierError
-from chantier.core.files import read_text
+from chantier.core.files import read_text, rel_in
 from chantier.core.git import git
 from chantier.core.ids import normalize_batch
 from chantier.store import FolderStore, PlanStore, SurfaceStore
@@ -42,7 +42,7 @@ def project_path(
 def read_keyed(path: Path) -> dict[str, str]:
     """A tiny `key: value` reader for `checkout.yml`: `#` comments, optional quotes."""
     out: dict[str, str] = {}
-    for line in read_text(path).splitlines() if path.is_file() else []:
+    for line in read_text(path).splitlines() if path.is_file() else []:  # direct: checkout.yml
         clean = re.sub(r"(^|\s)#.*$", "", line).strip()
         if ":" in clean:
             key, value = clean.split(":", 1)
@@ -55,7 +55,7 @@ COMMAND: str | None = None  # the command the CLI runs (as `file`, `order merged
 
 
 def surface_projects(root: Path) -> list[str]:
-    base = root / "projects"
+    base = root / "projects"  # direct: the surface's projects/, not the planning folder
     return (
         sorted(
             d.name
@@ -113,7 +113,9 @@ class Repo:
             except ChantierError as e:
                 raise ChantierError(f"not inside a git repository: {cwd}") from e
             git_dir = Path(common).resolve()
-            names = [] if (git_dir.parent / CHANGES).is_dir() else surface_projects(git_dir.parent)
+            names = (
+                [] if (git_dir.parent / CHANGES).is_dir() else surface_projects(git_dir.parent)
+            )  # direct: no store yet
             if len(names) > 1:
                 raise SurfaceChoice(names)
             if names:
@@ -136,7 +138,7 @@ class Repo:
             else:
                 folder = cwd / folder
         folder = folder.resolve()
-        if not folder.is_dir():
+        if not folder.is_dir():  # direct: no store yet
             raise ChantierError(f"no project folder {folder} in a planning surface", EXIT_USAGE)
         top = git("rev-parse", "--show-toplevel", cwd=folder, check=False)
         common = git(
@@ -153,7 +155,7 @@ class Repo:
         work = resolve(spec.get("worktrees") or ".worktrees")
         mine = re.search(
             r"^\W*Archive in the PR:\s*(yes|no)\b",
-            read_text(folder / "project.md") if (folder / "project.md").is_file() else "",
+            read_text(folder / "project.md") if (folder / "project.md").is_file() else "",  # direct
             re.M | re.I,
         )
         return cls(
@@ -194,9 +196,9 @@ class Repo:
     def missing_clone(self) -> str | None:
         """External: the line saying the project's clone is missing, None when it is there (or
         the project is not in a surface)."""
-        if not self.external or self.clone.is_dir():
+        if not self.external or self.clone.is_dir():  # direct: the clone
             return None
-        text = self.project_folder / "project.md"
+        text = self.project_folder / "project.md"  # direct: the project's folder
         remote = (
             re.search(r"^\W*remote\W*:?\s*(\S+)", read_text(text), re.I | re.M)
             if text.is_file()
@@ -260,13 +262,14 @@ class Repo:
 
     def batch_folders(self) -> list[Path]:
         """The folder of the current batch, if there is one: `[4-batch]` or `[]`."""
-        return [self.batches] if (self.batches / "batch.json").is_file() else []
+        found = self.store.is_file(rel_in(self.store.root, self.batches / "batch.json"))
+        return [self.batches] if found else []
 
     def batch_ids(self) -> list[str]:
         """The id of the current batch, read from its `batch.json`, never from a folder name."""
         from chantier.core.records import read_batch_json  # noqa: PLC0415 - lazy pydantic
 
-        return [read_batch_json(d / "batch.json").id for d in self.batch_folders()]
+        return [read_batch_json(self.store, d / "batch.json").id for d in self.batch_folders()]
 
     def batch_dir(self, batch: str) -> Path:
         """`--batch` is a batch's number, `4` or `batch-04`: it must be the current batch's, whose
@@ -279,12 +282,13 @@ class Repo:
         """The highest of the records in `5-archives/batches/`, the live batch and
         `.batch-number`, plus one: numbers keep rising after a batch's folder is deleted, on every
         machine that has the records."""
-        last = self.changes / ".batch-number"
-        kept = int(read_text(last)) if last.is_file() else 0
+        kept = (
+            int(self.store.read_text(".batch-number")) if self.store.is_file(".batch-number") else 0
+        )
         recorded = (
             int(m[1])
-            for p in (self.changes / RECORDS).glob("batch-*.json")
-            if (m := re.fullmatch(r"batch-(\d+)\.json", p.name))
+            for n in self.store.glob(RECORDS.as_posix(), "batch-*.json")
+            if (m := re.fullmatch(r"batch-(\d+)\.json", n))
         )
         live = (int(m.group()) for i in self.batch_ids() if (m := re.search(r"\d+", i)))
         return max([kept, *recorded, *live]) + 1
@@ -292,11 +296,11 @@ class Repo:
     def open_batches(self) -> list[str]:
         from chantier.core.records import read_batch_json  # noqa: PLC0415 - lazy pydantic
 
-        states = [read_batch_json(d / "batch.json") for d in self.batch_folders()]
+        states = [read_batch_json(self.store, d / "batch.json") for d in self.batch_folders()]
         return sorted(s.id for s in states if s.status != "paused")
 
     def paused_batches(self) -> list[str]:
         from chantier.core.records import read_batch_json  # noqa: PLC0415 - lazy pydantic
 
-        states = [read_batch_json(d / "batch.json") for d in self.batch_folders()]
+        states = [read_batch_json(self.store, d / "batch.json") for d in self.batch_folders()]
         return sorted(s.id for s in states if s.status == "paused")

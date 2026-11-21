@@ -266,7 +266,11 @@ def cost_rows(repo: Repo, d: BatchRecord, host: str, uuids: list[str]) -> list[d
     chiefs = chief_sessions(d)
     # a Driver is an agent the log ties to a CR, the stack or a QA order; any other agent with no
     # parent is the steering session's own subagent
-    drivers = {e.agent for e in read_events(repo.batch_dir(d.id)) if e.kind == "agent" and e.agent}
+    drivers = {
+        e.agent
+        for e in read_events(repo.store, repo.batch_dir(d.id))
+        if e.kind == "agent" and e.agent
+    }
     for uuid in uuids:
         steering = uuid in chiefs  # a Chief of Staff's own steering window
         if host == "copilot":

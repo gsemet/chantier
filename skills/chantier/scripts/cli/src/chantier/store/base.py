@@ -4,6 +4,7 @@ the `.gitignore` meaning of the files that stay local."""
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from contextlib import AbstractContextManager
 from fnmatch import fnmatchcase
 from pathlib import Path
@@ -24,7 +25,10 @@ READ_ONLY = (
 
 
 class PlanStore(Protocol):
-    """The planning folder's writes (and the reads their callers need), behind one interface."""
+    """The planning folder's reads and writes, behind one interface. A read goes through the
+    same guard as a write and reads the files on each call; an index may come later behind this
+    interface, rebuilt from the files. A missing file or folder raises what the direct read
+    raises (`FileNotFoundError`); only a path outside the root raises the store's refusal."""
 
     root: Path
     features: frozenset[str]
@@ -32,9 +36,15 @@ class PlanStore(Protocol):
     @property
     def config_path(self) -> Path | None: ...
 
-    def read_text(self, rel: str) -> str: ...
+    def read_text(self, rel: str, errors: str = "strict") -> str: ...
+    def read_bytes(self, rel: str, limit: int | None = None) -> bytes: ...
     def exists(self, rel: str) -> bool: ...
+    def is_file(self, rel: str) -> bool: ...
+    def is_dir(self, rel: str) -> bool: ...
     def listdir(self, rel: str) -> list[str]: ...
+    def glob(self, rel: str, pattern: str) -> list[str]: ...
+    def stat(self, rel: str) -> tuple[int, int] | None: ...
+    def walk(self, rel: str) -> Iterator[tuple[str, list[str], list[str]]]: ...
     def write_text(self, rel: str, text: str) -> None: ...
     def write_json(self, rel: str, data: Any, *, ensure_ascii: bool = True) -> None: ...
     def write_bytes(self, rel: str, data: bytes) -> None: ...
@@ -43,6 +53,10 @@ class PlanStore(Protocol):
     def move(self, rel_src: str, rel_dst: str) -> None: ...
     def remove(self, rel: str) -> None: ...
     def lock(self) -> AbstractContextManager[None]: ...
+    def reading(self) -> AbstractContextManager[None]:
+        """One read pass: no content is cached, only the link check of a folder, until the pass ends."""
+        ...
+
     def ensure_gitignore(self) -> None: ...
     def published(self, rel: str) -> bool: ...
     def check_publish(
@@ -54,18 +68,20 @@ def outside_error(label: str, where: str, value: str | Path) -> ChantierError:
     return ChantierError(f"{label} must be inside {where}: {value}", EXIT_USAGE)
 
 
-def inside_path(root: Path, value: str | Path, label: str, where: str) -> Path:
+def inside_path(
+    root: Path, value: str | Path, label: str, where: str, resolved_root: Path | None = None
+) -> Path:
     """The resolved path of `value` (absolute, or read from `root`), which must be strictly
-    inside `root`."""
+    inside `root`. A caller that checks many paths gives `resolved_root` (`root.resolve()`)."""
     path = Path(value).expanduser()
     path = (path if path.is_absolute() else root / path).resolve()
-    root = root.resolve()
+    root = resolved_root or root.resolve()
     if path == root or not path.is_relative_to(root):
         raise outside_error(label, where, value)
     return path
 
 
-def guard(root: Path, rel: str, root_ok: bool = False) -> Path:
+def guard(root: Path, rel: str, root_ok: bool = False, resolved_root: Path | None = None) -> Path:
     """`root / rel`, once `rel` is known to stay in the planning folder: no absolute path, no
     drive, no NUL, nothing that resolves outside (`..`, a symlink out)."""
     if (
@@ -77,7 +93,7 @@ def guard(root: Path, rel: str, root_ok: bool = False) -> Path:
         raise outside_error("path", "the planning folder", rel)
     if root_ok and rel in ("", "."):
         return root
-    inside_path(root, rel, "path", "the planning folder")
+    inside_path(root, rel, "path", "the planning folder", resolved_root)
     return root / rel
 
 

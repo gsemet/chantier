@@ -109,7 +109,7 @@ def _close_target(
     refused with what runs in it (less the agents `--stopped` declares), or with "`pause` first"."""
     folders = repo.batch_folders()
     batch = normalize_batch(batch) if batch else batch
-    datas = {d: read_batch_json(d / "batch.json") for d in folders}
+    datas = {d: read_batch_json(repo.store, d / "batch.json") for d in folders}
     pick = [d for d in folders if not batch or datas[d].id == batch]
     if len(pick) != 1:
         raise ChantierError(
@@ -234,7 +234,7 @@ def _closing(
         rows,
         archived,
         batch_files(folder),
-        read_retro(folder),
+        read_retro(repo.store, folder),
         summary,
         stopped,
         cost_receipt(d, rows, by_driver, chief),

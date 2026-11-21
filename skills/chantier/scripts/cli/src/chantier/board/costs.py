@@ -26,7 +26,7 @@ def compute(repo: Repo) -> dict[str, Any]:
     folders = repo.batch_folders()
     if not folders:
         raise ChantierError("no batch to price")
-    d = read_batch_json(folders[0] / "batch.json")
+    d = read_batch_json(repo.store, folders[0] / "batch.json")
     rows = cost_rows(repo, d, d.host, foreman_uuid(d))
     groups = cost_groups(repo, d.id, rows, "cr")
     return {

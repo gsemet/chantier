@@ -18,7 +18,7 @@ from chantier.board.projects import Project
 from chantier.board.reply import Reply
 from chantier.core import clock
 from chantier.core.errors import ChantierError
-from chantier.core.files import inside
+from chantier.core.files import inside, rel_in
 from chantier.playbook import edit
 
 NOT_FOUND = "not found"
@@ -71,7 +71,7 @@ def _state(ctx: Context, project: Project, a: Any) -> Result:
 
 
 def _tree(ctx: Context, project: Project, a: Any) -> Result:
-    found = files.tree(project.repo.changes.resolve(), a.path)
+    found = files.tree(project.repo.store, project.repo.changes.resolve(), a.path)
     if isinstance(found, Reply):
         return fail(404, NOT_FOUND)
     return Result(200, {"path": a.path, "files": found, "now": clock.now()})
@@ -80,11 +80,12 @@ def _tree(ctx: Context, project: Project, a: Any) -> Result:
 def _file(ctx: Context, project: Project, a: Any) -> Result:
     root = project.repo.changes.resolve()
     target = inside(root, a.path)
-    if target is None or not target.is_file():
+    store = project.repo.store
+    if target is None or not store.is_file(rel_in(store.root, target)):
         return fail(404, NOT_FOUND)
     if files.kind_of(target.name) != "text":
         return fail(415, BINARY)
-    reply = files.read(root, a.path)
+    reply = files.read(store, root, a.path)
     data = {
         "text": reply.body.decode("utf-8"),
         "cut": "X-Chantier-Cut" in reply.headers,
@@ -119,7 +120,7 @@ def _journal(ctx: Context, project: Project, a: Any) -> Result:
 
 def journal_data(project: Project) -> dict[str, Any]:
     """The board's own journal since the last rescan."""
-    entries = journal.since_rescan(project.repo.changes)
+    entries = journal.since_rescan(project.repo.store, project.repo.changes)
     return {"entries": entries, "count": len(entries), "now": clock.now()}
 
 

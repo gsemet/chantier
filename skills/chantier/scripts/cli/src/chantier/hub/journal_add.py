@@ -114,7 +114,7 @@ def add(args: argparse.Namespace) -> list[str]:
     key = PUBLISHED[TYPE].key
     assert key is not None
     want = key(event)
-    entries = journal.read(repo.changes)[0]
+    entries = journal.read(repo.store, repo.changes)[0]
     seq = next(
         e["seq"] for e in entries if e.get("type") == TYPE and e.get("audience") and key(e) == want
     )

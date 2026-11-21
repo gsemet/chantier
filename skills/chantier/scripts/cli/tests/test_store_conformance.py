@@ -3,6 +3,7 @@ does not declare is skipped by feature, never failed."""
 
 from __future__ import annotations
 
+import os
 import subprocess
 import threading
 from collections.abc import Callable
@@ -12,6 +13,7 @@ import pytest
 from conftest import live_writer
 
 from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
+from chantier.core.files import rel_in
 from chantier.store import READ_ONLY, FolderStore, PlanStore, SurfaceStore
 from chantier.store import folder as folder_module
 from chantier.store.base import LOCAL_FILES, PUBLISHES, REFUSES_WITHOUT_PUBLISHER
@@ -127,6 +129,14 @@ def test_every_method_refuses_a_path_outside_the_root(store: PlanStore, tmp_path
         store.read_text,
         store.exists,
         store.listdir,
+        store.is_file,
+        store.is_dir,
+        store.stat,
+        lambda rel: store.read_text(rel, "replace"),
+        lambda rel: store.read_bytes(rel, 3),
+        store.read_bytes,
+        lambda rel: store.glob(rel, "*"),
+        lambda rel: list(store.walk(rel)),
         lambda rel: store.write_text(rel, "x"),
         lambda rel: store.write_json(rel, {}),
         lambda rel: store.write_bytes(rel, b"x"),
@@ -143,6 +153,132 @@ def test_every_method_refuses_a_path_outside_the_root(store: PlanStore, tmp_path
                 call(rel)
             assert e.value.code == EXIT_USAGE
     assert sorted(p.name for p in tmp_path.rglob("*") if p.is_file()) == ["in.md"]
+
+
+def link_folder(link: Path, target: Path) -> None:
+    """A symlink to a folder, or on Windows without the privilege a junction (a reparse point)."""
+    try:
+        os.symlink(target, link, target_is_directory=True)
+    except OSError:
+        if os.name != "nt":
+            raise
+        subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(link), str(target)], check=True, capture_output=True
+        )
+
+
+def test_a_symlinked_folder_leaf_out_of_the_root_is_refused(
+    store: PlanStore, tmp_path: Path
+) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "secret.md").write_text("x", encoding="utf-8")
+    store.write_text("a/in.md", "x")
+    try:
+        for link in (store.root / "leaf", store.root / "a" / "leaf"):
+            link_folder(link, outside)
+    except (OSError, NotImplementedError, subprocess.CalledProcessError):
+        pytest.skip("this OS does not let the test make a link; the escape is not checked")
+    calls: list[Callable[[str], object]] = [
+        store.exists,
+        store.is_dir,
+        store.is_file,
+        store.listdir,
+        store.stat,
+        store.read_text,
+        lambda rel: store.glob(rel, "*"),
+        lambda rel: list(store.walk(rel)),
+    ]
+    for rel in ("leaf", "a/leaf", "leaf/secret.md", "a/leaf/secret.md"):
+        for call in calls:
+            with pytest.raises(ChantierError, match="must be inside the planning folder"):
+                call(rel)
+    assert store.read_text("a/in.md") == "x"
+
+
+def test_a_reading_pass_checks_again_in_the_next_pass(store: PlanStore, tmp_path: Path) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    store.write_text("a/in.md", "x")
+    with store.reading():
+        assert store.listdir("a") == ["in.md"]
+        with store.reading():
+            assert store.is_dir("a")
+    (store.root / "a" / "in.md").unlink()
+    (store.root / "a").rmdir()
+    try:
+        link_folder(store.root / "a", outside)
+    except (OSError, NotImplementedError, subprocess.CalledProcessError):
+        pytest.skip("this OS does not let the test make a link; the escape is not checked")
+    with pytest.raises(ChantierError, match="must be inside the planning folder"):
+        store.listdir("a")
+
+
+def test_reads(store: PlanStore) -> None:
+    store.write_bytes("r/bad.md", b"ok \xff end")
+    with pytest.raises(UnicodeDecodeError):
+        store.read_text("r/bad.md")
+    assert store.read_text("r/bad.md", "replace") == "ok \ufffd end"
+    raw = b"\xef\xbb\xbfone\r\ntwo\r\n"
+    store.write_bytes("r/bom.md", raw)
+    assert store.read_text("r/bom.md") == "one\ntwo\n"  # universal newlines, as today
+    assert store.read_bytes("r/bom.md") == raw
+    assert store.read_bytes("r/bom.md", 5) == raw[:5]
+    assert store.read_bytes("r/bom.md", 999) == raw
+    assert store.is_file("r/bom.md") and not store.is_dir("r/bom.md")
+    assert store.is_dir("r") and not store.is_file("r") and store.is_dir(".")
+    assert not store.is_file("r/none") and not store.is_dir("r/none")
+    for name in ("b-2.json", "a-1.json", "c.md"):
+        store.write_text(f"g/{name}", "x")
+    store.write_text("g/sub/a-3.json", "x")
+    assert store.glob("g", "*.json") == ["a-1.json", "b-2.json"]
+    assert store.glob("none", "*") == []
+    for call in (store.read_text, store.read_bytes):
+        with pytest.raises(FileNotFoundError):
+            call("r/none.md")
+
+
+def test_stat_and_no_cache(store: PlanStore) -> None:
+    store.write_text("s/f.md", "abc")
+    size, first = store.stat("s/f.md") or (0, 0)
+    assert size == len("abc")
+    assert store.read_text("s/f.md") == "abc"
+    store.write_text("s/f.md", "abcdef")
+    os.utime(store.root / "s" / "f.md", ns=(first + 10**9, first + 10**9))
+    assert store.read_text("s/f.md") == "abcdef"
+    assert store.read_bytes("s/f.md") == b"abcdef"
+    new = store.stat("s/f.md")
+    assert new is not None and new[0] == len("abcdef") and new[1] > first
+    assert store.stat("s/none") is None
+
+
+def test_walk(store: PlanStore) -> None:
+    for rel in ("w/a.md", "w/x/b.md", "w/x/y/c.md", "w/skip/d.md"):
+        store.write_text(rel, "x")
+    seen = {}
+    for folder, dirs, files in store.walk("w"):
+        if folder == "w":
+            assert "skip" in dirs
+            dirs.remove("skip")
+        seen[folder] = (sorted(dirs), sorted(files))
+    assert seen == {"w": (["x"], ["a.md"]), "w/x": (["y"], ["b.md"]), "w/x/y": ([], ["c.md"])}
+    assert list(store.walk("w/none")) == []
+    assert next(f for f, _, _ in store.walk(".")) == "."
+
+
+def test_reads_are_never_refused_without_a_writer(store: PlanStore) -> None:
+    store.root.mkdir(parents=True)
+    (store.root / "p.md").write_text("x")
+    assert store.read_text("p.md") == "x"
+    assert store.is_file("p.md") and store.glob(".", "*.md") == ["p.md"]
+
+
+def test_rel_in(tmp_path: Path) -> None:
+    assert rel_in(tmp_path, tmp_path / "a" / "b.md") == "a/b.md"
+    assert rel_in(tmp_path, tmp_path) == "."
+    with pytest.raises(ChantierError, match="must be inside the planning folder") as e:
+        rel_in(tmp_path / "root", tmp_path / "elsewhere")
+    assert e.value.code == EXIT_USAGE
 
 
 def test_write_config_and_config_path(store: PlanStore) -> None:

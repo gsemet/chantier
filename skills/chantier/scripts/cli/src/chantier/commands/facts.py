@@ -104,7 +104,7 @@ def cr_facts(
     found = project_instructions(repo)
     skill = skill_dir().as_posix()
     made = Path(c.worktree).is_dir()
-    title = shown_title(c.title, folder)
+    title = shown_title(repo.store, c.title, folder)
     lines = [
         f'{c.id} "{title}" ({c.kind}) {state_word(d, c, repo)} in batch {batch} ({d.mode})',
         f"cli: {cli_command(repo)} <command> --batch {batch}",

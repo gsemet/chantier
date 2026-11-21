@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from chantier.core.errors import ChantierError
 from chantier.core.records import (
@@ -15,8 +16,11 @@ from chantier.core.records import (
     CrSummary,
 )
 from chantier.lifecycle.layout_check import Finding
-from chantier.summaries import store
+from chantier.summaries import store as summaries_store
 from chantier.summaries.edit import LABEL_RULE, one_line
+
+if TYPE_CHECKING:
+    from chantier.store import PlanStore
 
 
 def _limit(value: str | None, field: str, limit: int, always: bool = False) -> str:
@@ -49,13 +53,13 @@ def _gaps(summary: CrSummary, cr: str) -> list[tuple[str, str]]:
     return found
 
 
-def summary_findings(cr: str, folder: Path, in_trash: bool) -> list[Finding]:
+def summary_findings(store: PlanStore, cr: str, folder: Path, in_trash: bool) -> list[Finding]:
     """The findings of one CR folder's `summary.json`; `cr` is its path in the planning folder.
     In `6-trash` no finding carries a closing hint: `summary set` refuses there."""
     path = f"{cr}/summary.json"
     try:
-        summary = store.read(folder)
-    except store.UnreadableSummary as e:
+        summary = summaries_store.read(store, folder)
+    except summaries_store.UnreadableSummary as e:
         hint = "" if in_trash else f", then summary set {cr} …"
         return [Finding("error", path, f"unreadable ({e.why}) → repair or remove it{hint}")]
     if summary is None:

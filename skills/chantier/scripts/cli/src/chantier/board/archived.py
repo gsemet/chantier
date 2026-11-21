@@ -5,9 +5,13 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from chantier.board.backlog import depends_of
+from chantier.core.files import rel_in
+
+if TYPE_CHECKING:
+    from chantier.store import PlanStore
 
 _SLUG = re.compile(r"^\d{6}-\d{4}-\d+-(.+)$")  # <YYMMDD-HHMM>-<number>-<slug>
 
@@ -18,7 +22,7 @@ def _slug_of(archive: str | None) -> str | None:
     return found[1] if found else None
 
 
-def recovered_after(changes: Path, record: dict[str, Any]) -> dict[str, Any]:
+def recovered_after(store: PlanStore, changes: Path, record: dict[str, Any]) -> dict[str, Any]:
     """A closed record with each CR's `after` and the record's `after_source`: "record" (the
     CRs carry `after`: untouched), "archives" (read from at least one archived folder) or
     "none" (no folder could be read)."""
@@ -33,9 +37,9 @@ def recovered_after(changes: Path, record: dict[str, Any]) -> dict[str, Any]:
         archive = c.get("archive")
         folder = changes / archive if archive else None
         names: list[str] = []
-        if folder is not None and folder.is_dir():
+        if folder is not None and store.is_dir(rel_in(store.root, folder)):
             read = True
-            names = depends_of(folder)
+            names = depends_of(store, folder)
         found = [n if n in ids else by_slug.get(n) for n in names]
         after = list(dict.fromkeys(x for x in found if x and x != c.get("cr")))
         out.append({**c, "after": after})

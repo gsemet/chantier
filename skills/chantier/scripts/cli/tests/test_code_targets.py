@@ -28,9 +28,20 @@ def _module(path: Path) -> str:
 
 
 def _imports(path: Path) -> set[str]:
-    """The `chantier` modules a file imports, imports inside functions included."""
+    """The `chantier` modules a file imports at run time, imports inside functions included
+    (an `if TYPE_CHECKING:` block holds types only, no import at run time)."""
     found = set()
-    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    typing_only = {
+        id(n)
+        for top in ast.walk(tree)
+        if isinstance(top, ast.If) and ast.unparse(top.test).endswith("TYPE_CHECKING")
+        for stmt in top.body
+        for n in ast.walk(stmt)
+    }
+    for node in ast.walk(tree):
+        if id(node) in typing_only:
+            continue
         if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("chantier"):
             found.add(node.module)
             found.update(f"{node.module}.{a.name}" for a in node.names)

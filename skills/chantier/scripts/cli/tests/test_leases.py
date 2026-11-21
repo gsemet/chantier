@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from typing import Any, Protocol, cast
 
 import pytest
-from batch_helpers import DEAD, changes, events, open_batch, record, write_record
+from batch_helpers import DEAD, batch_of, changes, events, open_batch, record, write_record
 from conftest import Chantier
 from stack_world import TAKEN, Batch, stack_of
 
@@ -19,7 +19,6 @@ from chantier.board.state import project_state
 from chantier.commands.closing import _live_lease_lines
 from chantier.core import clock, leases
 from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION
-from chantier.core.records import read_batch_json
 from chantier.core.repo import Repo
 from chantier.rails_idle import running
 
@@ -319,7 +318,7 @@ def test_copilot_close_causes_come_from_leases_and_the_foremans_heartbeat(
     if beat is not None:
         data["heartbeat"] = clock.after(-beat * 60)
     write_record(repo, data)
-    causes, _, _ = running(Repo.find(), read_batch_json(changes(repo) / "4-batch" / "batch.json"))
+    causes, _, _ = running(Repo.find(), batch_of(repo))
     ours = [x for x in causes if "lease" in x or "heartbeat" in x or "not measured" in x]
     assert ours == [x.format(agent="agent-a", cr=one) for x in expected], causes
 
@@ -355,7 +354,7 @@ def test_copilot_close_reads_a_qa_orders_and_the_stack_agents_lease(
     )
     write_record(repo, data)
     at(minutes)
-    causes, _, _ = running(Repo.find(), read_batch_json(changes(repo) / "4-batch" / "batch.json"))
+    causes, _, _ = running(Repo.find(), batch_of(repo))
     agent = "agent-q" if unit == "order" else "agent-s"
     ours = [x for x in causes if "lease" in x or "not measured" in x]
     assert ours == [x.format(agent=agent, unit=name) for x in expected], causes
@@ -365,7 +364,7 @@ def test_claude_close_shows_a_live_lease_beside_the_transcripts_and_it_is_no_cau
     leased: Led,
 ) -> None:
     repo, _, (one, _) = leased
-    d = read_batch_json(changes(repo) / "4-batch" / "batch.json")
+    d = batch_of(repo)
     shown = _live_lease_lines(Repo.find(), d)
     assert shown and f"lease 1 of {one}: live until 00:10:00" in shown[0]
     assert not any("lease" in x for x in running(Repo.find(), d)[0])
@@ -386,10 +385,11 @@ def test_the_board_shows_each_lease_as_facts_and_its_read_removes_no_hold(leased
     expires = "2030-01-01T00:10:00Z"
     facts = {"n": 1, "renewed": T0, "expires": expires, "ended": None, "holds": 0, "gate": None}
     assert rows[one] == facts  # facts only: never the word `live`, which moves with the clock
-    before = fingerprint(found.changes)
+    before = fingerprint(found.store, found.changes)
     dead = changes(repo) / f".lease-hold.{one}.1.run"
     dead.write_text(json.dumps({"unit": one, "lease": 1, "pid": DEAD}), encoding="utf-8")
-    assert fingerprint(found.changes) != before  # a hold record at the root moves the rev
+    moved = fingerprint(found.store, found.changes) != before
+    assert moved  # a hold record at the root moves the rev
     held = leases.write_hold(found, one, 1, ["x"])
     assert shown()[0][one]["holds"] == 1 and dead.exists() and held.exists()  # read-only
     data = record(repo)

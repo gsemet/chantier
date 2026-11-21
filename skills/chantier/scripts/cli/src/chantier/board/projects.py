@@ -91,5 +91,5 @@ def open_projects() -> Projects:
 
 
 def check_planning(projects: Projects) -> None:
-    if not projects.home.changes.is_dir():
+    if not projects.home.store.is_dir("."):
         raise ChantierError(f"no planning folder at {projects.home.changes}")

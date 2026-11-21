@@ -10,10 +10,13 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from chantier.core.clock import now
-from chantier.core.files import read_text
+from chantier.core.files import rel_in
+
+if TYPE_CHECKING:
+    from chantier.store import PlanStore
 
 TYPES = ("answer", "approval", "pipeline", "merge")
 FORGE_TYPES = ("approval", "pipeline", "merge")  # the waits that name a PR or MR
@@ -68,14 +71,14 @@ def problem(data: object) -> str | None:
     return None
 
 
-def read_file(folder: Path) -> list[dict[str, Any]] | None:
+def read_file(store: PlanStore, folder: Path) -> list[dict[str, Any]] | None:
     """The waits of `<folder>/waits.json`; None when there is no file; `WaitsInvalid` when it is
     not valid."""
-    path = folder / FILE
-    if not path.is_file():
+    rel = rel_in(store.root, folder / FILE)
+    if not store.is_file(rel):
         return None
     try:
-        data = json.loads(read_text(path))
+        data = json.loads(store.read_text(rel))
     except (OSError, ValueError) as e:
         raise WaitsInvalid(" ".join(str(e).split())) from e
     why = problem(data)

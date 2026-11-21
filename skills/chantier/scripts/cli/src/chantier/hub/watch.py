@@ -23,6 +23,7 @@ from chantier import __version__
 from chantier.board.projects import project_name
 from chantier.board.seats import SEAT_CHECK_S
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
+from chantier.core.files import rel_in
 from chantier.core.records import read_batch_json
 from chantier.core.repo import Repo
 from chantier.core.seat import read_seat
@@ -57,10 +58,10 @@ def subscription(session: str, audiences: list[str] | tuple[str, ...] = ()) -> l
 def open_batch(repo: Repo) -> str | None:
     """The id of the batch running or paused, None with none."""
     path = repo.batches / "batch.json"
-    if not path.is_file():
+    if not repo.store.is_file(rel_in(repo.store.root, path)):
         return None
     try:
-        d = read_batch_json(path)
+        d = read_batch_json(repo.store, path)
     except (OSError, ValueError, ChantierError):
         return None
     return d.id if d.status in ("running", "paused") else None
@@ -145,7 +146,7 @@ class Watch:
             self.yield_hub()
         if self.started is None:
             self.started = now
-        entries = journal.read(self.repo.changes)[0]
+        entries = journal.read(self.repo.store, self.repo.changes)[0]
         new = sorted(
             (e for e in entries if type(e.get("seq")) is int and e["seq"] > self.cursor),
             key=lambda e: e["seq"],
@@ -190,7 +191,7 @@ def once(repo: Repo, after: int, audiences: list[str] | tuple[str, ...] = ()) ->
     """The pull path: the lines past `after` that are for it, whether they wake or not, and the
     cursor of the last line read, whoever it was for, with the command for the next message."""
     subscribed = subscription(autostart.session_key(), audiences)
-    entries = journal.read(repo.changes)[0]
+    entries = journal.read(repo.store, repo.changes)[0]
     last = journal.last_seq(entries)
     if after > last:
         raise ChantierError(
@@ -216,7 +217,7 @@ def watch(args: argparse.Namespace) -> list[str]:
             )
     if args.once and args.after is None:
         raise ChantierError("watch --once needs --after SEQ", EXIT_USAGE)
-    last = journal.last_seq(journal.read(repo.changes)[0])
+    last = journal.last_seq(journal.read(repo.store, repo.changes)[0])
     if args.after is not None and args.after > last:
         raise ChantierError(
             f"watch: --after {args.after} is past the journal's end ({last})", EXIT_USAGE

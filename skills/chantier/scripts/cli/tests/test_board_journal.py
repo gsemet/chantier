@@ -51,7 +51,7 @@ def _write_call(surface: Any) -> Any:
 
 
 def _lines(repo: Repo) -> list[dict[str, Any]]:
-    return [e for e in forge_journal.read(repo.changes)[0] if e["type"] == "board@1"]
+    return [e for e in forge_journal.read(repo.store, repo.changes)[0] if e["type"] == "board@1"]
 
 
 def test_each_backlog_write_adds_one_board_line_to_its_projects_forge_journal(
@@ -90,7 +90,7 @@ def test_a_refusal_a_rescan_and_another_project_leave_no_line_here(surface: Any)
     assert call("PUT", "backlog/file", edit)[0] == HTTPStatus.OK
     assert _lines(demo)[-1]["action"] == "edit" and _lines(demo)[-1]["wakes"] is True
     other = Repo.find(project="other", readonly=True)
-    assert forge_journal.read(other.changes)[0] == []
+    assert forge_journal.read(other.store, other.changes)[0] == []
     assert call("POST", "backlog/new", {"text": "elsewhere"}, "other")[0] == HTTPStatus.OK
     assert [e["action"] for e in _lines(other)] == ["new"]
     assert not any(e.get("items") == ["elsewhere"] for e in _lines(demo))

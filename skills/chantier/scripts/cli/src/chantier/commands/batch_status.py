@@ -268,7 +268,7 @@ def _seen_lines(repo: Repo, d: BatchRecord) -> list[str]:
     """What the forge saw merged that the record does not hold (the hub's and the board's
     journal): one line per open CR of this batch, then the `batch.slots` change saved on the board
     and not yet ordered, for the Chief of Staff. Nothing is written; an unreadable line is named."""
-    entries, bad, later, unknown = journal.read(repo.changes)
+    entries, bad, later, unknown = journal.read(repo.store, repo.changes)
     lines = [f"{journal.FILE}: line {n} unreadable" for n in bad]
     lines += [
         f"{journal.FILE}: line {n} is version {v}, newer than this chantier: update it"
@@ -334,7 +334,7 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
     lines += _unpaused_line(d)
     lines.append(last_closed_text(last_closed(repo)))
     lines += watch_lines(repo, d)
-    events = read_events(repo.batch_dir(batch))
+    events = read_events(repo.store, repo.batch_dir(batch))
     stopped = stopped_agents(repo, d, events)
     lines += [
         _cr_row(repo, d, c, args.notes, (events, stopped))

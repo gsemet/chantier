@@ -14,6 +14,7 @@ from chantier.connectors import connector_for
 from chantier.connectors.base import Facts
 from chantier.core.batch import apply_batch_settings
 from chantier.core.errors import ChantierError
+from chantier.core.files import rel_in
 from chantier.core.records import BatchRecord, read_batch_json
 from chantier.core.repo import Repo
 from chantier.hub import journal
@@ -26,10 +27,10 @@ ALWAYS = frozenset({"state", "checks"})
 def running_batch(repo: Repo) -> BatchRecord | None:
     """The batch in `4-batch/` when it is running (a paused or closed one is not followed)."""
     path = repo.batches / "batch.json"
-    if not path.is_file():
+    if not repo.store.is_file(rel_in(repo.store.root, path)):
         return None
     try:
-        d = read_batch_json(path)
+        d = read_batch_json(repo.store, path)
     except (OSError, ValueError, ChantierError):
         return None
     return d if d.status == "running" else None
