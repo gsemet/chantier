@@ -34,9 +34,10 @@ def chains_kept(seq: list[CrEntry]) -> list[CrEntry]:
 
 
 def release_holds(b: Batch) -> list[str]:
-    """The batch leaves a stack: no stack order to be out of any more, so every held CR is let
-    go, before `reorder` computes the places. `stack` renumbers only the CRs of the chain, so a
-    held CR's order can equal another's: it first takes a unique one, above all."""
+    """The batch leaves a stack: no stack order to be out of any more, so every ready held CR is
+    let go, before `reorder` computes the places; a CR held while it was live (not `ready`) keeps
+    its hold. `stack` renumbers only the CRs of the chain, so a held CR's order can equal another's:
+    it first takes a unique one, above all."""
     top = max((x.order for x in b.record.crs), default=0)
     out = []
     for c in b.record.crs:
@@ -45,6 +46,12 @@ def release_holds(b: Batch) -> list[str]:
         if is_held(c):
             top += 1
             c.order = top
+            if c.status != "ready":
+                out.append(
+                    f"{c.id}: still held (order {c.held}): it was live; only "
+                    f"`order unhold {c.id}` releases it"
+                )
+                continue
             out.append(f"{c.id}: no longer held (the batch leaves the stack)")
         c.unset("held")
     return out

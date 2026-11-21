@@ -259,6 +259,8 @@ def check_take(d: BatchRecord, c: CrEntry, note: str | None) -> None:
             f"`agents set {c.id} - --epoch <n>` first, once it ended"
         )
     check_budget(d)
+    if is_release(c) and c.status != "working":
+        _check_no_held(d, c)
     if c.status != "working":
         check_slot(d, c.id)
     # a release taken back (ready, blocked) waits again for the stack under it, e.g. after a
@@ -282,6 +284,19 @@ def check_take(d: BatchRecord, c: CrEntry, note: str | None) -> None:
                 f"{c.id} waits for {', '.join(fixes)}: a fix of the release "
                 "must be merged or cancelled first"
             )
+
+
+def _check_no_held(d: BatchRecord, c: CrEntry) -> None:
+    """No release starts while a CR is held, in any mode: only the user's `order unhold` or
+    `order drop` lets it start."""
+    held_crs = sorted((x for x in d.crs if is_held(x)), key=lambda x: x.order)
+    if held_crs:
+        names = ", ".join(f"{x.id} held (order {x.held})" for x in held_crs)
+        raise ChantierError(
+            f"{c.id} waits for {names}: only the user's `order unhold {held_crs[0].id}` or "
+            f"`order drop {held_crs[0].id}` lets it start",
+            EXIT_PRECONDITION,
+        )
 
 
 def check_round(d: BatchRecord, c: CrEntry) -> int:

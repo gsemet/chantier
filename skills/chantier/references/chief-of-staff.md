@@ -1078,8 +1078,8 @@ CR-222 → CR-225 → CR-226 → CR-228."
   the user's language, before the order: the trash (cancelled), the inbox (to look at again), or
   the backlog P1..P4 (postponed or handed off; the usual case for delegated work). Never choose for
   the user: `order drop` is refused with no `--note`. A word that already says it needs no
-  question ("cancel it" is the trash; "postpone it, P2" is `P2`). A word that only keeps a ready
-  CR out of the stack is `order hold`, not a drop. Whatever the destination, the CR keeps its work
+  question ("cancel it" is the trash; "postpone it, P2" is `P2`). A word that only keeps a CR out of
+  the order for now (a ready CR of a stack, or a live CR in any mode) is `order hold`, not a drop. Whatever the destination, the CR keeps its work
   (worktree, branch, PR); only the trash closes its PR. A CR moved to the inbox or the backlog
   keeps its number (`formerly.json` in its folder).
   In direct mode, a drop line ending `close its PR <link>` (a trash drop, outside a stack) is
@@ -1320,12 +1320,14 @@ CR-222 → CR-225 → CR-226 → CR-228."
   not offered for removal at `close`; its folder is at `<destination>/<number>-<slug>` and keeps
   its number. A held CR: nothing to rebuild (it is already a draft on the default branch). Nothing
   more is asked of the user.
-- **Holding a CR out of a stack:** on the user's word to keep a ready CR out of the stack for now
-  (not the batch: ask when it is unclear whether the user means out of the stack or out of the
-  batch), `order hold <cr>`; to put it back, `order unhold <cr>` (it returns on top). The Foreman
-  then takes the stack driver (`take stack --note "hold <cr>"`), which rebuilds the stack on the
-  forge without it. Name each held CR in the batch reports. At a batch's end, tell the user that the
-  batch stays open while a CR is held. No release starts while a CR is held: when the release is
+- **Holding a CR:** on the user's word to keep a live CR (working, or ready in a stack) out for now
+  (not the batch: ask when it is unclear whether the user means held or out of the batch), `order
+  hold <cr>`, in every batch mode; to put it back, `order unhold <cr>` (it returns on top; a CR
+  held while working comes back `blocked`, to be taken back). The Foreman then stops its Driver
+  (`stop hold: <O-n>`) and, in a stack, takes the stack driver (`take stack --note "hold <cr>"`),
+  which rebuilds the stack on the forge without it. The CRs that wait with it (an `after`, or in a
+  series a start on it) wait too: name them to the user. Name each held CR in the batch reports.
+  At a batch's end, tell the user that the batch stays open while a CR is held. No release starts while a CR is held: when the release is
   blocked by a held CR, say so, name it, and offer the user `order unhold <cr>`, or `order drop
   <cr>` with the destination the user names; act on the user's answer only. Name each parked CR
   in the batch reports too, with what it waits for, and no release starts while a CR is parked
@@ -1333,7 +1335,11 @@ CR-222 → CR-225 → CR-226 → CR-228."
   the release waits, a parked or blocked CR is named with what it waits for and its way back as
   the CLI's line gives it (`close` refuses with it, the last ending command prints `the batch
   stays open`); offer the user to wait for it or to send it out (`order drop <cr> --note
-  <destination>`: the trash, `P1` to `P4`, or `3-ready`). Act on the user's answer only.
+  <destination>`: the trash, `P1` to `P4`, or `3-ready`). Act on the user's answer only. Drop a
+  held CR only after the hold's `order done` (the Foreman's, once its Driver has stopped). In direct mode the
+  Chief of Staff does the Foreman's part: the stop, `agents set <cr> -`, `order done`, and the
+  freed slot filled only after it. A release working at the hold is let hand back, then taken
+  again (`redo: <cr> held`) by the Foreman.
 - **Inserting a CR into a stack ready to merge:** on the user's word, first and at once put to draft every
   PR that will sit above the new one (`gh pr ready --undo`, `glab mr update --draft`): the stack
   is changing under them. A CR in the middle of a stack ready to merge that goes back to its Driver for a

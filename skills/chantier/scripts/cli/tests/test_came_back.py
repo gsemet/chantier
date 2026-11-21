@@ -144,3 +144,27 @@ def test_the_cards_name_the_park_and_its_way_back() -> None:
     assert chief.index("Holding a CR") < held
     typed = chief[chief.index("For a parked CR: `wait <cr> clear <id> --epoch <n>`") :][:500]
     assert 'order note <cr> --note "wait cleared: <what>"' in typed
+
+
+@pytest.mark.parametrize(
+    ("card", "words"),
+    [
+        ("foreman.md", ("stop hold:", "unhold:", "rebase: <cr> dropped")),
+        ("driver.md", ("stop hold:", "stopped: held", "rebase: <cr> dropped")),
+        ("routing.md", ("stop hold:",)),
+    ],
+)
+def test_the_cards_name_the_hold_of_a_live_cr(card: str, words: tuple[str, ...]) -> None:
+    text = " ".join((SKILL / "references" / card).read_text(encoding="utf-8").split())
+    for w in words:
+        assert w in text, w
+
+
+def test_the_claim_lost_causes_and_the_holding_section_name_the_live_hold() -> None:
+    cards = SKILL / "references"
+    driver = " ".join((cards / "driver.md").read_text(encoding="utf-8").split())
+    cause = driver[driver.index("- `claim lost`:") :][:400]
+    assert "order hold" in cause
+    chief = " ".join((cards / "chief-of-staff.md").read_text(encoding="utf-8").split())
+    section = chief[chief.index("**Holding a CR:**") :][:600]
+    assert "live CR" in section

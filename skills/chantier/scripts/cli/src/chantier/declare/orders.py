@@ -17,7 +17,8 @@ def register(sub: Subparsers) -> None:
     s.add_argument(
         "kind",
         help="add [--release], after, drop (--note trash|inbox|P1..P4), merged, hold|unhold "
-        "(a ready CR out of a stack, and back), note, rounds, slots, budget, qa, "
+        "(a live CR, or a ready CR of a stack, out of the slots and the order, and back), note, "
+        "rounds, slots, budget, qa, "
         "mode (any mode to any other), "
         "waive stack|<cr> [--follow-up] (the long gate; --note - withdraws); "
         "for the release CR: approve, grant, confirm; the Foreman: done <O-k>, merged "

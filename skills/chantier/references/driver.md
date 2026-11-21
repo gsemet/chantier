@@ -50,6 +50,9 @@ workers" when it starts a worker.
   in the log ("CR driver: the closing" names the steps and their notes). A step outside the closing
   (a red check, a move, a review item on the code, a `rebase:` note) brings back the card's usual
   rules and reads.
+- `stop hold: <O-n>` (a Foreman's note: the user held your CR): commit nothing new, leave the
+  worktree as it is, and answer the Foreman `stopped: held; worktree clean|dirty: <files>`; your
+  next leased command is `claim lost`.
 - `rebase:`, `restack`, `folded:` or another re-take note: read "CR driver: re-takes".
 
 ## Means: the record and the workers
@@ -760,7 +763,7 @@ that carries `--lease <n>` (the number `take` printed); times in its texts are U
   command with the current number is accepted (the log notes `lease-late`) while nobody took the CR
   again; read it with `lease <cr>`.
 - `claim lost`: the steering session took the CR again, or ended your lease (`cancel`, `order
-  drop`, `agents set <cr> -`). Stop at once, record nothing more, tell the Foreman.
+  drop`, `order hold`, `agents set <cr> -`). Stop at once, record nothing more, tell the Foreman.
 - Reclaim is the steering session's: `take --reclaim` after it checked with the host that the
   Driver ended, or on the user's word for a live lease. A Driver never reclaims.
 - A refusal you do not understand (a write, a `take`, a push): run `$CHANTIER access <cr> --lease
@@ -942,6 +945,19 @@ recorded yet): it only explains the base; the worktree goes on the base the `wor
 <cr below>` received while working: rebase onto that CR's branch (not the default branch), retarget
 your PR to it (`gh pr edit --base`, `glab mr update --target-branch`) while it is in no native
 stack, push with `--force-with-lease`, `ship` (`--conflict` by the rule above).
+
+A CR taken with the note `unhold: <O-m>` (the user's `order unhold` released a CR held while it was
+working): resume it as a `resume:` does (`handoff <cr>` for where it stands, the worktree as the
+stopped Driver left it); no round is counted. In a stack, rebase onto the branch its `start` line
+names before the next `ship`.
+
+A CR taken (or a `note`) with `rebase: <cr> dropped` (a held or parked CR this CR waited with was
+dropped out of the batch, in a series or parallel batch): rebase the branch onto the base `take` or
+`handoff` names, leaving out the dropped CR's commits (those of its branch that are not on that
+base), retarget the PR to that base if it was elsewhere, push with `--force-with-lease`, `ship`,
+and go on with the CR's work as before; a conflict is a `conflict-resolver` as for any rebase.
+Taken back ready, it is the path of a `rebase:` note, a conflict resolved bringing the long gate
+again. The `rebase:` line of "Means: a Driver started again" already sends a Driver there.
 
 A CR taken (or a `note`) with `rebase: mode <mode>` (the batch switched mode with `order mode`; a
 stack was dissolved first by `forge-stack unstack` where it applied): put the PR to draft first
@@ -1285,10 +1301,19 @@ dependents; its PR is turned to a draft and left out by `forge-stack rebuild` (`
 stack`), and a dependent's PR with it (`waits with`). When it comes back, it is a working CR
 that joins on top, as for `unhold`.
 
-With `unhold: <cr>`, the CR comes back on top: it is a ready CR that joins, handled as "A draft
-that turns ready to merge" (ordered below the drafts, rebased, `forge-stack rebuild`, turned
-ready, `stack --out-of-draft <cr>`). The final-order take orders only the CRs of `chain` (held
-CRs apart).
+For a CR held while working (`order hold <cr>` of a live CR; `blocked`, its Driver ended by
+`claim lost`), the same take differs in two steps. Step 2 skips each CR above that depends on the
+held CR (an `after`, or a series start on it): it is out of the stack with it and keeps the held
+CR's commits. Step 3 is skipped whatever its worktree: the stack driver never rebases a CR held
+from live; its worktree may hold its stopped Driver's work, and its next Driver rebases it at its
+return. Its PR goes to a draft and, by the rebuild, to the default branch, its branch as it stands.
+
+With `unhold: <cr>` for a CR held from ready, the CR comes back on top: it is a ready CR that
+joins, handled as "A draft that turns ready to merge" (ordered below the drafts, rebased,
+`forge-stack rebuild`, turned ready, `stack --out-of-draft <cr>`). A CR held from live comes back
+as a working CR does: the next `take stack` prints it `not on its place`, the Foreman sends its
+Driver `note rebase: stacked on <cr below>`, and it is ordered on top as it hands back. The
+final-order take orders only the CRs of `chain` (held CRs apart).
 
 A note `rebase: <cr> dropped` (a parked or held CR with dependents was dropped, in a series or
 parallel batch): rebase onto the default branch, or onto the branch the `worktree:` line names,

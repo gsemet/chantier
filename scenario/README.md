@@ -180,6 +180,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
 - a working CR parked on an outside wait (`park`): it leaves the slots and the stack (`stack`, `status`
   and `forge-stack rebuild` leave it out, with the `parked:` line), `take` refuses it while its wait is
   open, and once the wait is cleared `take` brings it back on top of the stack (unit: stack) (test: test_park.py::test_park_leaves_the_stack_and_take_brings_it_back_on_top)
+- `order hold` of a live CR in every batch mode: the CR is blocked and held, its slot is left to the Foreman, `status` prints the `held:` line, `unhold` brings it back blocked (unit: stack) (test: test_hold_live.py::test_a_working_cr_is_held_in_every_mode_and_comes_back_blocked)
 - a stack's long-gate waiver (`order waive stack`): a lower CR handed back ready with no gate and
   no `--no-gate` while the top is refused without its own, `handoff` printing the two `gate:`
   lines, `status`, `STATUS.md` and `STATUS.json` showing `waived → CR-k (#n)` and `validates …`,

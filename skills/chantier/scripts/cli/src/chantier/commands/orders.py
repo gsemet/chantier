@@ -187,9 +187,11 @@ def _record_order(b: Batch, args: argparse.Namespace, req: _Req) -> str:
     cr, note, own, new_release = req.cr, req.note, req.own, req.new_release
     oid = req.oid
     # The CLI did its whole part, the Foreman only has to end the order: not a note (the
-    # Foreman relays it), not a QA (it starts a driver), not the drop of a live CR.
+    # Foreman relays it), not a QA (it starts a driver), not the drop of a live CR, nor the hold of
+    # a working CR (it leaves the CR `blocked`; a hold from ready leaves it `ready`).
     applied = args.kind not in {"note", "qa"} and not (
-        args.kind == "drop" and b.cr(cr).status in LIVE
+        (args.kind == "drop" and b.cr(cr).status in LIVE)
+        or (args.kind == "hold" and b.cr(cr).status == "blocked")
     )
     b.record.append(
         "orders",
