@@ -149,8 +149,16 @@ def migrate(git_dir: Path) -> None:
     old.unlink(missing_ok=True)
 
 
-def write_server(git_dir: Path, host: str, port: int, version: str, served: str) -> None:
-    """Record this process as the server that serves the folder."""
+def write_server(
+    git_dir: Path,
+    host: str,
+    port: int,
+    version: str,
+    served: str,
+    **extra: Any,
+) -> None:
+    """Record this process as the server that serves the folder; `extra`: its `files` mode
+    (`notify` or `check`), its `stop_idle` seconds and its `forge: always`, when it has them."""
     entry = {
         "pid": os.getpid(),
         "host": host,
@@ -158,8 +166,20 @@ def write_server(git_dir: Path, host: str, port: int, version: str, served: str)
         "version": version,
         "served": served,
         "started": clock.now(),
+        **extra,
     }
     modify(git_dir, lambda data: data.__setitem__(SERVER, entry))
+
+
+def set_server_files(git_dir: Path, mode: str) -> None:
+    """The server's file watch moved to `mode` (a dying notification watch: `check`)."""
+
+    def put(data: dict[str, Any]) -> None:
+        entry = data.get(SERVER)
+        if isinstance(entry, dict) and entry.get("pid") == os.getpid():
+            entry["files"] = mode
+
+    modify(git_dir, put)
 
 
 def hub_record(version: str) -> dict[str, Any]:

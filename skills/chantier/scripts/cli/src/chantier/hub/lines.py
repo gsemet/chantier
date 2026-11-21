@@ -41,15 +41,18 @@ def board_lines(repo: Repo) -> list[str]:
 
 
 def hub_line(repo: Repo) -> str:
-    """The forge hub of this surface on this machine: its PID, whether it is the surface server
-    or a watcher, and its last read of this project."""
+    """The forge hub of this surface on this machine (the surface server): its PID, and its last
+    read of this project, or `idle` while no client is subscribed to it."""
     record = state.live_entry(repo.git_dir, state.HUB)
     if record is None:
         return "forge hub: none running"
-    server = state.live_entry(repo.git_dir, state.SERVER)
-    who = "the surface server" if server and server["pid"] == record["pid"] else "a watcher"
     mine = (record.get("projects") or {}).get((repo.project_dir or repo.root).name) or {}
-    line = f"forge hub: PID {record['pid']}, {who}, last read {mine.get('read_at') or 'none yet'}"
+    read = (
+        "idle (no client subscribed)"
+        if record.get("idle")
+        else f"last read {mine.get('read_at') or 'none yet'}"
+    )
+    line = f"forge hub: PID {record['pid']}, the surface server, {read}"
     if mine.get("error"):
         line += (
             f"; last read failed at {mine.get('error_at') or 'an unknown time'}: {mine['error']}"

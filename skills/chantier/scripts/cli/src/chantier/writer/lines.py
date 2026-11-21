@@ -12,7 +12,11 @@ from chantier.board import running
 from chantier.core import clock
 from chantier.hub import state
 
-START = "start the surface server ($CHANTIER board --seat <session id>)"
+START = (
+    'start the watcher, which starts the surface server (the "watch: not running" line\'s '
+    "command), or, on a host that cannot run the watcher, $CHANTIER board --seat <session id> "
+    "--forge-always"
+)
 LIVE_STATES = ("synced", "pending", "syncing")  # P13's `ok`
 
 

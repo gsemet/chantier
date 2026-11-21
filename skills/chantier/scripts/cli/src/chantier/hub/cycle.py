@@ -39,6 +39,14 @@ class Hub:
         with contextlib.suppress(OSError):
             state.write_hub(self.git_dir, self.record)
 
+    def set_idle(self, idle: bool) -> None:
+        """No client observes (`idle`): the entry says so once, and the next cycle comes at once
+        when one does."""
+        if idle and not self.record.get("idle"):
+            self.record["idle"] = True
+            self.last = None
+            self.publish()
+
     def due(self, now: float) -> bool:
         return self.last is None or now - self.last >= hub_times.cycle_s()
 
@@ -60,6 +68,7 @@ class Hub:
         on. An event its type's model refuses (from what the forge returned) is set aside, the
         others are written, and the entry's `error` is `skipped: <message>` beside its `read_at`."""
         self.last = now
+        self.record.pop("idle", None)
         for repo in self.projects():
             self._project(repo)
         self.publish()

@@ -135,6 +135,7 @@ def _writes(op: write_api.Op, command: str) -> Handler:
             return fail(404, NOT_FOUND)
         data = a.model_dump(exclude_unset=True, exclude_none=True, exclude={"project"})
         body, status = write_api.execute(project, op, command, data)
+        ctx.settle(project)  # the write's files are read now: the next read shows them
         return _of(status, body)
 
     return run

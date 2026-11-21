@@ -1,4 +1,5 @@
-"""What a request is, and what the routes share: the projects, the key, the seats."""
+"""What a request is, and what the routes share: the projects, the key, the seats, and each
+project's settled fingerprint (`revs`), which the file watch keeps and the reads use."""
 
 from __future__ import annotations
 
@@ -9,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from chantier.board.costs import Live
-from chantier.board.fingerprint import StateCache
+from chantier.board.fingerprint import StateCache, fingerprint
 from chantier.board.key import KeyFile
 from chantier.board.projects import Project, Projects
 from chantier.board.prs import ForgeReads
@@ -49,6 +50,8 @@ class Context:
     journal_seen: dict[Path, tuple[tuple[int, int], list[dict[str, Any]]]] = field(
         default_factory=dict[Path, tuple[tuple[int, int], list[dict[str, Any]]]]
     )
+    # each project's fingerprint as it was at its last settle: the reads use it and walk nothing
+    revs: dict[str, str] = field(default_factory=dict[str, str])
     _lives: dict[str, Live] = field(default_factory=dict[str, Live])
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
@@ -58,3 +61,21 @@ class Context:
             if project.id not in self._lives:
                 self._lives[project.id] = Live(project.repo)
             return self._lives[project.id]
+
+    def settle(self, project: Project) -> str:
+        """Walk the project's files once (`fingerprint`), keep the result, and wake the push
+        loop when it moved: what the file watch does once a change settles, and a board's write
+        does after it wrote."""
+        rev = fingerprint(project.repo.store, project.repo.changes)
+        with self._lock:
+            moved = self.revs.get(project.id) != rev
+            self.revs[project.id] = rev
+        if moved and self.push is not None:
+            self.push.wake()
+        return rev
+
+    def rev(self, project: Project) -> str:
+        """The project's kept fingerprint; one walk, kept, for a project with none yet."""
+        with self._lock:
+            kept = self.revs.get(project.id)
+        return kept if kept is not None else self.settle(project)

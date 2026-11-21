@@ -38,6 +38,7 @@ from chantier.core.errors import ChantierError
 from chantier.core.repo import Repo
 from chantier.hub import issue_refs, journal, lock, schemas, state
 from chantier.hub.autostart import watch_command
+from chantier.hub.lines import hub_line
 from chantier.hub.watch import EVENTS, Watch
 
 REAL_READ = connectors.read  # the seam as shipped, before `World` replaces it
@@ -292,15 +293,31 @@ def test_status_and_the_start_line_name_the_journal_the_hub_and_its_version(
         == f"forge saw merged: {c} P into {a}'s branch at t, landed with {a} at u; {order} {c}"
     )
     assert not any("checks red" in x for x in got)
-    git, pid = found.git_dir, os.getpid()
-    state.write_hub(git, state.hub_record("0.0.1"))
-    hub = f"forge hub: PID {pid}, a watcher, last read none yet"
-    assert forge_lines()[0] == f"{hub}; hub is chantier 0.0.1"
-    state.write_hub(git, state.hub_record(__version__))
-    assert forge_lines()[0] == hub
-    name_server(git)  # the hub's PID is the live server's
-    assert forge_lines()[0] == hub.replace("a watcher", "the surface server")
+    state.write_hub(found.git_dir, state.hub_record(__version__))
+    assert (
+        forge_lines()[0] == f"forge hub: PID {os.getpid()}, the surface server, last read none yet"
+    )
     assert (changes(repo) / journal.FILE).is_file()
+
+
+@pytest.mark.parametrize(
+    ("fields", "server", "tail"),
+    [
+        ({}, False, "last read none yet"),
+        ({}, True, "last read none yet"),
+        ({"idle": True}, True, "idle (no client subscribed)"),
+        ({"version": "0.0.1"}, False, "last read none yet; hub is chantier 0.0.1"),
+    ],
+    ids=["hub", "server-hub", "idle", "other-version"],
+)
+def test_the_hub_line_names_the_surface_server_and_says_idle_while_no_client_is_subscribed(
+    repo: Path, fields: dict[str, Any], server: bool, tail: str
+) -> None:
+    found = Repo.find()
+    state.write_hub(found.git_dir, {**state.hub_record(__version__), **fields})
+    if server:
+        name_server(found.git_dir)  # the hub's PID is the live server's
+    assert hub_line(found) == f"forge hub: PID {os.getpid()}, the surface server, {tail}"
 
 
 def test_a_refused_event_is_set_aside_and_named_the_cycle_goes_on(world: World) -> None:
