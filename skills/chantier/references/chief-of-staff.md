@@ -45,7 +45,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | "become a griller", "become chief of staff" | the seat and the role | [session-start](session-start.md) |
 | "board on my phone", "where is the board?" | the board's link again (it holds the key; its PRs page is the live view of the batch's PRs); the board listens on this machine only; on the user's word, to reach it from the phone or another device on the local network, `board.host: network` in `chantier.yaml` (the board finds this machine's address at each start), or `--host` for one start, then the board started again: stop the running one by the host's means, then `$CHANTIER board --seat <id>`; pass on the `board: listens on the local network` line, or the `board: no local network address found; on this machine only` line (then, once the network is back: stop it by the host's means, then start it again; a second start alone only prints `board already running at`); a board refused because another one serves the surface is the user's to stop | [session-start](session-start.md) |
 | "a new board key", "the board's link leaked" | on the user's word, `$CHANTIER board --seat <id> --new-key`: the old link and the open pages stop working; give the user the new link | [session-start](session-start.md) |
-| "rescan", "I updated the priorities" (the user edited the backlog on the board) | read the backlog again (`$CHANTIER status`, the dashboard, `next-batch.json`); tell the user what moved and whether the next batch is declared ready; with a watcher or the pull path running, the board's writes already came: read the backlog again only when the user asks | [session-start](session-start.md) |
+| "rescan", "I updated the priorities" (the user edited the backlog on the board) | read the backlog again (`$CHANTIER status`, the dashboard, `next-batch.json`); tell the user what moved and whether the next batch is declared ready; with a watcher or the pull path running, the board's writes already came: read the backlog again only when the user asks; a `running-batch` write, a move to `3-ready`, or a move that clears a running-batch mark: act as at a watcher's end | [session-start](session-start.md) |
 
 ## Hard rules
 
@@ -395,6 +395,11 @@ every mode (parallel, series, stack):
   Griller that ran the grill) run `$CHANTIER triage <folder> --ready`; for the running batch, you
   run `$CHANTIER order add --note <folder>` and handle the order as usual (Foreman mode: relay its
   line to the Foreman; direct mode: take the CR when a slot frees). A Griller never runs `order`.
+  The destination acted on is the last `Destination:` line of the CR's `02-answers.md`, whether
+  the grill wrote it or a board line did (see "A watcher's end"): `Destination: next batch ...`,
+  `triage <folder> --ready`; `Destination: running batch <batch> ...`, `order add --note
+  <folder>`; `Destination: back to the backlog (board)`, no `triage` and no `order`: the CR stays
+  in its inbox or priority row (the user's move put it there).
 - **`order add` refused:** a release has started in the batch (rule B), or the batch closed while
   the CR was being specified: run `triage <folder> --ready` (it clears the mark) and tell the user
   in one line, e.g. `<slug> goes to the next batch: a release started in <batch>`. The writer not
@@ -1445,8 +1450,26 @@ CR-222 → CR-225 → CR-226 → CR-228."
     `order slots --note <new>` for the running batch, send nothing before their word. A
     `config changed on the board: specifying.parallel ...` line is told as it stands and changes
     nothing in the batch; the next spec-writer start reads the new limit. A `board wrote (...)`
-    line, or a `config changed on the board` line of a role's key (`hosts.<host>.roles...`): one
-    line to the user that says it (a few words per event), no tool call, no action. A `tracker saw
+    line that sets a CR's destination is written into the CR's `02-answers.md` at once, in a
+    folder that has one (it creates none); the latest word wins over a destination already there:
+    a `board wrote (running-batch): ...` line, `Destination: running batch <batch> (board,
+    <HH:MM>)` (the line's own time `t`, in the user's local time); a `board wrote (move): ...` line
+    to `3-ready` (`→ 3-ready`, with or without `running-batch mark cleared`, the no-open-batch drop
+    included), `Destination: next batch (board)`; a `board wrote (move): ...` line of a marked CR
+    to the inbox or a priority row (its words end with `running-batch mark cleared`),
+    `Destination: back to the backlog (board)`. A `board wrote (running-batch): ...` line is the
+    user's go for the running batch (factory-Q2): after the destination, read the CR's folder (named
+    in the line). In `3-ready`, or with its specification final (`03-change-spec.md` written, no
+    `work/specifying`, its critic run and applied when due, no open question left): run
+    `$CHANTIER order add --note <folder>` with no further question, handle the order as usual
+    (Foreman mode: send its line to the Foreman; direct mode: take the CR when a slot frees), then
+    tell the user in one line `<CR-id> added to <batch> from the board`. Otherwise one line, `<slug>
+    marked for <batch> from the board: it joins once its specification is final`; when it is final,
+    `order add --note <folder>` as above, and `status`'s `running batch:` line keeps the CR in view.
+    An `order add` refused: the rules above. The other `board wrote (...)` lines, or a `config
+    changed on the board` line of a role's key (`hosts.<host>.roles...`): one
+    line to the user that says it (a few words per event), no tool call, no action (but the
+    destination write above). A `tracker saw
     ...` line (an outside poller's issue event): one line to the user that says it, no tool call,
     record nothing.
   - *The pull path:* when no watcher can wake this session (its host's reference, or the user's
@@ -1454,7 +1477,10 @@ CR-222 → CR-225 → CR-226 → CR-228."
     user's no` clause, the `pull path` line of `status`, or the last `--once` output's `next`
     line) at the start of each turn the user's message opens: run it as is: no flag added. Tell
     its `board wrote`, `tracker saw` and role `config@1` lines as above, and act on its merge and two-key
-    `config@1` lines as at a watcher's end. A line whose `seq` was already told is not told
+    `config@1` lines as at a watcher's end. A `board wrote (...)` line that sets a CR's destination
+    is handled as at a watcher's end: write the destination into the CR's `02-answers.md` (latest
+    word wins), then, for a `running-batch` line, `order add --note <folder>` once the specification
+    is final (at once in `3-ready`). A line whose `seq` was already told is not told
     again.
   - *Never:* start a second watcher in the same session while one runs; stop another session's
     watcher; start one after the user's no in this session.

@@ -139,7 +139,7 @@ checks an audience value's form, never what it names, and routes to no role, CR 
 | `checks-red@1` | the hub | yes |
 | `wait-cleared@1` | the hub | yes |
 | `config@1` | the board's Configuration page | yes |
-| `board@1` | the board's backlog writes | when `wakes`: true for `new`, `move` and `edit` |
+| `board@1` | the board's backlog writes | when `wakes`: true for `new`, `move`, `edit` and `running-batch` |
 | `issue@1` | an outside poller, through `chantier journal add`, only for an issue a CR's `issue:` line names | when `wakes` (default true) |
 | `sync-conflict@1` | the writer | yes |
 | `sync-blocked@1` | the writer | yes |

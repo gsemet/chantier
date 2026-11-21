@@ -5,7 +5,7 @@ import { addLabel } from '../api/backlog.js';
 import { delegate, html } from '../core/dom.js';
 import { snapshot, update } from '../core/store.js';
 import { targetFor } from '../model/targets.js';
-import { COLUMNS, findItem, labelsOf, passes } from '../model/triage.js';
+import { findItem, labelsOf, passes, RUNNING, TARGETS } from '../model/triage.js';
 import { t } from '../model/words.js';
 import { openPanel } from '../panel/panel.js';
 import { showDialog } from '../ui/dialog.js';
@@ -13,11 +13,14 @@ import { clearSelection, run } from './actions.js';
 import { createGroup } from './groups.js';
 import { moveTo } from './move.js';
 
-const name = (column) => (column === 'inbox' ? t('priority.inbox') : column);
+const name = (column) => {
+  if (column === RUNNING) return t('triage.lane_running');
+  return column === 'inbox' ? t('priority.inbox') : column;
+};
 
 export function selectionBar(selected) {
   if (!selected.length) return '';
-  const sends = COLUMNS.map(
+  const sends = TARGETS.map(
     (c) => html`<button type="button" data-to="${c}">→ ${name(c)}</button>`,
   );
   const group =

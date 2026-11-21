@@ -73,6 +73,9 @@
   changes (the two limits, and each role's agent, model and escalation), which `status` and the
   watcher carry to the Chief of Staff; and each write it makes to the backlog also appends one
   `board@1` line to that project's `forge-journal.jsonl`, which the Chief of Staff's watcher reads;
+  a drop of a `3-ready` CR on the running batch writes no file in the CR's folder and appends
+  only its journal lines (its `board@1` line, action `running-batch`, which the Chief of Staff
+  turns into `order add`);
   it takes its dependencies like the rest of the CLI and knows no role. The same process is the
   forge hub while it runs (one per planning surface and machine, started by the Chief of Staff on
   the user's yes): it holds the OS file lock in the git folder (`chantier/hub.lock`) and, with

@@ -443,6 +443,14 @@ does a unit that is not in `UNITS` and a test that does not exist.
   move, ignored by git), a refused one none (unit: surface-board) (test:
   test_board_journal.py::test_each_backlog_write_adds_one_board_line_to_its_projects_forge_journal,
   test_board_journal.py::test_a_refusal_a_rescan_and_another_project_leave_no_line_here);
+- the board's running-batch lane (CR-427; the scenario's batch is open): `backlog.move` to
+  `running-batch` of a backlog CR carrying `work/specifying` writes `work/running-batch` naming the
+  batch and moves no folder, appends one `board@1` line with the action `running-batch`, shows the
+  item with `running_batch: <batch>` in `project.state` and on `status`'s `running batch:` line; a
+  grilled CR whose spec-writer has not started is refused (409, `the grill is not finished`) and
+  writes nothing; the marked CR moved back to `P2` loses its mark. The no-open-batch drop has no
+  step here: its cover is the in-process test (unit: surface-board) (test:
+  test_board_running_lane.py::test_a_drop_that_marks_nothing);
 - the server's API, protocol 1 (CR-406), against the real `chantier board` process, its times
   shortened by `CHANTIER_API_TEST_TIMES` (`1:6:5:5`), through `websockets.sync.client` and `http.client`:
   a WebSocket with the cookie from the board's own origin gets `welcome` (the 20 ops, the 6 topics,

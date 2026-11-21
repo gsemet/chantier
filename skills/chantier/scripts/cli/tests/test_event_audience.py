@@ -19,8 +19,9 @@ from forge_world import QUIET
 from chantier import __version__
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE
 from chantier.core.repo import Repo
-from chantier.hub import autostart, journal, schemas
+from chantier.hub import autostart, journal
 from chantier.hub import times as hub_times
+from chantier.hub.board_text import board_text
 from chantier.hub.watch import EVENTS, Rules, Watch, once
 from chantier.playbook import config, events_check
 from chantier.plugin_files import read_wake_rules
@@ -101,7 +102,7 @@ def test_a_version_zero_line_reads_as_the_projects_and_a_newer_one_wakes_no_one(
     assert w.poll(0.0) is None and w.cursor == SECOND  # the cursor passes the newer line
     assert w.poll(float(QUIET)) == EVENTS
     w.close()
-    assert [x for x in w.lines(EVENTS) if "board wrote" in x] == [schemas.board_text(old)]
+    assert [x for x in w.lines(EVENTS) if "board wrote" in x] == [board_text(old)]
     assert len(w.events) == 1  # the newer line is told by no one
     (third,) = journal.append(found, [MERGED], "hub")
     assert third["seq"] == SECOND + 1

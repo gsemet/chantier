@@ -15,7 +15,7 @@ from chantier.core.files import heading_of, inside, markdown_title, read_json, r
 from chantier.core.records import TITLE_MAX
 from chantier.core.repo import Repo
 from chantier.lifecycle.filing import new_request, shown, slugify
-from chantier.lifecycle.running_batch import clear_mark
+from chantier.lifecycle.running_batch import clear_mark, mark_path
 from chantier.lifecycle.stages import (
     PRIORITIES,
     changes_lock,
@@ -90,12 +90,29 @@ def file_idea(
 
 def move_item(repo: Repo, item: str, to: str) -> list[str]:
     """Triage: `to` is `inbox`, `P1` to `P4` or `3-ready`; `item` is the CR folder. A mark for
-    the running batch goes: the user changed the CR's destination."""
+    the running batch goes: the user changed the CR's destination. A marked CR already in `to`
+    loses its mark and moves nowhere; an unmarked one keeps the refusal of `move_backlog_item`."""
     with changes_lock(repo):
+        source = repo.planning_path(item, "CR folder")
+        if mark_path(source).is_file() and _holds(repo, source, to):
+            clear_mark(repo, source)
+            write_dashboard(repo, stage_layout(repo))
+            return [f"triaged {shown(repo, source)}" + (f" ({to})" if to in PRIORITIES else "")]
         target = move_backlog_item(repo, item, to, stage_layout(repo))
         clear_mark(repo, target)
         write_dashboard(repo, stage_layout(repo))
     return [f"triaged {shown(repo, target)}" + (f" ({to})" if to in PRIORITIES else "")]
+
+
+def _holds(repo: Repo, source: Path, to: str) -> bool:
+    """The backlog folder `source` is already in the column `to`."""
+    paths = stage_layout(repo)
+    if source.parent == paths["ready"]:
+        return to == "3-ready"
+    if source.parent == paths["inbox"]:
+        return to == "inbox"
+    held = source.parent.parent == paths["backlog"] and source.parent.name in PRIORITIES
+    return held and source.parent.name == to
 
 
 def backlog_folder(repo: Repo, slug: str) -> Path:

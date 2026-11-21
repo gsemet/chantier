@@ -6,6 +6,9 @@ import { isSpecified, stageOf, tally } from './grill.js';
 export const READY = '3-ready';
 export const LANES = ['P1', 'P2', 'P3', 'P4'];
 export const COLUMNS = ['inbox', ...LANES, READY];
+// The last column's top half: a drop target, not a folder. A CR marked for the open batch is in it.
+export const RUNNING = 'running-batch';
+export const TARGETS = [...COLUMNS, RUNNING];
 
 // The colour dot of each column (a token).
 export const DOTS = {
@@ -18,9 +21,20 @@ const LABEL_COLORS = 6;
 
 export const itemsIn = (backlog, column) => backlog?.[column] ?? [];
 
-// The column an item is in, or null.
-export const columnOf = (backlog, slug) =>
-  COLUMNS.find((c) => itemsIn(backlog, c).some((i) => i.item === slug)) ?? null;
+// The column an item is in, or null: a CR marked for the open batch is in `running-batch`.
+export function columnOf(backlog, slug) {
+  const found = COLUMNS.find((c) => itemsIn(backlog, c).some((i) => i.item === slug));
+  if (!found) return null;
+  return itemsIn(backlog, found).find((i) => i.item === slug).running_batch ? RUNNING : found;
+}
+
+// The CRs marked for the open batch, from the inbox and the priority rows, each with its `bucket`.
+export const runningItems = (backlog, filter = []) =>
+  COLUMNS.filter((c) => c !== READY).flatMap((c) =>
+    itemsIn(backlog, c)
+      .filter((i) => i.running_batch && passes(i, filter))
+      .map((i) => ({ ...i, bucket: c })),
+  );
 
 export const allItems = (backlog) => COLUMNS.flatMap((c) => itemsIn(backlog, c));
 
@@ -39,9 +53,19 @@ export const labelColor = (all, label) => Math.max(0, all.indexOf(label)) % LABE
 export const passes = (item, filter) =>
   !filter.length || (item.labels ?? []).some((l) => filter.includes(l));
 
-// The items of a column that pass the filter.
+// The items of a column that pass the filter; a marked CR is drawn in the running batch only.
 export const shownIn = (backlog, column, filter) =>
-  itemsIn(backlog, column).filter((i) => passes(i, filter));
+  itemsIn(backlog, column).filter((i) => !i.running_batch && passes(i, filter));
+
+// The CRs of the open batch that wait for a slot: the record's rows in state `queued`.
+export const pendingCrs = (batch) => (batch?.crs ?? []).filter((c) => c.state === 'queued');
+
+// The open batch, paused or running: none with no batch or once it is closed.
+export const openBatch = (batch) => (batch && batch.state !== 'closed' ? batch : null);
+
+// The state word's key of a marked CR (its grill key): waiting for its spec, or spec written.
+export const markedWord = (item) =>
+  item.grill === 'specifying' ? 'triage.state_specifying' : 'triage.state_written';
 
 // The groups of a list of items, in the order they first appear, and the items with no group.
 export function groupsIn(items) {

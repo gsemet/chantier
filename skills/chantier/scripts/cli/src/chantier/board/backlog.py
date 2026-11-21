@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from chantier.core import waits
 from chantier.core.files import FRONTMATTER, is_lock, rel_in, subject
+from chantier.lifecycle.running_batch import MARK
 from chantier.status.views import spec_state
 from chantier.summaries.view import summary_view
 
@@ -122,10 +123,21 @@ def open_waits(store: PlanStore, folder: Path) -> list[dict[str, Any]]:
         return []
 
 
+def running_batch_of(store: PlanStore, folder: Path, batch: str | None) -> str | None:
+    """The open batch's id when the item's `work/running-batch` names it, else None: a stale mark
+    (another batch's id) and no open batch give None, as `lifecycle/running_batch.py` reads it."""
+    path = f"{rel_in(store.root, folder)}/work/{MARK}"
+    if batch is None or not store.is_file(path):
+        return None
+    words = store.read_text(path, "replace").split()
+    return batch if words and words[-1] == batch else None
+
+
 def backlog_items(
-    store: PlanStore, changes: Path, rows: list[dict[str, Any]]
+    store: PlanStore, changes: Path, rows: list[dict[str, Any]], batch: str | None = None
 ) -> dict[str, list[dict[str, Any]]]:
-    """The inbox, `2-backlog/P1`...`P4` and `3-ready`, by the record's own `priority` word."""
+    """The inbox, `2-backlog/P1`...`P4` and `3-ready`, by the record's own `priority` word. `batch`
+    is the open batch's id: an item whose mark names it carries it as `running_batch`."""
     out: dict[str, list[dict[str, Any]]] = {k: [] for k in STAGES}
     for row in rows:
         folder = changes / row["path"]
@@ -140,6 +152,7 @@ def backlog_items(
                 "description": description(store, folder),
                 "grill": grill_of(store, folder, row["priority"]),
                 "open_waits": open_waits(store, folder),
+                "running_batch": running_batch_of(store, folder, batch),
                 **{k: v for k, v in fields.items() if k != "title"},
             }
         )

@@ -1869,6 +1869,7 @@ def board_writes(w: World, port: int, link: Link, project: str) -> None:
           w.sh("git", "check-ignore", ".agents/changes/board-journal.jsonl").strip() != "")
     code, _ = call("POST", "journal/rescan", {})
     check("`journal.rescan` empties the journal", code == 200 and journal_count() == 0)
+    board_running_lane(w, call, project, port, link)
     where = "/api/v1/call/backlog.move"
     check("a write with no key answers 401", fetch(port, where, "POST",
           {"Content-Type": "application/json"}, b"{}")[0] == 401)
@@ -1876,6 +1877,70 @@ def board_writes(w: World, port: int, link: Link, project: str) -> None:
           "POST", "backlog/move", {}, {"Origin": "http://evil.example"})[0] == 401)
     check("a write whose body is not JSON answers 415", fetch(
           port, where, "POST", {**link.cookie, "Content-Type": "text/plain"}, b"{}")[0] == 415)
+
+
+def board_running_lane(w: World, call, project: str, port: int, link: Link) -> None:
+    """The running batch's lane (CR-427): a drop writes only the mark (the batch is open here), a CR
+    whose grill has not started is refused, and a move back to a row clears the mark."""
+    slug = "board-inbox-item"
+    folder = next(w.state.glob(f"[12]-*/**/{slug}"))
+    mark = folder / "work" / "running-batch"
+    journal = w.state / "forge-journal.jsonl"
+    seen = len(journal.read_text(encoding="utf-8").splitlines())
+    (folder / "work").mkdir(exist_ok=True)
+    (folder / "work" / "specifying").write_text(
+        "2026-11-21T00:00:00Z spec-writer\n", encoding="utf-8"
+    )
+    code, body = call("POST", "backlog/move", {"items": [slug], "to": "running-batch"})
+    batch = w.batch()["id"]
+    fresh = [json.loads(x) for x in journal.read_text(encoding="utf-8").splitlines()][seen:]
+    check(
+        "`backlog.move` to `running-batch` writes the mark naming the batch and moves no folder",
+        code == 200
+        and mark.is_file()
+        and mark.read_text().split()[-1] == batch
+        and folder.is_dir(),
+        f"{code} {body}",
+    )
+    check(
+        "it appends one `board@1` line with the action `running-batch`",
+        [(e["type"], e["action"], e["items"]) for e in fresh]
+        == [("board@1", "running-batch", [slug])],
+        str(fresh),
+    )
+    st = op(port, link, "project.state", {"project": project})[2]
+    items = {i["item"]: i for col in st["backlog"].values() for i in col}
+    check(
+        "`project.state` shows the item with `running_batch` naming the batch",
+        items[slug]["running_batch"] == batch,
+        str(items[slug].get("running_batch")),
+    )
+    code, out = w.chantier("status")
+    check(
+        "`status` lists the CR on its `running batch:` line",
+        code == 0 and any(ln.startswith("running batch:") and slug in ln for ln in out),
+        str(out),
+    )
+    other = w.state / "1-inbox" / "board-filed-idea"
+    (other / "02-answers.md").write_text("# Answers\n", encoding="utf-8")
+    before = folder_state(w.state)
+    code, body = call(
+        "POST", "backlog/move", {"items": ["board-filed-idea"], "to": "running-batch"}
+    )
+    check(
+        "a grilled CR whose spec-writer has not started is refused, 409, and writes nothing",
+        code == 409
+        and "the grill is not finished" in body.get("error", "")
+        and not (other / "work" / "running-batch").exists()
+        and folder_state(w.state) == before,
+        f"{code} {body}",
+    )
+    call("POST", "backlog/move", {"items": [slug], "to": "P2"})
+    back = w.state / "2-backlog" / "P2" / slug
+    check(
+        "the marked CR moved back to `P2` loses its mark",
+        back.is_dir() and not (back / "work" / "running-batch").exists(),
+    )
 
 
 def forge_pr(w: World, link: str, **fields: object) -> None:

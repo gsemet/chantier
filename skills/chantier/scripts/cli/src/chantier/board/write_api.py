@@ -24,12 +24,14 @@ from chantier.core.files import inside, rel_in
 from chantier.core.records import GROUP_MAX
 from chantier.core.repo import Repo
 from chantier.hub import journal as forge_journal
-from chantier.lifecycle import backlog
+from chantier.lifecycle import backlog, running_batch
 from chantier.lifecycle.stages import PRIORITIES
 from chantier.summaries.edit import change_group, change_labels, label_set, one_line
 from chantier.summaries.view import summary_view
 
-COLUMNS = ("inbox", *PRIORITIES, "3-ready")
+RUNNING = "running-batch"
+COLUMNS = ("inbox", *PRIORITIES, "3-ready", RUNNING)
+CLEARED = "; running-batch mark cleared"
 STATUS = {EXIT_USAGE: 400, EXIT_PRECONDITION: 409, EXIT_CONFLICT: 409}
 Op = Callable[[Repo, dict[str, Any]], tuple[dict[str, Any], int]]
 
@@ -131,16 +133,54 @@ def _group_of(repo: Repo, folder: Path) -> str | None:
     return view.group if view else None
 
 
-def _move_one(repo: Repo, slug: str, to: str, alone: bool) -> tuple[list[str], str]:
-    folder = backlog.backlog_folder(repo, slug)
+def _to_running(
+    repo: Repo, slug: str, folder: Path, batch: str | None, alone: bool
+) -> tuple[list[str], str]:
+    """A drop on the running batch: the mark for the open batch (a CR of the inbox or a priority
+    row), a journal line only for a `3-ready` CR (the Chief of Staff's `order add` joins it), the
+    move to `3-ready` with no open batch. A single post-it leaves its group when a file changed."""
     before = backlog.column_of(repo, folder)
-    if before == to:  # a drop on the item's own column writes nothing
-        return [], ""
-    lines = backlog.move_item(repo, _rel(repo, folder), to)
+    if batch is None:
+        if before == "3-ready":
+            return [], ""
+        backlog.move_item(repo, _rel(repo, folder), "3-ready")
+        said = f"{slug} → 3-ready (no running batch)"
+        lines = [said]
+    elif before == "3-ready":
+        words = f"{slug} → running batch {batch} (in 3-ready: order add)"
+        return [f"{slug}: the Chief of Staff adds it to {batch}"], words
+    else:
+        if running_batch.marked_for(folder) == batch:
+            return [], ""
+        if not running_batch.grilled(folder):
+            raise ChantierError(
+                f"{slug}: the grill is not finished: finish it, then drop it here again",
+                EXIT_PRECONDITION,
+            )
+        lines = running_batch.mark_running_batch(repo, _rel(repo, folder))
+        said = f"{slug} → running batch {batch} (marked)"
     target = backlog.backlog_folder(repo, slug)
     if alone and _group_of(repo, target):
         lines += change_group(repo, [target], None)  # it left its group's column
-    return lines, _moved(repo, slug, before, to, target)
+    return lines, said
+
+
+def _move_one(repo: Repo, slug: str, to: str, alone: bool) -> tuple[list[str], str]:
+    folder = backlog.backlog_folder(repo, slug)
+    before = backlog.column_of(repo, folder)
+    batch = running_batch.open_batch_id(repo)
+    if to == RUNNING:
+        return _to_running(repo, slug, folder, batch, alone)
+    marked = batch is not None and running_batch.marked_for(folder) == batch
+    if before == to and not marked:  # a drop on the item's own column writes nothing
+        return [], ""
+    lines = backlog.move_item(repo, _rel(repo, folder), to)
+    target = backlog.backlog_folder(repo, slug)
+    if before == to:  # a marked CR on its own column: the mark went, no folder moved
+        return lines, f"{slug} → {to}{CLEARED}"
+    if alone and _group_of(repo, target):
+        lines += change_group(repo, [target], None)  # it left its group's column
+    return lines, _moved(repo, slug, before, to, target) + (CLEARED if marked else "")
 
 
 def group_members(repo: Repo, name: str) -> list[Path]:
@@ -166,7 +206,8 @@ def _move(repo: Repo, data: dict[str, Any]) -> tuple[dict[str, Any], int]:
         slugs = _texts(data, "items")
     alone = "group" not in data and len(slugs) == 1
     done = [_attempt(s, partial(_move_one, repo, s, to, alone)) for s in slugs]
-    return _answer(repo, "move", done)
+    open_batch = to == RUNNING and running_batch.open_batch_id(repo) is not None
+    return _answer(repo, RUNNING if open_batch else "move", done)
 
 
 def _resolve(repo: Repo, slugs: list[str]) -> tuple[dict[str, Path], list[dict[str, Any]]]:
@@ -201,7 +242,12 @@ def _group(repo: Repo, data: dict[str, Any]) -> tuple[dict[str, Any], int]:
     results = list(refused)
     column = backlog.column_of(repo, next(iter(folders.values()))) if folders else "inbox"
     for slug in list(folders):  # the first item's column, as `groupOf` does
-        moved = _attempt(slug, partial(_move_one, repo, slug, column, False))
+        # a member already there is not moved (a drop on its own column clears a mark: not here)
+        stay = backlog.column_of(repo, folders[slug]) == column
+        move: Callable[[], tuple[list[str], str]] = (
+            (lambda: ([], "")) if stay else partial(_move_one, repo, slug, column, False)
+        )
+        moved = _attempt(slug, move)
         if moved["ok"]:
             moved["words"] = ""  # the group's own words say where they are
         else:
