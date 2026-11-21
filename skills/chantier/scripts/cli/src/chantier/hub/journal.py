@@ -41,8 +41,8 @@ from typing import TYPE_CHECKING, Any
 
 from chantier.board.crs import link_of
 from chantier.core import clock
-from chantier.core.records import BatchRecord
 from chantier.core.files import rel_in
+from chantier.core.records import BatchRecord
 from chantier.core.repo import Repo
 from chantier.hub import schemas
 from chantier.hub.schemas import PUBLISHED, config_text, merged_text, wait_cleared_text
