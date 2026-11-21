@@ -20,6 +20,7 @@ import { menu, trigger } from './ui/picker.js';
 import { heard, languageButton, navigation, projectSide } from './ui/sidebar.js';
 import { dot, pill } from './ui/writer.js';
 import { bindWriter } from './ui/writer-events.js';
+import { batchMode } from './views/batch-head.js';
 import { ids, overviewIds } from './views/registry.js';
 
 const RETRY_MS = 5000;
@@ -39,6 +40,7 @@ function drawFrame(state) {
   paint($('#title'), title(state));
   paint($('#stats'), stats(state));
   paintNav(state);
+  paintMode(state);
   paint($('#bottom-nav'), bottomBar(state));
   paint($('#new'), t('new.button'));
   $('#new').hidden = state.project === ALL || !state.data;
@@ -59,6 +61,14 @@ function paintNav(state) {
   nav.setAttribute('aria-label', t('batchnav.label'));
   paint(nav, markup);
   nav.hidden = !markup;
+}
+
+// The Batch page's mode and legend, in the title row, hidden where the page has none.
+function paintMode(state) {
+  const slot = $('#batch-mode');
+  const markup = batchMode(state);
+  paint(slot, markup);
+  slot.hidden = !markup;
 }
 
 function drawNotice(state) {

@@ -1,5 +1,7 @@
-// The Batch view: four figures, the mode strip, the legend, four tabs on the same batch (the Kanban
-// of its three folders, the graph of the CRs by dependency, the Gantt, the time cards) and the PR column. The graph's arrows are
+// The Batch view: four figures, four tabs on the same batch (the Kanban of its three folders, the
+// graph of the CRs by dependency, the Gantt, the time cards) and the PR column. The mode and the
+// legend are in the title row (`batch-head.js`). The tabs are the first line above the central
+// view. The graph's arrows are
 // measured, so they are drawn in `after` and on a resize. The Gantt and the time cards are modules
 // of their own, imported when their tab is first opened; a tab's module has
 // `render(state)`, `mount(root)` (returns a cleanup) and `after(root, state)`.
@@ -11,22 +13,15 @@ import { usd } from '../core/format.js';
 import { TABS } from '../core/router.js';
 import { snapshot, update } from '../core/store.js';
 import { mergedOf, recordRows, shownRecord, totalOf } from '../model/history.js';
-import { counts, modeWords, noCrYet, STATE_ORDER, steeringWord } from '../model/semantics.js';
+import { counts, noCrYet } from '../model/semantics.js';
 import { spentAge } from '../model/spend-age.js';
 import { t } from '../model/words.js';
 import { bindOpen } from '../ui/open.js';
-import { empty, kpi, meter, stateIcon } from '../ui/parts.js';
+import { empty, kpi, meter } from '../ui/parts.js';
 import { bindLight, drawEdges, graphBlock } from './batch-graph.js';
 import { kanbanBlock } from './batch-kanban.js';
 import { bindGateLinks } from './batch-pr-card.js';
 import { prsBlock } from './batch-prs.js';
-
-const MODES = ['stack', 'series', 'parallel'];
-
-// "States and arrows": a grey pill that opens a tooltip on hover and on focus. It stays on top of
-// every tab: the Gantt's segments use the same colours.
-const legend = () =>
-  html`<div class="lgrow"><span class="lgpill" tabindex="0" aria-describedby="lgtip">${t('batch.legend')}<span class="tip" id="lgtip" role="tooltip">${STATE_ORDER.map((s) => html`<span class="k">${stateIcon(s)}${t(`state.${s}`)}</span>`)}<span class="k an">${t('batch.arrow')}</span></span></span><span class="lghint">${t('batch.legend_hint')}</span></div>`;
 
 // The tabs are the one chip in its toggle form: filled when on, outlined grey when off.
 const tabBar = (current) =>
@@ -82,15 +77,6 @@ function figures(batch, now) {
   return html`<div class="bhead">${kpi({ label: t('batch.slots'), value: `${batch.slots?.taken ?? 0}/${batch.slots?.total ?? 0}`, sub: slotsSub(batch, c) })}${kpi({ label: t('batch.working'), value: c.working, sub: t('batch.blocked', { n: c.blocked }) })}${kpi({ label: t('batch.handed_ready'), value: c.ready, sub: t('batch.review_merged', { a: c.review, b: c.merged }) })}${kpi({ label: t('batch.spent'), value: usd(batch.spent_usd), extra: spent, sub: t('batch.of_budget', { budget: usd(batch.budget_usd) }) + (old ? ` · ${old}` : '') })}</div>`;
 }
 
-// The strip names the mode and the steering ("Stack · Foreman"), its sentence, and the three modes.
-function modeBand(batch) {
-  const words = modeWords(batch.mode);
-  const switches = MODES.map(
-    (m) => html`<span class="${m === batch.mode ? 'on' : ''}">${t(`mode.${m}`)}</span>`,
-  );
-  return html`<div class="mode"><span class="mb">${words.name} · ${steeringWord(batch)}</span><span>${words.text}</span><span class="ms">${switches}</span></div>`;
-}
-
 // A closed record's figures: merged of the total, the dropped ones, the rounds summed, spent against
 // the budget; from the record only.
 function recordFigures(rec) {
@@ -106,7 +92,6 @@ const DEPS_LINE = { archives: 'batch.deps_partial', none: 'batch.deps_none' };
 function recorded(rec, state) {
   const line = DEPS_LINE[rec.after_source];
   const note = line ? html`<p class="note">${t(line)}</p>` : '';
-  const mode = rec.mode ? modeBand(rec) : '';
   const graph = graphBlock(recordRows(rec), rec, state.now, true);
   const closed = {
     kanban: 'batch.kanban_closed',
@@ -115,7 +100,7 @@ function recorded(rec, state) {
   };
   const panel =
     state.batchTab === 'graph' ? graph : html`<p class="note">${t(closed[state.batchTab])}</p>`;
-  return html`<div class="batch">${recordFigures(rec)}${mode}<div class="bwrap one"><div class="gcol">${note}${legend()}${tabBar(state.batchTab)}${panelOf(state.batchTab, panel)}</div></div></div>`;
+  return html`<div class="batch">${recordFigures(rec)}<div class="bwrap one"><div class="gcol">${note}${tabBar(state.batchTab)}${panelOf(state.batchTab, panel)}</div></div></div>`;
 }
 
 export function render(state) {
@@ -124,14 +109,14 @@ export function render(state) {
   const batch = state.data.batch;
   if (!batch) return empty(t('batch.none'));
   if (noCrYet(batch)) {
-    return html`<div class="batch">${figures(batch)}${modeBand(batch)}${empty(t('batch.no_cr_yet'))}</div>`;
+    return html`<div class="batch">${figures(batch)}${empty(t('batch.no_cr_yet'))}</div>`;
   }
   const panel =
     {
       kanban: () => kanbanBlock(state, batch.crs),
       graph: () => graphBlock(batch.crs, batch, state.now),
     }[state.batchTab]?.() ?? lazyTab(state);
-  return html`<div class="batch">${figures(batch, state.now)}${modeBand(batch)}<div class="bwrap"><div class="gcol">${legend()}${tabBar(state.batchTab)}${panelOf(state.batchTab, panel)}</div>${prsBlock(state)}</div></div>`;
+  return html`<div class="batch">${figures(batch, state.now)}<div class="bwrap"><div class="gcol">${tabBar(state.batchTab)}${panelOf(state.batchTab, panel)}</div>${prsBlock(state)}</div></div>`;
 }
 
 // The rows the page draws now: a closed record's, or the live batch's.

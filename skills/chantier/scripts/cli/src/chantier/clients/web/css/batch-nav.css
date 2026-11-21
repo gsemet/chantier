@@ -10,6 +10,10 @@
   display: none;
 }
 
+.bmode[hidden] {
+  display: none;
+}
+
 .batchnav .bn-id {
   color: var(--ink2);
   font-family: inherit;
