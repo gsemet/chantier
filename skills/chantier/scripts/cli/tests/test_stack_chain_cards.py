@@ -34,5 +34,5 @@ def test_the_cards_carry_the_chain_check() -> None:
         assert "holds the merge (`status` shows it merged)" in text
     mode = driver.split("A CR taken (or a `note`) with `rebase: mode", 1)[1].split("\n\n", 1)[0]
     assert mode.index("rebase onto") < mode.index("`ship`")
-    foreman = (CARDS / "foreman.md").read_text(encoding="utf-8")
+    foreman = (CARDS / "foreman-stack.md").read_text(encoding="utf-8")
     assert "not shipped at" in " ".join(foreman.split())

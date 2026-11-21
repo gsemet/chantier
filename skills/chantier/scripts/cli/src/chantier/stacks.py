@@ -134,6 +134,19 @@ def _open_after(
     ]
 
 
+def forming(b_data: BatchRecord) -> list[CrEntry]:
+    """The CRs of `chain` that a stack could take now, in order: neither a release nor a fix,
+    `ready` with a PR, every open dependency `ready` too. `stack_due`'s per-CR test."""
+    return [
+        x
+        for x in chain(b_data)
+        if _alone(x)
+        and x.status == "ready"
+        and x.pr
+        and all(y.status == "ready" for y in _open_after(b_data, x))
+    ]
+
+
 def stack_due(b_data: BatchRecord) -> list[CrEntry]:
     """The CRs that make the batch's first stack due, in `chain` order, else []. Due: a running
     stack batch, no stack driver recorded, no CR of the batch (merged and cancelled included)
@@ -144,14 +157,7 @@ def stack_due(b_data: BatchRecord) -> list[CrEntry]:
         return []
     if any(x.stacked for x in d.crs):
         return []
-    due = [
-        x
-        for x in chain(d)
-        if _alone(x)
-        and x.status == "ready"
-        and x.pr
-        and all(y.status == "ready" for y in _open_after(d, x))
-    ]
+    due = forming(d)
     return due if len(due) >= FORMING else []
 
 

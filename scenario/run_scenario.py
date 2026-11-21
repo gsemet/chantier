@@ -621,6 +621,7 @@ class Foreman:
         self.cancelled: list[str] = []
         self.qa: list[str] = []  # the folders of the QA drivers it started
         self.told: set = set()
+        self.refused_asks: list[tuple[str, int, str]] = []  # the guard's refusals
         self.facts: list[str] = []
         self.paused = False
         self.git_main: list[tuple[str, ...]] = []  # every git command it ran in the main checkout
@@ -686,6 +687,17 @@ class Foreman:
     def ask(self, text: str) -> None:
         self.asked.append(text)
         self.w.chantier("asks", "--", *text.split(" "))
+
+    def ask_in_stack(self, c: dict, word: str) -> bool:
+        """The CLI's guard of a per-CR ask in a stack batch (exit 2, nothing recorded): the
+        Foreman then waits for the stack and keeps no ask. True: handled."""
+        code, _ = self.w.chantier("asks", "--", word, c["id"], c["pr"], expect=None)
+        if code == 0:
+            self.told.add((c["id"], "ready", c.get("pr")))
+            self.asked.append(f"{word} {c['id']} {c['pr']}")
+        else:
+            self.refused_asks.append((c["id"], code, self.w.last_stderr))
+        return True  # handled, asked or waiting
 
     def ask_once(self, key: tuple, text: str) -> None:
         if key not in self.told:
@@ -832,11 +844,15 @@ class Foreman:
                     continue
                 if (c["id"], "ready", c.get("pr")) in self.told:
                     continue
-                self.told.add((c["id"], "ready", c.get("pr")))
                 if c.get("kind") == "fix" and (d.get("release") or {}).get("fixes"):
+                    self.told.add((c["id"], "ready", c.get("pr")))
                     self.merge(c)
                 else:
                     word = "ready-to-merge" if c.get("pr_draft") is False else "pr-in-draft"
+                    if (d["mode"] == "stack" and word == "ready-to-merge"
+                            and self.ask_in_stack(c, word)):
+                        continue  # foreman-stack.md: it waits for the stack, and asks again
+                    self.told.add((c["id"], "ready", c.get("pr")))
                     self.ask(f"{word} {c['id']} {c['pr']}")
                     if d["mode"] == "parallel":
                         self.early_conflicts(d, c)
@@ -6912,9 +6928,27 @@ def stack_batch(w: World) -> None:
           and "base origin/main" in stacked[1]
           and "base origin/main" in stacked[2]
           and "base origin/main" in stacked[3], str(base) + str(stacked))
+    _, empty = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
+    check("`status --refresh` of a stack before any CR has a PR prints the empty-state shape line "
+          "second, exactly",
+          len(empty) > 1 and empty[1].startswith(
+              "shape stack: next parallel until 2 ready with a PR; stack driver: none; "
+              "native stack: absent; alone asks: allowed; rules: ")
+          and empty[1].endswith("/references/foreman-stack.md (reread after a compaction)")
+          and Path(empty[1].split("rules: ", 1)[1].removesuffix(" (reread after a compaction)"))
+          .resolve() == (SKILL / "references" / "foreman-stack.md").resolve(), str(empty))
+    asks_before: list = []
     for i, cr in enumerate((one, two, three)):
         driver_round(w, cr, f"stack{i}.py", f"N = {i}\n")
         w.ready(cr, w.cr(cr)["pr"])
+        if i == 0:
+            _, solo = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
+            w.chantier("asks", "--", "ready-to-merge", one, w.cr(one)["pr"])
+            asks_before = w.batch()["asks"]
+            check("with exactly one open PR the shape line says `alone asks: allowed for <one> "
+                  "only` and `asks ready-to-merge <one> <pr>` is accepted and recorded",
+                  f"alone asks: allowed for {one} only;" in solo[1] and len(asks_before) == 1,
+                  str(solo) + str(asks_before))
 
     def ship_bases(cr: str) -> list[str]:
         events = [json.loads(e) for e in (w.folder() / "events.jsonl").read_text().splitlines()]
@@ -6924,6 +6958,34 @@ def stack_batch(w: World) -> None:
 
     def trigger() -> list[str]:  # the `stack: take stack now:` lines of `status`
         return [ln for ln in w.chantier("status")[1] if ln.startswith("stack: take stack now:")]
+    ask = f"ready-to-merge {one} {w.cr(one)['pr']}"
+    _, shape = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
+    check("`status --refresh` of a stack prints one shape line after the batch line: the next "
+          "step, no stack driver, no native stack, alone asks refused, the rules card",
+          len([ln for ln in shape if ln.startswith("shape stack:")]) == 1
+          and shape[1].startswith("shape stack: next take stack; stack driver: none; native stack: "
+                                  "absent; alone asks: refused; rules: ")
+          and shape[1].endswith("references/foreman-stack.md (reread after a compaction)"),
+          str(shape))
+    rules_path = Path(shape[1].split("rules: ", 1)[1].removesuffix(" (reread after a compaction)"))
+    check("the path the `rules:` part names exists",
+          rules_path.is_file() and rules_path.name == "foreman-stack.md", str(rules_path))
+    check("a plain `status` prints no `shape stack:` line",
+          not any(ln.startswith("shape stack:") for ln in w.chantier("status")[1]))
+    code, _ = w.chantier("asks", "--", *ask.split(" "), expect=2)
+    refusal = w.last_stderr
+    check("a per-CR `ready-to-merge` in a stack of three CRs ready with a PR is refused (exit 2) "
+          "and nothing is recorded",
+          code == 2 and "is not alone (open: " in refusal and "next: take stack" in refusal
+          and w.batch()["asks"] == asks_before, refusal)
+    code, _ = w.chantier("asks", "--outside-stack", "the user's word", "--", *ask.split(" "),
+                         expect=1)
+    check("`--outside-stack` without an open order on that CR is a usage error and records nothing",
+          code == 1 and "--outside-stack needs a reason" in w.last_stderr
+          and w.batch()["asks"] == asks_before, w.last_stderr)
+    code, _ = w.chantier("asks", "--", "pr-in-draft", two, w.cr(two)["pr"], expect=None)
+    check("`asks pr-in-draft <two> ...` is still accepted after the refusal",
+          code == 0, w.last_stderr)
     due = trigger()
     check("`status` prints one `stack: take stack now:` line naming the ready CRs in order when "
           "the first stack is due (CR-337)",
@@ -6931,11 +6993,21 @@ def stack_batch(w: World) -> None:
                   "yet (`take stack --epoch <n>`)"], str(due))
     w.chantier("agents", "set", "stack", "agent-stack", "--epoch", 1)
     held = trigger()
+    _, driven = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
+    check("with a stack driver recorded the shape line reads `next note to the stack driver; "
+          "stack driver: agent-stack`",
+          driven[1].startswith("shape stack: next note to the stack driver; "
+                               "stack driver: agent-stack;"), str(driven))
     w.chantier("agents", "set", "stack", "-", "--epoch", 1)
     check("with a stack driver recorded the line is absent; with none it is back", not held
           and len(trigger()) == 1, str(held))
     w.chantier("stack", one, two, three)
     check("after `stack` marks the CRs the trigger line is absent", not trigger(), str(trigger()))
+    _, shape = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
+    check("with the CRs marked the shape line names the native stack and the next step",
+          shape[1].startswith("shape stack: next take stack at the next ready CR or merge; "
+                              f"stack driver: none; native stack: present ({one}, {two}, {three}); "
+                              "alone asks: refused"), str(shape))
     forge_base(w, w.cr(two)["pr"], w.cr(one)["branch"])  # the stack driver retargets the PRs
     forge_base(w, w.cr(three)["pr"], w.cr(two)["branch"])
     three_head, shipped = w.cr(three).get("head"), len(ship_bases(three))
@@ -8232,8 +8304,12 @@ def early_conflict(w: World) -> None:
     hand_back(second, 2, "shared_second.py", base=w.cr(first)["branch"])  # it starts on the first's branch
     fm.turn()
     check("a stack batch: no merge-tree runs and no `conflict` ask is sent",
-          not merge_trees(fm) and not conflict_asks(fm)
-          and fm.asked[-1].startswith(f"ready-to-merge {second} "), str(fm.asked))
+          not merge_trees(fm) and not conflict_asks(fm), str(fm.asked))
+    check("a stack batch: two CRs ready with a PR, the guard refuses each one's per-CR ask "
+          "(exit 2), nothing is recorded and the Foreman keeps no ask",
+          sorted(r[0] for r in fm.refused_asks) == sorted([first, second])
+          and all(r[1] == 2 and "is not alone (open: " in r[2] for r in fm.refused_asks)
+          and not fm.asked and w.batch()["asks"] == [], str(fm.refused_asks))
     w.env.pop("CHANTIER_BATCH", None)
 
 
@@ -9990,6 +10066,8 @@ def lost_messages(w: World) -> None:
     check("a wake shows the order whose line never came, and records the heartbeat",
           any(ln.startswith(f"orders pending: {order} note {three} first") for ln in out)
           and "live 3/3" in out[0] and w.batch()["heartbeat"], str(out))
+    check("a parallel batch's `status --refresh` prints no shape line",
+          not any(ln.startswith("shape ") for ln in out), str(out))
     fm.turn()
     check("the Foreman tells the Driver and marks the order done",
           all(o["done"] for o in w.batch()["orders"])

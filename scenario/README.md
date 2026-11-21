@@ -159,6 +159,11 @@ does a unit that is not in `UNITS` and a test that does not exist.
   with a PR, ...` line while two CRs or more are ready with a PR and none was ever stacked, with no
   stack driver (absent with one recorded, after `stack` marks the CRs, and after a merge is recorded;
   a reminder only) (unit: stack) (test: test_stack_due.py::test_the_first_stack_is_due);
+- a stack batch's shape: `status --refresh` prints one `shape stack:` line (next step, stack driver,
+  native stack, alone asks, the rules card) and none in a parallel batch; a per-CR `ready-to-merge`
+  for a CR with another open PR in the chain is refused (exit 2, nothing recorded), `--outside-stack`
+  without an open order on the CR is a usage error, and the Foreman waits for the stack (unit:
+  stack, series-deps, qa-driver) (test: test_stack_shape.py::test_the_guard_refuses_a_cr_that_is_not_alone);
 - a stack (`open --mode stack`) of independent CRs: all taken at once, each started on the
   default branch, then stacked afterwards by `stack` (`ship` records the default branch before,
   the CR under it after, and refuses a CR whose branch does not hold the recorded head of the CR under it, recording nothing); a CR starting on the nearest earlier CR with a PR (a working one too; a branch with no PR, a

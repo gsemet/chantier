@@ -51,6 +51,7 @@ from chantier.rails import (
 )
 from chantier.rails_release import record_ask
 from chantier.stack_apart import parked_lines
+from chantier.stack_shape import shape_line
 from chantier.stack_words import state_word
 from chantier.stacks import held_lines, stack_line
 from chantier.status.gate import gate_view
@@ -344,6 +345,7 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
     d = read_batch(repo, batch)
     lines = [
         _batch_line(d, _heartbeat_text(d, prev)),
+        *(shape_line(d) if args.refresh else []),
         *writer_lines(repo),
         *_other_batches_lines(repo),
     ]
@@ -379,7 +381,8 @@ def asks(args: argparse.Namespace) -> list[str]:
         repo, resolve_batch(repo, args.batch), actor="foreman" if text else "chief-of-staff"
     ) as b:
         if text:
-            aid, old = record_ask(b, text)
+            aid, old = record_ask(b, text, args.outside_stack)
+            text = b.record.asks[-1].text
             return [
                 f"[foreman→chief-of-staff] ask {aid}: {text}",
                 *[f"{o} superseded by {aid} (marked read)" for o in old],

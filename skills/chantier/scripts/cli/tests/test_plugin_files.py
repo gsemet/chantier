@@ -346,6 +346,7 @@ def test_each_host_has_its_reference_and_the_cards_hold_no_host_tool() -> None:
     for card in (
         "chief-of-staff",
         "foreman",
+        "foreman-stack",
         "driver",
         *WORKERS,
         "review-step",
