@@ -228,8 +228,9 @@ improves the procedure, which stays written and maintained in the project.
 
 ## The CR board
 
-On any device, `chantier board` serves the CR board as a web page: the live batches, what waits
-for you, the backlog and the merged CRs, and it lets you triage the backlog from your phone.
+`chantier board` serves the CR board as a web page, on this machine by default, and on the phone or
+any device of the local network once you open it to the network: the live batches, what waits
+for you, the backlog and the merged CRs, and, once opened, it lets you triage the backlog from your phone.
 
 ![The web board: a batch in stack mode, its CRs by level, the PRs to review and the drafts](docs/web-board/batch-pc.png)
 

@@ -15,26 +15,35 @@ from chantier.board.guard import NEEDS_KEY
 from chantier.board.key import HEADER
 from chantier.core.errors import ChantierError
 from chantier.core.repo import Repo
-from chantier.playbook.config import MAX_PORT
+from chantier.playbook.board_check import MAX_PORT
 from chantier.playbook.layers import load_board
 
-DEFAULT_HOST, DEFAULT_PORT = "0.0.0.0", 8765
+DEFAULT_HOST, DEFAULT_PORT = "127.0.0.1", 8765
+NETWORK = "network"
 EVERYWHERE = ("0.0.0.0", "::", "")
 
 
-def settings(repo: Repo, host: str | None, port: int | None) -> tuple[str, int]:
+def settings(repo: Repo, host: str | None, port: int | None) -> tuple[str, int, bool]:
     """The address: the command's options, else `chantier.yaml`'s `board` key, else the default.
-    Port 0 is the system's pick, from the option only."""
+    Port 0 is the system's pick, from the option only. The third value is True when
+    `board.host: network` found no local network address at this start (the board then stays
+    on this machine)."""
     found, problems = load_board(repo)
     if problems:
         raise ChantierError(problems[0])
-    host = host or found.get("host") or DEFAULT_HOST
+    no_network = False
+    if not host and found.get("host") == NETWORK:
+        if is_loopback(_default_route_address()):
+            host, no_network = DEFAULT_HOST, True
+        else:
+            host = "0.0.0.0"
+    host = host or DEFAULT_HOST
     port = port if port is not None else found.get("port", DEFAULT_PORT)
     if not 0 <= port <= MAX_PORT:
         raise ChantierError(f"--port {port}: a port is 0 (any free one) to 65535", 1)
     if re.search(r"\s", host):
         raise ChantierError(f"--host {host!r}: an address holds no whitespace", 1)
-    return host, port
+    return host, port, no_network
 
 
 def is_loopback(host: str) -> bool:

@@ -1523,6 +1523,7 @@ class Link:
     def __init__(self, line: str | None):
         found = self.LINE.match(line or "")
         self.ok = found is not None
+        self.host = found["host"] if found else ""
         self.port = int(found["port"]) if found else 0
         self.key = found["key"] if found else ""
         self.over = found["over"] if found else ""
@@ -3114,6 +3115,54 @@ def remote_board(w: World) -> None:
               Link(head).ok and (warning or "").startswith("board: listens on the local network (0.0.0.0)"),
               f"{head} / {warning}")
         wide.stop()
+        # the default stays on this machine, and a key replaced while the board runs revokes the old link
+        mine = board("board", "--port", 0)
+        mine_head = mine.line()
+        mine_link = Link(mine_head)
+        check("`board --port 0` with no `--host` and no `chantier.yaml` listens on 127.0.0.1: its first "
+              "line is the link on 127.0.0.1, it opens, `server.json` records that host, and no "
+              "other line follows",
+              mine_link.ok and (mine_head or "").startswith("board on http://127.0.0.1:")
+              and fetch(mine_link.port, f"/?k={mine_link.key}")[0] == 303
+              and json.loads(key_file.read_text(encoding="utf-8"))["server"]["host"] == "127.0.0.1"
+              and mine.line(0.5) is None, str(mine_head))
+        p = subprocess.run([sys.executable, "-m", "chantier", "board", "--new-key"], cwd=w.work,
+                           env=w.env, capture_output=True, text=True, encoding="utf-8", timeout=30)
+        renewed = re.match(r"^board already running at http://127\.0\.0\.1:(\d+)/\?k=(\S+)$",
+                           p.stdout.strip())
+        new_key = renewed[2] if renewed else ""
+        old_code = fetch(mine_link.port, f"/?k={mine_link.key}")[0]
+        new_code, new_head, _ = fetch(mine_link.port, f"/?k={new_key}")
+        check("a second `board --new-key` on a running board prints `board already running at` a link "
+              "with another key: the first link answers 401, the new one 303 with a cookie of "
+              "`Max-Age=2592000`",
+              p.returncode == 0 and renewed is not None and new_key != mine_link.key
+              and old_code == 401 and new_code == 303
+              and "Max-Age=2592000" in new_head.get("set-cookie", ""), p.stdout + p.stderr)
+        mine.stop()
+        yaml_net = w.work / "chantier.yaml"
+        yaml_net.write_text("board:\n  host: network\n", encoding="utf-8")
+        net = board("board", "--port", 0)
+        net_head, net_next = net.line(), net.line()
+        net_link = Link(net_head)
+        recorded_host = json.loads(key_file.read_text(encoding="utf-8")).get("server", {}).get("host")
+        if net_link.ok and net_link.host != "127.0.0.1":  # (a) the runner has a network address
+            local = re.match(r"^on this machine: http://127\.0\.0\.1:(\d+)/\?k=(\S+)$", net_next or "")
+            third = net.line()
+            ok = (fetch(net_link.port, f"/?k={net_link.key}")[0] == 303 and recorded_host == "0.0.0.0"
+                  and local is not None and fetch(int(local[1]), f"/?k={local[2]}")[0] == 303
+                  and (third or "").startswith("board: listens on the local network ("))
+        else:  # (b) no network address: this machine only, and it says so
+            ok = (net_link.ok and net_link.host == "127.0.0.1"
+                  and fetch(net_link.port, f"/?k={net_link.key}")[0] == 303
+                  and net_next == "board: no local network address found; on this machine only")
+        check("`board.host: network` in chantier.yaml with `--port 0`: either the link on a network "
+              "address (`server.json` records 0.0.0.0, then the `on this machine:` link, then the "
+              "`board: listens on the local network (` line), or the link on 127.0.0.1 and the "
+              "`no local network address found` line",
+              ok, f"{net_head} / {net_next} / {recorded_host}")
+        net.stop()
+        yaml_net.unlink()
         timed = board("board", "--host", "127.0.0.1", "--port", 0, "--clock", "2026-01-02T03:04:05Z")
         tlink = Link(timed.line())
         _, thead, tapi = op(tlink.port, tlink, "board.get")
@@ -3125,7 +3174,7 @@ def remote_board(w: World) -> None:
         yaml = w.work / "chantier.yaml"
         for attempt in range(2):  # a port free a moment ago can be taken by another unit: one retry
             other = free_port()
-            yaml.write_text(f"board:\n  host: 127.0.0.1\n  port: {other}\n", encoding="utf-8")
+            yaml.write_text(f"board:\n  port: {other}\n", encoding="utf-8")
             configured = board("board")
             line = configured.line()
             if line is not None and line.startswith(f"board on http://127.0.0.1:{other}/?k="):
@@ -3135,7 +3184,7 @@ def remote_board(w: World) -> None:
               line is not None and line.startswith(f"board on http://127.0.0.1:{other}/?k="), str(line))
         configured.stop()
         for bad, wrong in (("port: abc", "port"), ("color: red", "color")):
-            yaml.write_text(f"board:\n  host: 127.0.0.1\n  {bad}\n", encoding="utf-8")
+            yaml.write_text(f"board:\n  host: network\n  {bad}\n", encoding="utf-8")
             code, out = w.chantier("playbook", expect=None)
             problem = "chantier.yaml:3: board: " in "\n".join(out) and wrong in "\n".join(out)
             code_board, _ = w.chantier("board", "--port", 0, expect=None)
@@ -3143,13 +3192,20 @@ def remote_board(w: World) -> None:
                   "refuses to start with it",
                   code == 2 and problem and code_board == 2 and "chantier.yaml:3: board: " in w.last_stderr,
                   f"{out} / {w.last_stderr}")
+        yaml.write_text("board:\n  host: 127.0.0.1\n", encoding="utf-8")
+        code, out = w.chantier("playbook", expect=None)
+        code_board, _ = w.chantier("board", "--port", 0, expect=None)
+        check("a fixed `board.host` (127.0.0.1) in chantier.yaml is refused by `playbook` and by "
+              "`board`, exit 2, with the message pointing to `--host`",
+              code == 2 and "--host" in "\n".join(out) and code_board == 2 and "--host" in w.last_stderr,
+              f"{out} / {w.last_stderr}")
         yaml.unlink()
         side = w.work / "chantier.yml"  # `.yml` alone is read like `.yaml`
-        side.write_text("board:\n  host: 127.0.0.1\n  port: abc\n", encoding="utf-8")
+        side.write_text("board:\n  host: network\n  port: abc\n", encoding="utf-8")
         code, out = w.chantier("playbook", expect=None)
         check("`chantier.yml` alone is read like `chantier.yaml`: its problem names it, with its line",
               code == 2 and "chantier.yml:3: board: " in "\n".join(out), str(out))
-        yaml.write_text("board:\n  host: 127.0.0.1\n", encoding="utf-8")
+        yaml.write_text("board:\n  port: 1\n", encoding="utf-8")
         code, out = w.chantier("playbook", expect=None)
         check("`chantier.yaml` and `chantier.yml` together exit 2, naming both",
               code == 2 and "chantier.yaml and chantier.yml are both present: keep one" in "\n".join(out),

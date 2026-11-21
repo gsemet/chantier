@@ -68,7 +68,7 @@ says how to tell; where it cannot, the seat's session "looks stopped". No activi
 taken as proof of life.
 
 **The board.** Ask before starting `$CHANTIER board --seat <own session id>` in the background,
-explaining its persistent process and configured network exposure, and that it is also the
+explaining its persistent process, that it listens on this machine only unless `board.host: network` or `--host` says otherwise (a phone reaches it only after the user asked for it), and that it is also the
 surface's forge hub: it reads the forge every 20 s with the user's own `gh` or `glab` (only the
 PRs a running batch waits for) and needs the network for that. On a planning surface it is also the
 surface's writer: it commits, rebases and pushes the plan, and with no server a write to the surface
@@ -80,12 +80,13 @@ never start it.
 - `board on <URL> over ...`: report the server-announced binding (the link and its key), not
   verified local readiness. Local readiness is verified only by a successful probe such as
   `GET /api/board` with the key; if no probe was run, say so. If the server announces a
-  non-loopback binding, say that LAN reachability is untested; do not claim that it opens
+  non-loopback binding (the `board: listens on the local network (...)` line), pass that line on and say that LAN reachability is untested; do not claim that it opens
   remotely. The link is theirs only. When the board prints a second line, `on this machine:
   http://127.0.0.1:<port>/?k=...`, give the user both links, the 127.0.0.1 one named as the one
   where the Costs page's "Copy as image" works (a browser allows an image copy on a secure origin
   only; the LAN link is plain http).
-- `board already running at <URL>`: the same line (and the same second line, when it follows), if
+- `board: no local network address found; on this machine only` (after the `board on` line, when `board.host: network` found no network address): the board is on this machine only; pass it on, and once the network is back the user stops it by the host's means, then it is started again.
+- `board already running at <URL>`: the same line (and the same second line, when it follows, then the `board: listens on the local network (...)` line when the board listens beyond this machine, which you pass on), if
   not given yet in this session. One board
   serves a planning surface (or a repository), on whatever port: a second session's `board --seat
   <id>` registers its seat on it and prints this line.

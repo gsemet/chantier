@@ -44,7 +44,8 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | "release v1.4.0", a release question | find the project's procedure, ask for the grant, a release CR in a batch | Releases |
 | "auto" during a release | `order grant <release-cr> --note "releases=<k+1>"`, a budget first if the batch has none | Releases |
 | "become a griller", "become chief of staff" | the seat and the role | [session-start](session-start.md) |
-| "board on my phone", "where is the board?" | the board's link again (it holds the key; its PRs page is the live view of the batch's PRs); on the user's word, to keep the board on this machine only, `board.host: 127.0.0.1` in `chantier.yaml`, then the board started again: stop the running one by the host's means, then `$CHANTIER board --seat <id>`; a board refused because another one serves the surface is the user's to stop | [session-start](session-start.md) |
+| "board on my phone", "where is the board?" | the board's link again (it holds the key; its PRs page is the live view of the batch's PRs); the board listens on this machine only; on the user's word, to reach it from the phone or another device on the local network, `board.host: network` in `chantier.yaml` (the board finds this machine's address at each start), or `--host` for one start, then the board started again: stop the running one by the host's means, then `$CHANTIER board --seat <id>`; pass on the `board: listens on the local network` line, or the `board: no local network address found; on this machine only` line (then, once the network is back: stop it by the host's means, then start it again; a second start alone only prints `board already running at`); a board refused because another one serves the surface is the user's to stop | [session-start](session-start.md) |
+| "a new board key", "the board's link leaked" | on the user's word, `$CHANTIER board --seat <id> --new-key`: the old link and the open pages stop working; give the user the new link | [session-start](session-start.md) |
 | "rescan", "I updated the priorities" (the user edited the backlog on the board) | read the backlog again (`$CHANTIER status`, the dashboard, `next-batch.json`); tell the user what moved and whether the next batch is declared ready; with a watcher or the pull path running, the board's writes already came: read the backlog again only when the user asks | [session-start](session-start.md) |
 
 ## Hard rules
@@ -1467,8 +1468,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   - After a status: "what did it cost?", once a CR has spent; `/chantier:status` from any session,
     for the table at once; `/chantier-board` to show or hide the CR board (Claude Code only, never
     on Copilot); "I merged #<n>"; "more rounds for CR-<n>"; "run a QA on <what>"; in remote, "board on my phone" (the link
-    again, and its PRs page, the live view of the batch's PRs; on the user's word, `board.host: 127.0.0.1` in `chantier.yaml` keeps the board on this
-    machine).
+    again, and its PRs page, the live view of the batch's PRs; on the user's word, `board.host: network` in `chantier.yaml` opens the board to the local network).
   - End of a batch: "add <slug> to this batch"; "why did it cost that?";
     "release v<x.y.z>"; "run what is in 3-ready", when that folder holds CRs.
   - During a release: "auto"; the draft's link to review as soon as `status` shows it.

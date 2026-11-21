@@ -682,7 +682,7 @@ otherwise.
 | `/permissions`, `/config` | no: the app's own settings | no | yes | terminal dialogs; unproved |
 | Restart the app, `/reload-plugins`, open in an editor | yes (terminal: restart the CLI) | no | restart the CLI | the machine; unproved |
 | `/chantier-board` | yes | the pane does not show in a Remote Control view (`docs/boards.md`) | yes | documented in `docs/boards.md` |
-| The remote board (`chantier board`) | yes | yes, from any device on the local network, through the link | yes | unproved; trial: open the board's link from the phone on the local network during a batch |
+| The remote board (`chantier board`) | yes | yes, from any device on the local network, through the link, once `board.host: network` (or `--host`) opens it to the local network | yes | unproved; trial: open the board's link from the phone on the local network during a batch |
 | Review renders, review and merge a PR | yes | yes | yes | the forge, from any device |
 | A host feature (scheduled wake, start a session, a monitor) | where the host has it | `start_session` with no `cwd` and no `preset` works; with either, it is refused | where the host has it | proved 2026-11-20 for `start_session`, unproved for the rest |
 | Work in the main checkout | not during an eval, not from a worktree session | same | same | the classes table and the project's rules |

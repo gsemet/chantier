@@ -15,7 +15,7 @@ from chantier.hub import state
 
 COOKIE = "chantier_board"
 HEADER = "x-chantier-board-key"
-YEAR_S = 365 * 24 * 3600
+COOKIE_MAX_AGE_S = 30 * 24 * 3600
 
 
 def key_path(repo: Repo) -> Path:
@@ -88,4 +88,4 @@ def cookie_value(raw: str | None) -> str | None:
 
 
 def set_cookie(key: str) -> str:
-    return f"{COOKIE}={key}; Max-Age={YEAR_S}; Path=/; HttpOnly; SameSite=Strict"
+    return f"{COOKIE}={key}; Max-Age={COOKIE_MAX_AGE_S}; Path=/; HttpOnly; SameSite=Strict"

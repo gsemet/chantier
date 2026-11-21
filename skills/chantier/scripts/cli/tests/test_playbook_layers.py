@@ -218,7 +218,7 @@ def test_the_light_readers_see_the_board_and_long_gate_keys_of_any_layer(
     assert layers.load_long_gate(repo) == (3, [])  # the stronger layer wins
     board, problems = layers.load_board(repo)
     assert problems == [] and board.get("port") == PORT
-    assert settings(repo, None, None) == ("0.0.0.0", PORT)
+    assert settings(repo, None, None) == ("127.0.0.1", PORT, False)
     (surface.clone / "chantier.yaml").write_text("long_gate: default\n", encoding="utf-8")
     assert layers.load_long_gate(repo) == (1, [])  # a reset takes the weaker value back too
 
