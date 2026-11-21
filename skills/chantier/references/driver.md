@@ -1234,8 +1234,9 @@ checks hold, then it turns ready with the others (`stack --out-of-draft`). A fix
    above ready (`stack --out-of-draft <cr>…`), the release PR last; hand back with the stack's link.
 
 **Removing a dropped CR.** Taken with a note, or sent one, that names `drop: <cr> to <destination>`
-(`6-trash`, `1-inbox` or `2-backlog/P<n>`; a `drop: <cr>` with no destination, from an older
-Foreman, means the trash). Steps 1 to 4 apply to every destination:
+(`6-trash`, `3-ready` or `2-backlog/P<n>`; a `drop: <cr>` with no destination, from an older
+Foreman, means the trash; a `1-inbox` from an older Foreman is the backlog's case: the PR to a
+draft). Steps 1 to 4 apply to every destination:
 
 1. Turn every PR above the dropped one back to a draft first (`gh pr ready --undo`, `glab mr
    update --draft`, then `$CHANTIER stack --draft <cr>…`): the user must not merge a stack that still holds the dropped commits.
@@ -1258,7 +1259,7 @@ Foreman, means the trash). Steps 1 to 4 apply to every destination:
    one moved out, whose PR the rebuild retargets onto the default branch itself).
 5. For a trashed CR, close its PR (`gh pr close <n>`, `glab mr close <n>`), with no
    `--delete-branch` and no comment; its branch and worktree stay until the user's word at
-   `close`. For a CR moved to the inbox or the backlog, turn its PR to a draft (`gh pr ready
+   `close`. For a CR moved to the backlog or the next batch (`3-ready`), turn its PR to a draft (`gh pr ready
    --undo`, `glab mr update --draft`): no close, no comment, no rebase of its branch, no retarget
    by hand; its branch and worktree stay.
 6. Run the local gate at the mergeable top when its head carries no pass, then turn the

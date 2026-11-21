@@ -13,7 +13,7 @@ from chantier.core.errors import EXIT_BUDGET, EXIT_PRECONDITION, EXIT_USAGE, Cha
 from chantier.core.records import LIVE, TRASH, CrEntry
 from chantier.core.repo import Repo
 from chantier.gate_slots import mtime, slot_of
-from chantier.lifecycle.moveout import check_drop_free, close_pr_clause, leave_batch
+from chantier.lifecycle.moveout import check_drop_free, leave_batch, pr_clause
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock
 from chantier.rails import spent_text
@@ -114,7 +114,8 @@ def _stop_processes(repo: Repo, c: CrEntry) -> list[str]:
 
 def cancel(args: argparse.Namespace) -> list[str]:
     """A dropped CR, on the user's word: its gate and its stray processes stopped, its folder
-    moved to the destination its drop order recorded (trash, inbox or backlog), with its work."""
+    moved to the destination its drop order recorded (trash, backlog or the next batch,
+    `3-ready`), with its work."""
     if args.epoch is None:
         raise ChantierError(
             "cancel <cr> --epoch <n>: the steering session's command for a CR the "
@@ -134,7 +135,7 @@ def cancel(args: argparse.Namespace) -> list[str]:
         if c.status != "cancelled" and c.left_to is None:
             raise ChantierError(
                 f"cancel {args.cr}: no destination recorded; the Chief of Staff's "
-                f'"order drop {args.cr} --note trash|inbox|P1..P4" names it',
+                f'"order drop {args.cr} --note trash|ready|P1..P4" names it',
                 EXIT_PRECONDITION,
             )
         if c.status != "cancelled":
@@ -145,7 +146,7 @@ def cancel(args: argparse.Namespace) -> list[str]:
         to = c.left_to or TRASH
         b.log("cancel", args.cr, killed=killed, path=c.path, to=to)
         batch_id = b.id
-        clause = close_pr_clause(b, c)
+        clause = pr_clause(b, c)
     here = "" if to == TRASH else f" to {to}"
     return [
         f"cancelled {args.cr}{here}; stopped {len(killed)}: {' '.join(killed) or 'none'}",

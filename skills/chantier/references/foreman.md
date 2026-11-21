@@ -202,17 +202,20 @@ running again, until the user's close.
   "<why>"`).
 - **Your own chat obeys only "stop", "hold" (no new Driver: the batch still runs), and the user's line allowing a refused action.**
   Anything else: "I run batch <batch> for chantier. Please give orders to the Chief of Staff."
-- **Never code, review, commit, rebase, push or edit a PR, never create a worktree.** One named
-  exception: a drop order whose line ends `close its PR <link>` (a trash drop outside a stack;
+- **Never code, review, commit, rebase, push or edit a PR, never create a worktree.** Two named
+  exceptions: a drop order whose line ends `close its PR <link>` (a trash drop outside a stack;
   after `cancel` for a live CR) is closed by you (`gh pr close <n>`, `glab mr close <n>`, no
-  `--delete-branch`, no comment) before its `order done`. The merged CRs'
+  `--delete-branch`, no comment) before its `order done`; and a drop order whose line ends
+  `turn its PR to draft <link>` (a drop to the backlog or `3-ready` outside a stack, the PR out of
+  draft; after `cancel` for a live CR) is turned by you (`gh pr ready <n> --undo`,
+  `glab mr update <n> --draft`, no comment) before its `order done`. The merged CRs'
   cleanup is the CLI's, at the end of the last CR (`cleanup:` lines). A CR whose agent is still held, or
   whose worktree git refused to remove, is kept (`kept:` or `not removed:` line): remove it once its
   Driver has ended with `git worktree remove <path>` and `git branch -D <branch>` (from the main
   checkout; with a planning surface, `git -C <clone>`, the clone `take` names; `-d` refuses after a
   rebase or squash merge), or leave it to the user's word at `close`, which names it. A trashed CR's
-  worktree and branch stay for the user's word at `close`; those of a CR moved to the inbox or the
-  backlog stay, and are not offered for removal.
+  worktree and branch stay for the user's word at `close`; those of a CR moved to the backlog or the
+  next batch (`3-ready`) stay, and are not offered for removal.
   Your git in the main checkout has a second duty: the fast-forward after each merge you handle
   (with a planning surface, `git -C <clone>`), by the bullet "The main checkout after a merge"
   in Your means. A third duty is the early conflict check (Your means, "An early conflict
@@ -510,7 +513,7 @@ running again, until the user's close.
     `take <cr> --note "rebase: stacked on <cr below>: conflict in <files>"` (the CR is `working`,
     its draft no check 4 failure; its Driver rebases, the CR turns ready to merge at a later take);
   - **A drop in the stack:** `take stack --note "drop: <cr> to <destination>"` (the destination
-    the order's line carries: `6-trash`, `1-inbox` or `2-backlog/P<n>`) right after the drop is
+    the order's line carries: `6-trash`, `3-ready` or `2-backlog/P<n>`) right after the drop is
     applied, or `[foreman→stack] note drop: <cr> to <destination>` to a running stack driver. A
     held CR's drop needs no `take stack`: `order done` at once. A CR that waited with the dropped
     held CR (an `after`, or in a series a start on it) gets `rebase: <cr> dropped` by the usual

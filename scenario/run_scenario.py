@@ -3553,6 +3553,26 @@ def direct_batch(w: World) -> None:
           and re.fullmatch(rf"4-batch/1-pending/0*{moved_number}-[\w-]+", back[0]["path"])
           and not (w.state / back[0]["path"] / "formerly.json").exists()
           and not shelf_dir.exists() and joins in out, str(out))
+    w.chantier("order", "drop", moved, "--note", "inbox", expect=2)
+    check("`order drop --note inbox` is refused, whatever the CR, and moves nothing",
+          "never sends a CR to the inbox" in w.last_stderr and w.cr(moved)["status"] == "queued",
+          w.last_stderr)
+    _, out = w.chantier("order", "drop", moved, "--note", "ready")
+    ready = w.cr(moved)
+    ready_dir = w.state / ready["path"]
+    check("the CR that came back is dropped to `ready`: its folder is in `3-ready/<number>-<slug>` "
+          "with `formerly.json`, and its STATUS.md says where it went",
+          ready["status"] == "cancelled" and ready["left_to"] == "3-ready"
+          and re.fullmatch(rf"3-ready/0*{moved_number}-[\w-]+", ready["path"]) is not None
+          and (ready_dir / "formerly.json").is_file()
+          and "⚪ dropped to 3-ready" in (ready_dir / "STATUS.md").read_text("utf-8")
+          and any(ln.startswith(f"dropped {moved} to 3-ready: ") for ln in out), str(out))
+    _, out = w.chantier("order", "add", "--note", ready["path"])
+    back = [c for c in w.batch()["crs"] if c["id"] == moved]
+    check("the CR dropped to `ready` comes back by `order add` under its number, as the same entry",
+          len(back) == 1 and back[0]["status"] == "queued"
+          and back[0]["path"].startswith("4-batch/1-pending/")
+          and not ready_dir.exists(), str(out))
     w.chantier("order", "drop", moved, "--note", "trash")
     check("the CR that came back is dropped to the trash again, as before",
           w.cr(moved)["status"] == "cancelled" and w.cr(moved)["left_to"] == "6-trash",

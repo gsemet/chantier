@@ -21,13 +21,15 @@ NEAR = 400  # characters between the held-CR line and the parked one
 CARDS = ("foreman.md", "chief-of-staff.md", "driver.md", "routing.md")
 
 
-def dropped(repo: Path, cr_id: str, chantier: Chantier, branch: bool = True) -> Path:
-    """The CR, ready with a PR, dropped to the backlog by the real order: its folder."""
+def dropped(
+    repo: Path, cr_id: str, chantier: Chantier, branch: bool = True, note: str = "P2"
+) -> Path:
+    """The CR, ready with a PR, dropped to the backlog or `ready` by the real order: its folder."""
     c = cr(repo, cr_id)
     patch(repo, cr_id, status="ready", pr=PR, pr_draft=True, notes=["kept"], cost_usd=COST)
     if branch and not sh("git", "branch", "--list", c["branch"], cwd=repo):
         sh("git", "branch", c["branch"], cwd=repo)
-    assert chantier("order", "drop", cr_id, "--note", "P2")[0] == 0
+    assert chantier("order", "drop", cr_id, "--note", note)[0] == 0
     return Path(changes(repo) / cr(repo, cr_id)["path"])
 
 
@@ -59,13 +61,13 @@ def test_a_cr_comes_back_to_another_batch_under_its_number_with_its_branch_and_p
     assert number(record(repo)["crs"][-1]["id"]) > number(cr_id)
 
 
-@pytest.mark.parametrize("branch", [True, False])
+@pytest.mark.parametrize(("branch", "note"), [(True, "P2"), (False, "P2"), (True, "ready")])
 def test_a_cr_comes_back_to_its_own_batch_as_the_same_entry(
-    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, branch: bool
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, branch: bool, note: str
 ) -> None:
     cr_id, other = started(repo, chantier, monkeypatch, 2, 1)
     before = cr(repo, cr_id)
-    folder = dropped(repo, cr_id, chantier, branch)
+    folder = dropped(repo, cr_id, chantier, branch, note)
     if not branch:
         sh("git", "worktree", "remove", "--force", before["worktree"], cwd=repo)
         sh("git", "branch", "-D", before["branch"], cwd=repo)
@@ -123,6 +125,14 @@ def test_the_cards_name_the_way_back_of_a_moved_out_cr() -> None:
     for words in ("gh pr reopen", "glab mr reopen", "never open a second PR"):
         assert words in " ".join(driver.split()), words
     assert "`order add --note <folder>`" in chief and "then `order merged <cr>`" in chief
+    foreman = " ".join((cards / "foreman.md").read_text(encoding="utf-8").split())
+    for card, words in (
+        (chief, "`ready`, `3-ready`"),
+        (foreman, "`6-trash`, `3-ready` or"),
+        (" ".join(driver.split()), "`6-trash`, `3-ready` or"),
+    ):
+        assert words in card, words
+    assert "inbox is not one of them" in chief and "`6-trash`, `1-inbox`" not in foreman
 
 
 def test_the_cards_name_the_park_and_its_way_back() -> None:

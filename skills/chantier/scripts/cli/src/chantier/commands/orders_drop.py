@@ -1,4 +1,5 @@
-"""`chantier order drop`: a CR leaves the batch for the trash, the inbox or the backlog."""
+"""`chantier order drop`: a CR leaves the batch for the trash, the backlog or the next batch
+(`3-ready`)."""
 
 from __future__ import annotations
 
@@ -6,7 +7,7 @@ from chantier.commands.orders_word import Word, target
 from chantier.core import leases
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.records import LIVE, TRASH, BatchRecord, CrEntry
-from chantier.lifecycle.moveout import check_drop_free, close_pr_clause, leave_batch
+from chantier.lifecycle.moveout import check_drop_free, leave_batch, pr_clause
 from chantier.rails import apart, is_parked
 from chantier.stack_apart import dependents
 
@@ -29,8 +30,9 @@ def _apart_line(d: BatchRecord, c: CrEntry, to: str | None) -> str:
 
 
 def drop(w: Word) -> list[str]:
-    """`order drop <cr> --note <folder>`: the CR leaves the batch for `6-trash`, `1-inbox` or
-    `2-backlog/P<n>`, its work kept; a live CR only records where, `cancel` moves it."""
+    """`order drop <cr> --note <folder>`: the CR leaves the batch for `6-trash`, the backlog
+    (`2-backlog/P<n>`) or the next batch (`3-ready`), its work kept; a live CR only records where,
+    `cancel` moves it."""
     b, c, cr_id, to = w.b, target(w), w.cr_id, w.note
     if c.status == "merged":
         raise ChantierError(f"cannot drop {cr_id}: it is already merged")
@@ -49,7 +51,7 @@ def drop(w: Word) -> list[str]:
         c.unset("held")
         c.unset("parked")
     c.left_to = to
-    w.clause = close_pr_clause(b, c)
+    w.clause = pr_clause(b, c)
     if c.status in LIVE:
         leases.end(c.lease)  # its old Driver's next command is `claim lost`
         b.touch(c)

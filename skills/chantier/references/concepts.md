@@ -90,7 +90,7 @@ At startup, identify the role, batch, project and parent session.
   ├── 03-change-spec.md    ← the Change Specification
   ├── summary.json         ← title, summary, origin, labels, group; through $CHANTIER summary, never by hand
   ├── STATUS.md, STATUS.json ← where the CR stands; the CLI writes them, never by hand
-  ├── formerly.json        ← where a CR taken out of a batch came from (batch, branch, worktree, PR); written by `order drop` to the inbox or the backlog
+  ├── formerly.json        ← where a CR taken out of a batch came from (batch, branch, worktree, PR); written by `order drop` to the backlog or `3-ready`
   ├── prototypes/NN-<idea>/ ← each prototype version, with a README.md that says how to run it; only once there is one
   ├── experiments/         ← scripts, tests, benchmarks, studies and research notes (sources, quotes) made for the CR; only once there is one
   ├── evidence/            ← proof kept with the CR: screenshots kept on purpose, the Verifier's (work/verifier/evidence/); only once there is one
@@ -190,8 +190,8 @@ At startup, identify the role, batch, project and parent session.
   (after `close`, the time of the merge) or, on `order drop`, `6-trash/…` (cancelled; it returns
   to the inbox only on the user's word, by `restore <6-trash/item> [--slug <name>]`, without its
   date or its batch number, and with a line `formerly CR-<n> of batch-<m>`), or
-  `1-inbox/<number>-<slug>/` or `2-backlog/P<n>/<number>-<slug>/` (taken out of the batch, keeping
-  its number, with `formerly.json`; when that folder joins a batch, it gets its number back, and its branch and PR while its branch exists; `formerly.json` is then deleted), always with its work; a release or fix CR leaves only to the
+  `2-backlog/P<n>/<number>-<slug>/` or `3-ready/<number>-<slug>/` (taken out of the batch, keeping
+  its number, never the inbox: `order drop` refuses it, with `formerly.json`; when that folder joins a batch, it gets its number back, and its branch and PR while its branch exists; `formerly.json` is then deleted), always with its work; a release or fix CR leaves only to the
   trash. A CR in the backlog
   or in `3-ready` goes back to the inbox with `triage <item> --inbox`.
 - **`3-ready`:** the folder of the CRs that wait for the next batch, specified or automatable (no

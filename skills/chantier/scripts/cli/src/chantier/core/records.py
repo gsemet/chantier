@@ -136,9 +136,9 @@ class CrEntry(Record):
     # the time the Foreman parked this CR (`park`): it waits on something outside the batch, in
     # `blocked`, out of the slots, the stack and the series order; None when not parked
     parked: str | None = None
-    # where the CR went when `order drop` took it out of the batch: `6-trash`, `1-inbox` or
-    # `2-backlog/P<n>`; None for a CR never dropped, and for a dropped one of an older record
-    # (read as trash)
+    # where the CR went when `order drop` took it out of the batch: `6-trash`, `3-ready` (the next
+    # batch) or `2-backlog/P<n>` (an older record may hold `1-inbox`); None for a CR never
+    # dropped, and for a dropped one of an older record (read as trash)
     left_to: str | None = None
     gate_waiver: GateWaiver | None = None
     phase: str | None = None  # the step its Driver is at (`chantier phase`)
@@ -149,9 +149,9 @@ class CrEntry(Record):
     waits: list[dict[str, Any]] = []
 
     def moved_to(self) -> str | None:
-        """The folder a dropped CR went to when it is the inbox or the backlog (`1-inbox`,
-        `2-backlog/P<n>`); None for a CR not dropped, and for one in the trash (or dropped by an
-        older record, with no `left_to`)."""
+        """The folder a dropped CR went to when it is the backlog or the next batch
+        (`2-backlog/P<n>`, `3-ready`; an older record may hold `1-inbox`); None for a CR not
+        dropped, and for one in the trash (or dropped by an older record, with no `left_to`)."""
         if self.status == "cancelled" and self.left_to and self.left_to != TRASH:
             return self.left_to
         return None
