@@ -107,7 +107,7 @@ long, until you say so.
 > "Add the CSV export to this batch."
 
 Several CRs can join a paused batch; it stays paused until the first one starts, then runs again and pauses again at the end, with the cost to date
-grown. A paused batch still blocks a new plan: new work joins it. A factory batch (see [Factory mode](../README.md#factory-mode)) pauses with no retro and no close offer, and waits for its next ready CR; it ends on your word.
+grown. A paused batch still blocks a new plan: new work joins it. A CR you send to the running batch (see [Running batch or next batch](../README.md#running-batch-or-next-batch)) joins it by `order add`, before your close, and starts it again.
 
 > "Close the batch."
 

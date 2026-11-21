@@ -38,9 +38,9 @@ nothing starts without it.
 
 One batch at a time. Whoever steers it, the three states are the same.
 
-A **factory** batch stays open: you open it empty, and each CR you make ready joins it on its own,
-on the go you gave once; it offers no close and ends on your word. See
-[Factory mode](../README.md#factory-mode).
+A CR grilled enough goes to the next batch (`3-ready`, the default) or, while a batch is open, to
+the running batch (`4-batch/1-pending/`), where placing it is the go; the batch ends as any other.
+See [Running batch or next batch](../README.md#running-batch-or-next-batch).
 
 ## Start on a new project
 

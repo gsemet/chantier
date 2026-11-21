@@ -9,7 +9,6 @@ from typing import Any
 
 from chantier.commands.closing import record_born_paused
 from chantier.commands.crs import grant_line
-from chantier.commands.factory import not_joined_line, not_joined_text
 from chantier.commands.joining import check_joins, join_cr
 from chantier.commands.opening_record import (
     instruction_files,
@@ -195,10 +194,9 @@ def _brief_text(b: Batch, args: argparse.Namespace, host: str, release: ReleaseG
     return (
         f"# {b.id}\n\n- Mode: {data.mode}. Slots: {args.slots}. "
         f"Budget: {args.budget or 'none'}. Host: {host}. "
-        f"Steering: {data.steering}. Factory: {'on' if data.factory else 'off'}.\n"
+        f"Steering: {data.steering}.\n"
         + (
-            "- CRs, in order: none yet (born paused; each CR made ready with "
-            "`triage --ready` joins on its own)\n"
+            "- CRs, in order: none yet (born paused; each CR joins by `order add`)\n"
             if not data.crs
             else "- CRs, in order:\n" + "".join(_cr_line(b, c) for c in data.crs)
         )
@@ -275,20 +273,10 @@ def _empty_lines(
     host, data, brief, where = shape
     return [
         f"opened {b.id} on {host}: no CR, paused, {args.slots} slots{where}, "
-        f"{data.mode}, steering {data.steering}, factory",
+        f"{data.mode}, steering {data.steering}",
         f"next: complete the brief {shown(repo, brief)}, then start the Foreman (direct mode: "
-        f"steer it yourself); {FACTORY_NEXT}",
-        *_ready_lines(repo, b),
+        f"steer it yourself); each CR joins it by `order add --note <folder> --batch {b.id}`",
     ]
-
-
-FACTORY_NEXT = "each CR made ready with `triage <folder> --ready` joins it on its own (factory)"
-
-
-def _ready_lines(repo: Repo, b: Batch) -> list[str]:
-    """A factory batch: the CRs `3-ready` already holds, which the factory's go covers."""
-    left = not_joined_line(repo) if b.record.factory else None
-    return [not_joined_text(left, b.id)] if left else []
 
 
 def _direct_needs_a_chief(args: argparse.Namespace, chief: str | None) -> None:
@@ -331,27 +319,20 @@ def open_batch(args: argparse.Namespace) -> list[str]:
             brief = b.dir / "brief.md"
             told = _open_crs(b, args, release)
             brief.write_text(_brief_text(b, args, host, release), encoding="utf-8")
-            b.log(
-                "open",
-                None,
-                crs=[c.id for c in b.record.crs],
-                **({"factory": True} if b.record.factory else {}),
-            )
+            b.log("open", None, crs=[c.id for c in b.record.crs])
             if not b.record.crs:
                 record_born_paused(b)
     if not args.items:
         return _empty_lines(repo, b, args, (host, data, brief, where))
     lines = [
         f"opened {b.id} on {host}: {len(args.items)} CRs, {args.slots} slots{where}, "
-        f"{data.mode}, steering {data.steering}" + (", factory" if data.factory else "")
+        f"{data.mode}, steering {data.steering}"
     ]
     # the next step comes before the CR list: past ten lines it is the list that is cut
     lines.append(
         f"next: complete the brief {shown(repo, brief)}, then "
         + ("steer it yourself" if args.direct else "start the Foreman")
-        + (f"; {FACTORY_NEXT}" if data.factory else "")
     )
-    lines += _ready_lines(repo, b)
     for c, src in zip(b.record.crs, selected, strict=False):
         lines.append(f"{c.id} {c.title[:40]}: {_short(src)} -> {_short(c.path or '')}")
         lines += [told[c.id]] if c.id in told else []

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import argparse
+
 from chantier.commands.registry import NO_BATCH, Subparsers, add_command
 
 
@@ -31,9 +33,14 @@ def register(sub: Subparsers) -> None:
         "triage",
         "chantier.commands.intake:triage",
         "move an inbox, backlog or 3-ready CR to a priority of the backlog, to 3-ready, or back "
-        "to the inbox",
+        "to the inbox; or mark a grilled CR for the running batch",
         NO_BATCH,
     )
+    _register_triage_choices(s)
+    _register_trash(sub)
+
+
+def _register_triage_choices(s: argparse.ArgumentParser) -> None:
     s.add_argument(
         "item",
         help="path to the CR folder: 1-inbox/<item>, 2-backlog/P<n>/<item> or 3-ready/<item>",
@@ -43,17 +50,19 @@ def register(sub: Subparsers) -> None:
     g.add_argument(
         "--ready",
         action="store_true",
-        help=(
-            "the CR waits in 3-ready for the next batch; in a factory batch it joins that batch "
-            "at once, as `order add` would"
-        ),
+        help="the CR waits in 3-ready for the next batch; it joins no batch",
     )
     g.add_argument(
         "--inbox",
         action="store_true",
         help="the CR goes back to 1-inbox (from the backlog or 3-ready)",
     )
-    _register_trash(sub)
+    g.add_argument(
+        "--running-batch",
+        action="store_true",
+        help="mark a grilled inbox or backlog CR for the open batch (work/running-batch); it "
+        "moves nothing, and joins by `order add` once its specification is final",
+    )
 
 
 def _register_trash(sub: Subparsers) -> None:

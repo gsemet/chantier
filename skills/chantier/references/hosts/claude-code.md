@@ -76,7 +76,7 @@ the steering session's own or the automatic one (the record alone does not stop 
 later wake's `status --refresh` resets it),
 and on the first wake that sees no Driver of any kind (CR, stack, QA, release) run for 30 minutes
 or more, whatever the wake's interval, and no order is undone. An order's line or a `ping` starts a turn; if it leaves a Driver running, the
-Foreman arms the heartbeat again. On a batch born paused with no CR, or a factory batch at its pause, the steering session (the
+Foreman arms the heartbeat again. On a batch born paused with no CR, the steering session (the
 Foreman, or the Chief of Staff in direct mode) arms the loop only in the turn of its first `take`.
 No wake ever arriving is a stop. Proved: same.
 

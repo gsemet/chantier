@@ -114,8 +114,6 @@ takes new CRs, either steering
 ```md
 stays paused, however long,
 until you say “close the batch”
-a factory batch: no close offered;
-it waits for its next ready CR
 ```
 
 ## Paused to running
@@ -133,7 +131,7 @@ new CRs join it, any number; the first take sets it running again; it pauses aga
 ```
 
 ```md
-or, in a factory batch, triage --ready
+or order add, from the destination you chose
 ```
 
 ## Paused to closed
@@ -145,12 +143,6 @@ or, in a factory batch, triage --ready
 ```md
 the check,
 then your yes
-```
-
-```md
-a factory batch:
-order factory off,
-then the retro and the close
 ```
 
 ## Closed

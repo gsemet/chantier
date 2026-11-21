@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 
 import pytest
-from batch_helpers import FROM_AGENTS_MD, changes, host, open_factory, prepared, record
+from batch_helpers import FROM_AGENTS_MD, changes, host, open_bare, prepared, record
 from conftest import SKILL, Chantier, sh
 from test_batch_end import cr, patch, started
 from test_order_drop_to import PR, one
@@ -92,17 +92,20 @@ def test_a_cr_comes_back_to_its_own_batch_as_the_same_entry(
         )
 
 
-def test_triage_ready_of_a_moved_out_cr_joins_a_factory_batch_under_its_number(
+def test_order_add_of_a_moved_out_cr_from_3_ready_gives_it_its_number_back(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    open_factory(repo, chantier, monkeypatch, "--factory", str(prepared(repo, chantier, "Fac")))
+    open_bare(repo, chantier, monkeypatch, str(prepared(repo, chantier, "Back")))
     cr_id = record(repo)["crs"][0]["id"]
     folder = dropped(repo, cr_id, chantier)
+    before = record(repo)["crs"]
     code, out, err = chantier("triage", str(folder), "--ready")
+    assert code == 0 and len(out) == 1 and out[0].startswith("triaged "), err
+    assert record(repo)["crs"] == before  # `triage --ready` joins nothing
+    code, out, err = chantier("order", "add", "--note", f"3-ready/{folder.name}")
     assert code == 0, err
     assert [c["id"] for c in record(repo)["crs"]] == [cr_id]
     assert any(x.startswith(f"{cr_id} joins with its branch ") for x in out)
-    assert out[-1].startswith(f"factory {record(repo)['id']}: {cr_id} joined on its own")
     assert (
         read_batch_json(Repo.find().store, changes(repo) / "4-batch" / "batch.json").crs[0].status
         == "queued"

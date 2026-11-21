@@ -253,7 +253,7 @@ def archive_name(cr: CrEntry, folder: Path) -> str:
     return f"{day}-{folder.name}"
 
 
-TRIAGE_USAGE = "triage takes --priority P<n>, --ready or --inbox, one of them"
+TRIAGE_USAGE = "triage takes --priority P<n>, --ready, --inbox or --running-batch, one of them"
 
 
 def _destination(paths: dict[str, Path], source: Path, to: str) -> tuple[Path, str]:

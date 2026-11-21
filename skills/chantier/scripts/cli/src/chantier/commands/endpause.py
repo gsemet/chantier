@@ -40,13 +40,7 @@ def _cleanup(repo: Repo, c: CrEntry) -> tuple[str, bool]:
     return f"cleanup: {c.id} worktree and branch already gone", False
 
 
-def _next_line(batch: str, factory: bool) -> str:
-    if factory:
-        return (
-            f"next: factory {batch} waits for its next ready CR (`triage <folder> --ready`): "
-            "no retro and no close now; they come on the user's word (`order factory off`, then "
-            "the retro and the close offer)"
-        )
+def _next_line() -> str:
     return (
         "next: the retro (with its critic), then offer the close (`chantier close`, then "
         "`close --yes` on the user's yes)"
@@ -85,7 +79,7 @@ def end_of_batch(repo: Repo, batch: str, trigger: str) -> list[str]:
         f"paused {batch}: every CR is merged or cancelled; cost to date below",
         f"report: {b.dir / 'STATUS.md'}",
         *summary,
-        _next_line(batch, b.record.factory),
+        _next_line(),
         *(
             [
                 "kept: remove them once their Driver has ended, or on the user's word at "

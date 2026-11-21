@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from batch_helpers import open_batch, record, write_record
+from batch_helpers import open_bare, open_batch, prepared, record, write_record
 from conftest import Chantier, sh
 from stack_world import Batch, stack_of
 
@@ -252,15 +252,27 @@ def test_close_names_the_merged_crs_leftovers_beside_the_dropped_ones(
     assert not any(x.startswith(removed) for x in line)
 
 
-def test_the_end_of_the_last_cr_of_a_factory_batch_waits_for_the_next_ready_cr(
-    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("empty", [False, True])
+def test_the_end_of_the_last_cr_offers_the_retro_and_a_later_add_starts_the_batch_again(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, empty: bool
 ) -> None:
-    first, last = started(repo, chantier, monkeypatch, 2, 2, "--factory")
-    assert record(repo)["factory"] is True and merge(chantier, first)[0] == 0
+    """Every batch ends its last CR with the ordinary pause, a batch opened with no CR too; until
+    the close, a CR placed in `1-pending` by `order add` starts it again at the next `take`."""
+    if empty:
+        open_bare(repo, chantier, monkeypatch)
+        assert chantier("foreman", "set", "local_foreman_t", "--epoch", 1)[0] == 0
+        assert chantier("order", "add", "--note", str(prepared(repo, chantier, "Late")))[0] == 0
+        (last,) = (c["id"] for c in record(repo)["crs"])
+        assert chantier("take", last, "--epoch", 1)[0] == 0
+    else:
+        first, last = started(repo, chantier, monkeypatch, 2, 2)
+        assert merge(chantier, first)[0] == 0
     code, out, err = merge(chantier, last)
     assert code == 0, err
-    assert record(repo)["status"] == "paused" and exists(repo, last) == (False, False)
-    assert any(line.startswith("cleanup: ") for line in out)  # cleaned as in any batch
-    text = " ".join(out)
-    assert "waits for its next ready CR" in text and "order factory off" in text
-    assert "offer the close" not in text and "the retro (with its critic)" not in text
+    assert record(repo)["status"] == "paused" and "factory" not in record(repo)
+    assert any(line.startswith("next: the retro (with its critic)") for line in out)
+    code, out, err = chantier("order", "add", "--note", str(prepared(repo, chantier, "Again")))
+    assert code == 0, err
+    assert any("the first `take` sets it running again" in line for line in out)
+    again = record(repo)["crs"][-1]["id"]
+    assert chantier("take", again, "--epoch", 1)[0] == 0 and record(repo)["status"] == "running"

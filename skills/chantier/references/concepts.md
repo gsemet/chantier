@@ -184,7 +184,8 @@ At startup, identify the role, batch, project and parent session.
   cell. The specification names the matrix in its evidence. A CR with neither dependency has none.
 - **Lifecycle:** the folder moves, it is never copied: `1-inbox/` (filed) → `2-backlog/P1…P4/`
   (the user prioritized it) → `3-ready/` (waiting for the next batch) →
-  `4-batch/1-pending/<number>-<slug>/` (in the batch, not started) → `2-actives/` (taken by a
+  `4-batch/1-pending/<number>-<slug>/` (the running batch, not started: a CR arrives by `open` or
+  `order add`, the latter from the destination the user chose at "grilled enough?") → `2-actives/` (taken by a
   Driver) → `3-done/` (merged, until `close`) → `5-archives/<YYMMDD-HHMM>-<number>-<slug>/`
   (after `close`, the time of the merge) or, on `order drop`, `6-trash/…` (cancelled; it returns
   to the inbox only on the user's word, by `restore <6-trash/item> [--slug <name>]`, without its
@@ -194,7 +195,8 @@ At startup, identify the role, batch, project and parent session.
   trash. A CR in the backlog
   or in `3-ready` goes back to the inbox with `triage <item> --inbox`.
 - **`3-ready`:** the folder of the CRs that wait for the next batch, specified or automatable (no
-  specification: the Driver works from the request alone), moved there on the user's word. It is
+  specification: the Driver works from the request alone), moved there on the user's word. It
+  always means the next batch: `triage --ready` joins no batch. It is
   not "ready to merge": a CR handed back `ready` sits in `4-batch/2-actives/`, never in
   `3-ready`. Write the folder `3-ready`, never "the ready CRs". From the web board the user may
   say "the next batch is ready": the board writes `next-batch.json` in the planning folder (the
@@ -311,11 +313,7 @@ At startup, identify the role, batch, project and parent session.
      slots, worked, handed back, merged by the user, or dropped. `open` with no CR creates the
      batch **paused**, with no CR: no cost to show, no retro, no close offer at that pause (steps 3
      and 4 do not apply to it); `order add` joins CRs and the first `take` sets it running, as in
-     step 3. A **factory** batch (opened empty, with `--factory`, or by `order factory on`) takes
-     each CR made ready with `triage --ready` at once; at its last CR's end it is paused with no
-     retro and no close offer; it ends on the user's word (`order factory off`, then the retro and
-     the close; a batch that never held a CR goes straight to the close), or after a release CR it
-     took, which turns the factory off.
+     step 3: an ordinary batch that waits for its CRs in `1-pending`.
   2. **Complete:** every CR is merged or cancelled. The CLI removes each merged CR's worktree
      and branch (one whose agent is still held, or that git refuses, is kept and named) and runs
      `pause` itself: the batch is **paused**. With a note, a QA or a stack Driver pending, it
@@ -330,7 +328,8 @@ At startup, identify the role, batch, project and parent session.
      `5-archives/batches/batch-NN.md` and deletes `4-batch/retro.md` with the batch's files);
      each later pause adds its own section. The batch is not closed (one batch at a time, so `open` still refuses a new
      batch). It takes new CRs:
-     `order add` adds them, any number, and the batch stays paused; the first `take` (or an
+     `order add` adds them, any number, and the batch stays paused (until the user's close, a CR
+     placed in `1-pending` starts the paused batch again); the first `take` (or an
      `order qa`) sets it running again, and it pauses again at the end with the cost to date,
      which has grown.
   4. **Closed:** only on the user's word: the close is offered at the pause, unprompted, once the

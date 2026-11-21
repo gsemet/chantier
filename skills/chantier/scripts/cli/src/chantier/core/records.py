@@ -242,7 +242,6 @@ class BatchRecord(Record):
     paused: str | None = None
     summary: list[str] = []
     closing: bool = False
-    factory: bool = False  # a CR made ready with `triage --ready` joins on its own
 
 
 class EventRecord(Record):

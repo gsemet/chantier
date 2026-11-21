@@ -116,23 +116,22 @@ A CR that depends on another (`depends.json`) waits for it in every mode. A fix 
 sits outside a series and a stack; a release CR is their top. The lifecycle of a batch (running, paused, closed) is the same in
 all three.
 
-## Factory mode
+## Running batch or next batch
 
-A factory batch stays open. You give the go once; from then on each CR you make ready joins it on
-its own, with no go per CR, and the batch never ends by itself: it closes only on your word.
+When a CR is grilled enough, you choose where it goes, at "grilled enough?" and at every start of
+its spec-writer:
 
-- **Open one:** ask to "open an empty batch" (a batch opened with no CR is a factory), or ask for a
-  factory with CRs (`open --factory`), or turn the open batch into one (`order factory on`). The
-  usual opening is `--mode stack --slots 4`: CRs stack up as they become ready, four at a time.
-- **What joins on its own:** a CR made ready with `triage <folder> --ready`, specified or
-  automatable, joins in the same call, as `order add` would. The budget is unchanged: a CR may join
-  past it, but no Driver starts past it.
-- **What does not:** a release CR, which joins with its own go (`order add --release`) and turns the
-  factory off, so the batch ends after the release as an ordinary one; and a CR moved to `3-ready`
-  on the board, which the Chief of Staff adds itself.
-- **Stop it:** `order factory off`, on your word; the batch then ends like any other.
-- **How it ends:** at its last CR's end the batch pauses, with no retro and no close offer, and
-  waits for the next ready CR. On your `close`, the retro comes first, then the close.
+- **The next batch** (`3-ready`), the default: the CR waits there for the next batch's plan.
+  `3-ready` always means the next batch.
+- **The running batch** (`4-batch/1-pending/`), offered only while a batch is open: the CR is
+  marked (`triage <folder> --running-batch`) while its specification is written, then joins by
+  `order add` once the specification is final. Placing a CR in `1-pending` is the go, in every mode
+  (parallel, series, stack): the steering session takes it when a slot frees.
+
+There is no special mode: a batch's last CR leads to the ordinary pause, then the retro and the
+close offer. Until your `close`, the paused batch is still the running batch, and a CR placed in
+`1-pending` starts it again at the next `take`. A batch opened with no CR is an ordinary paused
+batch that waits for its CRs in `1-pending`.
 
 ## What a batch costs
 

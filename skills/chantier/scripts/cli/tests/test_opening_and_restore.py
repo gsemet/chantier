@@ -10,7 +10,7 @@ from batch_helpers import FROM_AGENTS_MD, changes, events, host, prepared, recor
 from conftest import Chantier
 from pytest import MonkeyPatch
 
-from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE
+from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION
 
 SPEC = "03-change-spec.md"
 
@@ -87,36 +87,26 @@ def three_ready(repo: Path, chantier: Chantier, title: str) -> Path:
     return repo / out[0].removeprefix("triaged ")
 
 
-@pytest.mark.parametrize("how", ["no-cr", "flag", "plain"])
-def test_open_makes_a_factory_only_with_no_cr_or_the_flag(
+@pytest.mark.parametrize("how", ["no-cr", "plain"])
+def test_open_makes_no_factory_and_leaves_3_ready_alone(
     repo: Path, chantier: Chantier, monkeypatch: MonkeyPatch, how: str
 ) -> None:
     host(monkeypatch)
     waiting = three_ready(repo, chantier, "Waiting in ready")
     item = prepared(repo, chantier, "Opened") if how != "no-cr" else None
-    args = (str(item),) if item else ()
-    code, out, err = chantier(
-        "open", *args, *(("--factory",) if how == "flag" else ()), *FROM_AGENTS_MD
-    )
+    code, out, err = chantier("open", *((str(item),) if item else ()), *FROM_AGENTS_MD)
     assert code == 0, err
-    on = how != "plain"
     brief = (changes(repo) / "4-batch" / "brief.md").read_text("utf-8")
-    assert record(repo)["factory"] is on and f"Factory: {'on' if on else 'off'}." in brief
-    assert out[0].endswith(", factory") == on
-    assert ("(factory)" in out[1]) == on
-    held = [x for x in out if x.startswith("3-ready holds")]
-    assert bool(held) == on  # the CR left in 3-ready is named, the factory's go covers it
-    if held:
-        assert "1 CRs not joined" in held[0] and waiting.name in held[0] and "order add" in held[0]
+    assert "factory" not in record(repo) and "Factory" not in brief
+    assert not any("factory" in x for x in out) and waiting.is_dir()
+    assert len(record(repo)["crs"]) == (0 if how == "no-cr" else 1)
     opened = next(e for e in events(repo) if e["kind"] == "open")
-    assert opened.get("factory") is (True if on else None)
+    assert "factory" not in opened
 
 
-def test_open_refuses_a_release_in_a_factory(
-    repo: Path, chantier: Chantier, monkeypatch: MonkeyPatch
-) -> None:
+def test_open_has_no_factory_flag(repo: Path, chantier: Chantier, monkeypatch: MonkeyPatch) -> None:
     host(monkeypatch)
-    item = prepared(repo, chantier, "Release")
-    code, _, err = chantier("open", "--factory", "--release", 1, str(item), *FROM_AGENTS_MD)
-    assert code == EXIT_USAGE and "order add --release" in err and "turns the factory off" in err
+    with pytest.raises(SystemExit) as refused:
+        chantier("open", "--factory", *FROM_AGENTS_MD)
+    assert refused.value.code  # argparse refuses an unknown option
     assert not (changes(repo) / "4-batch" / "batch.json").exists()

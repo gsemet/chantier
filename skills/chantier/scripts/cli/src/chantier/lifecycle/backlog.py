@@ -15,6 +15,7 @@ from chantier.core.files import heading_of, inside, markdown_title, read_json, r
 from chantier.core.records import TITLE_MAX
 from chantier.core.repo import Repo
 from chantier.lifecycle.filing import new_request, shown, slugify
+from chantier.lifecycle.running_batch import clear_mark
 from chantier.lifecycle.stages import (
     PRIORITIES,
     changes_lock,
@@ -88,9 +89,11 @@ def file_idea(
 
 
 def move_item(repo: Repo, item: str, to: str) -> list[str]:
-    """Triage: `to` is `inbox`, `P1` to `P4` or `3-ready`; `item` is the CR folder."""
+    """Triage: `to` is `inbox`, `P1` to `P4` or `3-ready`; `item` is the CR folder. A mark for
+    the running batch goes: the user changed the CR's destination."""
     with changes_lock(repo):
         target = move_backlog_item(repo, item, to, stage_layout(repo))
+        clear_mark(repo, target)
         write_dashboard(repo, stage_layout(repo))
     return [f"triaged {shown(repo, target)}" + (f" ({to})" if to in PRIORITIES else "")]
 

@@ -15,6 +15,7 @@ from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.records import CrEntry
 from chantier.core.repo import Repo
 from chantier.lifecycle.filing import slugify
+from chantier.lifecycle.running_batch import mark_path
 from chantier.lifecycle.stages import ensure_unclaimed, prepared_cr, stage_layout
 
 
@@ -55,6 +56,7 @@ def join_paths(repo: Repo, directories: list[Path]) -> list[Path]:
             cdir,
             *([cdir / "formerly.json"] if came else []),
             *([cdir / waits.FILE] if (directory / waits.FILE).exists() else []),
+            *([mark_path(cdir)] if mark_path(directory).is_file() else []),
         ]
     return touched
 
@@ -113,6 +115,8 @@ def join_cr(b: Batch, item: str, kind: str = "change") -> tuple[CrEntry, str | N
     if found is not None:
         c.waits = waits.carried(c.waits if held is not None else None, found)
         b.consume(cdir / waits.FILE)
+    if mark_path(cdir).is_file():  # it joined: its mark for the running batch is spent
+        b.consume(mark_path(cdir))
     if not came:
         b.log("add", cr_id, title=title, path=c.path, origin=origin)
         return c, None
