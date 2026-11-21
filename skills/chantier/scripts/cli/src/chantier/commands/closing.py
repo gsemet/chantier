@@ -180,8 +180,9 @@ def _to_remove(repo: Repo, d: BatchRecord) -> list[str]:
 
 
 def _kept(repo: Repo, d: BatchRecord) -> list[str]:
-    """The CRs `order drop` moved to the inbox or the backlog: they keep their work, nothing on
-    their line is removed. A folder that has moved on since (triaged, added again) says so."""
+    """The CRs `order drop` moved to the backlog or the next batch (`3-ready`): they keep their
+    work, nothing on their line is removed. A folder that has moved on since (triaged, added
+    again) says so."""
     kept = []
     for c in d.crs:
         to = c.moved_to()

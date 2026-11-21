@@ -46,8 +46,9 @@ def waiting(data: BatchRecord) -> Moved:
 
 
 def moved(data: BatchRecord) -> Moved:
-    """The PR numbers of the batch's CRs moved to the inbox or the backlog that have a PR (to
-    their CR id and folder): their work is kept, they are left out of the stack, on main."""
+    """The PR numbers of the batch's CRs moved to the backlog or the next batch (`3-ready`)
+    that have a PR (to their CR id and folder): their work is kept, they are left out of the
+    stack, on main."""
     found = {}
     for c in data.crs:
         link = (PR_LINK.match(c.pr) or GITLAB_LINK.match(c.pr)) if c.pr else None

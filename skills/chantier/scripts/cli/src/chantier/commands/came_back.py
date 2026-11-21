@@ -1,5 +1,6 @@
-"""A CR taken out of a batch (`order drop` to the inbox or the backlog) that joins one again:
-its `formerly.json` gives it its number back, and its branch and PR while its branch exists."""
+"""A CR taken out of a batch (`order drop` to the backlog or the next batch, `3-ready`) that joins
+one again: its `formerly.json` gives it its number back, and its branch and PR while its branch
+exists."""
 
 from __future__ import annotations
 

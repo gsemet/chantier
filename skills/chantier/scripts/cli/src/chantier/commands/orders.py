@@ -222,15 +222,25 @@ def _record_order(b: Batch, args: argparse.Namespace, req: _Req) -> str:
 
 
 DROP_USAGE = (
-    "order drop <cr> --note trash|inbox|P1..P4: where the CR goes; ask the user when they "
-    "have not said it"
+    "order drop <cr> --note trash|ready|P1..P4: where the CR goes (ready: the next batch); "
+    "ask the user when they have not said it"
 )
-_DROP_FOLDERS = {"trash": TRASH, "inbox": "1-inbox", **{f"p{n}": f"2-backlog/P{n}" for n in "1234"}}
+_DROP_FOLDERS = {
+    "trash": TRASH,
+    "ready": "3-ready",
+    **{f"p{n}": f"2-backlog/P{n}" for n in "1234"},
+}
 
 
 def _drop_folder(note: str) -> str:
     """`order drop`'s word as the folder it names; no default, the user says where."""
-    folder = _DROP_FOLDERS.get(note.strip().lower())
+    word = note.strip().lower()
+    if word == "inbox":
+        raise ChantierError(
+            "order drop never sends a CR to the inbox: P1..P4, ready (the next batch) or trash",
+            EXIT_USAGE,
+        )
+    folder = _DROP_FOLDERS.get(word)
     if folder is None:
         raise ChantierError(DROP_USAGE, EXIT_USAGE)
     return folder

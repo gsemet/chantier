@@ -16,7 +16,7 @@ def register(sub: Subparsers) -> None:
     )
     s.add_argument(
         "kind",
-        help="add [--release], after, drop (--note trash|inbox|P1..P4), merged, hold|unhold "
+        help="add [--release], after, drop (--note trash|ready|P1..P4), merged, hold|unhold "
         "(a live CR, or a ready CR of a stack, out of the slots and the order, and back), note, "
         "rounds, slots, budget, qa, "
         "mode (any mode to any other), "
@@ -27,9 +27,9 @@ def register(sub: Subparsers) -> None:
     s.add_argument("cr", nargs="?", default="-", help="the CR, or the order id for `done`")
     s.add_argument(
         "--note",
-        help="add: <folder>, or a release's fix file; drop: trash, inbox or P1..P4, where the "
-        "CR goes (the user's word; never a default); after: the CR ids it waits "
-        "for, comma separated, or - for none; note: the line; rounds, "
+        help="add: <folder>, or a release's fix file; drop: trash, P1..P4 or ready (the next "
+        "batch, 3-ready), where the CR goes (the user's word; never a default); "
+        "after: the CR ids it waits for, comma separated, or - for none; note: the line; rounds, "
         "slots, budget: the number; mode: parallel, series or stack; qa: what to test; "
         "approve: the action; grant: releases=N fixes=on|off budget=N; "
         "confirm: the user's word to run the release procedure, once the other CRs are merged",

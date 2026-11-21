@@ -128,6 +128,9 @@ does a unit that is not in `UNITS` and a test that does not exist.
 - dropping a live CR to the trash (`order drop --note trash`, then `cancel`: its processes stopped), a CR
   added to a running direct batch dropped to the backlog P3 (its folder `2-backlog/P3/<number>-<slug>` with
   `formerly.json`, `⚪ dropped to 2-backlog/P3` in its STATUS.md, a CR added after it numbered above it),
+  then dropped to `ready` (its folder `3-ready/<number>-<slug>` with `formerly.json`, `⚪ dropped to
+  3-ready` in its STATUS.md) and brought back by `order add` under its number, `order drop --note
+  inbox` refused for any CR,
   adding an item, an order applied at once and
   marked done, a note on a ready CR that the Foreman sends back with a Driver, more rounds
   granted, `slots 0` as a hold (its usage line says "0 holds"), a wider budget, a ready CR taken

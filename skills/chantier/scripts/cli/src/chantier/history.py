@@ -32,7 +32,8 @@ def last_closed_text(record: Rec | None) -> str:
 
 def archive_of(c: CrEntry) -> str | None:
     """A CR's folder after `close`, relative to the planning folder, in `/` form; None for a CR
-    moved to the inbox or the backlog, which stays there, out of the batch's archive."""
+    moved to the backlog or the next batch (`3-ready`), which stays there, out of the batch's
+    archive."""
     path = c.path
     if c.moved_to():
         return None

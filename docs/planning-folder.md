@@ -30,9 +30,9 @@ holds what you say waits for the next batch (`chantier triage --ready`), with a 
 without one (then its Driver works from the request alone). A CR moves to `3-done` alone and at
 once when it merges, a stack's too, and to `5-archives` at `close`. `order drop` names where a
 CR goes, and you say it (the Chief of Staff asks when you have not): `6-trash/` (cancelled; it
-does not return to the backlog by itself), `1-inbox/` (to look at again) or `2-backlog/P1`..`P4`
-(postponed or handed off). Whatever the destination, the CR keeps its work, its worktree, its
-branch and its PR; only the trash closes the PR. A CR moved to the inbox or the backlog keeps its
+does not return to the backlog by itself), `3-ready/` (the next batch) or `2-backlog/P1`..`P4`
+(postponed or handed off); never the inbox. Whatever the destination, the CR keeps its work, its worktree, its
+branch and its PR; only the trash closes the PR, the others keep it as a draft. A CR moved to the backlog or the next batch keeps its
 number, in `<number>-<slug>/`, and a `formerly.json` records where it came from. A batch has no name, only a
 number, and `--batch` takes it (`4` or `batch-04`). One batch at a time, from `open` to your `close`: new work joins it
 through the Foreman (in direct mode, once it is paused). Its CRs run in one of three [modes](../README.md#batch-modes), `open --mode parallel|series|stack`

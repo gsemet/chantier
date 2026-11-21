@@ -90,8 +90,8 @@ class Apart(NamedTuple):
 
 def held_outside(outside: list[int], apart: Apart) -> str:
     """The PRs an unstacked stack held that are not planned: those of the batch's stack left out
-    of the rows, those of dropped CRs, those of held CRs, those of CRs moved to the inbox or the
-    backlog, and foreign ones."""
+    of the rows, those of dropped CRs, those of held CRs, those of CRs moved to the backlog or the
+    next batch (`3-ready`), and foreign ones."""
     left, dropped, held, moved, waiting = apart
     mine = [n for n in outside if n in left]
     gone = [n for n in outside if n in dropped]

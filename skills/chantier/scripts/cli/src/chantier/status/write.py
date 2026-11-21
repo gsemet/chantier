@@ -50,7 +50,7 @@ def write_final_pages(repo: Repo, d: BatchRecord, folder: Path) -> None:
             cr_folder
             and repo.store.is_dir(rel_in(repo.store.root, cr_folder))
             and folder not in cr_folder.parents
-            and not c.moved_to()  # moved to the inbox or the backlog: no final page there
+            and not c.moved_to()  # moved to the backlog or `3-ready`: no final page there
         ):
             v = cr_view(repo, d, c, (cr_folder, events.get(c.id, []), False))
             _write(cr_folder, cr_markdown(v), v)

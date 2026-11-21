@@ -1088,21 +1088,27 @@ CR-222 → CR-225 → CR-226 → CR-228."
 
   **Where a dropped CR goes.** The user's word that takes a CR out of a batch ("drop", "take it
   out", "postpone", "remove from the batch") names where it goes. When it does not, ask once, in
-  the user's language, before the order: the trash (cancelled), the inbox (to look at again), or
-  the backlog P1..P4 (postponed or handed off; the usual case for delegated work). Never choose for
+  the user's language, before the order: the trash (cancelled), the next batch (`ready`,
+  `3-ready`) or the backlog P1..P4 (postponed or handed off; the usual case for delegated work).
+  The inbox is not one of them, for any CR: a CR already planned has no reason to go back to the
+  inbox (`order drop --note inbox` is refused); a later move of its folder, the inbox included, is
+  `triage` or the board on the user's word. Never choose for
   the user: `order drop` is refused with no `--note`. A word that already says it needs no
   question ("cancel it" is the trash; "postpone it, P2" is `P2`). A word that only keeps a CR out of
-  the order for now (a ready CR of a stack, or a live CR in any mode) is `order hold`, not a drop. Whatever the destination, the CR keeps its work
-  (worktree, branch, PR); only the trash closes its PR. A CR moved to the inbox or the backlog
-  keeps its number (`formerly.json` in its folder).
+  the order for now (a ready CR of a stack, or a live CR in any mode) is `order hold`, not a drop.
+  Whatever the destination, the CR keeps its work (worktree, branch, PR); only the trash closes its
+  PR; the backlog and the next batch keep it as a draft. A CR moved to the backlog or the next
+  batch (`3-ready`) keeps its number (`formerly.json` in its folder).
   In direct mode, a drop line ending `close its PR <link>` (a trash drop, outside a stack) is
   yours: close it (`gh pr close <n>`, `glab mr close <n>`, no `--delete-branch`, no comment), then
-  `order done`. `cancel` of a live CR prints the same clause.
+  `order done`. A drop line ending `turn its PR to draft <link>` is the Foreman's in Foreman mode
+  and yours in direct mode (`gh pr ready <n> --undo`, `glab mr update <n> --draft`, no comment),
+  then `order done`. `cancel` of a live CR prints the same clauses.
 
   ```bash
   $CHANTIER order add --note "<prepared-folder or a release's fix file>" [--fix-for <release-cr> | --release]
   $CHANTIER order after CR-104 --note "CR-102,CR-103"   # what a queued CR waits for; "-" for none (not a release's)
-  $CHANTIER order drop CR-104 --note trash|inbox|P1..P4   # where it goes, with its work; a release or fix CR: trash only
+  $CHANTIER order drop CR-104 --note trash|ready|P1..P4   # where it goes, with its work; never the inbox; a release or fix CR: trash only
   $CHANTIER order note CR-102 --note "<one line: a change, an answer, a priority>"
   $CHANTIER order merged CR-101               # the user merged its PR: to 3-done
   $CHANTIER order slots --note 0              # 0 holds; a number resumes
@@ -1227,9 +1233,9 @@ CR-222 → CR-225 → CR-226 → CR-228."
   it lands (the hub or the board then writes a second line, `landed with`); the line keeps printing until
   the CR is recorded merged. When the user merges several PRs of a batch with no stack in one action (or several `forge saw merged` lines come at one `status` or one watcher's end), record `order merged` for the others first and the batch's top last.
   A CR taken out of a batch whose PR the user merges later, outside any batch (its folder is in the
-  inbox or the backlog, with `formerly.json`), has a route of its own: on "I merged #n" for it, run
-  `order add --note <folder>`, which brings back its number and its PR, then `order merged <cr>`
-  at once (Foreman mode: both lines to the Foreman in one message, the add first). With no batch
+  backlog or the next batch, `3-ready`, with `formerly.json`), has a route of its own: on "I
+  merged #n" for it, run `order add --note <folder>`, which brings back its number and its PR,
+  then `order merged <cr>` at once (Foreman mode: both lines to the Foreman in one message, the add first). With no batch
   open, tell the user the merge is recorded the same way in the next batch, and leave the folder
   as it is. A Driver's `blocked question: its PR <link> is already merged` is recorded the same
   way, with `order merged <cr>`.
@@ -1328,7 +1334,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   `take stack --epoch <n> --note "drop: <cr> to <destination>"`), then tell the user that the CR's
   commits come out of the PRs above it, and the PRs above it are PRs in draft (do not merge) until
   the next report's partial-stack line shows them ready to merge again. The rest depends on the
-  destination. Trash: its PR is closed and its branch stays until `close`. Inbox or backlog: its PR
+  destination. Trash: its PR is closed and its branch stays until `close`. Backlog or next batch (`3-ready`): its PR
   goes to draft and, by the rebuild, onto the default branch; its branch and worktree stay and are
   not offered for removal at `close`; its folder is at `<destination>/<number>-<slug>` and keeps
   its number. A held CR: nothing to rebuild (it is already a draft on the default branch). Nothing
@@ -1560,7 +1566,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   `--yes`), show the bilan, the final cost, what goes, and its line of worktrees and branches to
   remove, which names the merged CRs' leftovers beside the trashed CRs' whatever `final` said
   (with why each was kept, from `final` or the cleanup lines), and its `kept, moved out with their
-  work` line (the CRs dropped to the inbox or the backlog: show it, remove nothing on it), and ask
+  work` line (the CRs dropped to the backlog or the next batch (`3-ready`): show it, remove nothing on it), and ask
   "close the batch?";
   `close --yes` only on the user's yes, as the Closing bullet says. The close is offered after
   `final`, never before: the Foreman's retro critic must have handed back.

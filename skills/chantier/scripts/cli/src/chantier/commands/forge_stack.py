@@ -51,8 +51,9 @@ def _plan(
     cr, status, PR number or None), the forge's host, owner and repository, read from the PR
     links, the PR numbers of the batch's trashed CRs (to their CR ids), those of its held CRs (to
     their CR ids: a held PR is outside the stack, on the default branch), and those of its CRs
-    moved to the inbox or the backlog (to their CR id and folder), and those of the dependents of
-    an apart CR (to `<cr> waits with held <p>`: left out of the stack, not retargeted)."""
+    moved to the backlog or the next batch, `3-ready` (to their CR id and folder), and those of
+    the dependents of an apart CR (to `<cr> waits with held <p>`: left out of the stack, not
+    retargeted)."""
     repo = Repo.find()
     data = read_batch(repo, resolve_batch(repo, args.batch))
     if data.mode != "stack":
