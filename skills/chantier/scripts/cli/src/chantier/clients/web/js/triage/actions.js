@@ -21,7 +21,9 @@ export async function run(slugs, call) {
   let answer = null;
   try {
     answer = await call();
-    const words = (answer.journal ?? []).map((e) => e.text).join('; ');
+    const marked = (answer.journal ?? []).some((e) => e.kind === 'running-batch');
+    const said = marked ? answer.lines : (answer.journal ?? []).map((e) => e.text);
+    const words = said.join('; ');
     if (words) written(words);
   } catch (error) {
     say(error);

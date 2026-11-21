@@ -107,6 +107,22 @@
   justify-content: start;
 }
 
+/* a named lane (Triage's last column holds two): its name in the head, its own sub-line, a plain
+   list of cards; idle greys it (no running batch), a drop target all the same */
+.column-named .column-head h2 {
+  font-size: var(--text);
+}
+
+.column-idle {
+  background: var(--side);
+  border-style: dashed;
+}
+
+.column-idle .column-head h2,
+.column-idle .column-count {
+  color: var(--ink3);
+}
+
 /* an empty lane is a thin strip */
 .column-empty {
   padding: var(--space-off-6) var(--space-3);

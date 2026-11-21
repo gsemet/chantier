@@ -83,7 +83,7 @@ refused (400).
 | `prs.get` | `project`, `batch`? | the batch's PRs as the forge says they are now (`all_done`, `closed`, the rows, `now`) |
 | `seats.register` | `session`, `project`? | the seat of a session is recorded for the board |
 | `backlog.new` | `project`, `text`, `slug`?, `title`? | the item filed in the inbox |
-| `backlog.move` | `project`, `to`, `items`?, `group`? | the items moved to `to` (the inbox, a priority, `3-ready`) |
+| `backlog.move` | `project`, `to`, `items`?, `group`? | the items moved to `to` (the inbox, a priority, `3-ready`), or `running-batch`: marked for the open batch, or, from `3-ready`, a journal line only; with no open batch, moved to `3-ready` |
 | `backlog.labels` | `project`, `items`, `add` | labels added to the items |
 | `backlog.group` | `project`, `items`, `name` | the items put in a group |
 | `backlog.ungroup` | `project`, `name` | the group dissolved |
@@ -97,7 +97,11 @@ refused (400).
 
 The writes are the ones the web board always had, through the same role-free commands, and they
 refuse what those refuse. Each backlog write appends its `board@1` line, and each `config.put`
-its `config@1` lines, to the project's `forge-journal.jsonl`, as before.
+its `config@1` lines, to the project's `forge-journal.jsonl`, as before. A `running-batch` write
+appends a `board@1` line with the action `running-batch`.
+
+A backlog item (`project.state`'s `backlog`) carries `running_batch`: the open batch's id when the
+item's `work/running-batch` names it, else `null` (a stale mark, or no open batch, gives `null`).
 
 Example, over HTTP:
 

@@ -5,6 +5,7 @@
 import { html } from '../core/dom.js';
 import { stageOf } from '../model/grill.js';
 import { itemKey } from '../model/targets.js';
+import { markedWord, RUNNING } from '../model/triage.js';
 import { t } from '../model/words.js';
 import { icon } from '../ui/icons.js';
 import { itemCard } from '../ui/item-card.js';
@@ -41,7 +42,9 @@ export function postit(item, ctx) {
   const variants = ['pick-up', sel && 'picked', busy && 'pending'];
   const label = `${slug}, ${item.title ?? ''}${sel ? `, ${t('postit.selected')}` : ''}`;
   const attrs = html`draggable="${!busy}" tabindex="0" role="group" aria-label="${label}" aria-busy="${busy}" data-slug="${slug}" data-key="pi-${slug}" title="${t(`postit.${stageOf(item)}`)}"`;
-  return itemCard(item, ctx.column, ctx.labels, {
+  const running = ctx.column === RUNNING;
+  return itemCard(item, item.bucket ?? ctx.column, ctx.labels, {
+    note: running ? html`<span>${t(markedWord(item))}</span>` : '',
     classes,
     variants,
     attrs,

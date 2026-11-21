@@ -1,4 +1,4 @@
-/* Triage: the inbox, the backlog lanes and 3-ready, as post-its. Colours come from tokens.css only. */
+/* Triage: the inbox, the backlog lanes and the last column's two halves, as post-its. Colours come from tokens.css only. */
 .triage {
   display: flex;
   flex-direction: column;
@@ -105,6 +105,16 @@
 
 .tri > * {
   --card-w: min(var(--pi-w), calc(30cqw - 2 * var(--space-3) - 16px));
+}
+
+/* the last column's two halves, one over the other: each takes half of the column and scrolls */
+.tri > .column[data-key="tri-last"] > .column-body > .column-lane {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.tri > .column[data-key="tri-last"] > .column-body > .column-lane > .column-body {
+  overflow-y: auto;
 }
 
 .grpf.over {

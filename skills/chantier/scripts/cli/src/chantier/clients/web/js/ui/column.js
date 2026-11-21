@@ -6,7 +6,9 @@
 //            count's place (ellipsed), `states` the head's extras (grill counts), `act` an action under
 //            the head
 //   sub      the one-line grey sub-line (ellipsed), `body` what the column holds, `foot` what follows
-// A lane has no dot and no name: its head is `chip` (the priority chip), `count` and `states`.
+// A lane has no dot. A Backlog lane's head is `chip` (the priority chip), `count` and `states`; a
+// named lane (Triage's last column holds two) has `name`, `count`, `states` and its own `sub`, and
+// `idle` greys it; `foot` follows its body.
 import { html } from '../core/dom.js';
 import { dot } from './parts.js';
 
@@ -14,6 +16,7 @@ const attr = (name, value) =>
   value === undefined || value === '' ? '' : html` ${name}="${value}"`;
 
 function head({ color, name, count, hint, states = '' }) {
+  if (!color && !name && count === undefined && !hint && !states) return '';
   const mark = color ? dot(color) : '';
   const title = name ? html`<h2>${name}</h2>` : '';
   const figure = count === undefined ? '' : html`<span class="column-count">${count}</span>`;
@@ -28,8 +31,21 @@ export function column(parts = {}) {
   return html`<section class="column"${attr('data-key', key)}${attr('data-col', drop)}${attr('aria-label', label)}>${head(parts)}${action}${line}<div class="column-body">${body}</div>${foot}</section>`;
 }
 
-export function lane({ drop, label, chip, count, states = '', body = '', empty = false }) {
-  const names = `column-lane${empty ? ' column-empty' : ''}`;
+export function lane(parts) {
+  const { drop, label, chip = '', name = '', count, states = '', body = '', empty = false } = parts;
+  const { sub = '', foot = '', idle = false } = parts;
+  const named = Boolean(name);
+  const names = [
+    'column-lane',
+    named && 'column-named',
+    idle && 'column-idle',
+    empty && 'column-empty',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const title = named ? html`<h2>${name}</h2>` : '';
   const figure = html`<span class="column-count">${count}</span>`;
-  return html`<section class="${names}" data-col="${drop}" aria-label="${label}"><div class="column-head">${chip}${figure}${states}</div><div class="column-body column-grid">${body}</div></section>`;
+  const line = sub ? html`<div class="column-sub" title="${sub}">${sub}</div>` : '';
+  const grid = named ? '' : ' column-grid';
+  return html`<section class="${names}" data-col="${drop}" aria-label="${label}"><div class="column-head">${chip}${title}${figure}${states}</div>${line}<div class="column-body${grid}">${body}</div>${foot}</section>`;
 }

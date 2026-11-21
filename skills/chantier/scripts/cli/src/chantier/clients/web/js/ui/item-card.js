@@ -1,7 +1,7 @@
 // The card of an item of the backlog, the same markup for the Kanban and for Triage: the bucket's
 // priority chip, the slug, the title, the labels, the description, the files and the stage word.
 // A view adds what is its own through `extra`: `classes`, `variants` and `attrs` on the card,
-// `picked` (the check mark), `badges` in the top row, `foot` after the stage word. Pure.
+// `picked` (the check mark), `badges` in the top row, `foot` after the stage word, `note` in the meta line. Pure.
 import { html } from '../core/dom.js';
 import { title } from '../core/format.js';
 import { labelTags } from '../labels/tags.js';
@@ -22,7 +22,15 @@ export const waitsMeta = (list) =>
 
 // `labels`: the project's labels, in order (a label's colour is its place in the list).
 export function itemCard(item, bucket, labels, extra = {}) {
-  const { classes = '', variants = [], attrs = '', picked = false, badges = '', foot = '' } = extra;
+  const {
+    classes = '',
+    variants = [],
+    attrs = '',
+    picked = false,
+    badges = '',
+    foot = '',
+    note = '',
+  } = extra;
   return card({
     classes,
     variants,
@@ -33,7 +41,7 @@ export function itemCard(item, bucket, labels, extra = {}) {
     title: title(item.title),
     labels: html`<span class="place">${labelTags(item, labels)}</span>`,
     desc: item.description ?? '',
-    meta: html`${files(item.files)}${waitsMeta(item.open_waits)}`,
+    meta: html`${files(item.files)}${waitsMeta(item.open_waits)}${note}`,
     end: stageWord(item),
     foot,
   });

@@ -33,7 +33,10 @@ fails when the table and `tokens.css` disagree.
   column that appears on both pages has the same dot colour on both. The chip lives in
   `css/components/chip.css`; the priority chip is Triage's, filled with the priority colour, on
   every card that has a priority (inbox, P1 to P4, 3-ready); a chip used as a filter toggle is the
-  same chip, filled when on, outlined grey when off, the same size in both states.
+  same chip, filled when on, outlined grey when off, the same size in both states. A lane, built by
+  the same module (`lane(parts)`), sits in a column's body and has no dot: a Backlog lane's head is
+  its priority chip, its count and its grill counts; Triage's last column holds two named lanes,
+  "Running batch" over "Next batch", each with its name, count, grill counts and own grey sub-line.
 - **One-line titles.** A CR's title in a card, a row or a table cell is drawn on one line, cut with
   an ellipsis, its full text in the element's `title` attribute; the side panel shows it whole
   (test).
@@ -46,6 +49,20 @@ fails when the table and `tokens.css` disagree.
   but the transport's three opens a socket (test).
 - **The reference look.** This file describes the column, the card and the chip in words only; no
   picture ships in the package, and a pull request's screenshots are the visual record.
+
+## The last column of Triage
+
+- The last column holds two halves, "running batch" over "next batch" (`3-ready`), always drawn: in
+  every mode, with or without a batch.
+- Each half is a named lane of `js/ui/column.js`, with its head (name, count, grill counts) and its
+  own one-line sub-line; `css/views/triage.css` only places the two halves.
+- The top half is greyed (`column-idle`, existing tokens only) with "no running batch" when no
+  batch is open; it stays a drop target, and a drop on it goes to `3-ready`.
+- A CR marked for the open batch (`running_batch` on its item) is drawn in the top half only, as a
+  post-it, never in its inbox or priority row.
+- The batch's pending CRs are plain cards there, neither draggable nor selectable.
+- The three state words ("waiting for its spec", "spec written: joins soon", "waiting for a slot")
+  are words only, in the card's meta line: no new colour, size or icon.
 
 ## Tokens
 

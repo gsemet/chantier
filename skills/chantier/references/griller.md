@@ -77,6 +77,12 @@ for the next batch, run `triage <folder> --ready` yourself once the specificatio
 user's destination answer is the word). In a worktree you run no `triage`: the Chief of Staff
 places the files, then marks the CR or moves it to `3-ready` as the answer says.
 
+The destination you act on is the last `Destination:` line of `02-answers.md` (the grill's, or a
+board line's). A Griller whose CR carries a mark for the open batch (`work/running-batch` naming it,
+written by the grill's `triage --running-batch` or by a board drop) sends `[griller→chief-of-staff]
+<slug> specified` once the specification is final and runs no `triage`, even when its grill recorded
+the next batch.
+
 ## In a planning surface
 
 You run in the surface's checkout, on its default branch, and write in the planning folder

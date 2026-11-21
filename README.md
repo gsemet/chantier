@@ -131,7 +131,8 @@ its spec-writer:
 There is no special mode: a batch's last CR leads to the ordinary pause, then the retro and the
 close offer. Until your `close`, the paused batch is still the running batch, and a CR placed in
 `1-pending` starts it again at the next `take`. A batch opened with no CR is an ordinary paused
-batch that waits for its CRs in `1-pending`.
+batch that waits for its CRs in `1-pending`. On the board, the backlog page's last column holds the
+same choice: "Running batch" over "Next batch".
 
 ## What a batch costs
 

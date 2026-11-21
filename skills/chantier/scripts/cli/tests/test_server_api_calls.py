@@ -35,8 +35,8 @@ from chantier.board.projects import Projects
 from chantier.board.seats import Seats
 from chantier.core.repo import Repo
 from chantier.hub import journal as forge_journal
-from chantier.hub import schemas
 from chantier.hub import state as hub_state
+from chantier.hub.board_text import board_text
 from chantier.playbook import edit
 
 MANY_LINES, THREE, FIVE = 5, 3, 5
@@ -156,7 +156,7 @@ def test_the_events_topic_carries_the_journal_lines_after_its_cursor(board: Boar
     add("last")
     loop.poll(20.0)
     (last,) = fresh[-1]["data"]["lines"]
-    said = schemas.board_text({**last, "text": "x"})  # the payload's own `text` is the sentence's
+    said = board_text({**last, "text": "x"})  # the payload's own `text` is the sentence's
     assert last["seq"] == FIVE and last["text"] == said  # its type's sentence
     with (repo.changes / forge_journal.FILE).open("a", encoding="utf-8") as f:
         line = {"v": 2, "seq": 6, "t": "2030-01-01T00:00:00Z", "type": "later@1"}

@@ -182,7 +182,9 @@ def _project_state(
         "batch": batch,
         "forge": forge_of({"batch": batch, "history": history}, origin_of(repo.root)),
         "events": _events(events),
-        "backlog": backlog_items(repo.store, repo.changes, dash["backlog"]),
+        "backlog": backlog_items(
+            repo.store, repo.changes, dash["backlog"], batch["id"] if batch else None
+        ),
         "next_batch": next_batch(repo),
         "journal": {"count": len(since_rescan(repo.store, repo.changes))},
         "merged": dash["merged"],

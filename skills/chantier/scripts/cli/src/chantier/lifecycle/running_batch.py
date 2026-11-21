@@ -37,7 +37,7 @@ def marked_for(folder: Path) -> str | None:
     return words[-1] if words else ""
 
 
-def _grilled(folder: Path) -> bool:
+def grilled(folder: Path) -> bool:
     return (folder / "work" / SPECIFYING).exists() or (folder / SPECIFICATION).is_file()
 
 
@@ -64,7 +64,7 @@ def mark_running_batch(repo: Repo, item: str) -> list[str]:
             f"no open batch: {slug} goes to the next batch (`triage {folder} --ready`)",
             EXIT_PRECONDITION,
         )
-    if not _grilled(source):
+    if not grilled(source):
         raise ChantierError(f"{slug} is not grilled: grill it first", EXIT_PRECONDITION)
     mark = mark_path(source)
     repo.check_publish([mark])

@@ -1,5 +1,5 @@
-// The board's writes, one function per op of the server (the backlog only: the inbox, P1 to P4
-// and 3-ready). A refusal of the CLI's own code comes back as a `BoardWriteError` carrying its
+// The board's writes, one function per op of the server (the backlog only: the inbox, P1 to P4,
+// 3-ready and the running batch's mark). A refusal of the CLI's own code comes back as a `BoardWriteError` carrying its
 // message, its status and the board's whole answer (a write of several items may have written
 // some). The page never guesses: after a write it reads the record again.
 import { post, read } from '../core/api.js';
@@ -23,7 +23,8 @@ async function write(op, project, body) {
 export const newIdea = (project, text, slug = null, title = null) =>
   write('backlog.new', project, { text, ...(slug ? { slug } : {}), ...(title ? { title } : {}) });
 
-// Move items, or a whole group, to `inbox`, `P1`..`P4` or `3-ready`.
+// Move items, or a whole group, to `inbox`, `P1`..`P4`, `3-ready` or `running-batch` (the mark for
+// the open batch; with no batch open the server moves them to `3-ready`).
 export const moveItems = (project, items, to) => write('backlog.move', project, { items, to });
 
 export const moveGroup = (project, group, to) => write('backlog.move', project, { group, to });

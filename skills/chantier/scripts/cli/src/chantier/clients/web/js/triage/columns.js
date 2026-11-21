@@ -1,17 +1,22 @@
-// The columns of Triage: the Inbox, the Backlog column with its rows P1 to P4, and 3-ready with its
-// foot, all built by ui/column.js. A group is a dashed frame with its handle, its count and "undo", before the loose post-its.
+// The columns of Triage: the Inbox, the Backlog column with its rows P1 to P4, and the last column
+// with its two halves (running batch over next batch, 3-ready with its foot), all built by ui/column.js. A group is a dashed frame with its handle, its count and "undo", before the loose post-its.
 // Pure: markup from the record and a context (see postit.js), nothing bound here.
 import { html } from '../core/dom.js';
 import {
   DOTS,
   groupsIn,
   LANES,
+  openBatch,
+  pendingCrs,
   READY,
+  RUNNING,
   readyCounts,
+  runningItems,
   shownIn,
   stateCounts,
 } from '../model/triage.js';
 import { t } from '../model/words.js';
+import { card } from '../ui/card.js';
 import { column as column_, lane } from '../ui/column.js';
 import { priorityChip } from '../ui/parts.js';
 import { mark, postit } from './postit.js';
@@ -35,30 +40,27 @@ function frame(group, ctx) {
 }
 
 // What a column or a lane holds: the groups, the loose post-its and the drop zone.
-function body(column, items, ctx) {
+// `more` is markup that follows the post-its (the running batch's pending cards).
+function body(column, items, ctx, more = []) {
   const { groups, loose } = groupsIn(items);
-  const drop = items.length ? '' : t(LANES.includes(column) ? 'triage.empty_row' : 'triage.drop');
-  return html`${groups.map((g) => frame(g, ctx))}${loose.map((i) => postit(i, ctx))}<div class="dropzone">${drop}</div>`;
+  const empty = !items.length && !more.length;
+  const drop = empty ? t(LANES.includes(column) ? 'triage.empty_row' : 'triage.drop') : '';
+  return html`${groups.map((g) => frame(g, ctx))}${loose.map((i) => postit(i, ctx))}${more}<div class="dropzone">${drop}</div>`;
 }
 
-// The foot of 3-ready: the counts, the button, and the running batch's line.
+// The foot of 3-ready: the counts and the button.
 function readyFoot(ctx) {
   const ready = ctx.ready;
   const { auto, specified } = readyCounts(ready);
   const done = ctx.indicator.kind === 'declared';
-  const batch = ctx.batch;
-  const line =
-    batch && batch.state !== 'closed'
-      ? t('triage.running', { batch: batch.id, state: batch.state })
-      : t('triage.idle');
   const summary = ready.length
     ? html`<small>${t('triage.ready_counts', { specified, auto })}</small>`
     : '';
   const label = done ? t('triage.declared') : t('triage.declare');
-  return html`<div class="rfoot">${summary}<button type="button" class="btn pri" data-ready="next"${ready.length && !done ? '' : ' disabled'}>${label}</button><small>${line}</small></div>`;
+  return html`<div class="rfoot">${summary}<button type="button" class="btn pri" data-ready="next"${ready.length && !done ? '' : ' disabled'}>${label}</button></div>`;
 }
 
-// The Inbox and 3-ready, one column each (the latter with its foot).
+// The Inbox, one column.
 export function column(backlog, key, base) {
   const ctx = { ...base, column: key };
   const items = shownIn(backlog, key, ctx.filter);
@@ -69,9 +71,64 @@ export function column(backlog, key, base) {
     color: DOTS[key],
     count: items.length,
     states: counts(items),
-    sub: t(key === READY ? 'kanban.ready_sub' : 'triage.inbox_sub'),
+    sub: t('triage.inbox_sub'),
     body: body(key, items, ctx),
-    foot: key === READY ? readyFoot(ctx) : '',
+  });
+}
+
+// A CR of the open batch waiting for a slot: a plain card, neither draggable nor selectable.
+function pending(c) {
+  return card({
+    attrs: html`data-key="pend-${c.cr}" aria-label="${c.cr}, ${c.title ?? ''}"`,
+    top: html`<span class="tag cr">${c.cr}</span><span class="lbl">${c.folder ?? ''}</span>`,
+    title: c.title ?? '',
+    meta: html`<span>${t('triage.state_queued')}</span>`,
+  });
+}
+
+// The last column's top half: the CRs marked for the open batch, then the batch's pending CRs;
+// greyed, with no card, when no batch is open. It is a drop target all the same.
+function runningHalf(backlog, base) {
+  const ctx = { ...base, column: RUNNING };
+  const batch = openBatch(ctx.batch);
+  const marked = batch ? runningItems(backlog, ctx.filter) : [];
+  const waiting = batch ? pendingCrs(batch) : [];
+  return lane({
+    drop: RUNNING,
+    label: t('triage.lane_running'),
+    name: t('triage.lane_running'),
+    count: marked.length + waiting.length,
+    states: counts(marked),
+    sub: batch
+      ? t('triage.running_lane', { batch: batch.id, state: batch.state })
+      : t('triage.no_running'),
+    body: body(RUNNING, marked, ctx, waiting.map(pending)),
+    idle: !batch,
+  });
+}
+
+// The last column's bottom half: 3-ready, "Next batch", with its counts and its foot.
+function nextHalf(backlog, base) {
+  const ctx = { ...base, column: READY };
+  const items = shownIn(backlog, READY, ctx.filter);
+  return lane({
+    drop: READY,
+    label: t('triage.lane_next'),
+    name: t('triage.lane_next'),
+    count: items.length,
+    states: counts(items),
+    sub: t('kanban.ready_sub'),
+    body: body(READY, items, ctx),
+    foot: readyFoot(ctx),
+  });
+}
+
+// The last column: one column, two named halves, running batch over next batch, always drawn.
+export function last(backlog, ctx) {
+  return column_({
+    key: 'tri-last',
+    label: `${t('triage.lane_running')} / ${t('triage.lane_next')}`,
+    body: html`${runningHalf(backlog, ctx)}${nextHalf(backlog, ctx)}`,
   });
 }
 

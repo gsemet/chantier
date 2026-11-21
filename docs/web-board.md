@@ -80,12 +80,13 @@ Seven columns, from the idea to the merged CR: **Inbox** (`1-inbox`), **Backlog*
 
 The place where you sort the backlog. Each item is a post-it, the same card as the Kanban's with the selection and the drag added: its folder name, where the request came from (an issue number, a Jira key or `verbal`), its labels, and a mark for how far it has been worked (raw, in grill, specified, automatable). A dashed post-it with a clock has a late summary: the CR changed after its summary was written. On a wide screen each priority shows its post-its side by side, as many per row as fit, each the width of an inbox post-it. The post-its of P1 to P4 carry the same teal shade of their priority, on their chip, as on the Kanban (the panel's head shows the same chip).
 
-- Drag a post-it between **Inbox**, a priority (P1 more urgent than P4) and **3-ready**, or up and down in a column.
+- Drag a post-it between **Inbox**, a priority (P1 more urgent than P4), **Running batch** and **Next batch** (`3-ready`), or up and down in a column.
+- The last column has two halves, always shown. **Running batch** holds the CRs marked for the open batch ("waiting for its spec", "spec written: joins soon") and those in `1-pending` ("waiting for a slot"). A drop there writes only the mark (`work/running-batch`), or a journal line for a `3-ready` CR, and the Chief of Staff adds the CR once its specification is final; a CR whose grill is not finished is refused. With no open batch the half is greyed and a drop goes to `3-ready`. **Next batch** is `3-ready`.
 - Select several post-its for the bar that groups them under a theme (a group moves to the first post-it's column, **undo** takes it apart) or labels them (one lower-case word).
 - **The next batch is ready** records that you said so (`next-batch.json`, the time and the CRs then in `3-ready`). It decides nothing and opens nothing: the next batch opens after the running one closes, on your word to the Chief of Staff.
 - The button **✎ n writes since your last 'rescan'** lists what the board wrote. The board does not talk to the Chief of Staff itself: a Chief of Staff whose watcher (or pull path) runs hears each write within about 20 s, and "rescan" stays for one that runs neither: tell it "rescan" in the chat, then press **I said 'rescan' to the CoS**.
 
-Each change is written at once, with the CLI's own file and triage commands, in the backlog only: the inbox, the priorities, `3-ready`, the labels, the groups. The surface's Home and a running batch's CRs are never written.
+Each change is written at once, with the CLI's own file and triage commands, in the backlog only: the inbox, the priorities, `3-ready`, the labels, the groups, and the running-batch mark (`work/running-batch`, in the CR's own folder). The surface's Home and a running batch's CRs are never written.
 
 ### Costs
 
@@ -162,7 +163,8 @@ the phone or any device of the local network once you open it to the network. It
 batch with its CRs (state, round, cost, PR), the inbox, `3-ready` and the backlog, the merged and
 trashed CRs, the costs, and each CR's files (text and images). Started by a session, it stops when
 that session leaves the seat; started by hand, it serves until you stop it. It writes in the backlog only (the inbox, the priorities, `3-ready`), never in a batch:
-file an idea, move items between those places, label and group them, edit an item's Markdown
+file an idea, move items between those places or mark one for the running
+batch (`work/running-batch`, in the CR's own folder), label and group them, edit an item's Markdown
 files, and declare the next batch ready (`next-batch.json`, the time and the CRs then in
 `3-ready`; it decides nothing). Every write lands in `board-journal.jsonl` (not committed); the
 "rescan" button empties it, to tell the Chief of Staff the backlog changed. Each write also lands as one `board@1` line in the project's `forge-journal.jsonl`, which a Chief of Staff's watcher (or its pull path) reads: "rescan" is for one that runs neither. The surface's Home
