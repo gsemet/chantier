@@ -10,8 +10,9 @@ from typing import Any
 
 import pytest
 from api_client import call_route
-from batch_helpers import changes, open_batch, record, write_record
+from batch_helpers import changes, record, write_record
 from conftest import Chantier
+from stack_world import Batch, stack_of
 
 from chantier import connectors
 from chantier.board import fingerprint, journal, prs
@@ -84,7 +85,8 @@ class Board:
 
 def served(repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch) -> Board:
     """The `board` fixture's body, for the other test files of the page."""
-    ids = open_batch(repo, chantier, monkeypatch, "Alpha", "Beta", "Gamma", "Delta")
+    four = Batch("four", ("Alpha", "Beta", "Gamma", "Delta"), args=(), took=0)
+    ids = [c["id"] for c in stack_of(four, repo, chantier, monkeypatch)]
     data = record(repo)
     for i, c in enumerate(data["crs"]):
         c.update(pr=LINK.format(FIRST + i), pr_draft=False, pr_base="main", status="ready")
@@ -386,9 +388,7 @@ def test_status_names_what_it_cannot_read_and_prints_only_the_open_crs_of_its_ba
     assert b not in "".join(status_lines(chantier, "direct", batch))
 
 
-def test_the_signal_file_is_local_counted_by_no_one_and_moves_the_fingerprint(
-    board: Board,
-) -> None:
+def test_the_signal_file_is_local_counted_by_no_one_and_moves_the_fingerprint(board: Board) -> None:
     repo = Repo.find(readonly=True)
     root = changes(board.repo)
     before = fingerprint.fingerprint(root)

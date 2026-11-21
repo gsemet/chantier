@@ -4,6 +4,7 @@ sleep and no thread (`WriterLoop.poll(now)` takes the monotonic time)."""
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from collections.abc import Callable
 from pathlib import Path
@@ -98,11 +99,35 @@ def origin_template(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return tmp_path_factory.mktemp("writer-origin") / "origin.git"
 
 
+def _main_sha(bare: Path) -> str:
+    """The commit of `main` in a bare repository, read from its refs with no git process."""
+    loose = bare / "refs" / "heads" / "main"
+    if loose.is_file():
+        return loose.read_text(encoding="ascii").strip()
+    for line in (bare / "packed-refs").read_text(encoding="ascii").splitlines():
+        if line.endswith(" refs/heads/main"):
+            return line.split()[0]
+    raise AssertionError(f"no main in {bare}")
+
+
+def _set_url(config: Path, url: Path) -> None:
+    text = config.read_text(encoding="utf-8")
+    text = re.sub(r"(?m)^(\s*url = ).*$", lambda m: m.group(1) + url.as_posix(), text)
+    config.write_text(text, encoding="utf-8", newline="\n")
+
+
+@pytest.fixture(scope="module")
+def other_template(origin_template: Path, tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """A clone of the module's origin, copied per test for the second machine."""
+    return tmp_path_factory.mktemp("writer-other") / "other"
+
+
 @pytest.fixture
 def rig(
     surface: Surface,
     tmp_path: Path,
     origin_template: Path,
+    other_template: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> Callable[[], Rig]:
     for name, value in IDENT.items():
@@ -115,14 +140,24 @@ def rig(
     def make() -> Rig:
         if not origin_template.exists():
             sh("git", "clone", "--bare", str(surface.root), str(origin_template))
+            sh("git", "clone", "-q", str(origin_template), str(other_template))
         origin = tmp_path / "origin.git"
         shutil.copytree(origin_template, origin)
-        sh("git", "remote", "add", "origin", str(origin), cwd=surface.root)
-        sh("git", "fetch", "-q", "origin", cwd=surface.root)
-        sh("git", "branch", "-u", "origin/main", cwd=surface.root)
-        sh("git", "remote", "set-head", "origin", "main", cwd=surface.root)
+        # `remote add`, `fetch`, `branch -u`, `remote set-head`, written as git leaves them
+        git_dir = surface.root / ".git"
+        with (git_dir / "config").open("a", encoding="utf-8", newline="\n") as config:
+            config.write(
+                f'[remote "origin"]\n\turl = {origin.as_posix()}\n'
+                "\tfetch = +refs/heads/*:refs/remotes/origin/*\n"
+                '[branch "main"]\n\tremote = origin\n\tmerge = refs/heads/main\n'
+            )
+        remote_refs = git_dir / "refs" / "remotes" / "origin"
+        remote_refs.mkdir(parents=True, exist_ok=True)
+        (remote_refs / "main").write_text(_main_sha(origin) + "\n", encoding="ascii")
+        (remote_refs / "HEAD").write_text("ref: refs/remotes/origin/main\n", encoding="ascii")
         other = tmp_path / "other"
-        sh("git", "clone", "-q", str(origin), str(other))
+        shutil.copytree(other_template, other)
+        _set_url(other / ".git" / "config", origin)
         found = Rig(surface, origin, other)
         found.loop.lock.release()  # the fixture's own process holds nothing: start fresh
         return found

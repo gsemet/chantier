@@ -10,10 +10,12 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from batch_helpers import changes, record
 from conftest import PLUGIN_ROOT as ROOT
-from conftest import SEEDED_COMMON_DIRS, SKILL, Surface, _key, live_writer
+from conftest import SEEDED_COMMON_DIRS, SKILL, Surface, _key, live_writer, shared_state
 
 from chantier.cli import main
+from chantier.core import clock
 from chantier.core.repo import Repo
 from chantier.store.base import PlanStore
 
@@ -154,20 +156,31 @@ def _build(root: Path, state: str) -> None:
 
 
 def build_states(surface_template: Path, factory: pytest.TempPathFactory) -> dict[str, Path]:
-    """`bare`: the surface template; `backlog`: items filed; `batch`: and a batch opened."""
-    home = factory.mktemp("table-home")
-    made = {"bare": surface_template}
-    for state, source in (("backlog", "bare"), ("batch", "backlog")):
-        root = factory.mktemp(f"table-{state}") / "surface"
-        shutil.copytree(made[source], root)
-        with pytest.MonkeyPatch.context() as mp:
-            _environment(mp, home)
-            mp.chdir(root)
-            mp.setattr("chantier.core.repo.PROJECT", None)
-            live_writer(root.resolve() / ".git")
-            _build(root, state)
-        made[state] = root
-    return made
+    """`bare`: the surface template; `backlog`: items filed; `batch`: and a batch opened. The
+    last two are built once for the whole run (every worker would build the same)."""
+
+    def build(folder: Path) -> None:
+        home = folder / "home"
+        home.mkdir()
+        made = {"bare": surface_template}
+        for state, source in (("backlog", "bare"), ("batch", "backlog")):
+            root = folder / state / "surface"
+            root.parent.mkdir()
+            shutil.copytree(made[source], root)
+            with pytest.MonkeyPatch.context() as mp:
+                _environment(mp, home)
+                mp.chdir(root)
+                mp.setattr("chantier.core.repo.PROJECT", None)
+                live_writer(root.resolve() / ".git")
+                _build(root, state)
+            made[state] = root
+
+    built = shared_state(factory, "table-states", build)
+    return {
+        "bare": surface_template,
+        "backlog": built / "backlog" / "surface",
+        "batch": built / "batch" / "surface",
+    }
 
 
 def enter_state(source: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Surface:
@@ -181,3 +194,26 @@ def enter_state(source: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setenv("CHANTIER_HOST", "claude")
     monkeypatch.setenv("CLAUDE_CODE_ENTRYPOINT", "claude-desktop")
     return Surface(root.resolve(), project, project / ".repo")
+
+
+def access_batch(repo_template: Path, folder: Path, at: str) -> None:
+    """`proj` in `folder`: the plain repository with a batch of three CRs (two slots), CR one
+    taken at `at` (`test_access.py`)."""
+    root = folder / "proj"
+    shutil.copytree(repo_template, root)
+    with pytest.MonkeyPatch.context() as mp:
+        _environment(mp, folder)
+        mp.chdir(root)
+        mp.setattr("chantier.core.repo.PROJECT", None)
+        mp.setattr(clock, "_fixed", [])
+        clock.fix(at)
+        names = ("alpha", "beta", "gamma")
+        for name in names:
+            assert main(["file", name]) == 0
+            spec = changes(root) / "1-inbox" / name / "03-change-spec.md"
+            spec.write_text(f"# {name}\n\nDo it.\n", encoding="utf-8")
+        folders = [str(changes(root) / "1-inbox" / n) for n in names]
+        assert main(["open", *folders, "--default-branch", "main", "--slots", "2"]) == 0
+        mp.setenv("CHANTIER_BATCH", record(root)["id"])
+        assert main(["foreman", "set", "local_foreman_t", "--epoch", "1"]) == 0
+        assert main(["take", "CR-101", "--epoch", "1"]) == 0

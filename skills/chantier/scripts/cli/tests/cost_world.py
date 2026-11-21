@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -111,16 +113,31 @@ def slug(folder: Path) -> str:
 def build(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> CostWorld:
-    """The world, built once per pytest process (so once per xdist worker) and copied into each
+    """The world, built once per pytest process (once for all xdist workers) and copied into each
     test's repository: what it holds, the batch's record, the transcripts and their times, is the
     same for every test; the paths and the environment are the test's own."""
-    # the pytest base folder is the process's own (a worker has its own): the template lives there
-    template = tmp_path.parent / "cost-world-template"
-    if not template.is_dir():
-        world = _build(repo, chantier, monkeypatch, tmp_path)
-        shutil.copytree(repo, template / "proj")
-        shutil.copytree(world.projects, template / "claude-projects")
-        (template / "built-in").write_text(str(repo.resolve()), encoding="utf-8")
+    # the template lives in the run's own base folder, shared by the workers: the first to get here
+    # builds it (in its own test), the others wait for it
+    base = tmp_path.parent.parent if os.environ.get("PYTEST_XDIST_WORKER") else tmp_path.parent
+    template = base / "cost-world-template"
+    try:
+        template.mkdir()
+    except FileExistsError:
+        deadline = time.monotonic() + 300
+        while not (template / "done").exists():
+            assert not (template / "failed").exists(), "the cost world build failed"
+            assert time.monotonic() < deadline, "the cost world was never built"
+            time.sleep(0.05)
+    else:
+        try:
+            world = _build(repo, chantier, monkeypatch, tmp_path)
+            shutil.copytree(repo, template / "proj")
+            shutil.copytree(world.projects, template / "claude-projects")
+            (template / "built-in").write_text(str(repo.resolve()), encoding="utf-8")
+        except BaseException:
+            (template / "failed").write_text("failed", encoding="utf-8")
+            raise
+        (template / "done").write_text("done", encoding="utf-8")
         return world
     built_in = (template / "built-in").read_text(encoding="utf-8")
     # the repository's own `.git` is the test's (no command of the world commits)

@@ -3,12 +3,14 @@ it proves on a small prepared repository."""
 
 from __future__ import annotations
 
+import json
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import sh
+from conftest import sh, shared_state
 
 from chantier.commands import crs
 from chantier.commands.crs import Judged, carry_check, git_version
@@ -63,10 +65,8 @@ def git_at(wt: Path, *args: str) -> str:
     return sh("git", "-c", "user.name=t", "-c", "user.email=t@e.com", *args, cwd=wt)
 
 
-@pytest.fixture
-def shape(tmp_path: Path) -> dict[str, str]:
-    """CR-316's shape: X judged on A's branch, then B's branch (A rewritten) to move onto."""
-    wt = tmp_path / "w"
+def _build_shape(folder: Path) -> None:
+    wt = folder / "w"
     wt.mkdir()
     sh("git", "init", "-q", "-b", "main", str(wt))
     root = commit(wt, "root.txt", "root\n", "root")
@@ -76,14 +76,23 @@ def shape(tmp_path: Path) -> dict[str, str]:
     b_tip = commit(wt, "a.txt", "a rewritten\n", "A, rewritten")
     sh("git", "checkout", "-q", "-b", "moved", b_tip, cwd=wt)
     git_at(wt, "cherry-pick", g)
-    return {
-        "wt": str(wt),
-        "g": g,
-        "a": a_tip,
-        "b": b_tip,
-        "moved": sh("git", "rev-parse", "HEAD", cwd=wt),
-        "root": root,
-    }
+    shas = {"g": g, "a": a_tip, "b": b_tip, "root": root}
+    shas["moved"] = sh("git", "rev-parse", "HEAD", cwd=wt)
+    (folder / "shas.json").write_text(json.dumps(shas), encoding="utf-8")
+
+
+@pytest.fixture(scope="session")
+def shape_template(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """CR-316's shape, built once per run: X judged on A's branch, then B's branch (A rewritten)
+    to move onto. The repository holds no absolute path: a copy is a repository of its own."""
+    return shared_state(tmp_path_factory, "carry-shape", _build_shape)
+
+
+@pytest.fixture
+def shape(shape_template: Path, tmp_path: Path) -> dict[str, str]:
+    shutil.copytree(shape_template / "w", tmp_path / "w")
+    shas = json.loads((shape_template / "shas.json").read_text(encoding="utf-8"))
+    return {"wt": str(tmp_path / "w"), **shas}
 
 
 def _edit(shape: dict[str, str], name: str, text: str, message: str) -> str:
