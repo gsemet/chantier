@@ -114,7 +114,7 @@ UNITS = {
     "direct": (220, ["github"], ["direct_batch", "seat_handover", "foreman_in_a_worktree",
                                  "empty_batch", "running_batch"]),
     "surface-board": (
-        660,
+        710,
         ["github"],
         ["remote_board", "forge_hub", "outside_poller", "typed_waits", "surface_server",
          "external_surface", "surface_writer", "cr_summary"],
@@ -2006,6 +2006,9 @@ def record_pr(w: World, cr: str, link: str) -> None:
     (w.folder() / "batch.json").write_text(json.dumps(d, indent=2))
 
 
+KEPT_READ_S = 10  # the board reads a project's forge at most this often (`board/prs.py`)
+
+
 def board_prs(w: World, port: int, link: Link, project: str, ids: tuple[str, str, str, str]) -> None:
     """The PRs page (CR-302): the batch's PRs read on the forge against the record, read-only."""
     one, two, three, four = ids
@@ -2014,16 +2017,37 @@ def board_prs(w: World, port: int, link: Link, project: str, ids: tuple[str, str
     first_call = len(forge_calls(w))
     seen = [json.dumps(w.batch(), sort_keys=True), op(port, link, "project.state", args)[2].get("rev")]
 
+    def expected() -> dict[str, tuple[str, str]]:
+        """Per CR with a PR in the record: the PR and the state the forge holds of it."""
+        held = json.loads(w.gh_state.read_text()).get("prs", {})
+        found = {}
+        for c in w.batch()["crs"]:
+            if c.get("pr"):
+                f = held.get(c["pr"].rstrip("/").rsplit("/", 1)[-1], {})
+                st = str(f.get("state", "OPEN")).lower()
+                found[c["id"]] = (c["pr"], "draft" if f.get("isDraft") and st == "open" else st)
+        return found
+
     def rows() -> tuple[dict, dict]:
-        # the board reads the record as the file watch last settled it (CR-429): a record
-        # changed since the last read is read once its rev has moved
-        now = json.dumps(w.batch(), sort_keys=True)
-        if now != seen[0]:
-            seen[0] = now
-            seen[1] = settled_op(port, link, "project.state", args,
-                                 lambda d: d.get("rev") not in (None, seen[1])).get("rev")
-        code, _, got = op(port, link, "prs.get", args)
-        return got, ({r["cr"]: r for r in got.get("rows", [])} if code == 200 else {})
+        # the board reads the record as the file watch last settled it (CR-429), and the forge
+        # at most once per kept-read TTL (10 s): wait on the content, not on a rev, until each
+        # CR's PR and state are the record's and the forge's
+        end = time.monotonic() + KEPT_READ_S + 30
+        while True:
+            now = json.dumps(w.batch(), sort_keys=True)
+            if now != seen[0]:
+                seen[0] = now
+                seen[1] = settled_op(port, link, "project.state", args,
+                                     lambda d: d.get("rev") not in (None, seen[1])).get("rev")
+            code, _, got = op(port, link, "prs.get", args)
+            by = {r["cr"]: r for r in got.get("rows", [])} if code == 200 else {}
+            want = expected()
+            if (code == 200 and set(by) == set(want)
+                    and all((by[c]["pr"], by[c]["state"]) == v for c, v in want.items())):
+                return got, by
+            if time.monotonic() > end:
+                return got, by
+            time.sleep(1)
 
     def kept() -> dict:
         """The planning folder, but for the one file a read may write (CR-303's signal)."""

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -37,7 +38,9 @@ OLD_BOARD = "board.json"
 OLD_HUB = "hub.json"
 WAIT_S = 1.0  # how long a write waits for the write lock
 STEP_S = 0.02
+READ_WIN_S = 5.0  # how long a write tries a read again on Windows
 SERVER, HUB, WRITER = "server", "hub", "writer"
+_asserted: dict[Path, dict[str, Any]] = {}  # this process's `server` entry, by git folder
 
 
 class StateError(OSError):
@@ -53,16 +56,43 @@ def path(git_dir: Path) -> Path:
 
 
 def read(git_dir: Path) -> dict[str, Any]:
-    """The file's content; empty when it is missing or unreadable."""
-    return _read(path(git_dir))
+    """The file's content for a reader; empty when it is missing or unreadable."""
+    try:
+        return _read(path(git_dir))
+    except StateError:
+        return {}
 
 
 def _read(file: Path) -> dict[str, Any]:
+    """The file's content: empty only when it is missing or empty. Any other failure to read it
+    (a Windows sharing violation that outlasted the retries, a half-written file) raises
+    `StateError`: a write that began from `{}` would drop the other entries."""
     try:
-        data = json.loads(read_text(file))
-    except (OSError, ValueError):
+        text = read_text(file)
+    except FileNotFoundError:
         return {}
+    except OSError as e:
+        raise StateError(f"{file}: {e}") from e
+    if not text.strip():
+        return {}
+    try:
+        data = json.loads(text)
+    except ValueError as e:
+        raise StateError(f"{file}: not JSON: {e}") from e
     return data if isinstance(data, dict) else {}
+
+
+def _read_again(file: Path) -> dict[str, Any]:
+    """`_read` for a write: on Windows a sharing violation is tried again for up to `READ_WIN_S`
+    (the reader's own retry is one second)."""
+    deadline = time.monotonic() + (READ_WIN_S if sys.platform == "win32" else 0)
+    while True:
+        try:
+            return _read(file)
+        except StateError:
+            if time.monotonic() >= deadline:
+                raise
+            time.sleep(STEP_S)
 
 
 def _epoch(started: object) -> float | None:
@@ -114,7 +144,7 @@ def modify(git_dir: Path, change: Callable[[dict[str, Any]], None]) -> None:
                 raise StateError(f"{target}: the write lock ({LOCK}) is held by another process")
             time.sleep(STEP_S)
         try:
-            data = _read(target)
+            data = _read_again(target)
             change(data)
             write_json(target, data)
             os.chmod(target, 0o600)
@@ -147,7 +177,10 @@ def migrate(git_dir: Path) -> None:
     old = folder(git_dir) / OLD_BOARD
     if not old.is_file() or read(git_dir).get("key"):
         return
-    kept = _read(old)
+    try:
+        kept = _read(old)
+    except StateError:
+        kept = {}  # an unreadable old file: the key is made anew, never an overwrite of server.json
     moved = {k: kept[k] for k in ("key", "created") if k in kept}
     running = kept.get("running")
 
@@ -180,6 +213,26 @@ def write_server(
         **extra,
     }
     modify(git_dir, lambda data: data.__setitem__(SERVER, entry))
+    _asserted[git_dir] = entry
+
+
+def reassert_server(git_dir: Path, key: str) -> None:
+    """From the server's tick: put back this process's `server` entry and the `key` if the file
+    lost them (a write that began from a bad read). One cheap read when they are there."""
+    entry = _asserted.get(git_dir)
+    if entry is None or not key:
+        return
+    now = read(git_dir)
+    if now.get("key") and isinstance(now.get(SERVER), dict):
+        return
+
+    def put(data: dict[str, Any]) -> None:
+        if not data.get("key"):
+            data["key"], data["created"] = key, clock.now()
+        if not isinstance(data.get(SERVER), dict):  # never over another process's entry
+            data[SERVER] = entry
+
+    modify(git_dir, put)
 
 
 def set_server_files(git_dir: Path, mode: str) -> None:

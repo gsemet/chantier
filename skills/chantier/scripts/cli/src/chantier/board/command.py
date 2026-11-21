@@ -192,7 +192,8 @@ def _run(
     observed = _observer(args, loop)
     hub = HubThread(HubLoop(projects.home), stop, observed)
     hub.start()
-    push = PushThread(loop, stop)
+    git_dir = projects.home.git_dir
+    push = PushThread(loop, stop, lambda: state.reassert_server(git_dir, ctx.key.current()))
     push.start()
     idle = IdleThread(IdleStop(loop.observed, stop, time.monotonic())) if args.stop_idle else None
     if idle is not None:
