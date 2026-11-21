@@ -46,7 +46,7 @@ WAIT_S = 10.0
 TUI = SKILL / "scripts" / "cli" / "src" / "chantier" / "clients" / "tui"
 ALLOWED = ("chantier.clients.tui", "chantier.core.errors")
 NEEDS_KEY = "this board needs the link with its key"
-LEASE = re.compile(r"lease 0\d:\d\d")
+LEASE = re.compile(r"lease \d\d:\d\d")
 
 
 class Live:
