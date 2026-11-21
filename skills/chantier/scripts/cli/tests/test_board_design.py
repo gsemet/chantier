@@ -281,3 +281,71 @@ def test_a_card_title_is_one_line_with_its_full_text_on_hover() -> None:
     assert not any("line-clamp" in p for s, d in rules(sheet) if "card-title" in s for p, _ in d)
     script = (WEB / "js" / "ui" / "card.js").read_text(encoding="utf-8")
     assert 'class="card-title" title="' in script
+
+
+BATCH_KEYS = (
+    "tab_kanban",
+    "kanban_pending",
+    "kanban_actives",
+    "kanban_done",
+    "kanban_pending_sub",
+    "kanban_actives_sub",
+    "kanban_done_sub",
+    "kanban_closed",
+)
+NO_WRITE = ("draggable", "dragstart", "'drop'", '"drop"', "ondrop", "drop:", "data-col", "call(")
+
+
+def _web(*parts: str) -> str:
+    return (WEB.joinpath(*parts)).read_text(encoding="utf-8")
+
+
+def _check_tabs() -> bool:
+    return re.search(r"TABS = \[\s*'kanban'", _web("js", "core", "router.js")) is not None
+
+
+def _check_words() -> bool:
+    texts = (_web("js", "i18n", f"{lang}-batch.js") for lang in ("en", "fr"))
+    return all(f"'batch.{key}'" in text for text in texts for key in BATCH_KEYS)
+
+
+def _check_closed_note() -> bool:
+    return "batch.kanban_closed" in _web("js", "views", "batch.js")
+
+
+def _check_shell() -> bool:
+    sheet = _web("css", "shell.css")
+    return ".main:has(.view > .kanban)" in sheet and ".main:has(.kanban)" not in sheet
+
+
+def _check_parts() -> bool:
+    text = _web("js", "views", "batch-kanban.js")
+    return bool(
+        re.search(r"import \{[^}]*\bcolumn\b[^}]*\} from '\.\./ui/column\.js'", text)
+        and re.search(r"import \{[^}]*\bcrCard\b[^}]*\} from '\./kanban-cards\.js'", text)
+    )
+
+
+def _check_read_only() -> bool:
+    return not any(word in _web("js", "views", "batch-kanban.js") for word in NO_WRITE)
+
+
+def _check_stage() -> bool:
+    text = _web("js", "views", "batch-kanban.js")
+    return ".stage" in text and ".folder" not in text
+
+
+@pytest.mark.parametrize(
+    "check",
+    [
+        _check_tabs,
+        _check_words,
+        _check_closed_note,
+        _check_shell,
+        _check_parts,
+        _check_read_only,
+        _check_stage,
+    ],
+)
+def test_the_batch_kanban_as_shipped(check: Callable[[], bool]) -> None:
+    assert check()

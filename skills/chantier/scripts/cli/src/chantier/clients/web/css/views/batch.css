@@ -155,3 +155,16 @@
   gap: var(--space-2);
   margin: 0 0 var(--space-3);
 }
+
+/* the Kanban tab: the three columns share the central column's width (the project Kanban's phone
+   rule keeps its snapping columns) */
+.batch .bkanban {
+  flex: none;
+}
+
+@media (min-width: 761px) {
+  .batch .bkanban .column {
+    flex: 1 1 0;
+    min-width: 200px;
+  }
+}

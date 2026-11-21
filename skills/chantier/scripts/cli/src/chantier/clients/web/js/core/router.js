@@ -1,6 +1,7 @@
 // The address is the state of the page: ?p=<project>&v=<view>&b=<batch> (the batch only on the
-// Costs, Batch and PRs views), &t=<tab> (the Batch view's tab, when not the graph), on the PRs view
-// &st=<state>&sort=<sort>, and the browser's history. With the store, this module is the only one
+// Costs, Batch and PRs views), &t=<tab> (the Batch view's tab, every tab of it), on the PRs view
+// &st=<state>&sort=<sort>, and the browser's history. With no `t=`, the Batch view opens the tab
+// last shown on this device (the preference `batchTab`). With the store, this module is the only one
 // that writes the URL. `transport=http` (the HTTP binding, forced) is kept in every address.
 import { FILTER_BUCKETS, pref, setPref, snapshot, update } from './store.js';
 
@@ -11,7 +12,7 @@ const rules = { views: ['home'], overview: ['home'] };
 export const BATCH_VIEWS = ['costs', 'batch', 'prs']; // the views the batch navigator moves through
 export const PRS_STATES = ['open', 'draft', 'merged']; // the PRs view's state filter (absent: all)
 export const PRS_SORTS = ['opened', 'activity', 'cr']; // its sort (absent: the batch's order)
-export const TABS = ['graph', 'gantt', 'cards']; // the Batch view's tabs, the first is the default
+export const TABS = ['kanban', 'graph', 'gantt', 'cards']; // the Batch view's tabs, the first is the default
 
 // The views the page knows, and those that stay on "All projects" (the registry says which).
 export function configure(views, overview) {
@@ -25,6 +26,9 @@ const known = (view) => (rules.views.includes(view) ? view : rules.views[0]);
 
 // The last real project (never "All projects"), against the ones the board lists.
 const lastOf = (ids) => [pref(LAST), ids[0]].find((id) => ids.includes(id)) ?? null;
+
+// The tab kept on this device: the preference when it is one of the tabs, else the Kanban.
+const keptTab = () => (TABS.includes(pref('batchTab')) ? pref('batchTab') : TABS[0]);
 
 // Where the address says to be, against the projects the board serves.
 export function resolve(projects, search = location.search) {
@@ -40,7 +44,8 @@ export function resolve(projects, search = location.search) {
     view === 'prs' && values.includes(asked.get(key)) ? asked.get(key) : null;
   const st = only('st', PRS_STATES);
   const sort = only('sort', PRS_SORTS);
-  const tab = view === 'batch' && TABS.includes(asked.get('t')) ? asked.get('t') : TABS[0];
+  const tab =
+    view !== 'batch' ? TABS[0] : TABS.includes(asked.get('t')) ? asked.get('t') : keptTab();
   return { project: wanted ?? lastOf(ids), view, batch, tab, st, sort };
 }
 
@@ -50,7 +55,7 @@ function settle(place) {
   const next =
     place.project === ALL ? { ...place, batch: null, tab: TABS[0], st: null, sort: null } : place;
   if (place.project === ALL && !rules.overview.includes(place.view)) {
-    return { ...next, project: lastOf(ids) };
+    return { ...next, project: lastOf(ids), tab: place.view === 'batch' ? keptTab() : TABS[0] };
   }
   return next;
 }
@@ -78,12 +83,18 @@ const reset = {
 // A change of view closes the file panel (the project's change resets it with the rest).
 const closed = { panel: null, panelTree: null, panelFile: null, editing: null };
 
+// What the device keeps: the chosen and last project, and the Batch view's tab when it shows.
+function keep({ project, view, tab }) {
+  if (project) setPref(CHOSEN, project);
+  if (project && project !== ALL) setPref(LAST, project);
+  if (view === 'batch') setPref('batchTab', tab ?? TABS[0]);
+}
+
 function apply(place) {
   const now = snapshot();
   const moved = place.project !== now.project;
   const turned = place.view !== now.view;
-  if (place.project) setPref(CHOSEN, place.project);
-  if (place.project && place.project !== ALL) setPref(LAST, place.project);
+  keep(place);
   const { project, view, batch, tab, st, sort } = place;
   update({
     ...(turned ? closed : {}),
@@ -108,7 +119,7 @@ export const href = (place) =>
     ...(place.batch ? { b: place.batch } : {}),
     ...(place.view === 'prs' && place.st ? { st: place.st } : {}),
     ...(place.view === 'prs' && place.sort ? { sort: place.sort } : {}),
-    ...(place.tab && place.tab !== TABS[0] ? { t: place.tab } : {}),
+    ...(place.view === 'batch' && place.tab ? { t: place.tab } : {}),
   })}`;
 
 // The chosen batch after a move: kept (or set by `place.batch`) between Costs and Batch of the
@@ -129,11 +140,13 @@ export function prsOf(place, now, project, view) {
   return { st: keep('st', now.prsState), sort: keep('sort', now.prsSort) };
 }
 
-// The Batch view's tab after a move: the place's own, else the current one while on the Batch view
-// (the batch navigator keeps it); the graph on any other view.
+// The Batch view's tab after a move: the place's own, else the current one while the page stays on
+// the Batch view of the same project (the batch navigator keeps it), else the one kept on this
+// device (the Kanban the first time); the first tab on any other view.
 export function tabOf(place, now, project, view) {
   if (view !== 'batch') return TABS[0];
-  return place.tab ?? (project === now.project ? now.batchTab : TABS[0]);
+  if (place.tab) return place.tab;
+  return now.view === 'batch' && project === now.project ? now.batchTab : keptTab();
 }
 
 let here = null; // the address the page last settled on
