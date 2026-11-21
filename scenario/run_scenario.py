@@ -3553,7 +3553,7 @@ def direct_batch(w: World) -> None:
           and re.fullmatch(rf"4-batch/1-pending/0*{moved_number}-[\w-]+", back[0]["path"])
           and not (w.state / back[0]["path"] / "formerly.json").exists()
           and not shelf_dir.exists() and joins in out, str(out))
-    w.chantier("order", "drop", moved, "--note", "inbox", expect=2)
+    w.chantier("order", "drop", moved, "--note", "inbox", expect=1)
     check("`order drop --note inbox` is refused, whatever the CR, and moves nothing",
           "never sends a CR to the inbox" in w.last_stderr and w.cr(moved)["status"] == "queued",
           w.last_stderr)
