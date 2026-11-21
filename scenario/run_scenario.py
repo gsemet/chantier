@@ -81,7 +81,7 @@ UNITS = {
         750,
         ["github"],
         ["stack_batch", "start_base_forge", "base_from_pr", "stack_waiver", "ready_words",
-         "ready_words_unplaced", "forge_stack_cli", "stack_hold", "park_live"],
+         "ready_words_unplaced", "forge_stack_cli", "stack_hold", "park_live", "hold_live"],
     ),
     "release": (
         585,
@@ -8716,7 +8716,7 @@ def stack_hold(w: World) -> None:
           str(out))
     w.chantier("take", c, "--note", "again", "--epoch", 1, expect=2)
     check("`take` of a held CR is refused naming `order unhold`",
-          f"`order unhold {c}` first" in w.last_stderr, w.last_stderr)
+          f"only the user's `order unhold {c}` releases it" in w.last_stderr, w.last_stderr)
 
     w.chantier("order", "unhold", c)
     w.chantier("agents", "set", "stack", "-", "--epoch", 1)
@@ -8798,6 +8798,120 @@ def park_live(w: World) -> None:
     check("`take` of the cleared parked CR gives it a new Driver, back on top of the stack",
           code == 0 and "back on top of the stack" in out[0] and not w.cr(b).get("parked")
           and w.cr(b)["order"] == top_order + 1 and w.cr(b)["status"] == "working", str(out))
+
+
+def hold_live(w: World) -> None:
+    note("\n## 13c. `order hold` of a live CR: out of the slots, in the stack and in a parallel batch")
+    w.reset()
+    items = [prepare_cr(w, f"Live hold {t}")[1] for t in ("a", "b", "c", "release")]
+    w.start(*(str(x) for x in items), "--mode", "stack", "--slots", 2, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    a, b, c, rel = (x["id"] for x in w.batch()["crs"])
+    path_key = next(k for k in w.env if k.upper() == "PATH")
+    on_path = {path_key: f"{w.fake.parent}{os.pathsep}{w.env[path_key]}"}
+    num = {a: 201, b: 202, c: 203}
+    branch = lambda cr: w.cr(cr)["branch"]  # noqa: E731
+    gh_state = lambda: json.loads(w.gh_state.read_text())  # noqa: E731
+
+    def edit_cr(cr: str, **fields: object) -> None:
+        d = w.batch()
+        next(x for x in d["crs"] if x["id"] == cr).update(fields)
+        (w.folder() / "batch.json").write_text(json.dumps(d, indent=2))
+
+    edit_cr(rel, kind="release")
+    w.chantier("foreman", "set", "local_foreman_hl", "--epoch", 1)
+    # 1. a stack of three CRs, two slots: the first two are taken
+    w.chantier("take", a, "--epoch", 1)
+    w.chantier("take", b, "--epoch", 1)
+    w.chantier("agents", "set", b, "agent-b", "--epoch", 1)
+    old = w.leases[unit_name(b)]
+    code, _ = w.chantier("take", c, "--epoch", 1, expect=None)
+    check("a stack of two slots, both held: the third CR is not taken", code != 0
+          and "no free slot" in w.last_stderr, w.last_stderr)
+
+    # 2. the hold of the second, working: its slot is free, its old lease is lost
+    code, out = w.chantier("order", "hold", b)
+    check("`order hold` of a working CR: blocked, held, its order pending until `order done`, the line "
+          "names the Foreman's steps",
+          code == 0 and w.cr(b)["status"] == "blocked" and w.cr(b)["held"] == "O-1"
+          and w.cr(b)["blocked_reason"] == "held: order O-1" and w.batch()["orders"][-1]["applied"] is False
+          and any(x.startswith(f"{b} held (order O-1): it was live; its slot is free") for x in out), str(out))
+    w.chantier("note", b, "late", "--lease", old, lease=False, expect=3)
+    check("the old Driver's next leased command is `claim lost`", "claim lost" in w.last_stderr,
+          w.last_stderr)
+    w.chantier("agents", "set", b, "-", "--epoch", 1)
+    w.chantier("order", "done", "O-1", "--epoch", 1)
+    code, _ = w.chantier("take", c, "--epoch", 1, expect=None)
+    check("the freed slot goes to the third CR: its `take` is accepted", code == 0 and
+          w.cr(c)["status"] == "working", w.last_stderr)
+
+    # 3. the stack driver and the rebuild: the held PR on the default branch, the stack without it
+    for cr in (a, c):
+        edit_cr(cr, status="ready", pr_draft=False, head=hashlib.sha1(cr.encode()).hexdigest())
+    for cr in (a, b, c):
+        edit_cr(cr, pr=PR_LINK["github"] + str(num[cr]))
+    w.chantier("stack", a, c)
+    w.gh(next_stack=200, heads={str(n): branch(cr) for cr, n in num.items()},
+         stacks=[{"number": 100, "open": True, "pull_requests": [201, 202, 203]}])
+    forge_base(w, PR_LINK["github"] + "202", branch(a))
+    forge_base(w, PR_LINK["github"] + "203", branch(b))
+    edit_cr(b, pr_base=branch(a))
+    edit_cr(c, pr_base=branch(b))
+    w.chantier("take", "stack", "--note", f"hold {b}", "--epoch", 1, expect=0)
+    w.gh(drafts=[202])
+    w.chantier("stack", "--draft", b)
+    code, out = w.chantier("forge-stack", "rebuild", env=on_path)
+    state = gh_state()
+    top = next((x for x in reversed(state["stacks"]) if x["open"]), {})
+    check("`forge-stack rebuild` with a held live CR's PR: it goes to the default branch, the stack "
+          "is the others' PRs only, the base of the CR above it follows",
+          code == 0 and top.get("pull_requests") == [201, 203] and state["bases"]["202"] == "main"
+          and state["bases"]["203"] == branch(a), f"{out} {top}")
+    w.chantier("agents", "set", "stack", "-", "--epoch", 1)
+
+    # 4. no release over a held CR
+    w.chantier("take", rel, "--epoch", 1, expect=2)
+    check("`take <release>` is refused naming the held CR", f"waits for {b} held (order O-1)" in
+          w.last_stderr and f"`order unhold {b}`" in w.last_stderr, w.last_stderr)
+
+    # 5. the unhold: taken back as a working CR, then it hands back ready and the batch merges
+    spent = w.cr(b).get("round", 0)
+    w.chantier("order", "unhold", b)
+    code, out = w.chantier("take", b, "--note", "unhold: O-2", "--epoch", 1)
+    check("`take --note \"unhold: ...\"` turns the CR working again, on top, with no round counted",
+          code == 0 and w.cr(b)["status"] == "working" and w.cr(b).get("round", 0) == spent
+          and w.cr(b)["order"] > max(w.cr(x)["order"] for x in (a, c)), str(out))
+    edit_cr(b, status="ready", pr_draft=False, head=hashlib.sha1(b.encode()).hexdigest())
+    w.chantier("stack", a, c, b)
+    for cr in (a, c, b):
+        w.chantier("order", "merged", cr, "--epoch", 1)
+    check("the CR handed back ready is merged with the others, no `held:` line left",
+          all(w.cr(x)["status"] == "merged" for x in (a, b, c))
+          and not any(x.startswith("held:") for x in w.chantier("status")[1]), "merged")
+
+    # 6. a parallel batch: the same hold frees the slot, the unhold and a take bring it back
+    w.reset()
+    items = [prepare_cr(w, f"Live hold parallel {t}")[1] for t in ("a", "b")]
+    w.start(*(str(x) for x in items), "--mode", "parallel", "--slots", 1, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    a, b = (x["id"] for x in w.batch()["crs"])
+    w.chantier("foreman", "set", "local_foreman_hlp", "--epoch", 1)
+    w.chantier("take", a, "--epoch", 1)
+    w.chantier("agents", "set", a, "agent-a", "--epoch", 1)
+    code, _ = w.chantier("take", b, "--epoch", 1, expect=None)
+    check("a parallel batch of one slot, held by the first CR: the second is not taken",
+          code != 0 and "no free slot" in w.last_stderr, w.last_stderr)
+    w.chantier("order", "hold", a)
+    w.chantier("agents", "set", a, "-", "--epoch", 1)
+    w.chantier("order", "done", "O-1", "--epoch", 1)
+    code, _ = w.chantier("take", b, "--epoch", 1, expect=None)
+    check("a parallel hold frees the slot: the other CR is taken", code == 0, w.last_stderr)
+    w.chantier("handback", b, "blocked", "scenario stop", expect=0)
+    w.chantier("order", "unhold", a)
+    code, _ = w.chantier("take", a, "--note", "unhold: O-2", "--epoch", 1, expect=None)
+    check("`order unhold` and a take bring the held CR back working in a parallel batch",
+          code == 0 and w.cr(a)["status"] == "working" and "held" not in w.cr(a), w.last_stderr)
+    w.env.pop("CHANTIER_BATCH", None)
 
 
 def stack_waiver(w: World) -> None:
@@ -10457,6 +10571,7 @@ CASES = {
     "forge_stack_cli": forge_stack_cli,
     "stack_hold": stack_hold,
     "park_live": park_live,
+    "hold_live": hold_live,
     "release": release,
     "granted_fixes": granted_fixes,
     "release_last": release_last,

@@ -96,12 +96,18 @@ def park(args: argparse.Namespace) -> list[str]:
 
 def unpark(b: Batch, c: CrEntry) -> str:
     """`take` of a parked CR whose waits are cleared: `parked` is unset and the CR takes the place
-    on top of the order, its dependents right above it, their chains kept. A stack or parallel
-    batch: above every CR but the release; a series: above every CR that left `queued`, below the
-    queued ones, which move up. The line's tail."""
-    d = b.record
-    deps = dependents(d.crs, c, d.mode)  # worked out with the CR still parked
+    on top of the order (`place_on_top`). The line's tail."""
+    deps = dependents(b.record.crs, c, b.record.mode)  # worked out with the CR still parked
     c.unset("parked")
+    return place_on_top(b, c, deps)
+
+
+def place_on_top(b: Batch, c: CrEntry, deps: list[CrEntry]) -> str:
+    """A CR back from apart (unparked, unheld) takes the place on top of the order, its dependents
+    `deps` right above it, their chains kept. A stack or parallel batch: above every CR but the
+    release; a series: above every CR that left `queued`, below the queued ones, which move up.
+    The line's tail."""
+    d = b.record
     rest = [x for x in d.crs if x.id != c.id and x not in deps]
     if d.mode == "series":
         left = [x.order for x in rest if x.kind != "release" and x.status != "queued"]

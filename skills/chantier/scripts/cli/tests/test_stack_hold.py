@@ -145,8 +145,8 @@ def make_fix(c: dict[str, Any]) -> None:
     c["kind"] = "fix"
 
 
-def make_working(c: dict[str, Any]) -> None:
-    c["status"] = "working"
+def make_blocked(c: dict[str, Any]) -> None:
+    c["status"] = "blocked"
 
 
 def make_queued(c: dict[str, Any]) -> None:
@@ -160,12 +160,12 @@ def make_held(c: dict[str, Any]) -> None:
 @pytest.mark.parametrize(
     ("case", "words"),
     [
-        (("parallel", None), "is not a stack"),
-        (("series", None), "is not a stack"),
+        (("parallel", None), "is ready in a parallel batch: a ready CR holds no slot"),
+        (("series", None), "is ready in a series batch: a ready CR holds no slot"),
         (("stack", make_release), "the release CR"),
         (("stack", make_fix), "a fix CR"),
-        (("stack", make_working), "is working; only a CR handed back ready"),
-        (("stack", make_queued), "is queued; only a CR handed back ready"),
+        (("stack", make_blocked), "is blocked; only a live CR, or a ready CR of a stack, is held"),
+        (("stack", make_queued), "is queued; only a live CR, or a ready CR of a stack, is held"),
         (("stack", make_held), "is already held (order O-1)"),
         (("stack", "after"), "depends on"),
     ],
@@ -242,7 +242,10 @@ def test_a_held_cr_is_refused_by_stack_out_of_draft_and_take_but_its_draft_is_re
     for args, words in [
         (("stack", b, a, c), "is held out of the stack (order O-1)"),
         (("stack", "--out-of-draft", b), "unhold it first"),
-        (("take", b, "--note", "again", "--epoch", "1"), f"`order unhold {b}` first"),
+        (
+            ("take", b, "--note", "again", "--epoch", "1"),
+            f"only the user's `order unhold {b}` releases it",
+        ),
     ]:
         code, _, err = chantier(*args)
         assert code != 0 and words in err

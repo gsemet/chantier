@@ -293,8 +293,9 @@ At startup, identify the role, batch, project and parent session.
   commits come out of the branches above (by the stack driver, or by the Driver of a working CR),
   its PR is closed when it goes to the trash (otherwise it goes to draft and the rebuild puts it
   on the default branch) and its branch kept, the stack is rebuilt without it and judged again where it
-  changed, and a release above is redone. **A CR held out of the stack** (`order hold <cr>`, a
-  ready CR of a stack batch, until `order unhold <cr>`) leaves it without being dropped: its PR goes
+  changed, and a release above is redone. **A held CR** (`order hold <cr>`, a live CR in any
+  batch mode, or a ready CR of a stack, until `order unhold <cr>`) is apart: it is out of the slots
+  and of the order, and the CRs that wait with it wait too. In a stack it leaves it without being dropped: its PR goes
   to the default branch as a draft, the stack is rebuilt without it, and it comes back on top; no
   release starts while a CR is held. A CR stands on another
   only by a dependency: a real one (`depends.json`) or a chain the Foreman decided, or the plan

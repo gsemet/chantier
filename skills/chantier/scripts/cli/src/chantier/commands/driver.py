@@ -45,6 +45,7 @@ from chantier.rails import (
     check_round,
     check_stray_round,
     held,
+    is_held,
     is_parked,
     worktree_print,
 )
@@ -264,6 +265,12 @@ def _handback_locked(
         RenderedBatch(repo, find_cr_batch(repo, args.cr, args.batch), actor="driver") as b,
     ):
         c = live_cr(b, args.cr, args.result)
+        if is_held(c):  # a blocked CR hands back with no lease check: not out of its hold
+            raise ChantierError(
+                f"handback: {c.id} is held (order {c.held}): only the user's "
+                f"`order unhold {c.id}` releases it",
+                EXIT_PRECONDITION,
+            )
         if is_parked(c):
             raise ChantierError(
                 f"handback: {c.id} is parked (since {hhmm(c.parked or '')}): take it back first "

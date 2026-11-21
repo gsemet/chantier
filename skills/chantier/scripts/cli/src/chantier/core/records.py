@@ -126,11 +126,12 @@ class CrEntry(Record):
     rounds: int | None = None
     attempts: int = 0
     stacked: bool = False
-    # the branch a CR of a stack batch started on, the nearest earlier CR with a PR not seen
-    # merged on the forge at its first `take`, fixed there (see `start_base`)
+    # the branch a CR started on at its first `take`, fixed there: in a stack batch the nearest
+    # earlier CR with a PR not seen merged on the forge, in a series batch the open series
+    # predecessor's (see `start_on_for`; the series clause of `rails.out_of_order` reads it)
     start_on: str | None = None
-    # the id of the `order hold` that holds this CR out of the stack (stack batch); None when not
-    # held
+    # the id of the `order hold` that holds this CR out of the order and the slots (a live CR in
+    # any batch, a ready CR in a stack); None when not held
     held: str | None = None
     # the time the Foreman parked this CR (`park`): it waits on something outside the batch, in
     # `blocked`, out of the slots, the stack and the series order; None when not parked

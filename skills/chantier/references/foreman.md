@@ -408,15 +408,31 @@ running again, until the user's close.
   - **A parked CR** (below, "Parking a CR on an outside wait"): out of the stack as a held CR is.
     On `parked <cr>` or when `status` shows `parked: <cr> ...`: `take stack --note "park: <cr>"`.
   - **A held CR** (the Chief of Staff's `order hold <cr>` or `order unhold <cr>` on the user's word,
-    in `status`): take the stack driver, `take stack --note "hold <cr>"` (or `"unhold <cr>"`),
-    then `order done <O-n>`. Never take a held CR for a round. A held CR does not count in the
-    final-order take, and neither the final-order take nor `take <release>` starts while a CR is
-    held: send one ask `the release waits: <cr> is held out of the stack (order O-n)`. The same
-    for a parked CR: `the release waits: <cr> is parked (<what it waits for>)`; a CR parked while
-    the release is working or ready: once it is back and handed back ready, `take <release>
-    --note "redo: <cr> back from park"`. A parked CR and its dependents count as a held CR does
-    (out of the final-order take), and a queued CR whose dependency is parked is one "whose
-    dependency is blocked".
+    in `status`): a held CR is out of the slots and the order, in every batch mode.
+    - Held while ready (a stack): take the stack driver, `take stack --note "hold <cr>"` (or
+      `"unhold <cr>"`), then `order done <O-n>`.
+    - Held while working: its Driver is still running. Send it `[foreman→driver <cr>] stop hold:
+      <O-n>`; it answers `stopped: held; worktree clean|dirty: <files>`. Then `agents set <cr> -
+      --epoch <n>`, in a stack `take stack --note "hold <cr>"`, and `order done <O-n>`; its slot is
+      free only then: fill it (a queued CR's take) after the hold's `order done`, never before.
+      Its worktree and branch stay as they are. Direct mode does this part itself.
+    - Dependents (the open CRs whose `after` names it, and in a series those started on it) wait
+      with it: no take for them, no release, until `order unhold <cr>` or `order drop <cr>`.
+    - On the user's `order unhold <cr>` of a CR held while working, it comes back `blocked`: take
+      it before any queued CR (`take <cr> --note "unhold: <O-n>" --epoch <n>`), with a new Driver;
+      it resumes as a `resume:` does, with no round counted. In a stack it joins as a working CR
+      (the next `take stack` prints it `not on its place`; send its Driver `note rebase: stacked
+      on <cr below>`): no `take stack --note "unhold <cr>"` for it (a ready CR unheld in a stack
+      keeps that take). If no slot is free, the take is refused: wait for one.
+    - A release already working when a CR is held: let it hand back, `note` it stale, then `take
+      <release> --note "redo: <cr> held"`.
+    - Never take a held CR for a round. A held CR does not count in the final-order take, and
+      neither the final-order take nor `take <release>` starts while a CR is held: send one ask
+      `the release waits: <cr> is held (order O-n)`. The same for a parked CR: `the release waits:
+      <cr> is parked (<what it waits for>)`; a CR parked while the release is working or ready: once
+      it is back and handed back ready, `take <release> --note "redo: <cr> back from park"`. A parked
+      CR and its dependents count as a held CR does (out of the final-order take), and a queued CR
+      whose dependency is parked is one "whose dependency is blocked".
   - **Parking a CR on an outside wait** (no question to anyone, once the wait is recorded). A CR
     whose work waits on an outside step (the user's trial or answer, an approval, an outside
     pipeline or merge) is parked at once:
@@ -496,7 +512,10 @@ running again, until the user's close.
   - **A drop in the stack:** `take stack --note "drop: <cr> to <destination>"` (the destination
     the order's line carries: `6-trash`, `1-inbox` or `2-backlog/P<n>`) right after the drop is
     applied, or `[foreman→stack] note drop: <cr> to <destination>` to a running stack driver. A
-    held CR's drop needs no `take stack`: `order done` at once. A working CR above gets
+    held CR's drop needs no `take stack`: `order done` at once. A CR that waited with the dropped
+    held CR (an `after`, or in a series a start on it) gets `rebase: <cr> dropped` by the usual
+    path (`working`: a `note` to its Driver; `ready` or `blocked`: `take <dep> --note "rebase: <cr>
+    dropped"`), to take the dropped CR's commits out of its branch. A working CR above gets
     `[foreman→driver <cr>] note rebase: stacked on <cr below>, without <dropped cr>` (a plain
     `status` just before). An open CR whose `after` names the dropped CR: ask the Chief of Staff
     once, and hold the take until the answer. A release above: after the hand-back, `take <release>

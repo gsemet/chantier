@@ -51,7 +51,8 @@ def _plan(
     cr, status, PR number or None), the forge's host, owner and repository, read from the PR
     links, the PR numbers of the batch's trashed CRs (to their CR ids), those of its held CRs (to
     their CR ids: a held PR is outside the stack, on the default branch), and those of its CRs
-    moved to the inbox or the backlog (to their CR id and folder)."""
+    moved to the inbox or the backlog (to their CR id and folder), and those of the dependents of
+    an apart CR (to `<cr> waits with held <p>`: left out of the stack, not retargeted)."""
     repo = Repo.find()
     data = read_batch(repo, resolve_batch(repo, args.batch))
     if data.mode != "stack":
@@ -290,7 +291,8 @@ def _check_two(
         if n in held
     ]
     lines += [
-        f"check 2: #{n} of {waiting[n][0]} waits with {waiting[n][1]}: left out of the stack"
+        f"check 2: #{n} of {waiting[n][0]} waits with {waiting[n][1]}: left out of the stack and "
+        f"still in stack #{stack.get('number')}: `forge-stack rebuild`"
         for n in have
         if n in waiting
     ]

@@ -15,22 +15,24 @@ from chantier.rails import (
     out_of_order,
     series_predecessor,
 )
+from chantier.stack_apart import dependents
 
 FORMING = 2  # the ready CRs with a PR that make the first stack due (`stack_due`)
 
 
 def refuse_held(c: CrEntry) -> None:
-    """`take <cr>` of a held CR: refused, it is outside the stack until `order unhold`."""
+    """`take <cr>` of a held CR: refused, it stays held until the user's `order unhold`."""
     if is_held(c):
         raise ChantierError(
-            f"{c.id} is held out of the stack (order {c.held}): `order unhold {c.id}` first",
+            f"{c.id} is held (order {c.held}): only the user's `order unhold {c.id}` releases it",
             EXIT_PRECONDITION,
         )
 
 
 def held_text(c: CrEntry) -> str:
-    """What a held CR waits for: its way back into the stack."""
-    return f"held out of the stack (order {c.held}): `order unhold {c.id}`"
+    """What a held CR waits for: its way back, the user's `order unhold`."""
+    where = " out of the stack" if c.status == "ready" else ""
+    return f"held{where} (order {c.held}): `order unhold {c.id}`"
 
 
 def chain(b_data: BatchRecord) -> list[CrEntry]:
@@ -154,17 +156,28 @@ def stack_due(b_data: BatchRecord) -> list[CrEntry]:
 
 
 def held_lines(b_data: BatchRecord, repo: Repo) -> list[str]:
-    """One `status` line per held CR of a stack batch, in order: where it sits and how it comes
-    back."""
-    if b_data.mode != "stack":
-        return []
+    """One `status` line per held CR, in order: a ready CR held in a stack (where it sits and how
+    it comes back), or a CR held while it was live (out of the slots, with the CRs that wait with
+    it). An unheld CR still `blocked` is not held: its row says so."""
     default: str = repo.config["default_branch"]
-    return [
-        f"held: {c.id} (order {c.held}) out of the stack, PR {c.shown_pr() or '-'} on {default}: "
-        f"`order unhold {c.id}` puts it back"
-        for c in sorted(b_data.crs, key=lambda x: x.order)
-        if is_held(c)
-    ]
+    lines = []
+    for c in sorted(b_data.crs, key=lambda x: x.order):
+        if not is_held(c):
+            continue
+        if c.status == "ready" and b_data.mode == "stack":
+            lines.append(
+                f"held: {c.id} (order {c.held}) out of the stack, PR {c.shown_pr() or '-'} on "
+                f"{default}: `order unhold {c.id}` puts it back"
+            )
+            continue
+        waiting = [x.id for x in dependents(b_data.crs, c, b_data.mode)]
+        tail = f"; waiting with it: {', '.join(waiting)}" if waiting else ""
+        where = " and the stack" if b_data.mode == "stack" else ""
+        lines.append(
+            f"held: {c.id} (order {c.held}), was working, out of the slots{where}: only the "
+            f"user's `order unhold {c.id}` brings it back{tail}"
+        )
+    return lines
 
 
 def stack_line(b_data: BatchRecord) -> list[str]:

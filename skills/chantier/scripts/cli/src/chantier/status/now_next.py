@@ -5,18 +5,20 @@ from __future__ import annotations
 from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
 from chantier.core.waits import open_counted
+from chantier.rails import is_held
 from chantier.status.words import (
     forge_word,
     no_start,
     notify,
     parked_reason,
     step,
+    unheld,
     waits_on,
 )
 
 
-def now_next(repo: Repo, d: BatchRecord, c: CrEntry, waiting: list[str]) -> tuple[str, str]:
-    pr = c.pr or f"its {forge_word([])}"
+def _apart_now_next(d: BatchRecord, c: CrEntry) -> tuple[str, str] | None:
+    """A CR parked, held or unheld: what it is doing now and what comes next; None for any other."""
     if parked_reason(c):
         if open_counted(c):
             return (
@@ -27,6 +29,25 @@ def now_next(repo: Repo, d: BatchRecord, c: CrEntry, waiting: list[str]) -> tupl
             "Parked: its wait is cleared.",
             "The Foreman takes it back, before any queued CR.",
         )
+    if c.status == "blocked" and is_held(c):
+        where = " and the stack" if d.mode == "stack" else ""
+        return (
+            f"Held by the user (order {c.held}): out of the slots{where}.",
+            "The user's `order unhold`, through the Chief of Staff.",
+        )
+    if unheld(c):
+        return (
+            f"Unheld ({(c.blocked_reason or '').removeprefix('unheld: ')}): back on top, to take "
+            "back.",
+            "A Driver takes it back, before any queued CR.",
+        )
+    return None
+
+
+def now_next(repo: Repo, d: BatchRecord, c: CrEntry, waiting: list[str]) -> tuple[str, str]:
+    pr = c.pr or f"its {forge_word([])}"
+    if (apart := _apart_now_next(d, c)) is not None:
+        return apart
     if waits_on(c):
         reason = c.blocked_reason or ""
         what = reason.split(":", 1)[1].strip() or "something on its way"

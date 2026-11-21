@@ -5,7 +5,7 @@ from __future__ import annotations
 from chantier.core.records import BatchRecord, CrEntry, round_limit
 from chantier.core.repo import Repo
 from chantier.core.waits import open_counted, what
-from chantier.rails import over_budget, slot_free, waits_all
+from chantier.rails import is_held, over_budget, slot_free, waits_all
 from chantier.stack_words import (
     PR_IN_DRAFT,
     READY_LOCALLY,
@@ -26,13 +26,25 @@ def parked_reason(c: CrEntry) -> bool:
     return c.status == "blocked" and (c.blocked_reason or "").startswith("parked:")
 
 
+def _blocked_step(c: CrEntry) -> str:
+    """A blocked CR's step: `Parked`, `Held`, `Unheld`, the asking word of its reason, else
+    `Blocked`."""
+    if parked_reason(c):
+        return "Parked"
+    if is_held(c):
+        return "Held"
+    if unheld(c):
+        return "Unheld"
+    word = (c.blocked_reason or "").split(":")[0].split(" ")[0].lower()
+    return word.capitalize() if word in ASKING else "Blocked"
+
+
 def step(c: CrEntry) -> str:
     status = c.status
     if status in {"queued", "ready"}:
         return "Queued" if status == "queued" else "Notify"
     if status == "blocked":
-        word = (c.blocked_reason or "").split(":")[0].split(" ")[0].lower()
-        return "Parked" if parked_reason(c) else word.capitalize() if word in ASKING else "Blocked"
+        return _blocked_step(c)
     if status in ENDED:
         return "Merged" if status != "cancelled" else "Dropped"
     if c.kind == "release":
@@ -66,6 +78,11 @@ def waits(d: BatchRecord, c: CrEntry) -> list[str]:
     return waits_all(d.crs, c, d.mode) if c.status == "queued" else []
 
 
+def unheld(c: CrEntry) -> bool:
+    """A blocked CR the user's `order unhold` released: it waits for the Foreman to take it back."""
+    return c.status == "blocked" and (c.blocked_reason or "").startswith("unheld:")
+
+
 def waits_on(c: CrEntry) -> bool:
     """A blocked CR that waits for a thing already on its way: nobody has to decide."""
     return c.status == "blocked" and (c.blocked_reason or "").lower().startswith("waits:")
@@ -89,6 +106,8 @@ _PHASE_WORDS = {"conflict-resolver": "conflict resolver", "pr": "PR", "ci": "CI"
 
 
 def _blocked_text(c: CrEntry) -> str | None:
+    """A blocked CR's phase: parked (what it waits for), held by the user, to take back (waits
+    for the Foreman), waiting for the user, or None when a thing already on its way is awaited."""
     if parked_reason(c):
         mine = open_counted(c)
         return (
@@ -96,6 +115,10 @@ def _blocked_text(c: CrEntry) -> str | None:
             if mine
             else "parked: wait cleared"
         )
+    if is_held(c):
+        return f"held (order {c.held})"
+    if unheld(c):
+        return "to take back"
     return None if waits_on(c) else "waits for the user"
 
 
