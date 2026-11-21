@@ -32,7 +32,9 @@ fails when the table and `tokens.css` disagree.
   hairline, a plain head (dot, name, count) and a one-line grey sub-line saying what it holds; a
   column that appears on both pages has the same dot colour on both. The chip lives in
   `css/components/chip.css`; the priority chip is Triage's, filled with the priority colour, on
-  every card that has a priority (inbox, P1 to P4, 3-ready); a chip used as a filter toggle is the
+  every card that has a priority (inbox, P1 to P4, 3-ready); a card of a CR in the batch shows in
+  that place its batch folder (1-pending, 2-actives, 3-done) in a neutral grey chip, never a
+  priority; a chip used as a filter toggle is the
   same chip, filled when on, outlined grey when off, the same size in both states. A lane, built by
   the same module (`lane(parts)`), sits in a column's body and has no dot: a Backlog lane's head is
   its priority chip, its count and its grill counts; Triage's last column holds two named lanes,

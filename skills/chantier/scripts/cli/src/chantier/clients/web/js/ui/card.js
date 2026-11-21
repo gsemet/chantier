@@ -4,7 +4,7 @@
 //   classes   page hooks (`pi`, `node`...), `attrs`: markup of attributes (opener, drag, data-*)
 //   variants  names of card.css variants: sel, pick-up, picked, drag, pending, dim, highlight,
 //             draft, flush, compact, clamp, paper (the Batch time card)
-//   priority  a bucket: its chip is first in the top row; `picked` puts the check mark after it
+//   priority  a bucket or a batch folder: its chip is first in the top row; `picked` puts the check mark after it
 //   top       the rest of the top row; `title` (in a `heading` tag when it is one), `labels`,
 //             `desc` (shown when given, even empty), `body` (a free block)
 //   meta      the band's left items, `end` its right-aligned end, `foot` what follows the end

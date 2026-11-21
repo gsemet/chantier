@@ -52,7 +52,7 @@ function stamps(c) {
 const timecard = (c) =>
   card({
     variants: ['paper'],
-    priority: c.priority,
+    priority: c.stage,
     attrs: html`data-id="${c.cr}" ${opener(crKey(c), 'tc-')}`,
     top: html`<span class="tag cr">${c.cr}</span><span class="tc-no">${t('timecard.number', { n: /\d+/.exec(c.cr)?.[0] ?? c.cr })}</span><span class="tc-cap">${t('timecard.title')}</span>`,
     title: title(c.title),

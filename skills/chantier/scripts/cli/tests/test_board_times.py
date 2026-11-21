@@ -1,4 +1,4 @@
-"""The board's per-CR times (Gantt segments, rounds) and priority chip, derived from events."""
+"""The board's per-CR times (Gantt segments, rounds), derived from events."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from chantier.board.times import cr_times, priority_of
+from chantier.board.times import cr_times
 from chantier.core.records import CrEntry, EventRecord
 
 
@@ -162,18 +162,3 @@ def test_cr_times(name: str) -> None:
     events, entry, expected = CASES[name]
     times = cr_times(events, entry)
     assert {k: times[k] for k in expected} == expected
-
-
-@pytest.mark.parametrize(
-    ("origin", "expected"),
-    [
-        ("1-inbox/a", "inbox"),
-        ("2-backlog/P2/a", "P2"),
-        ("3-ready/a", "3-ready"),
-        (".agents/changes/3-ready/a", "3-ready"),
-        (None, None),
-    ],
-)
-def test_priority_of(origin: str | None, expected: str | None) -> None:
-    events = [ev("09:00:00", "add", origin=origin)] if origin else [ev("09:00:00", "take")]
-    assert priority_of(events, CrEntry(id="CR-1")) == expected
