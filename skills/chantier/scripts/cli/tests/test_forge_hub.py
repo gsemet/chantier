@@ -1,4 +1,4 @@
-"""The forge hub and `chantier watch`: the election, the cycle, the journal both the hub and the
+"""The forge hub and `chantier watch`: the cycle, the journal both the hub and the
 board's page write, the watcher's end, its refusals and what `status` says.
 
 No test reaches a forge (`connectors.read` is replaced) and none sleeps: the cycle and the end
@@ -31,6 +31,7 @@ from forge_world import (
     shape,
     write_batch,
 )
+from watch_fakes import served
 
 from chantier import __version__, connectors
 from chantier.board import prs
@@ -40,6 +41,7 @@ from chantier.hub import issue_refs, journal, lock, schemas, state
 from chantier.hub.autostart import watch_command
 from chantier.hub.lines import hub_line
 from chantier.hub.watch import EVENTS, Watch
+from chantier.hub.watch_lines import OTHER_VERSION
 
 REAL_READ = connectors.read  # the seam as shipped, before `World` replaces it
 RED_A, RED_B = {"checks": "failing", "head": "a" * 40}, {"checks": "failing", "head": "b" * 40}
@@ -193,33 +195,21 @@ def test_the_board_and_the_hub_share_the_journal_once(world: World, first: str) 
     assert (only["source"], only["cr"]) == (first, "CR-1")
 
 
-def test_the_start_line_names_the_hub_and_a_hub_of_another_version(world: World) -> None:
+def test_the_start_line_names_a_board_of_another_version_and_the_watcher_is_never_the_hub(
+    world: World,
+) -> None:
     beta = world.repo("beta")
     world.hub.close()
-    held = lock.HubLock(beta.git_dir)
-    assert held.acquire()  # another process is the hub
-    for version, tail in ((NEW_VERSION, ""), ("0.0.1", f"; hub is chantier {NEW_VERSION}")):
-        state.write_hub(beta.git_dir, state.hub_record(NEW_VERSION))
-        w = Watch(beta, 3, version)
-        assert w.start_line() == f"watch: beta from cursor 3 for project{tail}"
+    for version, said in (("0.0.1", OTHER_VERSION.format(version="0.0.1")), (NEW_VERSION, "")):
+        name_server(beta.git_dir, version=version)
+        w = Watch(beta, 3, NEW_VERSION, board=served(beta))
+        assert w.start()[0] == f"watch: beta from cursor 3 for project{said}"
+        w.poll(0.0)
+        free = lock.HubLock(beta.git_dir)
+        assert free.acquire()  # a watcher never takes the hub's lock
+        free.release()
         w.close()
-    held.release()
-    w = Watch(beta, 0, NEW_VERSION)
-    assert w.start_line() == "watch: beta from cursor 0 for project, the hub"
-    w.close()
-    state.remove_entry(beta.git_dir, state.HUB, os.getpid())
-    tail = "; board is chantier 0.0.1: its writes do not reach this watcher, restart it"
-    for version, said in (("0.0.1", tail), (NEW_VERSION, "")):
-        name_server(beta.git_dir, version=version)  # a live server: no watcher is the hub
-        w = Watch(beta, 0, NEW_VERSION)
-        assert w.start_line() == f"watch: beta from cursor 0 for project{said}"
-        w.close()
-    state.remove_entry(beta.git_dir, state.SERVER, os.getpid())
-    w = Watch(beta, 0, NEW_VERSION)
-    assert (
-        w.start_line() == "watch: beta from cursor 0 for project, the hub"
-    )  # no live entry: nothing said
-    w.close()
+    assert state.live_entry(beta.git_dir, state.HUB) is None
 
 
 CONFIGS = [
@@ -243,7 +233,7 @@ def test_a_config_line_ends_the_watcher_and_is_told_in_its_form(
     data = {"id": "batch-01", "status": "running", "crs": []}
     (folder / "batch.json").write_text(json.dumps(data), encoding="utf-8")
     found = Repo.find()
-    w = Watch(found, 0, __version__)
+    w = Watch(found, 0, __version__, board=served(found))
     journal.append(found, [{"type": "config@1", **event}], "board")
     ended = next(((t, r) for t in range(60) if (r := w.poll(float(t)))), None)
     w.close()

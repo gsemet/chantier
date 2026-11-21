@@ -223,11 +223,7 @@ def _another_version(version: object, pid: object, link: str, stop: str) -> Chan
 
 
 def _silent(run: dict[str, Any]) -> ChantierError:
-    return _not_started(
-        f"a chantier board {run.get('version')} (PID {run['pid']}) holds this surface at "
-        f"{run['host']}:{run['port']} and does not answer: stop it "
-        f"({running.stop_command(run['pid'])}), then run board again"
-    )
+    return _not_started(running.silent_text(run))
 
 
 def _recorded(projects: Projects, run: dict[str, Any], key: str) -> tuple[str, int]:

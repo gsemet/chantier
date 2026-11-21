@@ -352,7 +352,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
     entry of `server.json` names one PID and a read per project, `status` names that PID
     (`a watcher`), and each cycle makes one `api graphql` call per project with an open PR, never
     two hubs' worth (unit: surface-board) (test:
-    test_surface_server.py::test_one_watcher_holds_the_hub_lock_and_the_next_takes_it,
+    test_forge_hub.py::test_the_start_line_names_a_board_of_another_version_and_the_watcher_is_never_the_hub,
     test_forge_hub.py::test_a_hub_cycle_reads_only_what_there_is_to_read_and_is_due_every_twenty_seconds);
   - A's PR merged on the forge: A's watcher ends with `forge saw merged: ... order merged <cr>` and
     `watch: <batch> still running: for the Chief of Staff, start again in the background now:

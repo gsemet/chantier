@@ -3,8 +3,8 @@
 
 `hub.lock` is taken with `core.files.try_lock` and never waited on: the OS releases it when the
 holder exits or dies, so no stale lock exists. The holder is the forge hub: the surface server
-(`chantier board`) or, with no server running, a watcher. The hub's record is the `hub` entry of
-`server.json`, written by the holder only.
+(`chantier board`), and no other process; a watcher never takes it. The hub's record is the `hub`
+entry of `server.json`, written by the holder only.
 
 The surface's writer holds `writer.lock` the same way, and `writer.wake` is the file that `sync now`
 and the board's button touch to start a cycle at once.
@@ -62,7 +62,7 @@ class _FileLock:
 
 
 class HubLock(_FileLock):
-    """The hub's lock: its holder is the surface server, or a watcher when none runs."""
+    """The hub's lock: its holder is the surface server's hub loop, one per surface and machine."""
 
     def __init__(self, git_dir: Path) -> None:
         super().__init__(folder(git_dir) / LOCK)

@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from batch_helpers import FROM_AGENTS_MD, host, open_batch, prepared, record, write_record
 from conftest import Chantier
+from watch_fakes import served
 
 from chantier import __version__, cli
 from chantier.core.repo import Repo
@@ -29,10 +30,10 @@ def test_watchers_lists_the_held_locks_of_one_project(
     assert lock.watchers(found.git_dir, "p") == [] and not folder.exists()  # no file created
     monkeypatch.setenv("CHANTIER_HOST", "claude")
     monkeypatch.setenv(VAR, ME)
-    w = Watch(found, 0)
+    w = Watch(found, 0, board=served(found))
     w.project = "p"
     w.own = lock.WatcherLock(found.git_dir, "p", w.session)
-    w.elect()
+    w.start()
     other = lock.WatcherLock(found.git_dir, "q", ME)
     assert other.acquire() and w.session == ME
     assert lock.watchers(found.git_dir, "p") == [ME]  # a held lock of another project is not listed
@@ -51,8 +52,8 @@ def test_a_watcher_that_lost_its_lock_to_a_probe_takes_it_at_its_next_poll(
     monkeypatch.setenv(VAR, ME)
     probe = lock.WatcherLock(found.git_dir, Watch(found, 0).project, ME)
     assert probe.acquire()
-    w = Watch(found, 0)
-    w.elect()
+    w = Watch(found, 0, board=served(found))
+    w.start()
     assert not w.own.held
     probe.release()
     w.poll(0.0)
@@ -165,8 +166,8 @@ def test_the_outputs_end_with_the_line_when_no_watcher_of_this_session_runs(
     watchers: list[Watch] = []
     if who != "none":
         monkeypatch.setenv(VAR, ME if who == "mine" else OTHER)
-        w = Watch(found, 0)
-        w.start_line()
+        w = Watch(found, 0, board=served(found))
+        w.start()
         watchers.append(w)
         monkeypatch.setenv(VAR, ME)
     out = run()

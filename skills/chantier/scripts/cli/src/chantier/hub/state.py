@@ -2,9 +2,10 @@
 tree, never pushed, mode 0600 because it holds the board's key.
 
 It holds the `key` and `created` (kept across starts), the `server` entry (the process that runs
-`chantier board`: `pid`, `host`, `port`, `version`, `served`, `started`) and the `hub` entry (the
-process that holds `hub.lock`, the server or, with no server, a watcher: `pid`, `version`,
-`started` and, per project, `read_at`, `error`, `error_at`). An entry whose process has not been
+`chantier board`: `pid`, `host`, `port`, `version`, `served`, `started`, and its `files`,
+`stop_idle` and `forge` when it has them) and the `hub` entry (the process that holds `hub.lock`,
+the server alone: `pid`, `version`, `started`, `idle` while no client observes it and, per
+project, `read_at`, `error`, `error_at`). An entry whose process has not been
 alive since `started` is no entry. The `writer` entry (the surface's writer, `writer/record.py`)
 is written by the writer only: `pid`, `version`, `started`, its `state` and the facts of the last
 cycle.
@@ -85,6 +86,16 @@ def live_entry(git_dir: Path, name: str) -> dict[str, Any] | None:
     ):
         return None
     return entry if procs.alive_since(pid, when, unreadable=True) else None
+
+
+def live_server(git_dir: Path) -> tuple[dict[str, Any], str] | None:
+    """The live `server` entry and the key of the file, as a client of this machine reaches the
+    board (`chantier live`, a watcher); None with no live server or no key."""
+    entry = live_entry(git_dir, SERVER)
+    key = read(git_dir).get("key")
+    if entry is None or not isinstance(key, str) or not key:
+        return None
+    return entry, key
 
 
 def modify(git_dir: Path, change: Callable[[dict[str, Any]], None]) -> None:
