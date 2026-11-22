@@ -392,3 +392,4 @@ def test_the_fold_and_the_writes_count_explanation_ship(lang: str) -> None:
     assert re.search(r'title="\$\{t\(.journal\.tip.\)\}"', journal)
     design = DESIGN.read_text(encoding="utf-8")
     assert "## Triage: folded rows and the writes count" in design
+    assert "its grill counts and its fold chevron" in " ".join(design.split())
