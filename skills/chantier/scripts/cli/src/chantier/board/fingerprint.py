@@ -21,8 +21,6 @@ DEEP = ("1-inbox", "2-backlog", "3-ready", "4-batch")
 SHALLOW = ("5-archives", "6-trash", "5-archives/batches")
 # the batch's own files are in `4-batch`
 SINGLE = ("seat.json", "next-batch.json", "board-journal.jsonl", "forge-journal.jsonl")
-# a `lease hold`'s record at the root: one that starts or ends moves a CR row's `lease.holds`
-HOLDS = ".lease-hold.*.run"
 
 
 def counts_for(rel: str) -> bool:
@@ -76,7 +74,6 @@ def fingerprint(store: PlanStore, changes: Path, extra: str = "") -> str:
     live cost's marks)."""
     base = rel_in(store.root, changes)
     lines = [_entry(store, _join(base, name)) for name in SINGLE]
-    lines += [_entry(store, _join(base, n)) for n in store.glob(base, HOLDS)]
     for name in DEEP:
         lines += _deep(store, _join(base, name))
     for name in SHALLOW:

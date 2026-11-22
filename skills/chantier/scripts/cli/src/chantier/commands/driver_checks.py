@@ -187,7 +187,7 @@ def _gate_missing(repo: Repo, b: Batch, c: CrEntry, events: list[EventRecord]) -
         return "", str(done.gate_from)
     text = (
         f"refused: no long gate passed at {head or 'any head'} (gate "
-        f'{c.id} "<cmd>"..., or --no-gate "<the project\'s rule>")'
+        f'{c.id} <name>..., or --no-gate "<the project\'s rule>")'
     )
     j = judged_gate(events)
     voided = _voided(events, "gate", judged_gate) if j is None else None

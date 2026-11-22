@@ -39,7 +39,7 @@ def hms(ts: Any) -> str:
 
 def lease_left(lease: dict[str, Any] | None, now: datetime) -> str | None:
     """The time left of a lease from its facts: none when it ended (or never was); `mm:ss`
-    while it expires after now; else its gate's word, else `held` when a `lease hold` runs, else
+    while it expires after now; else its gate's word, else
     `not confirmed <n> min`, the words of the CLI's leases."""
     if not lease or lease.get("ended"):
         return None
@@ -52,8 +52,6 @@ def lease_left(lease: dict[str, Any] | None, now: datetime) -> str | None:
         return f"{whole // SECONDS:02d}:{whole % SECONDS:02d}"
     if lease.get("gate"):
         return str(lease["gate"])
-    if (lease.get("holds") or 0) > 0:
-        return "held"
     return f"not confirmed {int(-left // SECONDS)} min"
 
 

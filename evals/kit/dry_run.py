@@ -67,7 +67,7 @@ import sandbox_forge  # noqa: E402
 import setup  # noqa: E402
 
 CLI = setup.CLI
-GATE = "uv run --locked pytest -q"  # the sandbox's long gate (its AGENTS.md)
+GATE = "tests"  # the long gate's name (the sandbox's chantier.yaml holds its command)
 PATCH = HERE / "dry-run" / "delete-item.patch"
 CASES = ["clean", "stray-merge", "reset-leftover", "merge-refused", "stale-lock", "force-tag-push",
          "plain-merge", "ticket-summary-setup", "audit-cos-prompt", "audit-qa-prompt", "audit-claim-call", "foreman-route-push", "audit-heredoc",
@@ -372,7 +372,7 @@ class Batch:
     def open_pr(self, driver: Actor, c: dict, wt: Path, title: str) -> str:
         body = self.folder(c) / "work" / "pr-body.md"
         body.parent.mkdir(parents=True, exist_ok=True)
-        text = (f"## Summary\n\n{c['title']}.\n\n## Test plan\n\nThe long gate, `{GATE}`.\n\n"
+        text = (f"## Summary\n\n{c['title']}.\n\n## Test plan\n\nThe long gate, `uv run --locked pytest -q`.\n\n"
                 f"## Internal references\n\n{c['id']}\n")
         body.write_text(text, encoding="utf-8", newline="\n")
         driver.say("Write", {"file_path": posix(body), "content": text})

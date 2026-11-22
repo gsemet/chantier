@@ -32,6 +32,13 @@ def prepared(repo: Path, chantier: Chantier, title: str) -> Path:
     return folder
 
 
+def name_gate(repo: Path, name: str, command: str) -> None:
+    """The long gate `name` in the code repository's root `chantier.yaml`: what `gate` runs."""
+    (repo / "chantier.yaml").write_text(
+        f"long_gate:\n  commands:\n    {name}: {command}\n", encoding="utf-8"
+    )
+
+
 def changes(repo: Path) -> Path:
     return repo / ".agents" / "changes"
 

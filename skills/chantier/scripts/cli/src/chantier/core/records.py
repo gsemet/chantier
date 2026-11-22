@@ -288,6 +288,7 @@ class RunRecord(Record):
     head: str = ""
     log: str = ""
     command: str = ""
+    name: str | None = None  # the long gate's name in chantier.yaml, when the command has one
     pg: int | None = None
     base: str | None = None
 

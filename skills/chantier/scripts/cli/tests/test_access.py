@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
-from batch_helpers import DEAD, changes, name_server, record, write_record
+from batch_helpers import changes, name_server, record, write_record
 from conftest import Chantier, Surface, shared_state
 from store_spy import access_batch, enter_state
 from test_store_command_table import states  # noqa: F401 - the surface states (a fixture)
@@ -317,17 +317,14 @@ def test_claim_quotes_the_refusal_take_prints(  # noqa: PLR0913, PLR0917 - one p
     assert code != 0 and err.strip() == f"error: {text}"
 
 
-def test_claim_says_what_the_epoch_needs_and_a_dead_hold_record_stays(
+def test_claim_says_what_the_epoch_needs_and_a_lapsed_lease_is_not_confirmed(
     world: Path, ask: Ask
 ) -> None:
     needs = "claim: needs the steering session's --epoch (Foreman n°1)"
     assert len(ask("claim", "CR-102", "--epoch", 1)) == WITH_EPOCH_LINE - 1  # the current one
     assert ask("claim", "CR-102")[2] == needs and ask("claim", "CR-102", "--epoch", 7)[2] == needs
-    hold = changes(world) / ".lease-hold.CR-101.1.run"
-    hold.write_text(json.dumps({"unit": "CR-101", "lease": 1, "pid": DEAD}), encoding="utf-8")
     clock.fix(clock.after(11 * 60, T0))
     assert "not confirmed since 00:10" in ask("claim", "CR-101", "--epoch", 1)[1]
-    assert hold.exists()  # a dead record holds nothing, and `access` removes none
 
 
 def _branch(world: Path) -> str:

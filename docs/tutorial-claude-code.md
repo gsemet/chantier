@@ -52,7 +52,9 @@ The first line is the **fast gate** (the Coder runs it after every round), the s
 **long gate** (the Driver runs it once before the PR, through `chantier gate`, alone in the
 repository). One command may serve as both; write one command per item, never chained with `&&`
 or `;`. On Windows, the long gate runs in `cmd.exe`. The page
-[Your gates](gates.md) says more: exemptions, and a project with no long gate.
+[Your gates](gates.md) says more: exemptions, and a project with no long gate. A runnable long gate also
+needs its entry in the code repository's root `chantier.yaml` (`long_gate:` / `commands:` /
+`tests: npm test`), which the Chief of Staff proposes with the `AGENTS.md` line and writes on your yes.
 Everything else `AGENTS.md` says (how to commit, the PR template, the merge method, what a
 skipped job means, how to release) binds the team too: the Drivers commit, push and open the
 PRs themselves, and your rules rank above chantier's own.

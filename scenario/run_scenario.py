@@ -57,6 +57,7 @@ FAKE_USAGE = Path(__file__).with_name("fake_session_usage.py")
 LOG: list[str] = []
 CHECKS = {"pass": 0, "fail": 0}
 GATE = f'"{sys.executable}" -m compileall -q .'  # what the project's AGENTS.md names: no uv start per gate
+GATE_NAME = "tests"  # its name in the workspace's chantier.yaml (`long_gate.commands`): `gate` runs names only
 FROM_AGENTS_MD = ("--default-branch", "main")
 TRAILER = "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
 BODY = ("## Summary\n\n{title}.\n\n## Deliverables\n\nNone.\n\n## Blast radius\n\nGrade: 1\n\n"
@@ -312,6 +313,63 @@ class World:
         self.last_out: list[str] = []
         self.name = ""  # the running batch's id, `batch-<n>`: the CLI numbers it
         self.leases: dict[str, int] = {}  # the number `take` printed, by unit (upper case)
+        self.gate_cmds = {GATE_NAME: GATE}  # the workspace's chantier.yaml: name -> command
+
+    def gate_named(self, command: str) -> str:
+        """The name the workspace's `chantier.yaml` gives a long gate's command (it is written
+        there, beside any other key the file holds, when it is not yet)."""
+        name = next((n for n, c in self.gate_cmds.items() if c == command), None)
+        if name is None:
+            name = f"gate{len(self.gate_cmds)}"
+            self.gate_cmds[name] = command
+        self.sync_gates()
+        return name
+
+    def sync_gates(self) -> None:
+        """Rewrite the `long_gate:` block of the workspace's `chantier.yaml`: its `parallel`
+        kept, its `commands` the ones the scenario named so far."""
+        yaml = self.work / "chantier.yaml"
+        text = yaml.read_text(encoding="utf-8") if yaml.exists() else ""
+        keep, inside, parallel = [], False, None
+        for ln in text.splitlines():
+            if ln.startswith("long_gate:"):
+                inside = True
+            elif inside and (ln.startswith(" ") or not ln.strip()):
+                m = re.match(r"\s+parallel:\s*(\d+)", ln)
+                parallel = m[1] if m else parallel
+            else:
+                inside = False
+                keep.append(ln)
+        block = ["long_gate:", *([f"  parallel: {parallel}"] if parallel else []), "  commands:"]
+        block += [f"    {n}: '{c.replace(chr(39), chr(39) * 2)}'" for n, c in self.gate_cmds.items()]
+        new = "\n".join([*keep, *block]) + "\n"
+        if new != text:
+            yaml.write_text(new, encoding="utf-8")
+
+    def named_args(self, args: tuple) -> tuple:
+        """A `gate` call as the Driver types it: each command word of the harness becomes the
+        name `chantier.yaml` gives it (the options and the CR stay)."""
+        out, i, seen_cr = [], 0, False
+        while i < len(args):
+            a = str(args[i])
+            if i == 0:
+                out.append(a)
+            elif a in ("--epoch", "--lease", "--batch"):
+                out += [a, args[i + 1]]
+                i += 1
+            elif a.startswith("--"):
+                out.append(a)
+            elif not seen_cr:
+                seen_cr = True
+                out.append(a)
+            else:
+                out.append(self.gate_named(a))
+            i += 1
+        return tuple(out)
+
+    def gate_argv(self, cr: str, *commands: str) -> list[str]:
+        """A background `chantier gate` of the named commands, for `subprocess.Popen`."""
+        return [sys.executable, "-m", "chantier", "gate", cr, *map(self.gate_named, commands)]
 
     def sh(self, *args, cwd=None):
         return subprocess.run(args, cwd=cwd or self.work, check=True, capture_output=True,
@@ -381,9 +439,11 @@ class World:
             return "STACK" if rest else None
         return None
 
-    def chantier(self, *args, env=None, expect=0, cwd=None, lease=True, stdin=None):
+    def chantier(self, *args, env=None, expect=0, cwd=None, lease=True, stdin=None, named=True):
         """`lease=False` runs a Driver's command without the number `take` printed (a missing
-        lease case)."""
+        lease case); `named=False` passes a `gate` call's words as they are (a free command)."""
+        if named and args and args[0] == "gate":
+            args = self.named_args(args)
         unit = self.lease_unit(args) if lease else None
         if unit and self.leases.get(unit):
             args = (*args, "--lease", self.leases[unit])
@@ -915,12 +975,21 @@ def drop_then_cancel(w: World, cr: str, epoch: int, env=None) -> tuple[int, list
     return w.chantier("cancel", cr, "--epoch", epoch, env=env)
 
 
+def wait_past(stamp: str, extra: float = 1.0, limit: float = 60.0) -> None:
+    """Sleep until the UTC time `stamp` (a record's expiry) is `extra` seconds behind."""
+    over = datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    deadline = time.monotonic() + limit
+    while datetime.now(timezone.utc) <= over + timedelta(seconds=extra) and time.monotonic() < deadline:
+        time.sleep(0.2)
+
+
 def lease_cases(w: World) -> None:
     """Two Drivers hold a lease each (`take` gave CR-101 and CR-102 theirs). A stale number is
-    `claim lost` and a missing one is refused, nothing recorded; a CI watch run under `lease hold`
-    keeps CR-102's lease live past the shortened TTL (3 s), and it is not expired."""
-    section("3a. Leases: a stale one, and a CI watch under `lease hold`")
-    note("\n## 3a. Leases: a stale one, and a CI watch under `lease hold`")
+    `claim lost` and a missing one is refused, nothing recorded; a `lease hold` keeps CR-102's
+    lease live past the shortened TTL (3 s) with no process running, and once the hold lapses the
+    lease is not confirmed; a `--` command is refused."""
+    section("3a. Leases: a stale one, and a wait under `lease hold`")
+    note("\n## 3a. Leases: a stale one, and a wait under `lease hold`")
     rounds = w.cr("CR-101")["round"]
     code, _ = w.chantier("round", "CR-101", "--lease", 9, expect=3)
     check("a stale lease: `round CR-101 --lease 9` exits 3 with `claim lost` and records nothing",
@@ -930,32 +999,27 @@ def lease_cases(w: World) -> None:
     check("a `round` with no lease is refused, naming the number `take` printed",
           code == 2 and "needs --lease" in w.last_stderr and w.cr("CR-101")["round"] == rounds,
           w.last_stderr)
-    number, ttl = w.leases["CR-102"], {"CHANTIER_LEASE_TEST_TTL": "3"}
-    watch, release = w.root / "ci_watch.py", w.root / "ci_watch.release"
-    release.unlink(missing_ok=True)
-    watch.write_text("import os, sys, time\nend = time.time() + 60\n"
-                     "while not os.path.exists(sys.argv[1]) and time.time() < end:\n"
-                     "    time.sleep(0.05)\n", encoding="utf-8")
-    w.chantier("lease", "CR-102", "renew", "--lease", number, env=ttl)  # expires in 3 s
-    proc = subprocess.Popen(
-        [sys.executable, "-m", "chantier", "lease", "CR-102", "hold", "--lease", str(number), "--",
-         sys.executable, str(watch), str(release)], cwd=w.work, env={**w.env, **ttl},
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8")
-    deadline = time.monotonic() + 30
-    while time.monotonic() < deadline and not list(w.state.glob(".lease-hold.CR-102.*.run")):
-        time.sleep(0.1)
-    expires = w.cr("CR-102")["lease"]["expires"]
-    over = datetime.strptime(expires, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-    while datetime.now(timezone.utc) <= over + timedelta(seconds=1) and time.monotonic() < deadline:
-        time.sleep(0.2)  # no longer than the TTL: the lease's own expiry passes while the watch runs
+    number = w.leases["CR-102"]
+    short = {"CHANTIER_LEASE_TEST_TTL": "3", "CHANTIER_LEASE_TEST_MINUTE": "8"}  # a minute is 8 s
+    w.chantier("lease", "CR-102", "renew", "--lease", number, env=short)  # expires in 3 s
+    code, out = w.chantier("lease", "CR-102", "hold", "--lease", number, "--minutes", 1, env=short)
+    held = w.cr("CR-102")["lease"]["expires"]
+    check("`lease hold --minutes 1` sets the expiry one (shortened) minute ahead and runs nothing",
+          code == 0 and out and "live until" in out[0] and not list(w.state.glob(".lease-hold.*")),
+          str(out))
+    wait_past(held, extra=-4)  # past the 3 s TTL, before the hold's end
     code, out = w.chantier("lease", "CR-102")
-    check("a CI watch under `lease hold` past the shortened TTL keeps the lease live, not "
-          "expired, and `lease` says it is held",
-          datetime.now(timezone.utc) > over and out and "live until" in out[0]
-          and "held by 1 background task" in out[0] and "not confirmed" not in out[0], str(out))
-    release.touch()
-    _, err = proc.communicate(timeout=60)
-    check("the held command ends: `lease hold` exits 0", proc.returncode == 0, err)
+    check("the hold keeps the lease live past the shortened TTL, with no process running",
+          out and "live until" in out[0] and "not confirmed" not in out[0], str(out))
+    wait_past(held)
+    code, out = w.chantier("lease", "CR-102")
+    check("after the hold lapses, `lease` says not confirmed", out and "not confirmed" in out[0],
+          str(out))
+    before = w.cr("CR-102")["lease"]["expires"]
+    code, _ = w.chantier("lease", "CR-102", "hold", "--lease", number, "--", sys.executable, "-c",
+                         "pass", expect=1)
+    check("a `--` command after `lease hold` is refused: it runs nothing, exit 1, no change",
+          code == 1 and w.cr("CR-102")["lease"]["expires"] == before, w.last_stderr)
     w.chantier("lease", "CR-102", "renew", "--lease", number)  # the normal life again
 
 
@@ -1176,6 +1240,11 @@ def scenario(w: World) -> None:
     code, out = w.chantier("gate", "CR-101", GATE)
     check("the long gate runs the project's command in the worktree and records the head",
           code == 0 and out[0].startswith(f"pass {GATE} at ") and out[1].startswith("log "), str(out))
+    gates = lambda: sum(json.loads(ln)["kind"] == "gate" for ln in (w.folder() / "events.jsonl").read_text("utf-8").splitlines())
+    before = gates()
+    code, _ = w.chantier("gate", "CR-101", "just scenario", named=False, expect=1)
+    check("a free command is no name: `gate CR-101 \"just scenario\"` exits 1, listing the names, nothing logged",
+          code == 1 and f"named: {GATE_NAME}" in w.last_stderr and gates() == before, w.last_stderr)
     ship(w, "CR-101", "feat: login")
     check("`ship` records the Driver's PR with its head, and nothing off",
           w.cr("CR-101")["pr"].startswith(PR_LINK[ARGS.forge]) and w.cr("CR-101")["head"]
@@ -5166,7 +5235,7 @@ def cancel_during_gate(w: World) -> None:
     w.chantier("foreman", "set", "local_foreman6", "--epoch", 1)
     Foreman(w, epoch=1).turn()
     cr = w.batch()["crs"][0]["id"]
-    running = subprocess.Popen([sys.executable, "-m", "chantier", "gate", cr, gate], cwd=w.work,
+    running = subprocess.Popen(w.gate_argv(cr, gate), cwd=w.work,
                                env=w.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                text=True, encoding="utf-8")
     lock_names(w, f"{cr} pid")
@@ -5213,7 +5282,7 @@ def stop_own_gate(w: World) -> None:
         return sorted((w.at(w.cr(cr)["path"]) / "work" / "gates").glob("*.log"))
 
     def background(cr):
-        p = subprocess.Popen([sys.executable, "-m", "chantier", "gate", cr, slow_gate], cwd=w.work,
+        p = subprocess.Popen(w.gate_argv(cr, slow_gate), cwd=w.work,
                              env=w.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                              encoding="utf-8")
         lock_names(w, f"{cr} pid")
@@ -5245,7 +5314,7 @@ def stop_own_gate(w: World) -> None:
     marker = w.root / "second_ran"
     second = f'"{sys.executable}" -c "open({marker.as_posix()!r}, \'w\').close()"'
     n_before = len(events(one))
-    p = subprocess.Popen([sys.executable, "-m", "chantier", "gate", one, slow_gate, second],
+    p = subprocess.Popen(w.gate_argv(one, slow_gate, second),
                          cwd=w.work, env=w.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          text=True, encoding="utf-8")
     lock_names(w, " pg")
@@ -5396,7 +5465,7 @@ def rails(w: World) -> None:
 
     def gate_proc(cr, command):
         return subprocess.Popen(
-            [sys.executable, "-m", "chantier", "gate", cr, command],
+            w.gate_argv(cr, command),
             cwd=w.work,
             env=w.env,
             stdout=subprocess.PIPE,
@@ -5450,7 +5519,7 @@ def rails(w: World) -> None:
             time.sleep(0.05)
 
     def queued_gate(cr):
-        return subprocess.Popen([sys.executable, "-m", "chantier", "gate", cr, queue_gate],
+        return subprocess.Popen(w.gate_argv(cr, queue_gate),
                                 cwd=w.work, env=w.env, stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE, text=True, encoding="utf-8")
 
@@ -5578,7 +5647,7 @@ def gate_parallel(w: World) -> None:
         if not hold:
             release(name)
         gate = f'"{sys.executable}" "{slow}" {name}'
-        return subprocess.Popen([sys.executable, "-m", "chantier", "gate", cr, gate], cwd=w.work,
+        return subprocess.Popen(w.gate_argv(cr, gate), cwd=w.work,
                                 env=w.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 text=True, encoding="utf-8")
 
@@ -6369,7 +6438,7 @@ def gate_next_merge(w: World) -> None:
             (w.root / f"next_{name}.release").touch()
         gate = f'"{sys.executable}" "{slow}" {name}'
         return subprocess.Popen(
-            [sys.executable, "-m", "chantier", "gate", cr, gate],
+            w.gate_argv(cr, gate),
             cwd=w.work,
             env=w.env,
             stdout=subprocess.PIPE,
@@ -6595,6 +6664,24 @@ def gate_carry(w: World) -> None:
     w.reset()
 
 
+def lease_late_on_stack(w: World) -> None:
+    """3a's stack check, once a `take stack` printed `lease: stack <n>`: after a `lease stack hold`
+    lapses, a command with the same `--lease` is accepted and the log says `lease-late`."""
+    short = {"CHANTIER_LEASE_TEST_MINUTE": "4"}
+    number = w.leases["STACK"]
+    w.chantier("lease", "stack", "hold", "--lease", number, "--minutes", 1, env=short)
+    wait_past(w.batch()["stack_lease"]["expires"])
+    code, out = w.chantier("lease", "stack")
+    note("\n## 3a. Leases: a stale one, and a wait under `lease hold` (the stack)")
+    check("after a `lease stack hold` lapses, `lease stack` says not confirmed",
+          out and "not confirmed" in out[0], str(out))
+    code, _ = w.chantier("lease", "stack", "renew", "--lease", number)
+    log = (w.folder() / "events.jsonl").read_text("utf-8").splitlines()
+    check("a command with the same `--lease` on `stack` is accepted, and the log says `lease-late`",
+          code == 0 and any(json.loads(ln)["kind"] == "lease-late" and json.loads(ln)["cr"].lower() == "stack"
+                            for ln in log), w.last_stderr)
+
+
 def gate_carry_stack(w: World) -> None:
     note("\n## 12g. CR-316's shape: a pass carries over a restack onto a rewritten branch")
     items = [prepare_cr(w, t)[1] for t in ("Carry under", "Carry over")]
@@ -6605,6 +6692,7 @@ def gate_carry_stack(w: World) -> None:
     Foreman(w, epoch=1).turn()
     under, over = (c["id"] for c in w.batch()["crs"])
     w.chantier("take", "stack", "--epoch", 1)
+    lease_late_on_stack(w)
     w.chantier("agents", "set", "stack", "-", "--epoch", 1)
 
     def log():

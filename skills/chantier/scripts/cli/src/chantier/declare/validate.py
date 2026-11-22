@@ -13,6 +13,7 @@ def register(sub: Subparsers) -> None:
         "chantier.commands.validate:validate",
         "check the whole planning folder: stages, CR folders, outside archives' names, "
         "summary.json's format, missing or "
-        "late summaries, broken links; exit 0 with gaps, 3 on errors, 1 when it cannot run",
+        "late summaries, broken links, a planning surface's chantier.yaml naming a long gate's "
+        "command (ignored: a gap); exit 0 with gaps, 3 on errors, 1 when it cannot run",
         NO_BATCH,
     )

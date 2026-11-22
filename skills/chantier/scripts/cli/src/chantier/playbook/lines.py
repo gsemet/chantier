@@ -163,6 +163,24 @@ def ci_lines(resolved: dict[str, Any] | None) -> list[str]:
     ]
 
 
+IGNORED_COMMANDS = (
+    "long_gate.commands in {path} ignored: only the code repository's root chantier.yaml names "
+    "a long gate's command"
+)
+
+
+def long_gate_lines(commands: dict[str, str], ignored: list[str]) -> list[str]:
+    """The `long gate:` lines: the names and commands of the code repository's root
+    `chantier.yaml`, or that none is named; then one line for each surface file whose
+    `long_gate.commands` is ignored."""
+    if commands:
+        named = ", ".join(f"{n} ({c})" for n, c in commands.items())
+        first = f"long gate: {named} (chantier.yaml: long_gate.commands)"
+    else:
+        first = "long gate: none named in chantier.yaml (long_gate.commands)"
+    return [first, *(f"long gate: {IGNORED_COMMANDS.format(path=p)}" for p in ignored)]
+
+
 def ci_source(resolved: dict[str, Any] | None) -> str:
     """Where `beside_gate` was set: the layer's label, or the file's name in an old record."""
     return _layer_names(resolved or {}, "ci")

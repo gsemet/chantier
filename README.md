@@ -284,7 +284,7 @@ Once after installing, open a session on your project and run `/chief-of-staff i
 Code, `/chantier:chief-of-staff init`). It checks `uv` and `git`, and the forge's CLI with its
 rights and branch rules, and offers to install a missing `gh` or `glab`. On Claude Code it checks
 the allow rules and adds the missing ones on your yes, or gives you one command line to run at
-your computer. It checks the long gate in `AGENTS.md` and writes the lines on your yes.
+your computer. It checks the long gate in `AGENTS.md` and writes the lines on your yes, with the root `chantier.yaml` entry (`long_gate.commands`) that makes it runnable.
 
 ## Use
 
@@ -308,7 +308,7 @@ Talk to the Chief of Staff in plain language:
 | "what did it cost?" | measured cost: the Foreman, each Driver type, each worker type, and why |
 | "use my `rust-coder` agent as the coder" | that role runs your agent from the next batch |
 | "add a security review with `sec-reviewer`" | a new review step the Driver runs after the Inspector |
-| "our long gate is `npm test`" | the Chief of Staff proposes the exact `AGENTS.md` lines and writes them on your yes (see [Your gates](docs/gates.md)) |
+| "our long gate is `npm test`" | the Chief of Staff proposes the `AGENTS.md` line and the root `chantier.yaml` entry (`long_gate.commands`) that makes the gate runnable, and writes both on your yes (see [Your gates](docs/gates.md)) |
 | "which agents and models?" | the team: each role, its agent, its model (`chantier playbook`) |
 | "run the inspector on Opus" | a `model` for the role under `hosts.<host>.roles` in `chantier.yaml`, which the CLI resolves to the exact model (or refuses an unknown or ambiguous name) |
 
@@ -318,7 +318,7 @@ Talk to the Chief of Staff in plain language:
 - [The web board](docs/web-board.md): every view, with pictures taken from the real board.
 - [The server's API](docs/server-api.md): protocol 1, over a WebSocket and over HTTP, for any client.
 - [The live terminal view](docs/boards.md#the-live-terminal-view): `chantier live`, a running board watched in the terminal.
-- [Your gates](docs/gates.md): the fast gate and the long gate you declare in your `AGENTS.md`.
+- [Your gates](docs/gates.md): the fast gate and the long gate you declare in your `AGENTS.md`, and whose command `chantier.yaml` holds.
 - [Your own agents and models](docs/agents-and-models.md): which agent and model each role runs.
 - [The planning folder](docs/planning-folder.md): its layout, and a batch's pause and close.
 - [Supported hosts](docs/hosts.md): hosts, forges and Windows.

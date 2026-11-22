@@ -96,8 +96,8 @@ def _take_stack(
         lease=(
             f"lease: stack {lease.n} (pass --lease {lease.n} on stack <crs>, --out-of-draft, "
             f"--draft and forge-stack create|rebuild|unstack; renew at each wake: lease stack "
-            f"renew --lease {lease.n}; run a long gate under lease stack hold --lease {lease.n} "
-            "-- <command>)"
+            f"renew --lease {lease.n}; before a long gate and at each wake while it runs or "
+            f"waits: lease stack hold --lease {lease.n} --minutes 90)"
         ),
     )
     watch = not_running_line(repo) if reopened else []

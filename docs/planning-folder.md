@@ -51,7 +51,7 @@ External layout, beside it:
 ```
 
 What is published and what stays local: the batch's own files (`batch.json`, `events.jsonl`,
-`brief.md`, the STATUS files, locks, `.batch-number`, `seat.json`, `forge-journal.jsonl`, which also holds the board's writes and the writer's lines, and the `.lease-hold.*.run` records of a running `lease hold`) and the detailed logs
+`brief.md`, the STATUS files, locks, `.batch-number`, `seat.json`, `forge-journal.jsonl`, which also holds the board's writes and the writer's lines) and the detailed logs
 (`work/gates/`, `*.log`), the scratch folder (`work/scratch/`) and downloaded CI artifacts (any
 `artifacts-*/` folder under a `work/` folder) are ignored by git, by a `.gitignore` the CLI keeps in the planning
 folder. A running CR's documents, reports and evidence are pushed with the surface, by the surface server's writer, within 5 minutes; with no writer running, a write to the surface is refused. A path too
@@ -83,7 +83,7 @@ Markdown. A late summary blocks nothing, and the STATUS files read the same with
 (a CR outside a stage, nested in another, a priority folder outside `2-backlog`) and the names of outside archives (`<YYMMDD-HHMM>-outside-<number>-<slug>`) and the format of
 every `summary.json`, in every stage; the missing or late summaries, the shape of each CR folder
 (a request, the entries of its tree) and the broken links between Markdown files, in the live
-stages only (`5-archives` and `6-trash` are history). Its first line gives the counts
+stages only (`5-archives` and `6-trash` are history), and, as a gap, a planning surface's `chantier.yaml` that sets `long_gate.commands` (ignored: only the code repository's root file names a long gate's command). Its first line gives the counts
 (`no error, no gap (<k> CRs)`, `<m> gap(s) in <k> CRs` or `<n> error(s), <m> gap(s) in <k> CRs`),
 then one line per finding, errors first. Exit 0 when there is no error (gaps pass), 3 on an error
 (chantier or the board misreads the folder), 1 when it cannot run. A planning surface's

@@ -264,15 +264,48 @@ def _prices(node: Node, kline: int, bad: Bad) -> dict[str, dict[str, Any]]:
     return out
 
 
-def _long_gate(node: Node, kline: int, bad: Bad) -> int:
-    """The `long_gate` key: how many long gates may run at once. 1 when `parallel` is absent."""
+LONG_GATE_KEYS = "`parallel:` and `commands:`"
+
+
+def _gate_commands(node: Node, kline: int, bad: Bad) -> None:
+    """`long_gate.commands`: a map from a name (letters, digits, `-`, `_`) to one command."""
     if node.kind != "map" or not node.value:
-        bad(kline, '"long_gate" holds its key: `parallel:`')
+        bad(kline, 'long_gate: "commands" is a map from a name to its command: `<name>: <command>`')
+        return
+    for name, (line, value) in node.value.items():
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", name):
+            bad(line, f'long_gate: command name "{name}" is one word: letters, digits, - and _')
+        elif is_reset(value):
+            continue
+        elif value.kind != "scalar" or not value.value.strip():
+            bad(line, f'long_gate: command "{name}" is one non-empty command')
+
+
+def gate_commands(node: Node | None) -> dict[str, str]:
+    """The names and commands of a checked `long_gate` node (`{}` when it names none)."""
+    held = node.value.get("commands") if node is not None and node.kind == "map" else None
+    if held is None or held[1].kind != "map":
+        return {}
+    return {
+        n: v.value.strip()
+        for n, (_, v) in held[1].value.items()
+        if v.kind == "scalar" and not is_reset(v) and v.value.strip()
+    }
+
+
+def _long_gate(node: Node, kline: int, bad: Bad) -> int:
+    """The `long_gate` key: `parallel`, how many long gates may run at once (1 when absent), and
+    `commands`, the long gates' names (checked here, read by `gate_commands`)."""
+    if node.kind != "map" or not node.value:
+        bad(kline, f'"long_gate" holds its keys: {LONG_GATE_KEYS}')
         return 1
     parallel = 1
     for key, (line, value) in node.value.items():
-        if key != "parallel":
-            bad(line, f'long_gate: unknown key "{key}": one of parallel')
+        if key == "commands":
+            if not is_reset(value):
+                _gate_commands(value, line, bad)
+        elif key != "parallel":
+            bad(line, f'long_gate: unknown key "{key}": one of parallel, commands')
         elif is_reset(value):
             continue
         elif (

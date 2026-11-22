@@ -28,6 +28,7 @@ from chantier.core.repo import Repo
 from chantier.hub import journal
 from chantier.lifecycle.stages import cr_directory
 from chantier.playbook.lines import ci_lines, team_lines, timing_lines
+from chantier.playbook.long_gate import load_long_gate
 from chantier.plugin_files import (
     archive_path,
     cli_command,
@@ -234,11 +235,17 @@ def _gate_lines(repo: Repo, batch: str, d: BatchRecord, c: CrEntry) -> list[str]
     verdict = last_verdict(events, head)
     waiver = _waiver_line(d, c)
     waived = waived_gate(d, c) is not None
+    gate = load_long_gate(repo)
+    named = " ".join(gate.commands) if gate.commands and not gate.problems else ""
+    form = (
+        f"gate {c.id} {named}"
+        if named
+        else f"gate {c.id} <name> (none in chantier.yaml: ask the steering session)"
+    )
     long_gate = (
         [
-            f"  [{'x' if gate_passed(events, head) else ' '}] long gate passed (gate "
-            f'{c.id} "<cmd>" ["<cmd>"...]; none in the project\'s rules: handback '
-            f'{c.id} ready --no-gate "<rule>")'
+            f"  [{'x' if gate_passed(events, head) else ' '}] long gate passed ({form}; none in "
+            f'the project\'s rules: handback {c.id} ready --no-gate "<rule>")'
         ]
         if not waived
         else ["  [-] long gate waived (see the gate: line)"]
