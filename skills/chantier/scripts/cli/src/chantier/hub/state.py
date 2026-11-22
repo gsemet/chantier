@@ -2,10 +2,11 @@
 tree, never pushed, mode 0600 because it holds the board's key.
 
 It holds the `key` and `created` (kept across starts), the `server` entry (the process that runs
-`chantier board`: `pid`, `host`, `port`, `version`, `served`, `started`, and its `files`,
+`chantier board`: `pid`, `host`, `port`, `version`, `source`, `served`, `started`, and its `files`,
 `stop_idle` and `forge` when it has them) and the `hub` entry (the process that holds `hub.lock`,
-the server alone: `pid`, `version`, `started`, `idle` while no client observes it and, per
-project, `read_at`, `error`, `error_at`). An entry whose process has not been
+the server alone: `pid`, `version`, `source`, `started`, `idle` while no client observes it and,
+per project, `read_at`, `error`, `error_at`). `source` is the resolved folder of the loaded
+`chantier` package; the `hub` entry's is for the record only. An entry whose process has not been
 alive since `started` is no entry. The `writer` entry (the surface's writer, `writer/record.py`)
 is written by the writer only: `pid`, `version`, `started`, its `state` and the facts of the last
 cycle.
@@ -28,6 +29,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import chantier
 from chantier import procs
 from chantier.core import clock
 from chantier.core.files import read_text, try_lock, unlock, write_json
@@ -40,6 +42,7 @@ WAIT_S = 1.0  # how long a write waits for the write lock
 STEP_S = 0.02
 READ_WIN_S = 5.0  # how long a write tries a read again on Windows
 SERVER, HUB, WRITER = "server", "hub", "writer"
+UNKNOWN = "unknown"  # the `source` of an entry that holds none
 _asserted: dict[Path, dict[str, Any]] = {}  # this process's `server` entry, by git folder
 
 
@@ -193,6 +196,11 @@ def migrate(git_dir: Path) -> None:
     old.unlink(missing_ok=True)
 
 
+def build_source() -> str:
+    """The build this process runs: the resolved folder of the loaded `chantier` package."""
+    return Path(chantier.__file__).resolve().parent.as_posix()
+
+
 def write_server(
     git_dir: Path,
     host: str,
@@ -208,6 +216,7 @@ def write_server(
         "host": host,
         "port": port,
         "version": version,
+        "source": build_source(),
         "served": served,
         "started": clock.now(),
         **extra,
@@ -247,7 +256,13 @@ def set_server_files(git_dir: Path, mode: str) -> None:
 
 
 def hub_record(version: str) -> dict[str, Any]:
-    return {"pid": os.getpid(), "version": version, "started": clock.now(), "projects": {}}
+    return {
+        "pid": os.getpid(),
+        "version": version,
+        "source": build_source(),
+        "started": clock.now(),
+        "projects": {},
+    }
 
 
 def write_hub(git_dir: Path, record: dict[str, Any]) -> None:
@@ -276,3 +291,14 @@ def other_version(record: dict[str, Any] | None, version: str) -> str | None:
     """The entry's version when it differs from `version`, else None."""
     found = (record or {}).get("version")
     return found if isinstance(found, str) and found != version else None
+
+
+def other_build(record: dict[str, Any] | None, version: str, source: str) -> str | None:
+    """The entry's `source` (or `UNKNOWN` when it holds none) when it is of `version` and runs
+    another build than `source`, else None. Another version is `other_version`'s."""
+    if record is None or record.get("version") != version:
+        return None
+    found = record.get("source")
+    if found == source:
+        return None
+    return found if isinstance(found, str) and found else UNKNOWN

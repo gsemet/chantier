@@ -139,7 +139,10 @@ STALE_BUILD = (
     "it changes at each version bump. The board server, its writer and the forge hub, started "
     "from another project's session, run that build and serve every project of the surface, "
     "chantier included, with no notice while the version is equal, until the next version bump "
-    "or until stopped by hand and started again from a chantier session."
+    "or until stopped by hand and started again from a chantier session; but a chantier session "
+    "in the dev mode is told, on `status`, the watcher's start line and `board`, when the board "
+    "runs another build than its checkout's, even at the same version string (`server.json` "
+    "records each entry's `source`)."
 )
 
 
@@ -232,3 +235,27 @@ def test_the_cards_and_hosts_state_the_exception_the_row_and_the_for_you_item() 
         "a later yes still counts",
     ):
         assert phrase in paragraph, phrase
+
+
+@pytest.mark.parametrize(
+    ("name", "sentence"),
+    [
+        (
+            "chief-of-staff.md",
+            "A `board runs another build` or `board runs a build of chantier <v> older than this "
+            "notice` line (on `status`, the start line or `board`): say it once to the user as "
+            "printed; never stop or restart the board.",
+        ),
+        (
+            "session-start.md",
+            "and an added `board runs another build` line: say it once to the user as printed, "
+            "never stop or restart the board",
+        ),
+    ],
+)
+def test_the_cards_tell_the_chief_of_staff_to_pass_on_a_foreign_build(
+    name: str, sentence: str
+) -> None:
+    """The foreign-build lines are said once, as printed, and the board is never restarted."""
+    text = " ".join((SKILL / "references" / name).read_text(encoding="utf-8").split())
+    assert text.count(sentence) == 1, name

@@ -171,7 +171,10 @@
   version bump. The board server, its writer and the forge hub, started from another project's
   session, run that build and serve every project of the surface, chantier included, with no
   notice while the version is equal, until the next version bump or until stopped by hand and
-  started again from a chantier session. A dependency ships wheels for Linux, macOS
+  started again from a chantier session; but a chantier session in the dev mode is told, on
+  `status`, the watcher's start line and `board`, when the board runs another build than its
+  checkout's, even at the same version string (`server.json` records each entry's `source`).
+  A dependency ships wheels for Linux, macOS
   and Windows and replaces hand-written code. The CLI stays portable (POSIX and Windows, UTF-8
   everywhere).
 - Tests (`tests/`) check the structure and the CLI's refusals on a prepared state, calling the CLI

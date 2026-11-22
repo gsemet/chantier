@@ -212,6 +212,31 @@ def test_the_start_line_names_a_board_of_another_version_and_the_watcher_is_neve
     assert state.live_entry(beta.git_dir, state.HUB) is None
 
 
+def _source_of(git_dir: Path, source: str) -> None:
+    state.modify(git_dir, lambda d: d[state.SERVER].__setitem__("source", source))
+
+
+def test_the_start_line_names_a_board_of_another_build_and_another_version_only_its_version(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("chantier.hub.lines.is_dev_checkout", lambda: True)
+    monkeypatch.setattr("chantier.hub.lines.is_chantier_project", lambda _repo: True)
+    beta = world.repo("beta")
+    world.hub.close()
+    cache = "/uv/cache/chantier"
+    foreign = f"; board runs another build of chantier {NEW_VERSION} ({cache}), not this checkout's"
+    for version, source, said in (
+        (NEW_VERSION, cache, foreign),
+        (NEW_VERSION, state.build_source(), ""),
+        ("0.0.1", cache, OTHER_VERSION.format(version="0.0.1")),
+    ):
+        name_server(beta.git_dir, version=version)
+        _source_of(beta.git_dir, source)
+        w = Watch(beta, 3, NEW_VERSION, board=served(beta))
+        assert w.start()[0] == f"watch: beta from cursor 3 for project{said}"
+        w.close()
+
+
 CONFIGS = [
     ({"key": "batch.slots", "old": 4, "new": 6, "batch": "batch-01"},
      "config changed on the board: batch.slots 4 -> 6; batch-01 keeps 4 until an order slots"),

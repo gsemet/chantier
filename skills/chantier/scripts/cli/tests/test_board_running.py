@@ -184,3 +184,51 @@ def test_new_key_keeps_the_running_record_and_the_exit_removes_only_its_own(
     finally:
         unlock(held)
         held.close()
+
+
+@pytest.mark.parametrize("chosen", [True, False], ids=["single-project", "no-project-chosen"])
+def test_board_seat_adds_the_foreign_build_line_only_for_the_sessions_own_project(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, chosen: bool
+) -> None:
+    """A recorded board at this version with another `source`: one added line, exit 0, the seat
+    registered; none when `open_projects()` only took the first project of a surface."""
+    served = open_projects().served.as_posix()
+    rec = {
+        "pid": 4242,
+        "host": "127.0.0.1",
+        "port": LINK_PORT,
+        "version": __version__,
+        "source": "/uv/cache/chantier",
+        "served": served,
+        "started": "2026-01-01T00:00:00Z",
+    }
+    _prepare_board(repo, chantier, monkeypatch, (True, rec, _answer(served, __version__)))
+    seats: list[tuple[Any, ...]] = []
+
+    def register(*a: Any) -> bool:
+        seats.append(a)
+        return True
+
+    monkeypatch.setattr(command, "register_seat", register)
+    monkeypatch.setattr("chantier.hub.lines.is_dev_checkout", lambda: True)
+    monkeypatch.setattr("chantier.hub.lines.is_chantier_project", lambda _repo: True)
+    real = open_projects
+
+    def opened() -> Any:
+        found = real()
+        found.chosen = chosen
+        return found
+
+    monkeypatch.setattr("chantier.board.command.open_projects", opened)
+    code, out, err = chantier("board", "--seat", "s-1")
+    assert code == 0, err
+    assert any(x.startswith("board already running at") for x in out) and len(seats) == 1
+    said = [x for x in out if x.startswith("board runs another build of chantier")]
+    assert said == (
+        [
+            f"board runs another build of chantier {__version__} (/uv/cache/chantier), "
+            "not this checkout's"
+        ]
+        if chosen
+        else []
+    )
