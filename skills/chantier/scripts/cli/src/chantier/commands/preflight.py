@@ -117,20 +117,29 @@ def _check_tools(r: _Report, repo: Repo | None) -> None:
 
 
 def _check_checkout(r: _Report, repo: Repo) -> None:
-    top = Path(git("rev-parse", "--show-toplevel", check=False) or ".").resolve()
-    where = repo.session_root
-    r.check(
-        "P6",
-        top == where.resolve(),
-        f"in the main checkout of {where.name}",
-        f"session folder {top} is not the repository root {where}",
-    )
-    gitdir = Path(git("rev-parse", "--path-format=absolute", "--git-dir", check=False) or ".")
+    here = repo.session_checkout()
+    top = here.top or Path(os.getcwd()).resolve()
+    good = here.owner in ("project", "surface", "clone") and here.top is not None
+    if not repo.external:
+        ok = f"in the main checkout of {repo.root.name}"
+        bad = f"session folder {top} is not the repository root {repo.root}"
+    else:
+        ok = (
+            f"in the project's main checkout {repo.clone}; the plan is in the surface "
+            f"{repo.surface_root}"
+            if here.owner == "clone"
+            else f"in the main checkout of the surface {repo.surface_root.name}"
+        )
+        bad = (
+            f"session folder {top} is neither the surface's checkout {repo.surface_root} "
+            f"nor the project's clone {repo.clone}: start the session in one of them"
+        )
+    r.check("P6", good and here.top == here.main.resolve(), ok, bad)
     r.check(
         "P7",
-        gitdir.resolve() == repo.git_dir,
+        not here.linked,
         "not a linked worktree",
-        "this session runs in a linked worktree: the Foreman must start in the main checkout",
+        repo.linked_text(here, top),
     )
 
 
@@ -163,7 +172,7 @@ def _check_playbook(r: _Report, repo: Repo, host: str) -> None:
 
 
 def _check_surface(r: _Report, repo: Repo) -> None:
-    here = git("branch", "--show-current", check=False)
+    here = git("branch", "--show-current", cwd=repo.surface_root, check=False)
     main = default_branch(repo.surface_root)
     r.check(
         "P11",

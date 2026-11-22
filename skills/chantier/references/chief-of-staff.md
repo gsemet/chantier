@@ -108,6 +108,8 @@ gate is isolated per worktree, and propose the `long_gate:` / `parallel: <n>` li
 `chantier.yaml` when it has no `long_gate.parallel` (a file holding only `long_gate.commands` still
 gets the question).
 
+The surface is found as `session-start.md`, section 1, says, and kept for the session: `--project` on every `$CHANTIER`, `git -C` for your own git reads.
+
 **The allow rules (P10, Claude Code).** The one write chantier makes in the user's settings, and
 only on the user's yes. Asked once per session per capability (the table "Capabilities and their
 commands" of your host's reference):
@@ -833,7 +835,7 @@ Only in the turn where the user gave the go:
    `--autonomous-releases`, `--grant-fixes`, as `open` will get them) checks P1 (Claude Desktop or
    a Copilot
    agent session), P4 (the plugin's agents at this version), P5 (`uv` and `git`, versions), P6 (the
-   repository's root), P7 (not a linked worktree), P8 (project instructions), and P10 (Claude
+   session folder is a main checkout: the repository's, or with a surface the surface's or the project's clone), P7 (not a linked worktree), P8 (project instructions), and P10 (Claude
    Code: whether the commands the agents run are allowed), which warns and never fails: if the
    question of "The project" was not asked yet in this session, ask it, and act on the answer
    before the plan; if it was asked and the user said no, repeat in one line what is still

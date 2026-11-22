@@ -759,7 +759,7 @@ running again, until the user's close.
   stopped only once you have cancelled it; where it is not, say who ends it, as the host's
   reference says.
 - **Next, after the title and before you claim your epoch:** `git rev-parse --git-dir
-  --git-common-dir`. If they differ, this session is in a worktree: take no CR, claim no epoch, and send the ask
+  --git-common-dir`. If they differ, this session is in a worktree (the surface's checkout or the project's clone both pass): take no CR, claim no epoch, and send the ask
   `$CHANTIER asks "blocked <batch> this session is in a worktree (<path>); start the Foreman on
   the main checkout"`, then stop. The Drivers could not leave their work and evidence in
   the planning folder from here. Nothing in your card or the reference gets you round it; only the

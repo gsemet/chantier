@@ -638,7 +638,7 @@ by the next real eval's normal use, and the audit checks each worker's prompt ho
 | Session in a worktree | they differ | n/a | no: Write refuses the main checkout, `change_directory` is refused, `request_directory` does not help |
 | Remote or app session | often starts in a linked worktree, `.claude/worktrees/<name>`: the row above | n/a | no, as the worktree row says; proved 2026-11-10, Battlestation, session `epic-lamport-b88c2f`: preflight P6 and P7 failed and the hook refused writes in the main checkout's planning folder |
 | Cloud | the host's environment | n/a | no: no main checkout |
-| Session in a planning surface | its folder is the surface's checkout, or the project's main checkout with the surface added as a working directory | n/a | yes, in both setups: the sessions run there and write the planning folder by absolute paths; a session started with no `cwd` lands there (proved 2026-11-20, the Studio's batch-07 Foreman and chantier's batch-29 Foreman). Whether the host lets it write in the project's clone and worktrees, outside its folder (`checkout.yml`), on the surface's checkout: **unproved** |
+| Session in a planning surface | its folder is the surface's checkout, or the project's main checkout (its clone) with the surface added as a working directory; preflight P6 and P7 accept both and refuse a linked worktree of either | n/a | yes, in both setups: the sessions run there and write the planning folder by absolute paths; a session started with no `cwd` lands there (proved 2026-11-20, the Studio's batch-07 Foreman and chantier's batch-29 Foreman). Whether the host lets it write in the project's clone and worktrees, outside its folder (`checkout.yml`), on the surface's checkout: **unproved** |
 
 With no argument the Chief of Staff's batches are direct in the Remote Control row and on any
 entry where the Foreman-mode P1 fails (terminal, VS Code), and Foreman in the "Desktop, typed" row
@@ -665,7 +665,7 @@ gets "The user is working over Remote Control, and this turn can't start that se
 neither, the new session lands in the steering session's own folder, its main checkout
 (`--git-dir` equals `--git-common-dir`). That folder must be a main checkout, in one of two
 setups: the planning surface's checkout, or the project's main checkout with the surface added as
-a working directory. A worktree session is unfit, as the worktree row says. What lies outside that
+a working directory. Preflight P6 and P7 accept both main checkouts (the surface's, the project's clone) and refuse a linked worktree of either; a Foreman started with no `cwd` lands in the same folder and its preflight passes the same way. A worktree session is unfit, as the worktree row says. What lies outside that
 folder reaches the new session by absolute paths in its prompt (`$CHANTIER` already carries
 `--project <absolute folder>`; the Foreman's prompt gives `Repository:` and the skill's folder as
 absolute paths). At the desk the same start works and stays the default; no card names a `cwd`.

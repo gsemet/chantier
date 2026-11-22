@@ -7,7 +7,7 @@ import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from chantier.core.errors import EXIT_USAGE, ChantierError
 from chantier.core.files import read_text, rel_in
@@ -75,6 +75,20 @@ class SurfaceChoice(ChantierError):
             f"this is a planning surface with projects {', '.join(names)}: pass --project <name>"
         )
         self.names = names
+
+
+GIT_LINES = 3  # `rev-parse --show-toplevel --git-dir --git-common-dir`
+
+
+class SessionCheckout(NamedTuple):
+    """What the session's folder is: its top, whether it is a linked worktree, whose repository
+    it belongs to (`surface`, `clone`, `project`, `other`, `none`) and that owner's main
+    checkout."""
+
+    top: Path | None
+    linked: bool
+    owner: str
+    main: Path
 
 
 @dataclass
@@ -211,8 +225,52 @@ class Repo:
 
     @property
     def session_root(self) -> Path:
-        """The folder a chantier session runs in: the project's repository, or the surface."""
+        """The folder a chantier session runs in: the project's repository, or in external mode
+        the surface's checkout (the session may run in the project's clone too: see
+        `session_checkout`)."""
         return self.surface or self.root
+
+    def session_checkout(self, cwd: Path | None = None) -> SessionCheckout:
+        """Which checkout the process's folder is (`cwd`, default the real working folder, never
+        `CHANTIER_ROOT`): the surface's, the project's clone, the project's, or another."""
+        folder = Path(cwd) if cwd is not None else Path(os.getcwd())
+        lines = git(
+            "rev-parse",
+            "--path-format=absolute",
+            "--show-toplevel",
+            "--git-dir",
+            "--git-common-dir",
+            cwd=folder,
+            check=False,
+        ).splitlines()
+        if len(lines) != GIT_LINES:
+            return SessionCheckout(None, False, "none", self.session_root)
+        top, gitdir, common = (Path(x).resolve() for x in lines)
+        linked = gitdir != common
+        if not self.external:
+            owner, main = ("project", self.root) if common == self.git_dir else ("other", self.root)
+        elif common == self.git_dir:
+            owner, main = "surface", self.surface_root
+        else:
+            owner, main = "other", self.session_root
+            if self.clone.is_dir():
+                clone_common = git(
+                    "rev-parse", "--path-format=absolute", "--git-common-dir",
+                    cwd=self.clone, check=False,
+                )  # fmt: skip
+                if clone_common and Path(clone_common).resolve() == common:
+                    owner, main = "clone", self.clone
+        return SessionCheckout(top, linked, owner, main)
+
+    def linked_text(self, here: SessionCheckout, top: Path | None) -> str:
+        """P7's refusal for a session folder that is a linked worktree."""
+        both = "the Foreman must start in the surface's main checkout or the project's clone"
+        why = {
+            "project": f"of {self.root}: the Foreman must start in the main checkout",
+            "surface": f"of the surface {self.surface}: {both}",
+            "clone": f"of the project's clone {self.clone_dir}: {both}",
+        }.get(here.owner, "of another repository")
+        return f"session folder {top} is a linked worktree {why}"
 
     @property
     def changes(self) -> Path:
