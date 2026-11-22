@@ -1,5 +1,5 @@
 """A PR's real base and draft state: what the forge holds, read once, for `ship` (every CR),
-and the base alone for `take` and `handoff` (a stacked CR). It reuses `forge-stack`'s calls
+and the base alone for `take`, `round` and `handoff` (a stacked CR). It reuses `forge-stack`'s calls
 (`pr_parts`, `gh`, `glab`): no copy."""
 
 from __future__ import annotations
