@@ -17,6 +17,7 @@ from test_server_api import (
     CONFLICT,
     HOST,
     NO_KEY,
+    NOT_FOUND,
     OK,
     TERRA,
     UNSUPPORTED,
@@ -31,6 +32,7 @@ from chantier.board import key as keys
 from chantier.board import reads
 from chantier.board.api import ops, protocol, times
 from chantier.board.context import Context
+from chantier.board.griller import Registry
 from chantier.board.projects import Projects
 from chantier.board.seats import Seats
 from chantier.core.repo import Repo
@@ -100,6 +102,14 @@ def test_a_good_call_of_every_op_answers_the_data_its_route_gave_or_the_store_ho
         "off",
         {"state": "off"},
     )
+    board.ctx.griller = Registry()  # the board's own, made at its start
+    item = {**good.args, "item": "nowhere"}
+    assert good("griller.get", item)["conversation"] is None
+    assert good("griller.stop", item)["stopped"] is False
+    assert good("griller.end", item)["ended"] is True
+    status, _ = call(board, "griller.send", {**item, "text": "hi", "from": "p"})
+    good.seen.add("griller.send")
+    assert status == NOT_FOUND  # no such item: refused before anything starts
     _written(good)
     assert good.seen == set(protocol.OPS)
 

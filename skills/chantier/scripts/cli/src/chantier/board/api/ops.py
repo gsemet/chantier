@@ -16,6 +16,7 @@ from chantier.board import (
     dashboard_page,
     files,
     history_page,
+    griller,
     journal,
     prs,
     reads,
@@ -153,11 +154,41 @@ def _writes(op: write_api.Op, command: str) -> Handler:
         if project is None:
             return fail(404, NOT_FOUND)
         data = a.model_dump(exclude_unset=True, exclude_none=True, exclude={"project"})
-        body, status = write_api.execute(project, op, command, data)
+        turn = ctx.griller.running() if ctx.griller else None
+        busy = (turn["project"], turn["item"]) if turn and turn["project"] == project.id else None
+        body, status = write_api.execute(project, op, command, data, busy)
         ctx.settle(project)  # the write's files are read now: the next read shows them
         return _of(status, body)
 
     return run
+
+
+def _griller_get(ctx: Context, project: Project, a: Any) -> Result:
+    return Result(200, {**ctx.griller.get(project, a.item), "now": clock.now()})
+
+
+def _griller(act: Callable[[Context, Project, Any], Result]) -> Handler:
+    def run(ctx: Context, project: Project, a: Any) -> Result:
+        try:
+            return act(ctx, project, a)
+        except griller.Refused as e:
+            return fail(e.status, e.text)
+
+    return _on_project(run)
+
+
+def _griller_send(ctx: Context, project: Project, a: Any) -> Result:
+    turn = ctx.griller.send(project, a.item, a.text, a.sender)
+    return Result(202, {"turn": turn.value(), "now": clock.now()})
+
+
+def _griller_stop(ctx: Context, project: Project, a: Any) -> Result:
+    return Result(200, {"stopped": ctx.griller.stop(project.id, a.item), "now": clock.now()})
+
+
+def _griller_end(ctx: Context, project: Project, a: Any) -> Result:
+    ctx.griller.end(project.id, a.item)
+    return Result(200, {"ended": True, "now": clock.now()})
 
 
 def _sync(ctx: Context, a: Any) -> Result:
@@ -180,6 +211,10 @@ HANDLERS: dict[str, Handler] = {
     "config.get": _on_project(_config),
     "config.put": _writes(*config_api.WRITE),
     "writer.sync": _sync,
+    "griller.get": _griller(_griller_get),
+    "griller.send": _griller(_griller_send),
+    "griller.stop": _griller(_griller_stop),
+    "griller.end": _griller(_griller_end),
     **{name: _writes(op, command) for name, (op, command) in write_api.WRITES.items()},
 }
 

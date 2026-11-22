@@ -725,6 +725,92 @@
     "title": "DashboardArgs",
     "type": "object"
   },
+  "op.griller.end": {
+    "additionalProperties": false,
+    "properties": {
+      "item": {
+        "title": "Item",
+        "type": "string"
+      },
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project",
+      "item"
+    ],
+    "title": "GrillerArgs",
+    "type": "object"
+  },
+  "op.griller.get": {
+    "additionalProperties": false,
+    "properties": {
+      "item": {
+        "title": "Item",
+        "type": "string"
+      },
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project",
+      "item"
+    ],
+    "title": "GrillerArgs",
+    "type": "object"
+  },
+  "op.griller.send": {
+    "additionalProperties": false,
+    "properties": {
+      "from": {
+        "title": "From",
+        "type": "string"
+      },
+      "item": {
+        "title": "Item",
+        "type": "string"
+      },
+      "project": {
+        "title": "Project",
+        "type": "string"
+      },
+      "text": {
+        "title": "Text",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project",
+      "item",
+      "text",
+      "from"
+    ],
+    "title": "GrillerSendArgs",
+    "type": "object"
+  },
+  "op.griller.stop": {
+    "additionalProperties": false,
+    "properties": {
+      "item": {
+        "title": "Item",
+        "type": "string"
+      },
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project",
+      "item"
+    ],
+    "title": "GrillerArgs",
+    "type": "object"
+  },
   "op.history.get": {
     "additionalProperties": false,
     "properties": {
@@ -960,6 +1046,25 @@
       "project"
     ],
     "title": "EventsArgs",
+    "type": "object"
+  },
+  "topic.griller": {
+    "additionalProperties": false,
+    "properties": {
+      "item": {
+        "title": "Item",
+        "type": "string"
+      },
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project",
+      "item"
+    ],
+    "title": "GrillerArgs",
     "type": "object"
   },
   "topic.history": {

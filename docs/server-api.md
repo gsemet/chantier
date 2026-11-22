@@ -96,6 +96,22 @@ refused (400).
 | `config.get` | `project` | the configuration page's data: each role's agent, model and escalation, per host, the two limits, and the file's `sha256` |
 | `config.put` | `project`, `changes`, `base_sha256`?, `dry_run`? | the configuration saved (or only checked, with `dry_run`); 409 when `base_sha256` is stale |
 | `writer.sync` | none | the writer's state after one sync round |
+| `griller.get` | `project`, `item` | `available`, `reason` (when not), `host`, `machine` (the board's machine), `model`, `cli`, `running` (the project and item whose turn runs on the server, and since when, or null), `conversation` (null, or its `started` and `turns`: each `n`, `from`, `user`, `answer`, `state` `running`, `done`, `stopped`, `timed-out` or `failed`, `error`, `wrote`, `started`, `ended`, `grilled`), `now` |
+| `griller.send` | `project`, `item`, `text` (1 to 8,000 characters), `from` (an opaque client id, 64 characters at most) | 202 `{turn}`; the answer comes through the `griller` topic or the next `griller.get` |
+| `griller.stop` | `project`, `item` | 200 `{stopped}` (false when no turn ran) |
+| `griller.end` | `project`, `item` | 200 `{ended}`; 409 while a turn runs ("stop the turn first") |
+
+The Griller ops start a run of the host's CLI on the board's machine and spend the tokens of the
+account signed in there. `griller.send` refuses, in this order: no such project or item (404); an
+item outside the inbox, `P1` to `P4` and `3-ready` (409); a host not proved or not told, a role
+whose start is refused, or an agent other than the plugin's (409, the reason); in a planning
+surface, the writer not running or stopped (409, the `writer:` line); a turn already running on
+the server (409, naming its project and CR); a text empty or too long, or a `from` too long (400).
+While a turn runs on an item, `backlog.move`, `backlog.file`, `backlog.labels`, `backlog.group`
+and `backlog.ungroup` refuse that item (409, "a Griller turn runs on <project>/<slug>: stop it
+before moving the item", or "... before changing the item"); the other items of the same call are
+written and the busy one is listed in `results` as refused. Another session's writes are not
+refused.
 
 The writes are the ones the web board always had, through the same role-free commands, and they
 refuse what those refuse. Each backlog write appends its `board@1` line, and each `config.put`
@@ -138,6 +154,7 @@ finished sentence the server tells it by; a line with no `text` is told by its t
 | `prs` | `project`, `batch`? | what `prs.get` gives; the forge is read at most once every 10 s per project and batch |
 | `history` | `project`, `period`, `date`?, `tz` | what `history.get` gives; read only from the records and the archived CRs' steps, never the forge |
 | `journal` | `project` | what `journal.get` gives |
+| `griller` | `project`, `item` | what `griller.get` gives; pushed at each change of the conversation, and at the push loop's regular pass |
 | `events` | `project`, `after`? | `{"lines": [...]}`: the new lines of the project's `forge-journal.jsonl`, 200 at most, each with its `seq`, and `text`, its type's sentence, when the type is published and its payload accepted (no `text` otherwise); that `text` replaces, in the answer only, a payload's own `text` key (`board@1`, `issue@1`, `sync-*@1`), which the sentence quotes and the journal file keeps; with no `after`, the lines after the last one at the time of `sub` |
 
 A `sub` for an unknown topic is a `result` with 404, for bad arguments 400, for an unknown
@@ -179,6 +196,7 @@ answers 429 at once.
 | WebSockets past `welcome` | 64 | close 1013 |
 | WebSockets before `hello` | 16 | HTTP 503 at the upgrade |
 | Time to say `hello` | 5 s | close 4408 |
+| A Griller message (`griller.send`'s `text`) | 8,000 characters | 400 |
 
 ## Behind a proxy
 

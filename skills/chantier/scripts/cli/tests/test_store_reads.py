@@ -58,6 +58,12 @@ EXEMPT: dict[tuple[str, str], str] = {
     ("board/state.py", "origin_of"): "the code repository's folder, not the planning folder",
     ("board/static.py", "*"): "the web client's files",
     ("board/command.py", "*"): "the web client's files",
+    ("board/griller.py", "*"): "a CR's folder, read as the board's Griller turn starts and ends",
+    ("board/griller_files.py", "*"): "a CR's folder and the stages, read to see what a turn wrote",
+    (
+        "board/griller_host.py",
+        "*",
+    ): "the host CLI's saved conversations, outside the planning folder",
     ("board/key.py", "*"): "the key, in the git folder",
     ("board/address.py", "*"): "an HTTP address",
     ("hub/state.py", "*"): "the git folder (chantier/server.json)",

@@ -145,6 +145,12 @@ def _seq(entry: dict[str, Any]) -> int:
     return int(entry["seq"])
 
 
+def _griller(ctx: Context, project: Project, a: Any, last: str | None) -> Reading:
+    value = ctx.griller.get(project, a.item)
+    rev = _hash(value)
+    return _unchanged(rev, last, lambda: {**value, "now": clock.now()})
+
+
 READS: dict[str, Read] = {
     "board": _board,
     "project": _on_project(_project),
@@ -153,6 +159,7 @@ READS: dict[str, Read] = {
     "history": _on_project(_history),
     "journal": _on_project(_journal),
     "events": _on_project(_events),
+    "griller": _on_project(_griller),
 }
 
 
