@@ -258,7 +258,11 @@
       "worktree": "/work/shop-api.worktrees/batch-03-CR-148",
       "notes": [],
       "updated": "2026-06-18T10:20:00Z",
-      "after": [],
+      "after": [
+        "CR-141",
+        "CR-145",
+        "CR-146"
+      ],
       "blocked_reason": null,
       "cost_usd": null
     },

@@ -112,6 +112,8 @@ export default {
   'mode.stack': 'Stack',
   'mode.series': 'Series',
   'mode.parallel': 'Parallel',
+  'mode.switch_to': 'To switch, ask the Chief of Staff to "change the batch to {mode}"',
+  'mode.current': "This batch's mode.",
   'mode.stack.text':
     'each PR sits on the previous one, the release on top; once the stack is verified on the forge, you merge it in one action from its top PR.',
   'mode.series.text':

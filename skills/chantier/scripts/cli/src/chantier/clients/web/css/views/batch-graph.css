@@ -57,6 +57,10 @@
   pointer-events: none;
 }
 
+.batch svg.edges.top {
+  z-index: 2;
+}
+
 .batch svg.edges path {
   fill: none;
   stroke: var(--edge-line);
@@ -78,6 +82,18 @@
 .batch svg.edges .head {
   fill: var(--edge-arrow);
   stroke: none;
+  transition:
+    fill 0.15s,
+    opacity 0.15s;
+}
+
+.batch svg.edges .head.hl {
+  fill: var(--accent);
+  stroke: none;
+}
+
+.batch svg.edges .head.dim {
+  opacity: 0.15;
 }
 
 /* the burst of a CR that changed state in the last ten minutes: it plays once, in the state's colour */

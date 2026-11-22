@@ -3,7 +3,9 @@
 // layer measured from the nodes and redrawn after every paint, on a resize and once the font is
 // loaded. A hover (or a focus) lights a CR, what it waits for and what waits for it, on the graph
 // and on the Gantt (any element that carries a `data-id`). A CR that changed state in the last
-// ten minutes carries a small burst.
+// ten minutes carries a small burst. An arrow is a line only: one head is drawn per waiting CR,
+// where all its arrows meet, and the lit arrows and heads are drawn again in a layer above the
+// cards (`svg.edges.top`), so an arrow that skips a level can be followed end to end.
 import { $, $$, delegate, html, setHtml } from '../core/dom.js';
 import { age, slug, title, usd } from '../core/format.js';
 import {
@@ -84,7 +86,7 @@ const level = (rows, i, draw) => {
 export function graphBlock(rows, batch, now, recorded = false) {
   const draw = recorded ? recordedNode : (c) => node(c, batch, now);
   const hint = recorded ? '' : html`<p class="note">${t('batch.hover')}</p>`;
-  return html`<div class="gscroll"><div class="graph" data-key="graph"><svg class="edges" aria-hidden="true"></svg>${levels(rows).map((r, i) => level(r, i, draw))}</div></div>${hint}`;
+  return html`<div class="gscroll"><div class="graph" data-key="graph"><svg class="edges" aria-hidden="true"></svg>${levels(rows).map((r, i) => level(r, i, draw))}<svg class="edges top" aria-hidden="true"></svg></div></div>${hint}`;
 }
 
 const TAIL = 12; // the last, straight stretch of an arrow, along which its head points
@@ -102,7 +104,20 @@ function path(graph, from, to) {
   const tail = Math.min(TAIL, Math.max(4, (x2 - x1) / 3));
   const mid = (x1 + x2 - tail) / 2;
   const d = `M${x1},${y1} C${mid},${y1} ${mid},${y2} ${x2 - tail},${y2} L${x2},${y2}`;
-  return html`<path data-from="${from.dataset.id}" data-to="${to.dataset.id}" d="${d}" marker-end="url(#ar)"></path>`;
+  return html`<path data-from="${from.dataset.id}" data-to="${to.dataset.id}" d="${d}"></path>`;
+}
+
+const HEAD = 8; // the head's length and height
+
+// The head of a waiting CR: a triangle whose tip is where its arrows end, the middle of its card's
+// left edge, and whose base is 8 px to the left.
+function head(graph, to) {
+  const g = graph.getBoundingClientRect();
+  const b = to.getBoundingClientRect();
+  const x = b.left - g.left;
+  const y = b.top + b.height / 2 - g.top;
+  const d = `M${x - HEAD},${y - HEAD / 2} L${x},${y} L${x - HEAD},${y + HEAD / 2} z`;
+  return html`<path class="head" data-to="${to.dataset.id}" d="${d}"></path>`;
 }
 
 export const marker = () =>
@@ -110,7 +125,8 @@ export const marker = () =>
 
 let lit = null;
 
-// Light a CR and its neighbours, or clear the light with `null`.
+// Light a CR and its neighbours, or clear the light with `null`. The lit arrows and heads are copied
+// into the top layer, when the root holds one.
 export function light(root, rows, id) {
   lit = id;
   const near = id ? related(rows, id) : null;
@@ -118,11 +134,27 @@ export function light(root, rows, id) {
     cardMark(n, 'dim', Boolean(near) && !near.has(n.dataset.id));
     cardMark(n, 'highlight', Boolean(near) && near.has(n.dataset.id) && n.dataset.id !== id);
   }
-  for (const e of $$('svg.edges path[data-from]', root)) {
-    const on = id && (e.dataset.from === id || e.dataset.to === id);
-    e.classList.toggle('hl', Boolean(on));
-    e.classList.toggle('dim', Boolean(id) && !on);
-  }
+  lightEdges(root, id);
+}
+
+const mark = (e, id, on) => {
+  e.classList.toggle('hl', on);
+  e.classList.toggle('dim', Boolean(id) && !on);
+};
+
+// The arrows and heads of the base layer take the light; the lit ones are copied into the top layer.
+function lightEdges(root, id) {
+  const arrows = $$('svg.edges:not(.top) path[data-from]', root);
+  for (const e of arrows)
+    mark(e, id, Boolean(id) && (e.dataset.from === id || e.dataset.to === id));
+  // a head is lit when a lit arrow ends at it
+  const ends = new Set(arrows.filter((e) => e.classList.contains('hl')).map((e) => e.dataset.to));
+  for (const h of $$('svg.edges:not(.top) path.head[data-to]', root))
+    mark(h, id, Boolean(id) && ends.has(h.dataset.to));
+  const top = $('svg.edges.top', root);
+  if (!top) return;
+  const on = $$('svg.edges:not(.top) path.hl[data-from], svg.edges:not(.top) path.head.hl', root);
+  top.replaceChildren(...on.map((e) => e.cloneNode(true)));
 }
 
 // Put the light in force back after a redraw (the Gantt's).
@@ -133,15 +165,23 @@ export function relight(root, rows) {
 // Draw the arrows for the batch's rows; the light in force is put back.
 export function drawEdges(root, rows) {
   const graph = $('.graph', root);
-  const svg = $('svg.edges', root);
+  const svg = $('svg.edges:not(.top)', root);
   if (!graph || !svg) return;
   const found = (id) => $(`.node[data-id="${CSS.escape(id)}"]`, graph);
   const paths = edges(rows)
     .map(([a, b]) => [found(a), found(b)])
     .filter(([a, b]) => a && b);
-  svg.setAttribute('width', graph.scrollWidth);
-  svg.setAttribute('height', graph.scrollHeight);
-  setHtml(svg, html`${marker()}${paths.map(([a, b]) => path(graph, a, b))}`);
+  const targets = [...new Set(paths.map(([, b]) => b))];
+  for (const layer of $$('svg.edges', root)) {
+    layer.setAttribute('width', graph.scrollWidth);
+    layer.setAttribute('height', graph.scrollHeight);
+  }
+  const top = $('svg.edges.top', root);
+  if (top) top.replaceChildren();
+  setHtml(
+    svg,
+    html`${paths.map(([a, b]) => path(graph, a, b))}${targets.map((b) => head(graph, b))}`,
+  );
   if (lit) light(root, rows, lit);
 }
 

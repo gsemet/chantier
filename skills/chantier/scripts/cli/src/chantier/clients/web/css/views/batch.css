@@ -66,17 +66,22 @@
   margin-left: auto;
 }
 
-.bmode .ms span {
+.bmode .ms > span {
   padding: var(--space-off-2) var(--space-off-10);
   border-radius: var(--radius-pill);
   color: var(--ink3);
   font-size: var(--text-small);
 }
 
-.bmode .ms span.on {
+.bmode .ms > span.on {
   background: var(--chip-2);
   color: var(--ink);
   font-weight: 500;
+}
+
+.bmode .ms > span[tabindex] {
+  position: relative;
+  cursor: help;
 }
 
 /* the legend: a grey pill with a tooltip, and a quiet hint beside it */
@@ -122,12 +127,22 @@
   white-space: normal;
 }
 
+.bmode .ms .tip {
+  right: 0;
+  left: auto;
+  color: var(--ink2);
+  font-weight: 400;
+}
+
 .bmode .mpill:hover .tip,
 .bmode .mpill:focus .tip,
 .bmode .mpill:focus-within .tip,
 .bmode .lgpill:hover .tip,
 .bmode .lgpill:focus .tip,
-.bmode .lgpill:focus-within .tip {
+.bmode .lgpill:focus-within .tip,
+.bmode .ms > span:hover .tip,
+.bmode .ms > span:focus .tip,
+.bmode .ms > span:focus-within .tip {
   display: flex;
 }
 
