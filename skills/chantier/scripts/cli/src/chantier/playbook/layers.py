@@ -378,6 +378,6 @@ def read_key(repo: Repo, key: str) -> tuple[dict[str, Any], list[str]]:
 
 
 def load_board(repo: Repo) -> tuple[dict[str, Any], list[str]]:
-    """The `board` key alone, for `chantier board`: `({}, [])` when there is none."""
+    """The `board` key alone, for `chantier serve`: `({}, [])` when there is none."""
     found, problems = read_key(repo, "board")
     return found.get("board", {}), problems

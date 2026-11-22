@@ -85,7 +85,7 @@ from this checkout, with the [prerequisites](#prerequisites) met.
      say the global toggle may not reach PRs of local sessions), and **auto-archive / auto-close on
      PR merge or close off**, so the app does not archive a session when a run's PR merges. The
      per-PR switch is the operator's own job during the run (see "Auto-fix during the run").
-  2. **No board left running from an earlier run:** stop any `chantier board` still running; its
+  2. **No board left running from an earlier run:** stop any `chantier serve` still running; its
      port (8765 by default) in use made run 2's board fail. Check, on PowerShell,
      `Get-NetTCPConnection -LocalPort 8765 -State Listen`; on POSIX,
      `lsof -iTCP:8765 -sTCP:LISTEN`.

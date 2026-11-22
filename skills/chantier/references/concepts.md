@@ -153,7 +153,7 @@ At startup, identify the role, batch, project and parent session.
   "main checkout" for git only (`git -C <clone>`): no session runs in it. The project's
   `AGENTS.md` may point to its surface with one line, `- planning: <url>, projects/<name>`, which
   the Chief of Staff reads and the CLI does not. With a surface, every `$CHANTIER` carries
-  `--project <the project's folder>`; a `cli:` line says so. The surface server (`$CHANTIER board`)
+  `--project <the project's folder>`; a `cli:` line says so. The surface server (`$CHANTIER serve`)
   is also the surface's **writer**, its one writer: it commits the plan's published paths
   (`projects/` and the root `chantier.yaml`), rebases them on the remote and pushes within 5
   minutes, keeps the surface's state and exposes the server. No session commits the plan by

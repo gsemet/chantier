@@ -13,7 +13,6 @@ from chantier.core.ids import normalize_cr
 from chantier.declare import (
     access,
     batch_status,
-    board,
     closing,
     cost,
     delivery,
@@ -32,10 +31,12 @@ from chantier.declare import (
     release,
     rules,
     seat,
+    serve,
     summary,
     sync,
     validate,
     watch,
+    webui,
 )
 from chantier.writer import lines as writer_lines
 
@@ -90,7 +91,8 @@ def _parser() -> argparse.ArgumentParser:
         orders,
         park,
         seat,
-        board,
+        serve,
+        webui,
         live,
         batch_status,
         driver,
@@ -172,9 +174,9 @@ def main(argv: list[str] | None = None) -> int:
     full = args.cmd in FULL_OUTPUT or (args.cmd == "order" and args.kind == "qa")  # a prompt
     if not full:
         lines = cut(lines)
-    if args.cmd != "board":  # its routes write too, and its output is its own
+    if args.cmd != "serve":  # its routes write too, and its output is its own
         lines = with_notes(lines)
-    if lines:  # `board` printed its own lines while it served
+    if lines:  # `serve` printed its own lines while it served
         print("\n".join(lines))
     return int(code)
 

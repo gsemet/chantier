@@ -3,7 +3,7 @@ the forge's (merges, CI red), the board's writes and an outside poller's issue e
 
 The watcher reads no journal file and no forge: it subscribes to the surface server's `events`
 topic for its project from its cursor (`feed.py`), the server being the only forge hub. With no
-server running it starts one, detached (`board --seat <session> --stop-idle`), when the project's
+server running it starts one, detached (`serve --seat <session> --stop-idle`), when the project's
 seat is this session's; else it starts nothing and ends with the line that says why. On a running
 board it registers the seat when the seat is this session's, so that board follows it too. It
 reads the lines for it only: its audience holds `project`, its own `session:<key>` or a `--for`
@@ -35,7 +35,7 @@ from chantier.core.repo import Repo
 from chantier.core.seat import read_seat
 from chantier.hub import autostart, journal, lock
 from chantier.hub import times as hub_times
-from chantier.hub.feed import Board, Feed, Got, board_argv, passed_on
+from chantier.hub.feed import Board, Feed, Got, passed_on, serve_argv
 from chantier.hub.lines import foreign_build_clause
 from chantier.hub.watch_lines import (
     BAD_KEY,
@@ -175,7 +175,7 @@ class Watch:
         """Start the board for this session's seat, detached, and wait for `server.json` to name
         a live one that answers the probe with its key: its entry and the key."""
         session = self.seat_rule()
-        self.board.spawn(board_argv(self.repo, session), self.repo.root)
+        self.board.spawn(serve_argv(self.repo, session), self.repo.root)
         deadline = self.board.clock() + START_S
         while True:
             found = self.board.recorded(self.repo.git_dir)

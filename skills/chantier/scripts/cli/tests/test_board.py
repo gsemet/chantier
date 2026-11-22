@@ -26,7 +26,7 @@ from chantier.board.projects import open_projects
 from chantier.board.seats import Seats
 from chantier.core import repo as repo_module
 from chantier.core.errors import EXIT_EXTERNAL
-from chantier.declare.board import SHIPPED_UI
+from chantier.declare.serve import SHIPPED_UI
 
 CLI = Path(__file__).resolve().parents[1]
 BOARD = CLI / "src" / "chantier" / "board"
@@ -122,7 +122,7 @@ def test_a_held_port_is_refused_with_the_port_and_the_way_out(
         held.bind(("127.0.0.1", 0))
         held.listen()
         port = held.getsockname()[1]
-        code, out, err = chantier("board", "--host", "127.0.0.1", "--port", str(port))
+        code, out, err = chantier("serve", "--host", "127.0.0.1", "--port", str(port))
     assert code == EXIT_EXTERNAL and not out
     assert err.count("\n") == 1 and err.startswith("error: board not started: ")
     assert f"port {port}" in err and "--port" in err

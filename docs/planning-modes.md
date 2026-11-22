@@ -21,7 +21,7 @@ the same in both.
 | Foreman | the project's main checkout; it fast-forwards it after each merge | the surface's checkout; the CLI removes merged CRs' worktrees with `git -C <clone>`; it fast-forwards the clone after each merge |
 | Driver, workers | the CR's worktree of the project | the CR's worktree of the project, under `checkout.yml`'s `worktrees` |
 
-The surface's writer runs in the surface server (`chantier board`), on one machine per surface:
+The surface's writer runs in the surface server (`chantier serve`), on one machine per surface:
 it is the only process that commits and pushes the plan. Only the project's code gets worktrees. The surface is never worked in a worktree by the Chief of
 Staff or the Foreman.
 
@@ -125,7 +125,7 @@ hand, or an autosync of the surface's own is running.
 ## With no agent
 
 Start the board from the surface's root with
-`uvx --from git+https://github.com/gsemet/chantier@v<version> chantier board` (the version the
+`uvx --from git+https://github.com/gsemet/chantier@v<version> chantier serve` (the version the
 surface's planners use). The board serves and runs the writer until you stop it; you guarantee it
 is running while you work. A Chief of Staff session that starts later reuses it (`board already running
 at`), and its leaving does not stop it. A session running another chantier version is refused

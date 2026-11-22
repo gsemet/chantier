@@ -1,7 +1,7 @@
 
 # The web board
 
-`chantier board` serves a small web page over a planning folder, for this machine, and for any device on your network when you open it to the network: your laptop, or your phone while the batch runs somewhere else. It shows the batch and its CRs, the backlog, the costs and each CR's files, and it lets you triage the backlog. It never touches a batch. It reads your forge with your own `gh` or `glab`, read-only, for a batch's PRs. The page is one client of the server's published API, [protocol 1](server-api.md): it talks to the server over a WebSocket, which pushes each change to the page as it happens, and over HTTP with a long-poll when the socket does not open (the footer then says `(HTTP)`).
+`chantier serve` serves a small web page over a planning folder, for this machine, and for any device on your network when you open it to the network: your laptop, or your phone while the batch runs somewhere else. It shows the batch and its CRs, the backlog, the costs and each CR's files, and it lets you triage the backlog. It never touches a batch. It reads your forge with your own `gh` or `glab`, read-only, for a batch's PRs. The page is one client of the server's published API, [protocol 1](server-api.md): it talks to the server over a WebSocket, which pushes each change to the page as it happens, and over HTTP with a long-poll when the socket does not open (the footer then says `(HTTP)`).
 
 The pictures on this page are taken from the real board by `just docs-screenshots`, on a made-up planning surface (`docs/demo/`, see [its README](demo/README.md)): three fictional projects, the clock fixed at 2026-06-18 10:30 UTC. Nothing in them is a real project.
 
@@ -147,7 +147,7 @@ The conversation is shared by every page that has the item open, and kept while 
 
 The Griller writes only in the CR's folder (`02-answers.md`, the summary) and runs only the four `chantier` commands its card names. Each turn that wrote appends a line to the project's journal, which the Chief of Staff's watcher shows as `board wrote (grill)`: it tells the user and acts on nothing.
 
-The board speaks plain HTTP: on the network, the key (the link and its 30-day cookie) and every turn's text travel in clear. `chantier board --new-key` revokes the key.
+The board speaks plain HTTP: on the network, the key (the link and its 30-day cookie) and every turn's text travel in clear. `chantier serve --new-key` revokes the key.
 
 ## A new idea
 
@@ -183,7 +183,7 @@ The page is in English or French; a button at the bottom of the bar switches it 
 
 The board needs your own `gh` (GitHub) or `glab` (GitLab) login, and the network, for a batch's PRs only; every other view reads the planning folder.
 
-The Chief of Staff starts a small web server, `chantier board`, on this machine by default, and for
+The Chief of Staff starts a small web server, `chantier serve`, on this machine by default, and for
 the phone or any device of the local network once you open it to the network. It serves the
 batch with its CRs (state, round, cost, PR), the inbox, `3-ready` and the backlog, the merged and
 trashed CRs, the costs, and each CR's files (text and images). Started by a session, it stops when
@@ -201,7 +201,7 @@ files, and declare the next batch ready (`next-batch.json`, the time and the CRs
   that runs the board, where the Costs page's image copy works (a browser allows it on a secure
   origin only). Open it
   once: the board keeps the key in a cookie, for 30 days, and takes it out of the address. The link is yours
-  only; whoever has it reads the planning folder. `chantier board --new-key` replaces the key
+  only; whoever has it reads the planning folder. `chantier serve --new-key` replaces the key
   while the board runs: the old link, the cookies and the open pages stop working at once. The key lives in the repository's git folder
   (`chantier/server.json`), so it survives restarts and is never pushed. While the board runs,
   the same file holds its record next to the key (`server`: PID, address, port, version): one
@@ -216,7 +216,7 @@ files, and declare the next batch ready (`next-batch.json`, the time and the CRs
   client.
 - **Started by a watcher.** A session's watcher (`chantier watch`) starts the board, detached,
   when none runs and the session holds the seat, on the session's one yes for the watcher and the
-  board (`board --seat <id> --stop-idle`). Such a board stops by itself when the seat leaves or 30
+  board (`serve --seat <id> --stop-idle`). Such a board stops by itself when the seat leaves or 30
   minutes after its last client (no page, no watcher, no `chantier live`), after its writer's last
   cycle; its stop command (the watcher's start line names its PID) stops it sooner. A watcher ends
   by itself 2 h after its start with no event, so a watcher an ended session left behind does not
@@ -259,21 +259,21 @@ board:
   port: 8765        # default 8765
 ```
 
-- **By hand.** `chantier board --host <address> --port <n>`. With no plugin and no agent, on a
+- **By hand.** `chantier serve --host <address> --port <n>`. With no plugin and no agent, on a
   machine where only `uv` is installed, start it from a planning surface with
-  `uvx --from git+https://github.com/gsemet/chantier@v<version> chantier --project <folder> board`
+  `uvx --from git+https://github.com/gsemet/chantier@v<version> chantier --project <folder> serve`
   (`<version>` is the release the surface's planners use). In chantier's own checkout, when the
   session's project is chantier, start it with `uv run --no-sync --project <checkout> chantier
   board` after a `uv sync --locked --project <checkout>`; never `uvx --from <checkout>` for the
   chantier project; another project's session runs it in plugin mode
-  (`uvx --from "<plugin root>" chantier --skill "<skill folder>" board`). From the surface's root, with no `--project`, the
+  (`uvx --from "<plugin root>" chantier --skill "<skill folder>" serve`). From the surface's root, with no `--project`, the
   board serves every project of the surface; it runs until you stop it, so a scheduled task or a
   service may start it (the surface's own setup; chantier ships none).
-- **Another UI.** `chantier board --ui <folder>` serves your own UI's static files in place of the
+- **Another UI.** `chantier serve --ui <folder>` serves your own UI's static files in place of the
   web board, and `--ui none` serves the API only; see [the server's API](server-api.md).
 - **When it stops.** With Ctrl-C. The writer first runs one final cycle, up to 30 s, that commits and pushes what is pending. A board a session started (`--seat`) also stops by itself once
   no session that registered a seat holds it any more; a board started by hand (no `--seat`)
-  does not, even when sessions register a seat on it and leave. A second `chantier board` on the same address says the board is already running and
+  does not, even when sessions register a seat on it and leave. A second `chantier serve` on the same address says the board is already running and
   prints the same link. Two refusals leave the board alone and tell you what to do
   yourself: a board of another chantier version already serves the surface, or one holds it and
   does not answer. Each prints one line with the version, the PID and the command that stops it

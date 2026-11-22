@@ -26,7 +26,7 @@ Ground rules:
   `<CR folder>/work/scratch/artifacts-<run id>/`, never under `<work folder>/debugger/` or
   `evidence/`: it stays on this machine, never published; copy into `evidence/` only the small part
   that proves your finding.
-- A test, a smoke run or a probe of the board's write paths (`chantier board`'s edits of the
+- A test, a smoke run or a probe of the board's write paths (`chantier serve`'s edits of the
   backlog, and the role-free CLI commands it calls) points at a scratch planning folder (a fresh
   temporary folder, or one under the worktree's test fixtures), never at the project's live
   planning folder (`.agents/changes/`, or the planning surface's), and removes it at its end.

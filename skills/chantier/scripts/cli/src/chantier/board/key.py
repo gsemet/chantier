@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import hmac
 import json
 import secrets
@@ -13,9 +14,16 @@ from chantier.core.files import read_text
 from chantier.core.repo import Repo
 from chantier.hub import state
 
-COOKIE = "chantier_board"
+COOKIE_PREFIX = "chantier_board_"
 HEADER = "x-chantier-board-key"
 COOKIE_MAX_AGE_S = 30 * 24 * 3600
+
+
+def cookie_name(served: Path | str) -> str:
+    """This server's own cookie: `chantier_board_<12 hex of the SHA-256 of the served folder's
+    POSIX path>`, so several boards work side by side in one browser."""
+    posix = served.as_posix() if isinstance(served, Path) else str(served)
+    return COOKIE_PREFIX + hashlib.sha256(posix.encode("utf-8")).hexdigest()[:12]
 
 
 def key_path(repo: Repo) -> Path:
@@ -75,8 +83,8 @@ def is_good(candidate: str | None, key: str) -> bool:
     )
 
 
-def cookie_value(raw: str | None) -> str | None:
-    """The key a request's `Cookie` header carries."""
+def cookie_value(raw: str | None, name: str) -> str | None:
+    """The key a request's `Cookie` header carries under this server's cookie name."""
     if not raw:
         return None
     jar: SimpleCookie = SimpleCookie()
@@ -84,8 +92,8 @@ def cookie_value(raw: str | None) -> str | None:
         jar.load(raw)
     except ValueError:
         return None
-    return jar[COOKIE].value if COOKIE in jar else None
+    return jar[name].value if name in jar else None
 
 
-def set_cookie(key: str) -> str:
-    return f"{COOKIE}={key}; Max-Age={COOKIE_MAX_AGE_S}; Path=/; HttpOnly; SameSite=Strict"
+def set_cookie(key: str, name: str) -> str:
+    return f"{name}={key}; Max-Age={COOKIE_MAX_AGE_S}; Path=/; HttpOnly; SameSite=Strict"

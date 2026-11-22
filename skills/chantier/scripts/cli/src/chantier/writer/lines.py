@@ -14,7 +14,7 @@ from chantier.hub import state
 
 START = (
     'start the watcher, which starts the surface server (the "watch: not running" line\'s '
-    "command), or, on a host that cannot run the watcher, $CHANTIER board --seat <session id> "
+    "command), or, on a host that cannot run the watcher, $CHANTIER serve --seat <session id> "
     "--forge-always"
 )
 LIVE_STATES = ("synced", "pending", "syncing")  # P13's `ok`
@@ -31,7 +31,7 @@ def older_board(git_dir: Path) -> dict[str, Any] | None:
 
 def older_text(server: dict[str, Any]) -> str:
     return (
-        f"chantier board {server.get('version')} (PID {server.get('pid')}) serves this surface "
+        f"chantier serve {server.get('version')} (PID {server.get('pid')}) serves this surface "
         f"with no writer"
     )
 

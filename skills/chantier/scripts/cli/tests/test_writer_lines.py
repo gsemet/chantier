@@ -84,7 +84,7 @@ def test_an_older_board_with_no_writer_is_named_in_the_off_line(
     state.modify(git_dir, lambda data: data.__setitem__(state.SERVER, server))
     line = lines.state_line(read(git_dir), lines.older_board(git_dir))
     assert line.startswith(
-        f"writer: not running: chantier board 0.0.1 (PID {os.getpid()}) serves this surface "
+        f"writer: not running: chantier serve 0.0.1 (PID {os.getpid()}) serves this surface "
         "with no writer; writes to the surface are refused; for the Chief of Staff: ask the user "
         "to stop it ("
     )

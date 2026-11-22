@@ -18,7 +18,7 @@ from chantier.board.key import KeyFile
 from chantier.board.projects import open_projects
 from chantier.board.seats import Seats
 from chantier.core.errors import EXIT_USAGE
-from chantier.declare.board import SHIPPED_UI
+from chantier.declare.serve import SHIPPED_UI
 
 OK, NOT_FOUND, NO_KEY, SEE_OTHER = 200, 404, 401, 303
 PKG = Path(__file__).resolve().parents[1] / "src" / "chantier"
@@ -127,7 +127,7 @@ def test_a_ui_that_is_not_a_folder_with_an_index_is_refused_and_nothing_is_writt
         arg.write_text("x", encoding="utf-8")
     elif kind == "no-index":
         arg.mkdir()
-    code, out, err = chantier("board", "--host", "127.0.0.1", "--port", "0", "--ui", arg)
+    code, out, err = chantier("serve", "--host", "127.0.0.1", "--port", "0", "--ui", arg)
     assert code == EXIT_USAGE and not out
     assert err.strip() == REFUSAL.format(arg=arg)
     assert not _server_json(project).exists()
@@ -151,7 +151,7 @@ def test_ui_on_a_board_already_running_is_not_applied_and_said(
     good = tmp_path / "ui"
     good.mkdir()
     (good / "index.html").write_text("<p/>", encoding="utf-8")
-    args: list[object] = ["board", "--host", "127.0.0.1", "--port", "4321"]
+    args: list[object] = ["serve", "--host", "127.0.0.1", "--port", "4321"]
     if ui is not None:
         args += ["--ui", {"none": "none", "folder": good, "bad": tmp_path / "nope"}[ui]]
     code, out, err = chantier(*args)

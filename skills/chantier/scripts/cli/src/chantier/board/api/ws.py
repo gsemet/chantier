@@ -297,7 +297,7 @@ async def _tick(conn: Connection) -> None:
 
 async def _open(ctx: Context, ws: Any, run: Any, response: Any) -> None:
     headers = {name.lower(): value for name, value in ws.headers.items()}
-    allowed, credential = auth.upgrade(headers, ctx.key.current())
+    allowed, credential = auth.upgrade(headers, ctx.key.current(), ctx.cookie)
     if not allowed:
         await ws.send_denial_response(response(guard.NEEDS_KEY + "\n", 401))
         return

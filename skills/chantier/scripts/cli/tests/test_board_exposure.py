@@ -85,7 +85,7 @@ def _start(chantier: Chantier, repo: Path, config: str | None) -> list[str]:
     prepared(repo, chantier, "Board one")
     if config:
         (repo / "chantier.yaml").write_text(config, encoding="utf-8")
-    code, out, err = chantier("board", "--port", "0")
+    code, out, err = chantier("serve", "--port", "0")
     assert code == 0, err
     return out
 
@@ -119,9 +119,9 @@ def test_the_default_start_prints_one_line(
 
 
 def test_the_cookie_lasts_30_days_and_the_exchange_sets_it() -> None:
-    cookie = keys.set_cookie("k")
+    cookie = keys.set_cookie("k", "name")
     assert "Max-Age=2592000" in cookie and "HttpOnly" in cookie and "SameSite=Strict" in cookie
-    got = guard.exchange(Request("GET", "/", {"k": "k"}, {}), "k")
+    got = guard.exchange(Request("GET", "/", {"k": "k"}, {}), "k", "name")
     assert got is not None and got.status == SEE_OTHER
     assert "Max-Age=2592000" in got.all_headers()["Set-Cookie"]
 
@@ -153,7 +153,7 @@ def test_a_second_start_says_when_the_running_board_is_open(
     _prepare_board(repo, chantier, monkeypatch, (True, rec, _answer(served, __version__)))
     _route(monkeypatch, LAN)
     monkeypatch.setattr(command, "register_seat", lambda *_a, **_k: True)
-    code, out, err = chantier("board", "--seat", "s")
+    code, out, err = chantier("serve", "--seat", "s")
     assert code == 0, err
     marks = {
         "already": "board already running at http://",

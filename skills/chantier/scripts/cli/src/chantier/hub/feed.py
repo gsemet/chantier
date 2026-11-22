@@ -80,9 +80,9 @@ class LinkFeed:
         self.closed.set()
 
 
-def board_argv(repo: Repo, session: str) -> list[str]:
-    """The board a watcher starts: this CLI's `board --seat <session> --stop-idle`."""
-    return [*shlex.split(cli_command(repo)), "board", "--seat", session, "--stop-idle"]
+def serve_argv(repo: Repo, session: str) -> list[str]:
+    """The server a watcher starts: this CLI's `serve --seat <session> --stop-idle`."""
+    return [*shlex.split(cli_command(repo)), "serve", "--seat", session, "--stop-idle"]
 
 
 def spawn(argv: list[str], cwd: Path) -> None:

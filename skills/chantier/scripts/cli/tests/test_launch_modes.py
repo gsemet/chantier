@@ -140,7 +140,7 @@ STALE_BUILD = (
     "from another project's session, run that build and serve every project of the surface, "
     "chantier included, with no notice while the version is equal, until the next version bump "
     "or until stopped by hand and started again from a chantier session; but a chantier session "
-    "in the dev mode is told, on `status`, the watcher's start line and `board`, when the board "
+    "in the dev mode is told, on `status`, the watcher's start line and `serve`, when the board "
     "runs another build than its checkout's, even at the same version string (`server.json` "
     "records each entry's `source`)."
 )
@@ -243,7 +243,7 @@ def test_the_cards_and_hosts_state_the_exception_the_row_and_the_for_you_item() 
         (
             "chief-of-staff.md",
             "A `board runs another build` or `board runs a build of chantier <v> older than this "
-            "notice` line (on `status`, the start line or `board`): say it once to the user as "
+            "notice` line (on `status`, the start line or `serve`): say it once to the user as "
             "printed; never stop or restart the board.",
         ),
         (

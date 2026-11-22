@@ -1,6 +1,6 @@
 # Boards
 
-The CR board in Claude Code, a read-only pane over the planning folder, and the web board ([its own page](web-board.md)), served by `chantier board` on this machine, or to any device on the local network when you open it.
+The CR board in Claude Code, a read-only pane over the planning folder, and the web board ([its own page](web-board.md)), served by `chantier serve` on this machine, or to any device on the local network when you open it.
 
 ## The CR board (Claude Code)
 
@@ -68,7 +68,7 @@ code, is covered by the cards, and the steering session reports what changed in 
 
 ## The web board
 
-The web board is a small web server, `chantier board`, for any device. Every view, how to start it, keep it on the machine and stop it are in [the web board](web-board.md); its API, which the page and any other client use, is in [the server's API](server-api.md).
+The web board is a small web server, `chantier serve`, for any device. Every view, how to start it, keep it on the machine and stop it are in [the web board](web-board.md); its API, which the page and any other client use, is in [the server's API](server-api.md).
 
 ## The live terminal view
 
@@ -96,7 +96,7 @@ counts are summed, a project is named `<label>/<project>` and a task's CR reads 
 How to start it:
 
 - `chantier live`: the board recorded as running for this surface or project, on the loopback
-  address. With none: `live: no board runs for this surface: start one with chantier board, or
+  address. With none: `live: no board runs for this surface: start one with chantier serve, or
   pass --url <link>` (exit 4).
 - `chantier live --url <link>`: a board on another machine, from the link it printed (with its
   `?k=` key); the environment's proxies apply. `--url` is repeatable: one to four boards, one key

@@ -109,8 +109,8 @@ def test_the_seat_rule_with_and_without_a_running_board(
     line = f"watch: {found.root.name} from cursor 0 for project"
     line += f", session:{key}" if key != "none" else ""
     if not runs:
-        assert board.spawned == [[*feed.board_argv(found, SESSION)]]
-        assert board.spawned[0][-4:] == ["board", "--seat", SESSION, "--stop-idle"]
+        assert board.spawned == [[*feed.serve_argv(found, SESSION)]]
+        assert board.spawned[0][-4:] == ["serve", "--seat", SESSION, "--stop-idle"]
         line += f"; started the board (PID {PID})"  # the entry's PID, the board's own
     assert start == [line, WATCHES]
 
@@ -160,7 +160,7 @@ def test_a_board_that_does_not_come_up_ends_the_watcher(
     }[start]
     assert (lines, code) == ([expected], 1)
     assert board.now >= START_S if start is not _other_key else board.now == 0.0
-    assert board.spawned == [feed.board_argv(found, SESSION)] and board.feeds == []
+    assert board.spawned == [feed.serve_argv(found, SESSION)] and board.feeds == []
 
 
 @pytest.mark.parametrize(

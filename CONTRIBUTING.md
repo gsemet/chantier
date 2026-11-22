@@ -98,7 +98,7 @@ chantier is four things in one repository:
    (each with a `work/` folder while it runs), and the batch's own files at the root of
    `4-batch/` (`batch.json`, `events.jsonl`, the brief, `STATUS.md`). The one write elsewhere is not the CLI's: on the user's yes, the Chief of Staff adds to `~/.claude/settings.json` the allow rules preflight's P10 named, and nothing else there. There is no configuration file: every agent reads the project's `AGENTS.md`.
    The CLI knows no role: the cards hold each role's contract, and the Foreman and the Drivers
-   write the prompts. One named exception among the tools: `board`, the web board's server, for
+   write the prompts. One named exception among the tools: `serve`, the web board's server, for
    the user on this machine and the local network, behind a key (in its URL for the web client, in
    a header or a WebSocket's first message for any other client), through one published API over a
    WebSocket, and over HTTP as the same protocol behind a proxy for instance (it serves the record
@@ -126,7 +126,7 @@ chantier is four things in one repository:
    runs, it commits, rebases and pushes the planning surface's published paths and the local
    commits of the surface's branch; the board's own code commits nothing.
    The forge hub is the surface server's second role, a named exception among the tools: one
-   process per planning surface and machine, `chantier board`, started by a session's watcher,
+   process per planning surface and machine, `chantier serve`, started by a session's watcher,
    detached, when none runs and the session holds the seat, on the user's one yes for the watcher
    and the board, or by the Chief of Staff on a host that cannot run the watcher; one a watcher
    started stops by itself when its seat leaves or 30 minutes after its last subscribed client,
@@ -250,7 +250,7 @@ changes at each version bump. The board server, its writer and the forge hub, st
 another project's session, run that build and serve every project of the surface, chantier
 included, with no notice while the version is equal, until the next version bump or until
 stopped by hand and started again from a chantier session; but a chantier session in the dev
-mode is told, on `status`, the watcher's start line and `board`, when the board runs another
+mode is told, on `status`, the watcher's start line and `serve`, when the board runs another
 build than its checkout's, even at the same version string (`server.json` records each entry's
 `source`).
 

@@ -117,7 +117,7 @@ def test_a_new_board_reuses_refuses_or_starts_by_what_the_surface_already_runs(
 ) -> None:
     plan = _plans(open_projects().served.as_posix())[case]
     path, bound = _prepare_board(repo, chantier, monkeypatch, plan, old=case.startswith("migrate"))
-    code, out, err = chantier("board", "--host", "127.0.0.1", "--port", str(LINK_PORT + 1))
+    code, out, err = chantier("serve", "--host", "127.0.0.1", "--port", str(LINK_PORT + 1))
     stop = running.stop_command(4242)
     if case == "same":
         assert code == 0
@@ -178,7 +178,7 @@ def test_new_key_keeps_the_running_record_and_the_exit_removes_only_its_own(
     monkeypatch.setattr(command, "probe", lambda *_a, **_k: None)
     try:
         for extra in ((), ("--new-key",)):
-            code, out, err = chantier("board", "--port", "0", *extra)
+            code, out, err = chantier("serve", "--port", "0", *extra)
             assert code == EXIT_EXTERNAL and out == [] and not bound
             assert f"board not started: {path}: " in err and "write lock" in err
     finally:
@@ -220,7 +220,7 @@ def test_board_seat_adds_the_foreign_build_line_only_for_the_sessions_own_projec
         return found
 
     monkeypatch.setattr("chantier.board.command.open_projects", opened)
-    code, out, err = chantier("board", "--seat", "s-1")
+    code, out, err = chantier("serve", "--seat", "s-1")
     assert code == 0, err
     assert any(x.startswith("board already running at") for x in out) and len(seats) == 1
     said = [x for x in out if x.startswith("board runs another build of chantier")]

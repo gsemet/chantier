@@ -11,7 +11,7 @@ from typing import Any
 
 from chantier.board.costs import Live
 from chantier.board.fingerprint import StateCache, fingerprint
-from chantier.board.key import KeyFile
+from chantier.board.key import KeyFile, cookie_name
 from chantier.board.projects import Project, Projects
 from chantier.board.prs import ForgeReads
 from chantier.board.seats import Seats
@@ -60,6 +60,11 @@ class Context:
     revs: dict[str, str] = field(default_factory=dict[str, str])
     _lives: dict[str, Live] = field(default_factory=dict[str, Live])
     _lock: threading.Lock = field(default_factory=threading.Lock)
+
+    @property
+    def cookie(self) -> str:
+        """This server's cookie name, from the served folder."""
+        return cookie_name(self.projects.served)
 
     def live(self, project: Project) -> Live:
         """The project's live figure, made at its first use."""

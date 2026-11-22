@@ -182,7 +182,7 @@ def test_a_second_board_with_the_forge_always_registers_its_seat_and_says_the_fo
     forge: str | None,
     told: bool,
 ) -> None:
-    """`board --seat <id> --forge-always` on a running board started without the flag (by a
+    """`serve --seat <id> --forge-always` on a running board started without the flag (by a
     watcher): its seat registered, and the `FORGE_WHEN_OBSERVED` line; none on a board that
     reads the forge always."""
     served = open_projects().served.as_posix()
@@ -204,14 +204,14 @@ def test_a_second_board_with_the_forge_always_registers_its_seat_and_says_the_fo
         return True
 
     monkeypatch.setattr(command, "register_seat", register)
-    code, out, err = chantier("board", "--seat", "s-1", "--forge-always")
+    code, out, err = chantier("serve", "--seat", "s-1", "--forge-always")
     assert code == 0, err
     assert seats == [("127.0.0.1", THERE[1], ANY, open_projects().home_id, "s-1")]
     assert (command.FORGE_WHEN_OBSERVED in out) is told and command.WATCHES in out
 
 
 def test_the_two_flags_together_are_a_usage_error(repo: Path, chantier: Chantier) -> None:
-    code, _, err = chantier("board", "--stop-idle", "--forge-always")
+    code, _, err = chantier("serve", "--stop-idle", "--forge-always")
     assert code == EXIT_USAGE and command.BOTH_FLAGS in "".join(err)
 
 

@@ -32,7 +32,8 @@ LABELS = "abcd"
 LOOK_S = 0.05  # `--once` looks at what the readers have found this often
 NO_KEY = "--url: the link holds no key (?k=...): give the link the board printed"
 NO_BOARD = (
-    "live: no board runs for this surface: start one with chantier board, or pass --url <link>"
+    "live: no board runs for this surface: start one with chantier serve (or chantier webui), "
+    "or pass --url <link>"
 )
 NO_TERMINAL = "live draws a screen: run it in a terminal, or pass --once for one printed screen"
 

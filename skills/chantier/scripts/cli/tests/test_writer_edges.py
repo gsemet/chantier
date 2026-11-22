@@ -233,7 +233,7 @@ def test_a_board_started_with_no_seat_starts_the_writer(
             seen.append(read(git_dir)["state"])
 
     monkeypatch.setattr(command, "make_server", lambda ctx: Served())
-    code, _out, _err = chantier("board", "--project", "demo", "--port", "0")
+    code, _out, _err = chantier("serve", "--project", "demo", "--port", "0")
     assert code == 0, _err
     assert seen == ["syncing"]  # the writer ran while the server served, with no `--seat`
     assert read(git_dir)["state"] == "off"  # and went with it
