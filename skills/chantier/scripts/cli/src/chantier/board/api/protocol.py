@@ -247,6 +247,18 @@ class ConfigPutArgs(_Model):
     dry_run: StrictBool = False
 
 
+class GrillerArgs(_Model):
+    project: str
+    item: str
+
+
+class GrillerSendArgs(_Model):
+    project: str
+    item: str
+    text: str
+    sender: str = Field(alias="from")
+
+
 class EventsArgs(_Model):
     project: str
     after: int | None = None
@@ -275,6 +287,10 @@ OP_ARGS: dict[str, type[BaseModel]] = {
     "config.get": ProjectArgs,
     "config.put": ConfigPutArgs,
     "writer.sync": NoArgs,
+    "griller.get": GrillerArgs,
+    "griller.send": GrillerSendArgs,
+    "griller.stop": GrillerArgs,
+    "griller.end": GrillerArgs,
 }
 TOPIC_ARGS: dict[str, type[BaseModel]] = {
     "board": NoArgs,
@@ -284,6 +300,7 @@ TOPIC_ARGS: dict[str, type[BaseModel]] = {
     "history": HistoryArgs,
     "journal": ProjectArgs,
     "events": EventsArgs,
+    "griller": GrillerArgs,
 }
 OPS = tuple(sorted(OP_ARGS))
 TOPICS = tuple(sorted(TOPIC_ARGS))

@@ -7,6 +7,7 @@ line to the project's forge journal (`hub/journal.py`), which the Chief of Staff
 from __future__ import annotations
 
 from collections.abc import Callable
+from contextvars import ContextVar
 from dataclasses import replace
 from functools import partial
 from pathlib import Path
@@ -34,6 +35,31 @@ COLUMNS = ("inbox", *PRIORITIES, "3-ready", RUNNING)
 CLEARED = "; running-batch mark cleared"
 STATUS = {EXIT_USAGE: 400, EXIT_PRECONDITION: 409, EXIT_CONFLICT: 409}
 Op = Callable[[Repo, dict[str, Any]], tuple[dict[str, Any], int]]
+# the (project, item) whose Griller turn runs, as `execute`'s caller passes it, for the op's call
+TURN: ContextVar[tuple[str, str] | None] = ContextVar("griller_turn", default=None)
+
+
+def _busy(slug: str, verb: str) -> str | None:
+    """The refusal line of a board write on the item whose Griller turn runs, else None."""
+    turn = TURN.get()
+    if turn is None or turn[1] != slug:
+        return None
+    return f"a Griller turn runs on {turn[0]}/{slug}: stop it before {verb} the item"
+
+
+def _guard(slug: str, verb: str) -> None:
+    if (line := _busy(slug, verb)) is not None:
+        raise ChantierError(line, EXIT_CONFLICT)
+
+
+def _unbusy(folders: dict[str, Path]) -> list[dict[str, Any]]:
+    """Take the busy item out of `folders`; its refusal, listed in `results`."""
+    refused = []
+    for slug in list(folders):
+        if (line := _busy(slug, "changing")) is not None:
+            del folders[slug]
+            refused.append(_refused(slug, line, STATUS[EXIT_CONFLICT]))
+    return refused
 
 
 def _text(data: dict[str, Any], key: str, default: str | None = None) -> str:
@@ -166,6 +192,7 @@ def _to_running(
 
 
 def _move_one(repo: Repo, slug: str, to: str, alone: bool) -> tuple[list[str], str]:
+    _guard(slug, "moving")
     folder = backlog.backlog_folder(repo, slug)
     before = backlog.column_of(repo, folder)
     batch = running_batch.open_batch_id(repo)
@@ -226,6 +253,7 @@ def _labels(repo: Repo, data: dict[str, Any]) -> tuple[dict[str, Any], int]:
     raw = data.get("add")
     add = label_set(",".join(raw) if isinstance(raw, list) else _text(data, "add"))
     folders, refused = _resolve(repo, _texts(data, "items"))
+    refused += _unbusy(folders)
     names = ", ".join(folders)
     words = f"label {', '.join(repr(x) for x in sorted(add))} on {names}"
 
@@ -239,7 +267,7 @@ def _labels(repo: Repo, data: dict[str, Any]) -> tuple[dict[str, Any], int]:
 def _group(repo: Repo, data: dict[str, Any]) -> tuple[dict[str, Any], int]:
     name = one_line(_text(data, "name"), "group", GROUP_MAX)  # checked before anything moves
     folders, refused = _resolve(repo, _texts(data, "items"))
-    results = list(refused)
+    results = [*refused, *_unbusy(folders)]  # a member that stays put is refused too
     column = backlog.column_of(repo, next(iter(folders.values()))) if folders else "inbox"
     for slug in list(folders):  # the first item's column, as `groupOf` does
         # a member already there is not moved (a drop on its own column clears a mark: not here)
@@ -268,16 +296,21 @@ def _ungroup(repo: Repo, data: dict[str, Any]) -> tuple[dict[str, Any], int]:
     members = group_members(repo, name)
     if not members:
         raise ChantierError(f"no CR is in the group {name!r}", EXIT_PRECONDITION)
-    names = ", ".join(f.name for f in members)
+    held = {f.name: f for f in members}
+    refused = _unbusy(held)
+    members = list(held.values())
+    names = ", ".join(held)
 
     def run() -> tuple[list[str], str]:
         return change_group(repo, members, None), f"group {name!r} undone: {names}"
 
-    return _answer(repo, "ungroup", [_attempt(names, run, [f.name for f in members])])
+    done = [_attempt(names, run, list(held))] if members else []
+    return _answer(repo, "ungroup", [*refused, *done])
 
 
 def _file(repo: Repo, data: dict[str, Any]) -> tuple[dict[str, Any], int]:
     item, path = _text(data, "item"), _text(data, "path")
+    _guard(item, "changing")
     idea, base = _text(data, "text"), _text(data, "base_sha256")
 
     def run() -> tuple[list[str], str]:
@@ -314,10 +347,15 @@ def _rescan(repo: Repo, data: dict[str, Any]) -> tuple[dict[str, Any], int]:
 
 
 def execute(
-    project: Project, op: Op, command: str, data: dict[str, Any]
+    project: Project,
+    op: Op,
+    command: str,
+    data: dict[str, Any],
+    turn: tuple[str, str] | None = None,
 ) -> tuple[dict[str, Any], int]:
     """A write's body and status: a refusal of the CLI's code gives its status and `{"ok": false,
     "error"}` (`stale: true` for a file changed since the page read it)."""
+    token = TURN.set(turn)
     try:
         return op(replace(project.repo, command=command), data)
     except ChantierError as e:
@@ -327,6 +365,8 @@ def execute(
         return refusal, STATUS.get(e.code, 500)
     except OSError as e:
         return {"ok": False, "error": f"not written: {e}"}, 500
+    finally:
+        TURN.reset(token)
 
 
 WRITES: dict[str, tuple[Op, str]] = {

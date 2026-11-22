@@ -29,6 +29,7 @@ from chantier.board.api import times
 from chantier.board.api.push import PushLoop, PushThread
 from chantier.board.app import make_server
 from chantier.board.context import Context
+from chantier.board.griller import Registry
 from chantier.board.idle import IdleStop, IdleThread
 from chantier.board.key import KeyFile, load_or_create
 from chantier.board.projects import Projects, check_planning, open_projects
@@ -151,7 +152,7 @@ class _Stopper:
 
 
 def _context(projects: Projects, seats: Seats, sock: socket.socket, ui: Path | None) -> Context:
-    return Context(
+    ctx = Context(
         projects,
         KeyFile(state.path(projects.home.git_dir)),
         seats,
@@ -160,6 +161,8 @@ def _context(projects: Projects, seats: Seats, sock: socket.socket, ui: Path | N
         ui,
         sock.getsockname()[:2],
     )
+    ctx.griller = Registry(lambda: ctx.push.wake() if ctx.push is not None else None)
+    return ctx
 
 
 def _watch_files(ctx: Context) -> FileWatchThread:
@@ -205,6 +208,8 @@ def _run(
     except KeyboardInterrupt:
         pass
     finally:
+        if ctx.griller is not None:  # a running turn ends before the server does
+            ctx.griller.stop_all("the board stopped")
         if idle is not None:
             idle.stop()
         if writer is not None:

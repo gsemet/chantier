@@ -76,6 +76,8 @@ def make_server(ctx: Context) -> Any:
 
     class Server(uvicorn.Server):
         async def shutdown(self, sockets: list[Any] | None = None) -> None:
+            if ctx.griller is not None:  # a running turn ends first, `stopped`
+                await asyncio.to_thread(ctx.griller.stop_all, "the board stopped")
             await asyncio.gather(*(conn.close(GOING_AWAY) for conn in list(ctx.sockets)))
             await super().shutdown(sockets)
 

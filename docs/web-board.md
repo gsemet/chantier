@@ -139,6 +139,16 @@ A click on a CR, a card, a row or a PR's folder icon opens its folder in a side 
 
 A backlog item's Markdown file has an **Edit** button (never a batch CR's, never on the surface's Home). **Save** (or Ctrl+S) writes the file only if it is still the one you opened: if the Chief of Staff or another device changed it meanwhile, the board refuses and tells you, so that nothing is overwritten. Leaving the file, the item or the page with unsaved changes asks first.
 
+## The board's Griller
+
+A backlog item (the inbox, `P1` to `P4`, `3-ready`) has a **Grill** button in its side panel. It starts, on the board's machine, the host's CLI (`claude`) with the plugin's `board-griller` agent and the model of that role (yours to set on the Configuration page; the agent is not: any other agent refuses the button, with the setting named), and it spends the tokens of the account signed in on that machine. A host the board cannot tell (a board started by hand, outside a session) or that is not proved disables the button, with the reason as its tooltip.
+
+The conversation is shared by every page that has the item open, and kept while the server runs. One turn runs at a time on a planning surface; a second is refused with the project and CR that hold it. Anyone may stop a turn or end the conversation. While a turn runs on an item, the board cannot move, edit, label or group it (another session still can; a folder moved that way ends the turn).
+
+The Griller writes only in the CR's folder (`02-answers.md`, the summary) and runs only the four `chantier` commands its card names. Each turn that wrote appends a line to the project's journal, which the Chief of Staff's watcher shows as `board wrote (grill)`: it tells the user and acts on nothing.
+
+The board speaks plain HTTP: on the network, the key (the link and its 30-day cookie) and every turn's text travel in clear. `chantier board --new-key` revokes the key.
+
 ## A new idea
 
 ![The New dialog](web-board/new-pc.png)
