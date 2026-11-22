@@ -82,6 +82,7 @@ refused (400).
 | `costs.recompute` | `project` | `202`: the recorded costs are being recomputed |
 | `prs.get` | `project`, `batch`? | the batch's PRs as the forge says they are now (`all_done`, `closed`, the rows, `now`) |
 | `dashboard.get` | `project`, `range`? | the Dashboard's figures over the project's closed batch records (range "10", "20" or "all", default "10"): points, productivity, spending, closed_total, now; read-only, computed from the records the server already reads |
+| `history.get` | `project`, `period`, `date`?, `tz` | the period's events by local day (`days`), its `totals`, `undated`, `unreadable`, `now`; `period` is `day`, `week` or `month`, `date` a `YYYY-MM-DD` (default: today), `tz` an IANA time zone name |
 | `seats.register` | `session`, `project`? | the seat of a session is recorded for the board |
 | `backlog.new` | `project`, `text`, `slug`?, `title`? | the item filed in the inbox |
 | `backlog.move` | `project`, `to`, `items`?, `group`? | the items moved to `to` (the inbox, a priority, `3-ready`), or `running-batch`: marked for the open batch, or, from `3-ready`, a journal line only; with no open batch, moved to `3-ready` |
@@ -135,6 +136,7 @@ finished sentence the server tells it by; a line with no `text` is told by its t
 | `project` | `project` | what `project.state` gives |
 | `costs` | `project` | what `costs.get` gives |
 | `prs` | `project`, `batch`? | what `prs.get` gives; the forge is read at most once every 10 s per project and batch |
+| `history` | `project`, `period`, `date`?, `tz` | what `history.get` gives; read only from the records and the archived CRs' steps, never the forge |
 | `journal` | `project` | what `journal.get` gives |
 | `events` | `project`, `after`? | `{"lines": [...]}`: the new lines of the project's `forge-journal.jsonl`, 200 at most, each with its `seq`, and `text`, its type's sentence, when the type is published and its payload accepted (no `text` otherwise); that `text` replaces, in the answer only, a payload's own `text` key (`board@1`, `issue@1`, `sync-*@1`), which the sentence quotes and the journal file keeps; with no `after`, the lines after the last one at the time of `sub` |
 

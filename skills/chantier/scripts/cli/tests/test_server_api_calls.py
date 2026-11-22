@@ -81,6 +81,7 @@ def test_a_good_call_of_every_op_answers_the_data_its_route_gave_or_the_store_ho
     assert "now" in good("prs.get")
     dash = good("dashboard.get", {**good.args, "range": "10"})
     assert dash["range"] == "10" and "now" in dash
+    assert good("history.get", {"project": home, "period": "day", "tz": "Europe/Paris"})["today"]
     _same(good("config.get"), edit.config_view(_repo(board)))
     change = {"host": "copilot", "role": "coder", "key": "model", "value": TERRA}
     dry = {**good.args, "changes": [change], "dry_run": True}

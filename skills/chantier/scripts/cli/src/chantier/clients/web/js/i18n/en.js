@@ -3,6 +3,7 @@ import batch from './en-batch.js';
 import board from './en-board.js';
 import costs from './en-costs.js';
 import dashboard from './en-dashboard.js';
+import history from './en-history.js';
 import inbox from './en-inbox.js';
 import mr from './en-mr.js';
 import prs from './en-prs.js';
@@ -21,6 +22,7 @@ export default {
   'nav.dashboard': 'Dashboard',
   'nav.config': 'Configuration',
   'nav.prs': 'PRs',
+  'nav.history': 'History',
   'nav.overview': 'All projects',
   'project.change': 'Change project',
   'project.head': 'Planning surface · {n} projects',
@@ -248,6 +250,7 @@ export default {
   ...batch,
   ...board,
   ...prs,
+  ...history,
   ...mr,
   ...inbox,
   ...costs,

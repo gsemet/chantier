@@ -4,12 +4,16 @@ described in `docs/server-api.md`, not here."""
 
 from __future__ import annotations
 
+import datetime
 import json
+import re
 from typing import Any, Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator
 
 PROTOCOL = 1
+TZ_LONGEST = 64  # characters of an IANA zone name a client may send
 STRICT = ConfigDict(extra="forbid", frozen=True)
 
 
@@ -159,6 +163,39 @@ class DashboardArgs(_Model):
     range: Literal["10", "20", "all"] = "10"
 
 
+class HistoryArgs(_Model):
+    project: str
+    period: Literal["day", "week", "month"]
+    date: str | None = None
+    tz: str
+
+    @field_validator("date")
+    @classmethod
+    def _date(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        try:
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", v):
+                raise ValueError(v)
+            day = datetime.date.fromisoformat(v)
+            if not datetime.date(2000, 1, 1) <= day <= datetime.date(2100, 12, 31):
+                raise ValueError(v)
+        except ValueError:
+            raise ValueError("a date YYYY-MM-DD between 2000-01-01 and 2100-12-31") from None
+        return v
+
+    @field_validator("tz")
+    @classmethod
+    def _tz(cls, v: str) -> str:
+        try:
+            if len(v) > TZ_LONGEST:
+                raise ValueError(v)
+            ZoneInfo(v)
+        except (ValueError, ZoneInfoNotFoundError, OSError):
+            raise ValueError("an IANA time zone name, such as Europe/Paris") from None
+        return v
+
+
 class SeatArgs(_Model):
     session: str
     project: str | None = None
@@ -224,6 +261,7 @@ OP_ARGS: dict[str, type[BaseModel]] = {
     "costs.recompute": ProjectArgs,
     "prs.get": PrsArgs,
     "dashboard.get": DashboardArgs,
+    "history.get": HistoryArgs,
     "seats.register": SeatArgs,
     "backlog.new": NewArgs,
     "backlog.move": MoveArgs,
@@ -243,6 +281,7 @@ TOPIC_ARGS: dict[str, type[BaseModel]] = {
     "project": ProjectArgs,
     "costs": ProjectArgs,
     "prs": PrsArgs,
+    "history": HistoryArgs,
     "journal": ProjectArgs,
     "events": EventsArgs,
 }

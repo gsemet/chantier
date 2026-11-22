@@ -1,0 +1,141 @@
+/* The History view: a head, five figures, then the events of each day, one row per event. */
+.histview .hhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin: var(--space-4) 0 var(--space-3);
+}
+
+.histview .hname {
+  margin: 0;
+  margin-right: auto;
+}
+
+.histview .hchoices,
+.histview .hmoves {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.histview .herr {
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  color: var(--bad-ink);
+}
+
+.histview .hkpis {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.histview .hkpis .kpi .btn {
+  align-self: flex-start;
+}
+
+.histview .hday {
+  margin-bottom: var(--space-4);
+}
+
+.histview .hday h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-3) 0 var(--space-2);
+}
+
+.histview .hcounts {
+  color: var(--ink2);
+  font-size: var(--text-small);
+  font-weight: 400;
+}
+
+.histview .hrows {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.histview .hrow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-off-10) var(--space-4);
+  border-bottom: 1px solid var(--line2);
+}
+
+.histview .hrow:last-child {
+  border-bottom: 0;
+}
+
+.histview .hrow[data-open]:hover {
+  background: var(--hover);
+}
+
+.histview .hrow .top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-off-6);
+  font-size: var(--text-small);
+}
+
+.histview .hrow .hat {
+  color: var(--ink2);
+}
+
+/* the CR's title: one line, cut with an ellipsis; the full text is its title attribute */
+.histview .hrow .nt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.histview .hrow .facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  color: var(--ink2);
+  font-size: var(--text-small);
+}
+
+.histview .hrow .hbatch {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.histview .hfoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-3);
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+@media (max-width: 760px) {
+  .histview .hkpis {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .histview .hrow {
+    grid-template-columns: 1fr;
+  }
+}

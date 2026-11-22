@@ -42,6 +42,11 @@ class Context:
     prs_done: dict[tuple[str, str], tuple[tuple[str, ...], dict[str, Any]]] = field(
         default_factory=dict[tuple[str, str], tuple[tuple[str, ...], dict[str, Any]]]
     )
+    # the History page's index of dated events, per project, with the state's print it was built
+    # from
+    history: dict[str, tuple[str, dict[str, Any]]] = field(
+        default_factory=dict[str, tuple[str, dict[str, Any]]]
+    )
     push: Any = None  # the API's `PushLoop` (typed there: it imports this module), set when serving
     # the API's open WebSockets, those still waiting for their `hello` too (each has `welcomed`,
     # `credential` and a thread-safe `drop(code)`); changed in the event loop's thread only

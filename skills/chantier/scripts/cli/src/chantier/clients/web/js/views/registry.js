@@ -14,6 +14,7 @@ import * as batch from './batch.js';
 import * as config from './config.js';
 import * as costs from './costs.js';
 import * as dashboard from './dashboard.js';
+import * as history from './history.js';
 import * as home from './home.js';
 import * as inbox from './inbox.js';
 import * as kanban from './kanban.js';
@@ -63,6 +64,7 @@ export const VIEWS = [
     module: prs,
     count: (state) => (state.data?.batch ? crsOf(state.data.batch).filter(openPr).length : null),
   },
+  { id: 'history', icon: 'history', word: 'nav.history', module: history },
   {
     id: 'costs',
     icon: 'costs',

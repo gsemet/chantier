@@ -15,6 +15,7 @@ from chantier.board import (
     config_api,
     dashboard_page,
     files,
+    history_page,
     journal,
     prs,
     reads,
@@ -122,6 +123,10 @@ def _dashboard(ctx: Context, project: Project, a: Any) -> Result:
     return Result(200, {**dashboard_page.answer(data["history"], a.range), "now": clock.now()})
 
 
+def _history(ctx: Context, project: Project, a: Any) -> Result:
+    return Result(200, history_page.answer(ctx, project, a.period, a.date, a.tz))
+
+
 def _seat(ctx: Context, a: Any) -> Result:
     if not ctx.seats.add(a.project or ctx.projects.home_id, a.session):
         return fail(404, NOT_FOUND)
@@ -169,6 +174,7 @@ HANDLERS: dict[str, Handler] = {
     "costs.recompute": _on_project(_recompute),
     "prs.get": _on_project(_prs),
     "dashboard.get": _on_project(_dashboard),
+    "history.get": _on_project(_history),
     "seats.register": _seat,
     "journal.get": _on_project(_journal),
     "config.get": _on_project(_config),
