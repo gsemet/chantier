@@ -211,7 +211,7 @@ workers" when it starts a worker.
 - The long gate, the project's command, before the first push and the PR (with the `ci: beside
   the long gate` line: "Means: CI beside the long gate"): `$CHANTIER gate <cr> "<command>"
   ["<command>"...]` runs only the long gate the project's rules name, in the worktree, in order,
-  as many at once as the project allows (`chantier.yaml`, one by default), the rest wait in a queue (its order: "Means: stopping a long gate"); a running gate is never stopped. A rebase with a conflict resolved takes `ship --conflict` and the early push ("Means: carries, conflicts and the early push"). The CLI reads no forge: you read CI at the new head, which must be green. A short gate (the fast gate, or the check that the rules ask of a CR they exempt from
+  as many at once as the project allows (`chantier.yaml`, one by default), the rest wait in a queue (its order: "Means: stopping a long gate"); a running gate is never stopped. A rebase with a conflict resolved takes `ship --conflict` and the early push ("Means: carries, conflicts and the early push"). The CLI reads no CI: you read CI at the new head, which must be green. A short gate (the fast gate, or the check that the rules ask of a CR they exempt from
   the long gate, such as a docs-only change) you run yourself in the worktree, never through
   `gate`: it would wait behind the long gates. A pipeline job named as the long gate: "Means: CI beside the long gate". A rule that asks the batch's or the stack's top for a local run: "Means: carries, conflicts and the early push".
   `gate` stops at the first failure, keeps the log and records the pass at that head. It is
@@ -519,7 +519,7 @@ You never escalate yourself.
   release Driver), for a rebase of any reason (a `rebase:` note, `stacked on`, a mode switch, a
   restack, an insertion, a drop). `ship <cr> <link> --conflict` records `conflict: true` and
   voids every pass, verdict and carry recorded before it, at that head and any earlier one, so the
-  CR is gated and verified again; the same head shipped again without the flag clears nothing. The CLI reads no forge: you read CI at the new head, which must be green.
+  CR is gated and verified again; the same head shipped again without the flag clears nothing. The CLI reads no CI: you read CI at the new head, which must be green.
 - **Early push** (every batch, no `chantier.yaml` key): when a rebase of a CR
   whose PR exists needs a long gate (a `rebase:` note, a restack, a taken-back CR, with a
   conflict resolved), turn the PR to draft if it is not one (`gh pr ready --undo`, `glab mr

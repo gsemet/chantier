@@ -278,7 +278,7 @@ refines the inbox and the backlog while the Chief of Staff runs batches, and `/c
 the plugin, the only thing to install is [`uv`](https://docs.astral.sh/uv/); as a plugin the CLI runs from the plugin's own folder (`uvx --from`), so
 its first run only fetches the CLI's Python packages: it needs the network once, and uv's cache is
 enough after that; working on a
-repository also needs `git` and the forge's CLI, logged in: `gh` for GitHub, `glab` for GitLab.
+repository also needs `git` and the forge's CLI, logged in: `gh` for GitHub, `glab` for GitLab; the CLI uses it too, and the network, when it reads a PR's base or draft state (`ship`, and `take`, `round` and `handoff` for a stacked CR) and in `forge-stack`.
 
 Once after installing, open a session on your project and run `/chief-of-staff init` (on Claude
 Code, `/chantier:chief-of-staff init`). It checks `uv` and `git`, and the forge's CLI with its

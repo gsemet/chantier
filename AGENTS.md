@@ -16,7 +16,7 @@
   `chantier.yml`) files, at the project's root and, with an external planning surface, at the
   surface's root and in the project's folder there, are the only configuration, above the plugin's
   shipped `config/chantier.defaults.yml` (with none, chantier runs on the shipped defaults; `uv` is the only tool to install, and the CLI needs no network once uv's cache holds its
-  packages, except the server's read of a batch's PRs, the forge hub and the surface server's writer, whose fetch and push need it (below)), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
+  packages, except the server's read of a batch's PRs, the forge hub, the surface server's writer, whose fetch and push need it, and the forge calls of `ship`, `take`, `round`, `handoff` and `forge-stack`, made with the user's own `gh` or `glab` (below)), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
   external planning surface), as plain JSON and Markdown (with the `.lease-hold.*.run` records of
   `lease hold`, never published), and the project's `chantier.yaml` in an
   external planning surface's project folder, from the board's Configuration page, and a CR's
@@ -43,7 +43,7 @@
   agents by their agent type (`spec-writer`, `spec-critic`), to put them on the grill line.
 - The CLI's scope: the CR lifecycle, the batch's frame (limits, record, STATUS files), the means
   to synchronise, and a few tools (among them `validate`, a read-only check of a planning folder
-  that a surface would otherwise keep in its own drifting script). The agents do the work, git and the forge included; a new
+  that a surface would otherwise keep in its own drifting script). The agents do the work, git and the forge included, but for the forge calls named below; a new
   CLI tool comes from measured token-costly behaviour, never from speculation. Named
   exceptions. The end of a batch's last CR (`order merged`, `handback released`, `cancel`,
   `order drop`) removes the batch's merged CRs' worktrees and branches whose Driver has ended
@@ -134,6 +134,17 @@
   `clients/tui/`; it reads the server only (never the planning folder, the forge or git), writes
   nothing and messages no agent; built on the user's request of 2026-11-20, with no measured
   cost.
+  The forge calls of the batch's commands, with the user's own `gh` or `glab`, and the network for
+  them: `ship` reads the base branch and the draft state of the PR it records, once per call, and
+  `take`, `round` and `handoff` read the base branch of a stacked CR's PR (a CR of a `stack`
+  batch's chain with a PR recorded) for each such CR they print; a failed read prints
+  `base ? (not read from <link>: …)` and blocks nothing; `forge-stack` (`create`, `show`,
+  `rebuild`, `unstack`) reads the batch's PRs or MRs and the forge's stacks, and writes only
+  stacks and bases: it creates a stack (GitHub), dissolves one and retargets a PR's base or an
+  MR's target branch, and nothing else on the forge (no PR opened, closed, merged, approved or
+  commented). Built on the record's drift from the forge in batch-17 and batch-18 (`ship`'s read,
+  CR-270 `ship-reads-forge`) and on the stack batches (`forge-stack`, CR-234, CR-245, CR-313),
+  named in this rule after the fact (`agents-md-names-cli-forge-reads`).
   The surface server's writer, a thread of the same process, one per planning surface and
   machine, held by an OS lock in the git folder (`chantier/writer.lock`): while the server runs, it
   commits, rebases and pushes the planning surface's published paths and the local commits of the

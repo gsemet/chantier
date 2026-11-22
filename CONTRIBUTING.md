@@ -43,7 +43,7 @@ It keeps the backlog, asks you the questions a change needs, and starts work onl
 7. **A Release driver releases, when you ask.** It follows your project's own procedure, and
    stops for your approval before each irreversible action.
 
-The agents do the work, git and the forge included. The `chantier` Python CLI (`uv run`) is
+The agents do the work, git and the forge included, but for the forge calls of `ship`, `take`, `round`, `handoff` and `forge-stack` (AGENTS.md names them). The `chantier` Python CLI (`uv run`) is
 the frame beside them, in the planning folder (`.agents/changes/`, or an external surface), as
 plain JSON and Markdown (and, from the board, a project's `chantier.yaml` in its planning
 surface): the CR lifecycle
@@ -85,7 +85,7 @@ chantier is four things in one repository:
    `ship`, `release go`; `rails.py` says what is refused), the means to synchronise (`order`,
    `asks`, `note`, `gate`, its lock and its stop) and a few tools (`rules`, `cost`). It runs no git
    command that changes anything (it reads the head, the remote and the status to say what is
-   off) and no forge command: the agents have `git`, `gh` and `glab` and do the work. It writes
+   off) and no forge command but the reads of `ship`, `take`, `round` and `handoff` and the stacks and bases `forge-stack` makes, with the user's own `gh` or `glab` (AGENTS.md names them): the agents have `git`, `gh` and `glab` and do the rest. It writes
    only in the planning folder (the target repository's `.agents/changes/`, or the project's
    folder of an external planning surface, plus its own `.gitignore`, and the surface server's key,
    record and the forge hub's record in the git folder (`chantier/server.json`), the hub's lock

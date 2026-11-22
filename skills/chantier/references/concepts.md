@@ -417,7 +417,7 @@ At startup, identify the role, batch, project and parent session.
 - **`$CHANTIER`:** the CLI, exactly as your prompt gives it (in chantier's own checkout, when the session's project is chantier, `uv run --no-sync --project "<…>" chantier`, the environment synced once by the steering session with `uv sync --locked --project "<…>"`, never by a command; else `uvx --from "<…>" chantier --skill "<…>"`; with a planning surface, plus `--project <folder>`). `<plugin root>` is written absolute, with forward slashes, quoted, the same path as P10's rule holds (the same slashes, drive letter's case and trailing slash; the rule's quoting may differ, per the trial); `$CHANTIER` is carried verbatim into every brief and command, since another form of the path does not match the rule and meets the host's prompt.
   It alone writes `batch.json`, `events.jsonl` and the `STATUS` files. It runs no git command
   that changes anything (it reads the head, the remote and the status to say what is off) and
-  no forge command beyond `forge-stack` (it calls the user's own `gh` or `glab`): the agents
+  no forge command beyond `forge-stack` and the reads of `ship`, `take`, `round` and `handoff` (a PR's base, and for `ship` its draft state; they call the user's own `gh` or `glab`): the agents
   create the worktrees, commit, rebase, push, open, watch and
   merge PRs, clean up and fast-forward the main checkout after a recorded merge
   ([foreman](foreman.md)), with `git`, `gh` and `glab`. Exit codes: 0 ok, 1 usage, 2 precondition (the message

@@ -146,8 +146,8 @@ def check_drop_free(batch: Batch, cr: CrEntry, to: str) -> None:
 
 
 def pr_clause(batch: Batch, cr: CrEntry) -> str:
-    """The PR's clause of a drop outside a stack, which the steering session runs (the CLI runs no
-    forge command): `; close its PR <link>` for the trash, `; turn its PR to draft <link>` for the
+    """The PR's clause of a drop outside a stack, which the steering session runs (the CLI closes no
+    PR): `; close its PR <link>` for the trash, `; turn its PR to draft <link>` for the
     backlog or `3-ready` when the record says the PR is out of draft. Empty in a stack, where the
     stack driver does it, with no PR, and with the draft state not out of draft."""
     link = cr.shown_pr()
