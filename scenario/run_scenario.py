@@ -2705,15 +2705,15 @@ def serve_and_webui(w: World) -> None:
     procs: list[BoardProc] = []
     try:
         first = BoardProc(sw, "--project", "demo", "serve", "--host", "127.0.0.1", "--port",
-                          DEFAULT_PORT, "--seat", "sess-1", cwd=sw.surface)
+                          DEFAULT_PORT, cwd=sw.surface)
         procs.append(first)
         link = Link(first.line())
         if not link.ok:
             note(f"    the default port {DEFAULT_PORT} is held by another program here: "
                  "the second-surface step is skipped")
         else:
-            second = BoardProc(sw2, "--project", "demo", "serve", "--host", "127.0.0.1", "--seat",
-                               "sess-2", cwd=sw2.surface)
+            second = BoardProc(sw2, "--project", "demo", "serve", "--host", "127.0.0.1",
+                               cwd=sw2.surface)
             procs.append(second)
             said, start = second.line(), second.line()
             link2 = Link(start)
