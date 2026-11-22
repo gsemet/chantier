@@ -13,6 +13,7 @@ from chantier.board.context import Context
 from chantier.board.projects import Project
 from chantier.board.state import origin_of, project_line, project_paths, project_state
 from chantier.core import clock
+from chantier.core.origin import normalize_origin
 
 UNREADABLE = "the record could not be read just now"
 
@@ -68,6 +69,8 @@ def board_data(ctx: Context) -> dict[str, Any]:
         "pid": os.getpid(),
         "served": ctx.projects.served.as_posix(),
         "served_origin": origin_of(ctx.projects.served),
+        "origin": normalize_origin(origin_of(ctx.projects.served)),
+        "home": ctx.projects.home_id,
         "local_url": local_link(ctx),
         "seats": ctx.seats.count(),
         "projects": lines,

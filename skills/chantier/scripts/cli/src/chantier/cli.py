@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import argparse
 import sys
-from typing import Any
+from typing import Any, NoReturn
 
 from chantier import __version__, plugin_files
+from chantier.clients import remote as client
 from chantier.core import repo
 from chantier.core.errors import ChantierError
 from chantier.core.ids import normalize_cr
@@ -29,6 +30,7 @@ from chantier.declare import (
     park,
     preflight,
     release,
+    remote,
     rules,
     seat,
     serve,
@@ -68,9 +70,67 @@ FULL_OUTPUT = {
 }
 
 
-def _parser() -> argparse.ArgumentParser:
+class Usage(Exception):
+    """What a quiet parser raises in place of printing and exiting."""
+
+
+class _Quiet(argparse.ArgumentParser):
+    """A parser that raises `Usage` where argparse would print and exit: the server judges the
+    arguments of a client's command with it (the subparsers are of its class)."""
+
+    def error(self, message: str) -> NoReturn:
+        raise Usage(message)
+
+    def exit(self, status: int = 0, message: str | None = None) -> NoReturn:
+        raise Usage((message or "").strip() or "this option prints and exits")
+
+    def _print_message(self, message: str, file: Any = None) -> None:
+        pass
+
+
+_MODULES = (
+    preflight,
+    intake,
+    opening,
+    orders,
+    park,
+    seat,
+    serve,
+    webui,
+    live,
+    batch_status,
+    driver,
+    access,
+    rules,
+    facts,
+    gate,
+    delivery,
+    forge_stack,
+    release,
+    remote,
+    closing,
+    cost,
+    summary,
+    interests,
+    journal,
+    sync,
+    validate,
+    watch,
+)
+
+
+def _parser(quiet: bool = False) -> argparse.ArgumentParser:
     """The root parser and the options every command shares; each module declares its own."""
-    p = argparse.ArgumentParser(prog="chantier", description="The chantier team's CLI.")
+    kind = _Quiet if quiet else argparse.ArgumentParser
+    p = kind(prog="chantier", description="The chantier team's CLI.")
+    _root_options(p)
+    sub = p.add_subparsers(dest="cmd", required=True)
+    for module in _MODULES:
+        module.register(sub)
+    return p
+
+
+def _root_options(p: argparse.ArgumentParser) -> None:
     p.add_argument("--version", action="version", version=f"chantier {__version__}")
     p.add_argument(
         "--project",
@@ -79,41 +139,15 @@ def _parser() -> argparse.ArgumentParser:
         ".agents/changes/, or the surface's only project",
     )
     p.add_argument(
+        "--profile",
+        help="the profile (`chantier login`) that runs this command on its server, or `local` "
+        "to run it here; omitted: the default profile, for the projects it was logged in for",
+    )
+    p.add_argument(
         "--skill",
         help="the chantier skill's folder, needed when this code runs from uv's cache (a plugin "
         "install); omitted: CHANTIER_SKILL_DIR, else the folder this code lives in",
     )
-    sub = p.add_subparsers(dest="cmd", required=True)
-    for module in (
-        preflight,
-        intake,
-        opening,
-        orders,
-        park,
-        seat,
-        serve,
-        webui,
-        live,
-        batch_status,
-        driver,
-        access,
-        rules,
-        facts,
-        gate,
-        delivery,
-        forge_stack,
-        release,
-        closing,
-        cost,
-        summary,
-        interests,
-        journal,
-        sync,
-        validate,
-        watch,
-    ):
-        module.register(sub)
-    return p
 
 
 def _one_spelling_of_a_cr(args: argparse.Namespace) -> None:
@@ -150,7 +184,8 @@ def main(argv: list[str] | None = None) -> int:
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
-    args = _parser().parse_args(argv)
+    parser = _parser()
+    args = parser.parse_args(argv)
     _one_spelling_of_a_cr(args)
     repo.PROJECT = args.project
     repo.COMMAND = " ".join(
@@ -166,6 +201,9 @@ def main(argv: list[str] | None = None) -> int:
     plugin_files.SKILL = args.skill
     writer_lines.forget()
     try:
+        sent = client.forward(args, sys.argv[1:] if argv is None else argv, parser)
+        if sent is not None:  # a profile's server ran it
+            return sent
         result: Any = args.fn(args)
     except ChantierError as e:
         print(f"error: {e}", file=sys.stderr)

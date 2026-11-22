@@ -98,7 +98,7 @@ refused (400).
 
 | Op | Arguments | Data |
 | --- | --- | --- |
-| `board.get` | none | `board`, `version`, `surface`, `pid`, `served`, `served_origin`, `local_url`, `seats`, `projects`, `writer`, `protocols`, `now`. Each line of `projects` carries `needs_you`, the list of what needs the user (kinds `question`, `approval`, `merge` and `blocked`, each with `key`, `kind`, `cr`, `item`, `title`, `folder`, `pr`, `text`, `note`, `since`, `session`, `merge_place`, `merge_total`, newest first), built from the record and the planning folder, read-only |
+| `board.get` | none | `board`, `version`, `surface`, `pid`, `served`, `served_origin`, `origin`, `home`, `local_url`, `seats`, `projects`, `writer`, `protocols`, `now`. Each line of `projects` carries `needs_you`, the list of what needs the user (kinds `question`, `approval`, `merge` and `blocked`, each with `key`, `kind`, `cr`, `item`, `title`, `folder`, `pr`, `text`, `note`, `since`, `session`, `merge_place`, `merge_total`, newest first), built from the record and the planning folder, read-only |
 | `project.state` | `project`, `rev`? | the project's state, with `rev` and `now`; with `rev` equal to the current one, `{"changed": false, "rev": ...}`. Each CR row of `batch.crs` has `lease`, and the batch `stack_lease`: `null` when the unit never had a lease, else `{n, renewed, expires, ended, gate}`, facts only (`gate`: `"gate running"`, `"gate queued"` or `null`); a client compares `expires` with `now` itself |
 | `project.tree` | `project`, `path`? | `{path, files, now}`: the files and folders of the planning folder at `path` |
 | `project.file` | `project`, `path` | a text file as `{text, cut, sha256}` (`cut` is true when the text was shortened); a binary file is 415 (read it over HTTP, below) |
@@ -120,6 +120,7 @@ refused (400).
 | `config.get` | `project` | the configuration page's data: each role's agent, model and escalation, per host, the two limits, and the file's `sha256` |
 | `config.put` | `project`, `changes`, `base_sha256`?, `dry_run`? | the configuration saved (or only checked, with `dry_run`); 409 when `base_sha256` is stale |
 | `writer.sync` | none | the writer's state after one sync round |
+| `cli.run` | `argv`, `project`?, `env`?, `stdin`? | one chantier command run on the server's machine: `code`, `stdout`, `stderr`, `version`, `launch` (private key only; see Remote commands, below) |
 | `griller.get` | `project`, `item` | `available`, `reason` (when not), `host`, `machine` (the board's machine), `model`, `cli`, `running` (the project and item whose turn runs on the server, and since when, or null), `conversation` (null, or its `started` and `turns`: each `n`, `from`, `user`, `answer`, `state` `running`, `done`, `stopped`, `timed-out` or `failed`, `error`, `wrote`, `started`, `ended`, `grilled`), `now` |
 | `griller.send` | `project`, `item`, `text` (1 to 8,000 characters), `from` (an opaque client id, 64 characters at most) | 202 `{turn}`; the answer comes through the `griller` topic or the next `griller.get` |
 | `griller.stop` | `project`, `item` | 200 `{stopped}` (false when no turn ran) |
@@ -159,6 +160,40 @@ curl -s -X POST http://127.0.0.1:8765/api/v1/call/costs.get \
 
 A file of a project, binary or not, is also `GET /api/v1/projects/<project>/file?path=<path>`,
 served with its own type (an image, for the web page's `<img>`).
+
+## Remote commands
+
+`cli.run` runs one chantier command for a client logged in with `chantier login`, on the server's
+machine, in its planning folder, and answers what the command printed. It needs the private key:
+the read-only key is refused (403). `board.get` carries what a login stores: `origin` (the
+normalized fetch URL of the `origin` remote of the repository that holds the served planning
+folder, `null` with none, so a client tells surfaces apart) and `home` (the project the server
+opens on).
+
+| Argument | Meaning |
+| --- | --- |
+| `argv` | the command line, at least one item, with no `--project`, `--profile` or `--skill` (the server names the project from `project`) |
+| `project` | the project's id; omitted, the server's `home` |
+| `env` | the client's `CHANTIER_BATCH`, `CHANTIER_HOST`, `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_ENTRYPOINT`, `COPILOT_AGENT_SESSION_ID`, `COPILOT_CLI` and `AI_AGENT`, and no other name |
+| `stdin` | text for the command's standard input (`journal add --json -`); omitted, empty |
+
+The answer (200, whatever the command's exit code) is `{code, stdout, stderr, version, launch}`:
+`launch` is the server's own form of the command line that runs chantier, which a client replaces
+in the output with its own. The command runs as a child process of the server's own build
+(`python -m chantier --profile local ...`), never forwarded again, with the server's environment
+minus the names above, then the client's, and `CHANTIER_VIA_SERVER=1`; a command run so prints no
+`watch: not running` line. It edits the batch and the planning folder as it does when run locally.
+While one runs, the server counts a client for its idle stop.
+
+Refusals, each with nothing run: 400 for an argument error from the CLI's own parser, a command
+that does not run through the server (`serve`, `webui`, `watch`, `live`, `login`, `logout`,
+`gate`), an `argv` that holds `--project`, `--profile` or `--skill` (or an argparse prefix of one),
+an `env` name outside the list, a NUL character; 404 for an unknown project; 504 for a command
+that ran past 600 s (it is stopped).
+
+```sh
+curl -s -X POST http://127.0.0.1:8765/api/v1/call/cli.run   -H "X-Chantier-Board-Key: $KEY" -H "Content-Type: application/json"   -d '{"argv": ["status"], "project": "chantier"}'
+```
 
 ## The topics
 

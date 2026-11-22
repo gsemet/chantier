@@ -11,6 +11,7 @@ from typing import Any
 
 from chantier.board.costs import Live
 from chantier.board.fingerprint import StateCache, fingerprint
+from chantier.board.idle import Runs
 from chantier.board.key import KeyFile, cookie_name
 from chantier.board.projects import Project, Projects
 from chantier.board.prs import ForgeReads
@@ -56,6 +57,7 @@ class Context:
     journal_seen: dict[Path, tuple[tuple[int, int], list[dict[str, Any]]]] = field(
         default_factory=dict[Path, tuple[tuple[int, int], list[dict[str, Any]]]]
     )
+    runs: Runs = field(default_factory=Runs)  # the `cli.run` commands running, for the idle stop
     # each project's fingerprint as it was at its last settle: the reads use it and walk nothing
     revs: dict[str, str] = field(default_factory=dict[str, str])
     _lives: dict[str, Live] = field(default_factory=dict[str, Live])

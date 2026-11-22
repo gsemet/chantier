@@ -194,7 +194,11 @@ def _run(
         lambda: state.reassert_server(git_dir, ctx.key.current(), ctx.key.read_current()),
     )
     push.start()
-    idle = IdleThread(IdleStop(loop.observed, stop, time.monotonic())) if args.stop_idle else None
+
+    def watched() -> bool:  # a client observes, or a client's command runs
+        return loop.observed() or ctx.runs.busy()
+
+    idle = IdleThread(IdleStop(watched, stop, time.monotonic())) if args.stop_idle else None
     if idle is not None:
         idle.start()
     writer = _start_writer(projects)

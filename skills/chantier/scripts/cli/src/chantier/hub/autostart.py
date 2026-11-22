@@ -6,10 +6,12 @@ last of the output."""
 
 from __future__ import annotations
 
+import os
 import re
 
 from chantier.board.projects import project_name
 from chantier.core.errors import ChantierError
+from chantier.core.remote_wire import VIA_SERVER
 from chantier.core.repo import Repo
 from chantier.hub import journal, lock, state
 from chantier.plugin_files import cli_command, detect_host, own_transcript
@@ -56,7 +58,11 @@ def pull_command(repo: Repo, n: int) -> str:
 
 def not_running_line(repo: Repo) -> list[str]:
     """The line for a session whose watcher does not run, whatever the batch's status (a batch
-    running, paused or none), else nothing."""
+    running, paused or none), else nothing. A command that runs for a client of the surface
+    server (`CHANTIER_VIA_SERVER`) prints none: this machine's watcher says nothing of that
+    client's Chief of Staff."""
+    if os.environ.get(VIA_SERVER):
+        return []
     if session_key() in lock.watchers(repo.git_dir, project_name(repo)):
         return []
     n = journal.last_seq(journal.read(repo.store, repo.changes)[0])

@@ -5,7 +5,6 @@ the same functions the routes do (`reads`, `write_api`, `config_api`, `writer_ap
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
 from http import HTTPStatus
 from typing import Any
 
@@ -24,6 +23,8 @@ from chantier.board import (
     writer_api,
 )
 from chantier.board.api import protocol
+from chantier.board.api.result import Result as Result  # noqa: PLC0414 - kept for the callers
+from chantier.board.api.result import fail as fail  # noqa: PLC0414
 from chantier.board.context import Context
 from chantier.board.projects import Project
 from chantier.board.reply import Reply
@@ -52,22 +53,7 @@ READ_OPS = frozenset(
 )
 
 
-@dataclass
-class Result:
-    status: int
-    data: dict[str, Any] | None = None
-    error: str | None = None
-
-    @property
-    def ok(self) -> bool:
-        return HTTPStatus.OK <= self.status < HTTPStatus.MULTIPLE_CHOICES
-
-
 Handler = Callable[[Context, Any], Result]
-
-
-def fail(status: int, error: str) -> Result:
-    return Result(status, None, error)
 
 
 def _of(status: int, data: dict[str, Any]) -> Result:
@@ -207,6 +193,12 @@ def _griller_end(ctx: Context, project: Project, a: Any) -> Result:
     return Result(200, {"ended": True, "now": clock.now()})
 
 
+def _cli_run(ctx: Context, a: Any) -> Result:
+    from chantier.board import cli_run  # noqa: PLC0415 - it imports this module
+
+    return cli_run.run(ctx, a)
+
+
 def _sync(ctx: Context, a: Any) -> Result:
     body, status = writer_api.sync_data(ctx)
     return _of(status, body)
@@ -227,6 +219,7 @@ HANDLERS: dict[str, Handler] = {
     "config.get": _on_project(_config),
     "config.put": _writes(*config_api.WRITE),
     "writer.sync": _sync,
+    "cli.run": _cli_run,
     "griller.get": _griller(_griller_get),
     "griller.send": _griller(_griller_send),
     "griller.stop": _griller(_griller_stop),

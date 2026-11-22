@@ -16,6 +16,33 @@ STOPPED = "board: no client for 30 min; stopped"
 LOOK_S = 5.0  # the thread looks at least this often
 
 
+class Runs:
+    """The commands a client's `cli.run` runs now, and the moment the last one ended: one counts
+    as a client for the idle stop, from its start to a little after its end (so the count of 30
+    minutes starts again at its end, within one look of the thread)."""
+
+    def __init__(self, clock: Callable[[], float] = time.monotonic) -> None:
+        self.clock = clock
+        self._running = 0
+        self._ended: float | None = None
+        self._lock = threading.Lock()
+
+    def begin(self) -> None:
+        with self._lock:
+            self._running += 1
+
+    def end(self) -> None:
+        with self._lock:
+            self._running -= 1
+            self._ended = self.clock()
+
+    def busy(self) -> bool:
+        with self._lock:
+            if self._running:
+                return True
+            return self._ended is not None and self.clock() - self._ended < LOOK_S + 1
+
+
 class IdleStop:
     def __init__(self, observed: Callable[[], bool], stop: Callable[[], None], now: float) -> None:
         self.observed, self.stop = observed, stop

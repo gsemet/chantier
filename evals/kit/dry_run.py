@@ -171,6 +171,7 @@ def dry_environment(tmp: Path):
         "GIT_AUTHOR_NAME": "dry run", "GIT_AUTHOR_EMAIL": "dry-run@example.com",
         "GIT_COMMITTER_NAME": "dry run", "GIT_COMMITTER_EMAIL": "dry-run@example.com",
         "CHANTIER_CLAUDE_PROJECTS": str(tmp / "unused-projects"),
+        sandbox.CONFIG_HOME_VAR: sandbox.config_home(tmp / "config"),  # the maintainer's profiles reach no run
         "CHANTIER_SKILL_DIR": str(CLI.parents[1]), "CHANTIER_HOST": "claude",
         "CLAUDE_CODE_ENTRYPOINT": "claude-desktop", "CLAUDE_CODE_SESSION_ID": "uuid-chief",
         "SANDBOX_FORGE_REPOSITORY": sandbox.repository(),  # the fake `gh` is a process of its own
@@ -611,6 +612,12 @@ def clean_checks(world: World, record: dict) -> None:
     need(not missing, "every frozen CR of `full` is in 3-ready with its `## Eval run` section",
          f"missing: {missing[:3]}")
     settings = json.loads((ws / ".claude" / "settings.local.json").read_text(encoding="utf-8"))
+    home = settings.get("env", {}).get(sandbox.CONFIG_HOME_VAR, "")
+    need(home == str(ws.with_name(ws.name + ".config")) and home != os.environ.get(sandbox.CONFIG_HOME_VAR),
+         "the session's environment sets `CHANTIER_CONFIG_HOME` to a folder beside the workspace, not the dry run's own",
+         f"{home}")
+    need(bool(os.environ.get(sandbox.CONFIG_HOME_VAR)) and sandbox.remote_env()[sandbox.CONFIG_HOME_VAR] == sandbox.config_home(),
+         "the dry run and the kit's commands set `CHANTIER_CONFIG_HOME`", "unset")
     line = f"{record['merge_command']} 7"
     for tool in ("Bash", "PowerShell"):
         rules = [r[len(tool) + 1:-1] for r in settings["permissions"]["allow"] if r.startswith(tool + "(")]
@@ -1426,10 +1433,11 @@ def case_eval_root(run: Run) -> str:
              "the first lines name the root and the file", out[:300])
         text = (ws / ".claude" / "settings.local.json").read_text(encoding="utf-8")
         data = json.loads(text)
-        need(list(data) == ["permissions"] and list(data["permissions"]) == ["allow"]
+        need(list(data) == ["env", "permissions"] and list(data["env"]) == [sandbox.CONFIG_HOME_VAR]
+             and list(data["permissions"]) == ["allow"]
              and data["permissions"]["allow"] == setup.allow_rules(setup.CAMPAIGNS["real-direct"])
              and not re.search(r"trust", text, re.I),
-             "`settings.local.json` holds the allow rules and no trust entry", text)
+             "`settings.local.json` holds the allow rules, the config variable and no trust entry", text)
     finally:
         setup.EVAL_ROOT_FILE = saved
     return "setup refuses a workspace outside the eval root, a missing and a malformed file (exit 2, nothing created); inside, it passes with the allow rules and no trust entry"

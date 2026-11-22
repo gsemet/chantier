@@ -17,6 +17,7 @@ from typing import Any
 
 from chantier.board.address import loopback_base
 from chantier.board.projects import open_projects
+from chantier.clients.remote import profile_for
 from chantier.clients.tui import screen
 from chantier.clients.tui.link import Link
 from chantier.clients.tui.model import Model, merged
@@ -208,8 +209,9 @@ def watch(
         raise failed[0]
 
 
-def _boards(args: argparse.Namespace) -> list[tuple[str, str]]:
-    """The (base address, key) of each board asked for, or of the recorded one."""
+def _boards(args: argparse.Namespace) -> tuple[list[tuple[str, str]], bool]:
+    """The (base address, key) of each board asked for, or the active profile's, or the recorded
+    one; and whether the user gave the address (its proxies then count)."""
     if len(args.url) > MAX_BOARDS:
         raise ChantierError(f"--url: at most {MAX_BOARDS} boards in one screen", EXIT_USAGE)
     boards = [from_link(u) for u in args.url]
@@ -218,14 +220,18 @@ def _boards(args: argparse.Namespace) -> list[tuple[str, str]]:
         if base in seen:
             raise ChantierError(f"--url {base}: given twice", EXIT_USAGE)
         seen.add(base)
-    return boards or [recorded()]
+    if boards:
+        return boards, True
+    if taken := profile_for(args):  # no --url: the active profile's server
+        return [(taken[1].url, taken[1].key)], True
+    return [recorded()], False
 
 
 def live(args: argparse.Namespace) -> list[Any]:
     if not args.once and not sys.stdout.isatty():
         raise ChantierError(NO_TERMINAL, EXIT_USAGE)
-    boards = _boards(args)
-    links = [Link(b, k, args.transport, proxies=bool(args.url)) for b, k in boards]
+    boards, explicit = _boards(args)
+    links = [Link(b, k, args.transport, proxies=explicit) for b, k in boards]
     labels = list(LABELS[: len(boards)]) if len(boards) > 1 else [""]
     models = [
         Model(only=list(args.only), label=label, base=base)

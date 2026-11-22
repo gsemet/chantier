@@ -14,6 +14,7 @@ else:
 Handler = Callable[[argparse.Namespace], Any]
 
 NO_BATCH = "no-batch"  # the command reads no batch
+OWN_PROJECT = "own-project"  # no batch, and its own `--project` (`login`: repeatable)
 BATCH = "batch"  # `--batch` picks the batch
 BATCH_EPOCH = "batch-epoch"  # `--batch`, and the Foreman's `--epoch`
 
@@ -47,13 +48,15 @@ def add_lease(s: argparse.ArgumentParser, required: bool = False) -> None:
 def add_command(
     sub: Subparsers, name: str, fn: str, help_: str, scope: str = BATCH
 ) -> argparse.ArgumentParser:
-    """Add one command: its handler (`module:function`), `--project` (accepted after the command
-    too), and its scope."""
+    """Add one command: its handler (`module:function`), `--project` and `--profile` (accepted after
+    the command too), and its scope."""
     s: argparse.ArgumentParser = sub.add_parser(name, help=help_)
     s.set_defaults(fn=lazy(fn))
-    s.add_argument("--project", default=argparse.SUPPRESS, help=argparse.SUPPRESS)
+    if scope != OWN_PROJECT:
+        s.add_argument("--project", default=argparse.SUPPRESS, help=argparse.SUPPRESS)
+    s.add_argument("--profile", default=argparse.SUPPRESS, help=argparse.SUPPRESS)
     s.add_argument("--skill", default=argparse.SUPPRESS, help=argparse.SUPPRESS)
-    if scope != NO_BATCH:
+    if scope not in (NO_BATCH, OWN_PROJECT):
         s.add_argument(
             "--batch",
             help="batch number, 4 or batch-04 (default: $CHANTIER_BATCH, else the only running "

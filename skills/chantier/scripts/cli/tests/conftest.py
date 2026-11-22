@@ -85,6 +85,14 @@ def _restore_project(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(repo_module, "PROJECT", repo_module.PROJECT)
 
 
+@pytest.fixture(autouse=True)
+def _config_home(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """The user's profiles file (`chantier login`) is never the real one: a folder of its own."""
+    folder = tmp_path_factory.mktemp("config-home")
+    monkeypatch.setenv("CHANTIER_CONFIG_HOME", str(folder))
+    return folder
+
+
 @pytest.fixture(scope="session")
 def repo_template(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """The git repository every test starts from, built once: `repo` copies it (git is slow)."""

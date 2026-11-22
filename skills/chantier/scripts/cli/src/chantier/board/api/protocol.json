@@ -633,6 +633,55 @@
     "title": "NoArgs",
     "type": "object"
   },
+  "op.cli.run": {
+    "additionalProperties": false,
+    "properties": {
+      "argv": {
+        "items": {
+          "type": "string"
+        },
+        "minItems": 1,
+        "title": "Argv",
+        "type": "array"
+      },
+      "env": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "title": "Env",
+        "type": "object"
+      },
+      "project": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Project"
+      },
+      "stdin": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Stdin"
+      }
+    },
+    "required": [
+      "argv"
+    ],
+    "title": "CliRunArgs",
+    "type": "object"
+  },
   "op.config.get": {
     "additionalProperties": false,
     "properties": {

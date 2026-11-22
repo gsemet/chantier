@@ -239,7 +239,7 @@ What the [prerequisites](#prerequisites) do not hold:
   `.claude/settings.local.json` (ignored by the sandbox's git) with the rules the user's own
   settings may lack: the merge command's rule, `mcp__ccd_pr__set_monitor` for the operator's
   Auto-fix switch (not for `ticket-summary`, which opens no PR) and, for `full`, the release's tag
-  push and `gh release create` for its versions. Nothing else is allowed there.
+  push and `gh release create` for its versions. Nothing else is allowed there. It also sets `CHANTIER_CONFIG_HOME` to a folder beside the workspace, so that no profile of the maintainer's (`chantier login`) turns an eval's commands remote.
 
 ### The host's limits
 
