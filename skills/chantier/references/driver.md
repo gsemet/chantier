@@ -388,8 +388,12 @@ You never escalate yourself.
 
 ## Means: a force push the host refuses
 
-- A force push the host refuses (any Driver that pushes): the Chief of Staff judges it and runs
-  it for you, without the user's word in the normal case.
+- A force push the host refuses (any Driver that pushes): it climbs the ladder of
+  [foreman](foreman.md#a-drivers-refused-force-push), "A Driver's refused force push" (the
+  steering session judges it and runs it; if the host refuses it there, the Chief of Staff judges
+  it again and runs it; if the host refuses the Chief of Staff, the user is asked once), without
+  the user's word in the normal case. In direct mode the steering session is the Chief of Staff,
+  so the ladder is Driver, Chief of Staff, the user.
   This holds for a CR Driver and the Release driver (both hand back with `handback <cr>`); the
   stack driver keeps its own rule, below. With your work committed:
   1. Record the refusal first, in one note: `$CHANTIER note <cr> "refused: <the exact command> ->
@@ -406,19 +410,23 @@ You never escalate yourself.
      (the remote head you expect, from `git ls-remote`, and your head).
   4. Send `[driver <cr>→foreman] push <branch> <expected remote sha> <local sha>`, and end: no
      other push, no other way, and no wait in your turn. The CR waits, not you; the steering
-     session restarts a fresh Driver on it when the Chief of Staff's answer comes back.
+     session restarts a fresh Driver on it when the push's answer comes back (the Foreman's, or the
+     Chief of Staff's).
 
   The fresh Driver reads the answer in its `take` note (`push: <the answer>`) and acts on it, from
   your `next after push` note: `pushed <branch>`: `ship` and go on. `push failed`: look at why
   (`git fetch`, what the remote gained), never the same push again. `push refused <branch>: no
   long gate passed at <sha>`: run the long gate, send the push line again and hand back `waits:`
   again as above (with the `ci: beside the long gate` line, and for a branch whose PR is
-  recorded (the early push), the Chief of Staff does not send it; one you get anyway goes to the
+  recorded (the early push), the steering session does not send it; one you get anyway goes to the
   steering session as printed). Any other `push refused` (the
-  branch is not this batch's, or the Chief of Staff's own push was refused): `handback blocked
+  branch is not this batch's, the push was judged not legitimate and the user said no, or the host
+  refused it at every step, the user's yes included): `handback blocked
   refused <exact text>` at once; it goes to the user. Any other refused action stays `blocked
-  refused` as above. The stack driver, which restacks several branches in one take, sends the
-  push line and waits for the result as a note, no other push, no other way.
+  refused` as above. The stack driver, which restacks several branches in one take, sends one
+  push line per refused branch and waits for each result as a note (the result may now come from
+  the Foreman's own push), no other push, no other way. The Release driver is covered by the same
+  section, with no text of its own.
 
 ## Means: the archive in the PR
 

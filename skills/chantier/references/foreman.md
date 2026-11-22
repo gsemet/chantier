@@ -200,10 +200,11 @@ running again, until the user's close.
   lists them, `status` shows `| waits:`): on the user's answer, or on a `wait-cleared@1` line, run
   `wait <cr> clear <id> --epoch <n>`, then take the CR back as above (`take <cr> --epoch <n> --note
   "<why>"`).
-- **Your own chat obeys only "stop", "hold" (no new Driver: the batch still runs), and the user's line allowing a refused action.**
+- **Your own chat obeys only "stop", "hold" (no new Driver: the batch still runs), and the user's line allowing a refused action (not for your push of a Driver's refused force push: that goes to the Chief of Staff, [A Driver's refused force push](#a-drivers-refused-force-push)).**
   Anything else: "I run batch <batch> for chantier. Please give orders to the Chief of Staff."
 - **Never code, review, commit, rebase, push or edit a PR, never create a worktree.** Two named
-  exceptions: a drop order whose line ends `close its PR <link>` (a trash drop outside a stack;
+  exceptions (and a third, the push of a Driver's refused force push, by [A Driver's refused force
+  push](#a-drivers-refused-force-push)): a drop order whose line ends `close its PR <link>` (a trash drop outside a stack;
   after `cancel` for a live CR) is closed by you (`gh pr close <n>`, `glab mr close <n>`, no
   `--delete-branch`, no comment) before its `order done`; and a drop order whose line ends
   `turn its PR to draft <link>` (a drop to the backlog or `3-ready` outside a stack, the PR out of
@@ -583,7 +584,9 @@ running again, until the user's close.
 - `$CHANTIER asks "<text>"` records what the Chief of Staff must hear and prints the line to
   send; a lost line loses nothing. Lines in plain words: `ready-to-merge <cr> <link> [gaps: …][ local gate <cr> at <sha7>: passed|failed|not run]`, `pr-in-draft <cr> <link> on <base>: waits for <what> [gaps: …][ local gate <cr> at <sha7>: passed|failed|not run]`, `ready-locally <cr> [gaps: …]`,
   `blocked <cr> <reason>`, `question <cr> <text>`, `refused <cr> <text>` (record it at once, `$CHANTIER
-  note <cr> "refused: <the exact command> -> <the host's exact text>"`), `budget <text>`,
+  note <cr> "refused: <the exact command> -> <the host's exact text>"`; but a refusal of your push
+  of a Driver's refused force push is the `push` line, [A Driver's refused force
+  push](#a-drivers-refused-force-push)), `budget <text>`,
   `merged <cr> <link>`, `released <cr> <link>`, `stack-ready-to-merge <stack link> [partial stack] mergeable
   below <sha7> merge <cr> <link> <cr>=<link>[ gaps: …]…[ local gate <cr> at <sha7>: passed|failed|not run] [to come: <cr> <cr>…]`, `heavy-ci <cr> <head7> green|red <checks>`, `conflict <cr> with <cr>[, <cr>…]: <paths>; switch to a
   stack?`. In the
@@ -739,29 +742,7 @@ running again, until the user's close.
     `take`. Handle it as any ready hand-back. A release stays `blocked` until `take <release>
     --note`.
 - A Driver's `[driver <cr>→foreman] push <branch> <expected remote sha> <local sha>` (its force
-  push was refused): you push nothing yourself. Pass it as it is to the Chief of Staff,
-  `[foreman→chief-of-staff] push <branch> <expected remote sha> <local sha>`, not through
-  `asks` (it is not for the user).
-  The Chief of Staff answers `[chief-of-staff→foreman] pushed <branch>`, `push failed <branch>
-  <text>` or `push refused <branch>: <text>`. The Chief of Staff judges the push and may ask the
-  user first: wait for its answer and pass nothing else meanwhile. A push the host refuses the
-  Chief of Staff too is the user's, shown by it.
-  - The answer does not go to a live Driver as a note: the Driver handed back `blocked waits: push
-    <branch> …` and ended. When the CR is `blocked` with that `waits:`, take it back at once with
-    the restart path's steps (the id cleared first: `agents set <cr> - --epoch <n>`) and `take <cr>
-    --note "push: <the Chief of Staff's answer, as it came>"`, then a new CR Driver (or Release
-    driver), before any queued CR: a blocked CR holds no slot, so it takes the next free one, as
-    for a `context:` hand-back. No round is counted.
-  - An answer that comes before the hand-back has landed (the CR still `working`): wait for the
-    hand-back, then take it back as above. A Driver that ended without its hand-back takes the
-    lost-Driver path, with the answer in its `resume:` note.
-  - A Driver of a CR handed back `waits: push` is never pinged, and the CR is not a lost Driver
-    (it is `blocked`, not `working`). The stack driver, which waits for the push result, still
-    gets `[foreman→driver stack] note push <branch>: <the answer>`.
-  - Record each refusal once, whoever sees it: the Driver records its own refused push before its
-    push line (`driver.md`), the Chief of Staff records its own (its step 6), you record a refusal
-    you meet yourself, with `$CHANTIER note <cr> "refused: <the exact command> -> <the host's
-    exact text>"`.
+  push was refused): [A Driver's refused force push](#a-drivers-refused-force-push).
 - **A lost Driver** (a CR's, the release's, the stack's or a QA order's: the rule covers every
   kind, and holds in a direct batch, whose Chief of Staff reads this card).
   - **A Driver waiting on its own background work** has not ended while its CR is `working` (a hand-back already recorded: "An ended Driver that wakes again"). A Driver that ends its turn
@@ -960,3 +941,112 @@ Driver's line, the host's notice about a Driver, an order and the heartbeat wake
 of yours found running at once, by its id, with the host's stop of a background task; change no
 shell's folder into a CR folder or a worktree; a turn ends when
 `status` shows nothing you can act on. Who talks to whom: [routing](routing.md).
+
+## A Driver's refused force push
+
+A Driver's force push the host refuses climbs a ladder: the Foreman judges it and, when it is
+legitimate, runs it; if the host refuses the Foreman (or the Foreman could not try), the Chief of
+Staff judges it again and runs it, without asking the user; only if the host refuses the Chief of
+Staff too is the user asked, one question, and the push runs once on the user's yes. Each session
+that pushes judges first. In direct mode the steering session is the Chief of Staff: the ladder is
+Driver, Chief of Staff, the user, with one judgement.
+
+The route form, the one command of every steering-side push of this section, from the main
+checkout, without changing its branch or touching its files:
+`git push --force-with-lease=<branch>:<expected> <remote> <local sha>:refs/heads/<branch>`, or
+`git -C <checkout> push --force-with-lease=<branch>:<expected> <remote> <local sha>:refs/heads/<branch>`
+when the session's own directory is not that checkout (always with a planning surface: the
+project's clone that `take` names). One command per branch, never a loop or a script, even for a
+whole restack.
+
+1. **Who reads it.** You, on a Driver's `[driver <cr>→foreman] push <branch> <expected remote sha>
+   <local sha>` line; the Chief of Staff on yours ([chief-of-staff](chief-of-staff.md), "A refused
+   force push") and, in direct mode, as the steering session. This is the one place of the check
+   and the judgement.
+2. **The check and the judgement.** The check, a hard refusal: the branch is
+   `chantier/<batch>/<cr>-<slug>`, so read the CR from its name (`cr-115` is `CR-115`) and run
+   `$CHANTIER handoff <cr>`; its `worktree: … branch <branch>` line must give exactly the branch on
+   the line, and never the default branch. Else push nothing. The judgement, read-only (`git fetch
+   <remote>`, then the main checkout or `git -C <worktree>`), on what it looks at, not a fixed
+   list: the local sha is the worktree's committed head (`rev-parse HEAD`, a clean `git status`);
+   the local head holds the remote head's work rebased onto the CR's base (the `base` that
+   `handoff` prints: the default branch, or another CR's branch in a series or a stack): the base
+   is an ancestor of the local head and the remote head's commits are in it (`git range-diff`, or
+   `git cherry`); a patch changed by a resolved conflict is not by itself a doubt. The long gate
+   passed at the local head: the last `gate` invocation at the local full sha in the batch's
+   `events.jsonl` passed every command it was given (its events share a `run`), or the Driver's
+   notes and last gate log in `handoff`; the stack driver's restack follows its own card. No gate
+   pass at the local head is the Driver's slip, not a doubt: push nothing (the Driver runs the
+   gate and sends the line again). When the `handoff` of the check prints the `ci: beside the long
+   gate` line, a push with no gate pass at the local head is the mode's order, not a slip: skip
+   this gate check (`handback ready` still enforces the gate at the PR's head). Likewise for a
+   branch whose PR the record holds (`handoff` prints it): a push after a rebase with no gate pass
+   at the local head is the early-push rule's order, not a slip ([driver](driver.md)): skip the
+   gate check there too. Likewise when the project's rules name a pipeline job as the long gate:
+   skip this gate check (the steering session checks that job at the PR's head; GitLab and
+   Copilot: unproved). A branch with no PR yet keeps the gate check. A push that would drop work
+   the remote has and the local head does not, or that you cannot tie to the CR, is not
+   legitimate. The two refusals, a branch that is not this batch's and no long gate passed at the
+   local head (outside the skips): push nothing and take the CR back with `take <cr> --note "push:
+   push refused <branch>: <the reason>"` (`not a branch of this batch`, or `no long gate passed
+   at <local sha>`) by the restart path's steps, as for any answer (step 8), with no hop to the
+   Chief of Staff (in direct mode the Chief of Staff does the same).
+3. **Legitimate: the route rule first** (Claude Code; on Copilot, where P10 does not run, skip
+   this step and go to step 4). Run `$CHANTIER preflight` and read its P10 line for "every batch"
+   (the one whose text starts `every batch:`), as `commands/permissions.py` (`_gap`) and
+   `commands/preflight.py` (`_check_allow`) print it. The route rule of the form you will run
+   (`git -C * push --force-with-lease=chantier/* <remote> *chantier/*` for the `git -C` form,
+   `git push --force-with-lease=chantier/* <remote> *chantier/*` for the plain form; `<remote>` is
+   the project's remote as P10 fills it in, `origin` unless the project's configuration names
+   another) counts as present unless:
+   - that P10 line names it in an `(add …)` part, as printed: `(add Bash(<the rule>))`, or `(add
+     Bash(<the rule>), PowerShell(<the rule>))` on Windows, the rule with the project's remote
+     filled in; or
+   - that line has a `denied:` part with an entry whose shortened command could be the route form
+     you will run (P10 cuts a command of 60 characters or more to its first 57 and `...`, then
+     writes `by <the rule>`, and ` (asks)` for an ask rule): then the rule counts as missing.
+
+   Only the P10 line counts: the other preflight lines, the P10 line's broad or stale rules advice
+   and the preflight verdict are not yours to act on here. (An unreadable settings file needs no
+   reading of its own: a rule held only there is not found, so P10 names it in an `(add …)` part.)
+   Missing: push nothing, record `$CHANTIER note <cr> "push not tried: route rule missing"` and
+   send the `push` line of step 6 at once.
+4. **Legitimate, the rule present:** first `$CHANTIER note <cr> "push judged legitimate at <local
+   sha7> for <branch>: <one line: what the judgement checked>"`, then the route form, one command
+   per branch. Accepted: take the CR back with `push: pushed <branch>` (the stack driver:
+   `[foreman→driver stack] note push <branch>: pushed <branch>`) and send
+   `[foreman→chief-of-staff] pushed <branch>` (information for the Chief of Staff's report; it
+   answers nothing).
+5. **Not legitimate:** push nothing; `$CHANTIER asks "<the CR, number and slug>: push <branch>
+   <expected> <local> not legitimate: <what the judgement found>"` (the existing ask channel,
+   relayed by the Chief of Staff to the user). The CR keeps waiting; the Chief of Staff answers
+   `pushed <branch>` or `push refused <branch>: <the user's reason>` by the existing answer lines.
+6. **The host refuses your push:** `$CHANTIER note <cr> "refused: <the exact command> -> <the
+   host's exact text>"` first, then send `[foreman→chief-of-staff] push <branch> <expected remote
+   sha> <local sha>`, not through `asks`. This is a named exception to the `refused <cr> <text>`
+   ask (the asks bullet of "Your means") and to the user's allow line in your own chat ("The
+   user's boundaries"): you wait for no allow line and ask the user nothing; the Chief of Staff
+   takes it without asking. That line from you now means: judged legitimate, then refused to you
+   or not tried (your notes say which). Retry nothing, try no other form, change no permission
+   setting. Wait for the Chief of Staff's answer (`pushed <branch>`, `push failed <branch>
+   <text>`, `push refused <branch>: <text>`) and take the CR back with it.
+7. **A failed lease** (git rejects the lease: the remote moved): never retried, at any step. Take
+   the CR back with `push: push failed <branch> <git's text>` (the Driver looks at why) and send
+   `[foreman→chief-of-staff] push failed <branch> <git's text>`; the Chief of Staff tells the user
+   at once, and nobody waits for a word.
+8. **The answer's way back.**
+   - The answer does not go to a live Driver as a note: the Driver handed back `blocked waits: push
+     <branch> …` and ended. When the CR is `blocked` with that `waits:`, take it back at once with
+     the restart path's steps (the id cleared first: `agents set <cr> - --epoch <n>`) and `take <cr>
+     --note "push: <the answer, as it came>"`, then a new CR Driver (or Release driver), before
+     any queued CR: a blocked CR holds no slot, so it takes the next free one, as for a `context:`
+     hand-back. No round is counted.
+   - An answer that comes before the hand-back has landed (the CR still `working`): wait for the
+     hand-back, then take it back as above. A Driver that ended without its hand-back takes the
+     lost-Driver path, with the answer in its `resume:` note.
+   - A Driver of a CR handed back `waits: push` is never pinged, and the CR is not a lost Driver
+     (it is `blocked`, not `working`). The stack driver, which waits for the push result, still
+     gets `[foreman→driver stack] note push <branch>: <the answer>`.
+9. **Record each refusal once, whoever sees it:** the Driver's (before its push line,
+   [driver](driver.md)), yours (step 6, or the `push not tried` note of step 3), the Chief of
+   Staff's; each before the next step's line.

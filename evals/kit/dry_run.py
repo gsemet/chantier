@@ -19,6 +19,7 @@ one fault and must be caught by the tool that owns it, naming its criterion:
     audit-cos-prompt   a retro critic started with `chantier retro-critic for the Chief of Staff` passes J1 and J2; a first line of no known form, or a wrong card, still fails J1
     audit-qa-prompt    a QA driver started with its card's first line passes J1, J2 and J3 (its detached worktree, its QA folder); a first line of no known form, another role in that form, a wrong card, a branch worktree or a write outside its folder still fail; in a direct batch it is audited too
     audit-claim-call   a `$C rules` in the shell call that claims the transcript passes J14; the same command in an earlier call still fails it
+    foreman-route-push  a steering session's route-form force push passes J22 after its `push judged legitimate` (or `push on the user's go`) note, in both modes; with no note before it, or as `--force-with-lease -u`, it fails J22
     audit-heredoc      `git -C <main checkout>` in a here-doc's text passes J26; `git checkout main`, and a move in a `bash <<'EOF'`, still fail it
     other-sandbox      a `sandbox.local.json` naming another repository (a temporary one) flows through setup, merge, the judge and the audit, the fake forge answering for that name
     reset-foreign      an origin whose `main`, or whose branch, does not hold the recorded base: `reset` and `reset --yes` refuse (exit 2), the refs unchanged
@@ -69,7 +70,7 @@ CLI = setup.CLI
 GATE = "uv run --locked pytest -q"  # the sandbox's long gate (its AGENTS.md)
 PATCH = HERE / "dry-run" / "delete-item.patch"
 CASES = ["clean", "stray-merge", "reset-leftover", "merge-refused", "stale-lock", "force-tag-push",
-         "plain-merge", "ticket-summary-setup", "audit-cos-prompt", "audit-qa-prompt", "audit-claim-call", "audit-heredoc",
+         "plain-merge", "ticket-summary-setup", "audit-cos-prompt", "audit-qa-prompt", "audit-claim-call", "foreman-route-push", "audit-heredoc",
          "other-sandbox", "reset-foreign", "reset-empty", "publish", "eval-root", "setup-prompt"]
 OK, FAILED, USAGE, EXTERNAL = 0, 1, 2, 4
 SESSION = "local_dry-run-foreman"
@@ -1128,6 +1129,61 @@ def case_audit_claim_call(run: Run) -> str:
             "call still fails it")
 
 
+def case_foreman_route_push(run: Run) -> str:
+    world, batch = run.clean()
+    world.activate()
+    path = batch.changes / "4-batch" / "batch.json"
+    saved = path.read_bytes()
+    f = batch.foreman
+    kept = list(f.records)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    branch, sha, local = "chantier/batch-01/cr-101-delete-item", "a" * 40, "b" * 40
+
+    def stamp(seconds: int) -> str:
+        return (now + datetime.timedelta(seconds=seconds)).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+
+    route = f"git -C /work/main push --force-with-lease={branch}:{sha} origin {local}:refs/heads/{branch}"
+    legit = f'C=chantier; $C note CR-101 "push judged legitimate at bbbbbbb for {branch}: rebased, gate passed"'
+    users_go = f"C=chantier; $C note CR-101 \"push on the user's go at bbbbbbb for {branch}\""
+    unleased = f"git push --force-with-lease -u origin {branch}"
+
+    def play(commands: list[str], direct: bool) -> str:
+        data = json.loads(saved)
+        if direct:
+            data["steering"] = "direct"
+            data["foreman_claims"] = [{"transcript": f.uuid, "since": stamp(13)}]
+        path.write_bytes(json.dumps(data, indent=2).encode("utf-8"))
+        f.records[:] = kept + [(stamp(20 + i), "Bash", {"command": c}, f"toolu_route{i}")
+                               for i, c in enumerate(commands)]
+        batch.write_transcripts()
+        return audit_in_process(world)[1]
+
+    def passes(text: str) -> bool:
+        return bool(lines_of(text, "PASS", "J22")) and not lines_of(text, "FAIL", "J22")
+
+    try:
+        for direct in (False, True):
+            mode = "direct" if direct else "Foreman"
+            text = play([legit, route], direct)
+            need(passes(text), f"{mode} mode: the note, then the route push, passes [J22]",
+                 f"{failed_checks(text)}")
+            text = play([route], direct)
+            need(lines_of(text, "FAIL", "J22"), f"{mode} mode: a route push with no note fails [J22]",
+                 f"{failed_checks(text)}")
+            text = play([legit, unleased], direct)
+            need(lines_of(text, "FAIL", "J22"), f"{mode} mode: a `--force-with-lease -u` push fails [J22]",
+                 f"{failed_checks(text)}")
+        text = play([users_go, route], True)
+        need(passes(text), "direct mode: the `push on the user's go` note, then the route push, passes [J22]",
+             f"{failed_checks(text)}")
+    finally:
+        f.records[:] = kept
+        path.write_bytes(saved)
+        batch.write_transcripts()
+    return ("a route-form force push passes [J22] after its `push judged legitimate` or `push on the user's go` "
+            "note, in both modes; with no note before it, or as `--force-with-lease -u`, it fails")
+
+
 HEREDOC = ("python - <<'EOF'\n"
            "p='.agents/changes/4-batch/brief.md'\n"
            "s=open(p,encoding='utf-8').read()\n"
@@ -1385,7 +1441,7 @@ FUNCTIONS = {"eval-root": case_eval_root, "other-sandbox": case_other_sandbox, "
              "merge-refused": case_merge_refused, "stale-lock": case_stale_lock,
              "force-tag-push": case_force_tag_push, "plain-merge": case_plain_merge,
              "audit-cos-prompt": case_audit_cos_prompt, "audit-qa-prompt": case_audit_qa_prompt,
-             "audit-claim-call": case_audit_claim_call,
+             "audit-claim-call": case_audit_claim_call, "foreman-route-push": case_foreman_route_push,
              "audit-heredoc": case_audit_heredoc}
 
 
