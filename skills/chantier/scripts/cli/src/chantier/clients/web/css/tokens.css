@@ -210,6 +210,7 @@
   --nav-height: 36px;
   --gap-main: 32px;
   --phone-max: 760px;
+  --chart-height: 160px;
 
   /* off-scale values, kept as they were: each is the exact value a sheet used before the tokens
      covered every length, named for it; folding them into the scale is a design change of its own */

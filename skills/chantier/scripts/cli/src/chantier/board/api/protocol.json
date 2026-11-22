@@ -701,6 +701,30 @@
     "title": "ProjectArgs",
     "type": "object"
   },
+  "op.dashboard.get": {
+    "additionalProperties": false,
+    "properties": {
+      "project": {
+        "title": "Project",
+        "type": "string"
+      },
+      "range": {
+        "default": "10",
+        "enum": [
+          "10",
+          "20",
+          "all"
+        ],
+        "title": "Range",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project"
+    ],
+    "title": "DashboardArgs",
+    "type": "object"
+  },
   "op.journal.get": {
     "additionalProperties": false,
     "properties": {

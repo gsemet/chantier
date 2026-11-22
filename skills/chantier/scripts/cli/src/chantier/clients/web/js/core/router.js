@@ -1,6 +1,7 @@
 // The address is the state of the page: ?p=<project>&v=<view>&b=<batch> (the batch only on the
 // Costs, Batch and PRs views), &t=<tab> (the Batch view's tab, every tab of it), on the PRs view
-// &st=<state>&sort=<sort>, and the browser's history. With no `t=`, the Batch view opens the tab
+// &st=<state>&sort=<sort>, on the Dashboard view &dt=<tab>&dr=<range> (each only when not the
+// default), and the browser's history. With no `t=`, the Batch view opens the tab
 // last shown on this device (the preference `batchTab`). With the store, this module is the only one
 // that writes the URL. `transport=http` (the HTTP binding, forced) is kept in every address.
 import { FILTER_BUCKETS, pref, setPref, snapshot, update } from './store.js';
@@ -12,6 +13,8 @@ const rules = { views: ['home'], overview: ['home'] };
 export const BATCH_VIEWS = ['costs', 'batch', 'prs']; // the views the batch navigator moves through
 export const PRS_STATES = ['open', 'draft', 'merged']; // the PRs view's state filter (absent: all)
 export const PRS_SORTS = ['opened', 'activity', 'cr']; // its sort (absent: the batch's order)
+export const DASH_TABS = ['productivity', 'spending']; // the Dashboard's tabs, the first is the default
+export const DASH_RANGES = ['10', '20', 'all']; // its range of closed batches, the first is the default
 export const TABS = ['kanban', 'graph', 'gantt', 'cards']; // the Batch view's tabs, the first is the default
 
 // The views the page knows, and those that stay on "All projects" (the registry says which).
@@ -46,7 +49,11 @@ export function resolve(projects, search = location.search) {
   const sort = only('sort', PRS_SORTS);
   const tab =
     view !== 'batch' ? TABS[0] : TABS.includes(asked.get('t')) ? asked.get('t') : keptTab();
-  return { project: wanted ?? lastOf(ids), view, batch, tab, st, sort };
+  const dash = (key, values) =>
+    view === 'dashboard' && values.includes(asked.get(key)) ? asked.get(key) : values[0];
+  const dt = dash('dt', DASH_TABS);
+  const dr = dash('dr', DASH_RANGES);
+  return { project: wanted ?? lastOf(ids), view, batch, tab, st, sort, dt, dr };
 }
 
 // A view that "All projects" does not show opens on the last real project.
@@ -55,7 +62,9 @@ function settle(place) {
   const next =
     place.project === ALL ? { ...place, batch: null, tab: TABS[0], st: null, sort: null } : place;
   if (place.project === ALL && !rules.overview.includes(place.view)) {
-    return { ...next, project: lastOf(ids), tab: place.view === 'batch' ? keptTab() : TABS[0] };
+    const { dt, dr } = place;
+    const tab = place.view === 'batch' ? keptTab() : TABS[0];
+    return { ...next, project: lastOf(ids), tab, dt, dr };
   }
   return next;
 }
@@ -73,6 +82,7 @@ const reset = {
   priorityFilter: [...FILTER_BUCKETS],
   historyOpen: [],
   prs: null,
+  dashboard: null,
   prsState: null,
   prsSort: null,
   journalOpen: false,
@@ -95,7 +105,7 @@ function apply(place) {
   const moved = place.project !== now.project;
   const turned = place.view !== now.view;
   keep(place);
-  const { project, view, batch, tab, st, sort } = place;
+  const { project, view, batch, tab, st, sort, dt, dr } = place;
   update({
     ...(turned ? closed : {}),
     ...(moved ? reset : {}),
@@ -105,7 +115,18 @@ function apply(place) {
     batchTab: tab ?? TABS[0],
     prsState: st ?? null,
     prsSort: sort ?? null,
+    dashTab: dt ?? DASH_TABS[0],
+    dashRange: dr ?? DASH_RANGES[0],
   });
+}
+
+// The dashboard's tab and range in the address, each only when not the default.
+function dashQuery(place) {
+  if (place.view !== 'dashboard') return {};
+  return {
+    ...(place.dt && place.dt !== DASH_TABS[0] ? { dt: place.dt } : {}),
+    ...(place.dr && place.dr !== DASH_RANGES[0] ? { dr: place.dr } : {}),
+  };
 }
 
 // The relative address of a place: it keeps the page's own address in front of the query.
@@ -120,6 +141,7 @@ export const href = (place) =>
     ...(place.view === 'prs' && place.st ? { st: place.st } : {}),
     ...(place.view === 'prs' && place.sort ? { sort: place.sort } : {}),
     ...(place.view === 'batch' && place.tab ? { t: place.tab } : {}),
+    ...dashQuery(place),
   })}`;
 
 // The chosen batch after a move: kept (or set by `place.batch`) between Costs and Batch of the
@@ -138,6 +160,16 @@ export function prsOf(place, now, project, view) {
   const keep = (key, held) =>
     place[key] !== undefined ? place[key] : project === now.project ? held : null;
   return { st: keep('st', now.prsState), sort: keep('sort', now.prsSort) };
+}
+
+// The Dashboard's tab and range after a move: the place's own, else the current ones while the
+// page stays on the same project's Dashboard, else the defaults (any other view has the defaults).
+export function dashOf(place, now, project, view) {
+  const same = view === 'dashboard' && now.view === 'dashboard' && project === now.project;
+  const keep = (key, held, first) => place[key] ?? (same ? held : first);
+  return view === 'dashboard'
+    ? { dt: keep('dt', now.dashTab, DASH_TABS[0]), dr: keep('dr', now.dashRange, DASH_RANGES[0]) }
+    : { dt: DASH_TABS[0], dr: DASH_RANGES[0] };
 }
 
 // The Batch view's tab after a move: the place's own, else the current one while the page stays on
@@ -161,6 +193,7 @@ export function go(place, { replace = false } = {}) {
     batch: batchOf(place, now, project, view),
     tab: tabOf(place, now, project, view),
     ...prsOf(place, now, project, view),
+    ...dashOf(place, now, project, view),
   });
   if (replace) history.replaceState(null, '', href(next));
   else history.pushState(null, '', href(next));

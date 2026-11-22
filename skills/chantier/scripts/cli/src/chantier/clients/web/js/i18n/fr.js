@@ -2,6 +2,7 @@
 import batch from './fr-batch.js';
 import board from './fr-board.js';
 import costs from './fr-costs.js';
+import dashboard from './fr-dashboard.js';
 import mr from './fr-mr.js';
 import prs from './fr-prs.js';
 import write from './fr-write.js';
@@ -16,6 +17,7 @@ export default {
   'nav.batch': 'Batch',
   'nav.prs': 'PR',
   'nav.costs': 'Coûts',
+  'nav.dashboard': 'Tableau de bord',
   'nav.config': 'Configuration',
   'nav.overview': 'Tous les projets',
   'project.change': 'Changer de projet',
@@ -245,6 +247,7 @@ export default {
   ...prs,
   ...mr,
   ...costs,
+  ...dashboard,
   'writer.title': 'Writer {state}',
   'writer.state.synced': 'synchronisé',
   'writer.state.syncing': 'en cours',

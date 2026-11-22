@@ -9,6 +9,7 @@ import { crsOf, openPr } from '../model/semantics.js';
 import * as batch from './batch.js';
 import * as config from './config.js';
 import * as costs from './costs.js';
+import * as dashboard from './dashboard.js';
 import * as home from './home.js';
 import * as kanban from './kanban.js';
 import * as overview from './overview.js';
@@ -54,6 +55,7 @@ export const VIEWS = [
     module: costs,
     count: (state) => (state.data?.batch ? usd(state.data.batch.spent_usd) : null),
   },
+  { id: 'dashboard', icon: 'dashboard', word: 'nav.dashboard', module: dashboard },
   { id: 'config', icon: 'config', word: 'nav.config', module: config },
 ];
 

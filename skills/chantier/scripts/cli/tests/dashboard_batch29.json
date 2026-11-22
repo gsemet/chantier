@@ -1,0 +1,548 @@
+{
+  "schema": 1,
+  "batch": "batch-29",
+  "number": 29,
+  "state": "closed",
+  "opened": "2026-11-19T23:29:36Z",
+  "closed": "2026-11-21T03:43:34Z",
+  "mode": "stack",
+  "steering": "foreman",
+  "host": "claude",
+  "budget_usd": 309.0,
+  "cost_usd": 243.5351,
+  "cost_unpriced": {},
+  "crs": [
+    {
+      "cr": "CR-389",
+      "title": "a native forge stack's merges are told landed",
+      "result": "merged",
+      "archive": "5-archives/261120-0030-389-bug-the-watcher-says-a-native-forge-stac",
+      "pr": "https://github.com/gsemet/chantier/pull/359",
+      "rounds": 1,
+      "cost_usd": 2.2817,
+      "cost_unpriced": {},
+      "order": 1,
+      "after": []
+    },
+    {
+      "cr": "CR-416",
+      "title": "one way to call the CLI that works in every shell",
+      "result": "dropped",
+      "archive": "6-trash/261120-2245-416-portable-cli-invocation",
+      "to": "6-trash",
+      "pr": null,
+      "rounds": 0,
+      "cost_usd": 0.1752,
+      "cost_unpriced": {},
+      "order": 1,
+      "after": []
+    },
+    {
+      "cr": "CR-423",
+      "title": "A Driver's only send to a Desktop Foreman is its final report",
+      "result": "merged",
+      "archive": "5-archives/261121-0330-423-stack-driver-started-twice",
+      "pr": "https://github.com/gsemet/chantier/pull/388",
+      "rounds": 1,
+      "cost_usd": 1.1124,
+      "cost_unpriced": {},
+      "order": 1,
+      "after": []
+    },
+    {
+      "cr": "CR-391",
+      "title": "`chantier open` crashes in a planning surface whose project has no clone",
+      "result": "merged",
+      "archive": "5-archives/261120-0751-391-bug-chantier-open-crashed-on-a-scratch-r",
+      "pr": "https://github.com/gsemet/chantier/pull/360",
+      "rounds": 1,
+      "cost_usd": 2.2841,
+      "cost_unpriced": {},
+      "order": 2,
+      "after": []
+    },
+    {
+      "cr": "CR-424",
+      "title": "Release highlights: text first, cropped picture, one set of rules",
+      "result": "merged",
+      "archive": "5-archives/261121-0330-424-release-highlight-text-first",
+      "pr": "https://github.com/gsemet/chantier/pull/387",
+      "rounds": 1,
+      "cost_usd": 1.152,
+      "cost_unpriced": {},
+      "order": 2,
+      "after": []
+    },
+    {
+      "cr": "CR-390",
+      "title": "take stack and the record name the right base in a stack batch",
+      "result": "merged",
+      "archive": "5-archives/261120-0751-390-bug-take-stack-and-the-record-name-wrong",
+      "pr": "https://github.com/gsemet/chantier/pull/358",
+      "rounds": 2,
+      "cost_usd": 3.9447,
+      "cost_unpriced": {},
+      "order": 3,
+      "after": []
+    },
+    {
+      "cr": "CR-417",
+      "title": "just test back under its ceiling; scenario budgets re-measured",
+      "result": "merged",
+      "archive": "5-archives/261121-0330-417-test-time-over-budget",
+      "pr": "https://github.com/gsemet/chantier/pull/393",
+      "rounds": 3,
+      "cost_usd": 5.4678,
+      "cost_unpriced": {},
+      "order": 3,
+      "after": []
+    },
+    {
+      "cr": "CR-392",
+      "title": "planning-folder.md says the archive in the PR defaults to no",
+      "result": "merged",
+      "archive": "5-archives/261119-2357-392-docs-planning-folder-md-says-the-archive",
+      "pr": "https://github.com/gsemet/chantier/pull/357",
+      "rounds": 1,
+      "cost_usd": 0.8725,
+      "cost_unpriced": {},
+      "order": 4,
+      "after": []
+    },
+    {
+      "cr": "CR-393",
+      "title": "a clean rebase in a stack carries, whatever branch the record or the forge names",
+      "result": "merged",
+      "archive": "5-archives/261120-0751-393-retro-batch-28-ship-calls-a-clean-rebase",
+      "pr": "https://github.com/gsemet/chantier/pull/361",
+      "rounds": 1,
+      "cost_usd": 2.544,
+      "cost_unpriced": {},
+      "order": 4,
+      "after": []
+    },
+    {
+      "cr": "CR-420",
+      "title": "A CR Driver reaches ready without a context hand-back",
+      "result": "merged",
+      "archive": "5-archives/261121-0330-420-driver-context-budget",
+      "pr": "https://github.com/gsemet/chantier/pull/390",
+      "rounds": 3,
+      "cost_usd": 5.8077,
+      "cost_unpriced": {},
+      "order": 4,
+      "after": []
+    },
+    {
+      "cr": "CR-394",
+      "title": "hold a ready CR out of the stack",
+      "result": "merged",
+      "archive": "5-archives/261120-0751-394-retro-batch-28-hold-a-ready-cr-out-of-th",
+      "pr": "https://github.com/gsemet/chantier/pull/365",
+      "rounds": 3,
+      "cost_usd": 6.442,
+      "cost_unpriced": {},
+      "order": 5,
+      "after": []
+    },
+    {
+      "cr": "CR-421",
+      "title": "Downloaded CI artifacts stay out of the published plan",
+      "result": "merged",
+      "archive": "5-archives/261121-0330-421-ci-artifacts-out-of-plan",
+      "pr": "https://github.com/gsemet/chantier/pull/389",
+      "rounds": 1,
+      "cost_usd": 3.1515,
+      "cost_unpriced": {},
+      "order": 5,
+      "after": []
+    },
+    {
+      "cr": "CR-395",
+      "title": "a CR's title is its plain subject, without the \"Change Specification:\" lead",
+      "result": "merged",
+      "archive": "5-archives/261120-0751-395-board-subject-without-change-specificati",
+      "pr": "https://github.com/gsemet/chantier/pull/364",
+      "rounds": 2,
+      "cost_usd": 2.4752,
+      "cost_unpriced": {},
+      "order": 6,
+      "after": []
+    },
+    {
+      "cr": "CR-422",
+      "title": "take's base and the ready word follow the forge",
+      "result": "merged",
+      "archive": "5-archives/261121-0330-422-take-base-from-forge",
+      "pr": "https://github.com/gsemet/chantier/pull/391",
+      "rounds": 1,
+      "cost_usd": 4.1139,
+      "cost_unpriced": {},
+      "order": 6,
+      "after": []
+    },
+    {
+      "cr": "CR-396",
+      "title": "`just tag` fast-forwards the main checkout before it tags",
+      "result": "merged",
+      "archive": "5-archives/261120-0751-396-retro-v0-14-0-just-tag-refuses-in-the-ma",
+      "pr": "https://github.com/gsemet/chantier/pull/363",
+      "rounds": 3,
+      "cost_usd": 2.9773,
+      "cost_unpriced": {},
+      "order": 7,
+      "after": []
+    },
+    {
+      "cr": "CR-418",
+      "title": "`chantier live`: a live terminal view, second client of the API",
+      "result": "merged",
+      "archive": "5-archives/261121-0330-418-live-activity-tui",
+      "pr": "https://github.com/gsemet/chantier/pull/392",
+      "rounds": 2,
+      "cost_usd": 11.3713,
+      "cost_unpriced": {},
+      "order": 7,
+      "after": []
+    },
+    {
+      "cr": "CR-397",
+      "title": "order drop names where the CR goes (trash, inbox or backlog)",
+      "result": "merged",
+      "archive": "5-archives/261120-0753-397-order-drop-asks-where-the-cr-goes-trash",
+      "pr": "https://github.com/gsemet/chantier/pull/370",
+      "rounds": 3,
+      "cost_usd": 9.369,
+      "cost_unpriced": {},
+      "order": 8,
+      "after": [
+        "CR-394"
+      ]
+    },
+    {
+      "cr": "CR-419",
+      "title": "the plan's store reads the planning folder",
+      "result": "merged",
+      "archive": "5-archives/261121-0330-419-one-read-interface-over-the-planning-fol",
+      "pr": "https://github.com/gsemet/chantier/pull/394",
+      "rounds": 2,
+      "cost_usd": 8.1038,
+      "cost_unpriced": {},
+      "order": 8,
+      "after": [
+        "CR-418"
+      ]
+    },
+    {
+      "cr": "CR-398",
+      "title": "one CR Driver per CR in the common case, with a closing step that resumes from the record",
+      "result": "merged",
+      "archive": "5-archives/261120-0753-398-retro-batch-28-drivers-end-before-closin",
+      "pr": "https://github.com/gsemet/chantier/pull/367",
+      "rounds": 1,
+      "cost_usd": 4.137,
+      "cost_unpriced": {},
+      "order": 9,
+      "after": []
+    },
+    {
+      "cr": "CR-415",
+      "title": "Start an eval's operator, and its Foreman campaigns, from the phone",
+      "result": "dropped",
+      "archive": null,
+      "to": "2-backlog/P2",
+      "pr": "https://github.com/gsemet/chantier/pull/386",
+      "rounds": 1,
+      "cost_usd": 0.9763,
+      "cost_unpriced": {},
+      "order": 9,
+      "after": []
+    },
+    {
+      "cr": "CR-399",
+      "title": "a CR taken out of a batch comes back under its number, with its branch and PR",
+      "result": "merged",
+      "archive": "5-archives/261120-0753-399-order-drop-come-back-same-number-branch-",
+      "pr": "https://github.com/gsemet/chantier/pull/371",
+      "rounds": 2,
+      "cost_usd": 4.9003,
+      "cost_unpriced": {},
+      "order": 10,
+      "after": [
+        "CR-397"
+      ]
+    },
+    {
+      "cr": "CR-400",
+      "title": "Gate queue ticket unlink races on Windows: Change Specification",
+      "result": "merged",
+      "archive": "5-archives/261120-0753-400-gate-queue-ticket-unlink-races-on-window",
+      "pr": "https://github.com/gsemet/chantier/pull/369",
+      "rounds": 1,
+      "cost_usd": 1.6936,
+      "cost_unpriced": {},
+      "order": 11,
+      "after": []
+    },
+    {
+      "cr": "CR-401",
+      "title": "typed journal events, `name@N` (Part A of seven)",
+      "result": "merged",
+      "archive": "5-archives/261120-1146-401-typed-journal-events",
+      "pr": "https://github.com/gsemet/chantier/pull/372",
+      "rounds": 2,
+      "cost_usd": 5.0575,
+      "cost_unpriced": {},
+      "order": 12,
+      "after": []
+    },
+    {
+      "cr": "CR-402",
+      "title": "the plan's storage behind a minimal interface (Part B of seven)",
+      "result": "merged",
+      "archive": "5-archives/261120-1148-402-plan-store-interface",
+      "pr": "https://github.com/gsemet/chantier/pull/373",
+      "rounds": 3,
+      "cost_usd": 7.2648,
+      "cost_unpriced": {},
+      "order": 13,
+      "after": []
+    },
+    {
+      "cr": "CR-403",
+      "title": "Driver leases on what `take` gave them",
+      "result": "merged",
+      "archive": "5-archives/261120-1302-403-driver-leases",
+      "pr": "https://github.com/gsemet/chantier/pull/376",
+      "rounds": 3,
+      "cost_usd": 9.846,
+      "cost_unpriced": {},
+      "order": 14,
+      "after": []
+    },
+    {
+      "cr": "CR-404",
+      "title": "the surface's writer (Part C of seven)",
+      "result": "merged",
+      "archive": "5-archives/261120-1534-404-planning-server",
+      "pr": "https://github.com/gsemet/chantier/pull/379",
+      "rounds": 6,
+      "cost_usd": 18.4933,
+      "cost_unpriced": {},
+      "order": 15,
+      "after": [
+        "CR-401",
+        "CR-402"
+      ]
+    },
+    {
+      "cr": "CR-405",
+      "title": "forge connectors as plugins, and a hub that polls only what is awaited",
+      "result": "merged",
+      "archive": "5-archives/261120-1303-405-forge-connectors",
+      "pr": "https://github.com/gsemet/chantier/pull/375",
+      "rounds": 2,
+      "cost_usd": 4.3453,
+      "cost_unpriced": {},
+      "order": 16,
+      "after": [
+        "CR-401"
+      ]
+    },
+    {
+      "cr": "CR-406",
+      "title": "the server's API over a WebSocket, the web UI one client among others",
+      "result": "merged",
+      "archive": "5-archives/261120-1819-406-server-api",
+      "pr": "https://github.com/gsemet/chantier/pull/383",
+      "rounds": 5,
+      "cost_usd": 13.5891,
+      "cost_unpriced": {},
+      "order": 17,
+      "after": [
+        "CR-404"
+      ]
+    },
+    {
+      "cr": "CR-407",
+      "title": "a PR merged without chantier ends in the archives (Part G of seven)",
+      "result": "merged",
+      "archive": "5-archives/261120-1655-407-outside-contributions-archive",
+      "pr": "https://github.com/gsemet/chantier/pull/381",
+      "rounds": 1,
+      "cost_usd": 1.8324,
+      "cost_unpriced": {},
+      "order": 18,
+      "after": [
+        "CR-404"
+      ]
+    },
+    {
+      "cr": "CR-408",
+      "title": "`chantier access` explains why a session may or may not write, claim or push",
+      "result": "merged",
+      "archive": "5-archives/261120-1655-408-explain-access",
+      "pr": "https://github.com/gsemet/chantier/pull/382",
+      "rounds": 2,
+      "cost_usd": 4.2737,
+      "cost_unpriced": {},
+      "order": 19,
+      "after": [
+        "CR-404",
+        "CR-403"
+      ]
+    },
+    {
+      "cr": "CR-409",
+      "title": "typed waits, a CR records what it waits for",
+      "result": "merged",
+      "archive": "5-archives/261120-1456-409-typed-waits",
+      "pr": "https://github.com/gsemet/chantier/pull/380",
+      "rounds": 3,
+      "cost_usd": 10.9983,
+      "cost_unpriced": {},
+      "order": 20,
+      "after": [
+        "CR-401",
+        "CR-405",
+        "CR-402"
+      ]
+    },
+    {
+      "cr": "CR-410",
+      "title": "an outside poller writes issue events into the journal",
+      "result": "merged",
+      "archive": "5-archives/261120-1422-410-outside-poller",
+      "pr": "https://github.com/gsemet/chantier/pull/377",
+      "rounds": 2,
+      "cost_usd": 4.2683,
+      "cost_unpriced": {},
+      "order": 21,
+      "after": [
+        "CR-401",
+        "CR-405"
+      ]
+    },
+    {
+      "cr": "CR-411",
+      "title": "the web client moves out of the server's package; `board --ui <folder>|none`",
+      "result": "merged",
+      "archive": "5-archives/261120-1910-411-web-client-out",
+      "pr": "https://github.com/gsemet/chantier/pull/384",
+      "rounds": 1,
+      "cost_usd": 4.4,
+      "cost_unpriced": {},
+      "order": 22,
+      "after": [
+        "CR-406"
+      ]
+    },
+    {
+      "cr": "CR-412",
+      "title": "A CR's title stays short",
+      "result": "merged",
+      "archive": "5-archives/261120-1303-412-a-cr-s-title-stays-short-its-description",
+      "pr": "https://github.com/gsemet/chantier/pull/374",
+      "rounds": 3,
+      "cost_usd": 5.7175,
+      "cost_unpriced": {},
+      "order": 23,
+      "after": []
+    },
+    {
+      "cr": "CR-413",
+      "title": "Release notes: shorter, plain, picture-first highlights",
+      "result": "merged",
+      "archive": "5-archives/261120-1456-413-release-notes-writing-rules",
+      "pr": "https://github.com/gsemet/chantier/pull/378",
+      "rounds": 1,
+      "cost_usd": 1.5593,
+      "cost_unpriced": {},
+      "order": 24,
+      "after": []
+    },
+    {
+      "cr": "CR-414",
+      "title": "Sessions start from Remote Control with no cwd",
+      "result": "merged",
+      "archive": "5-archives/261120-2154-414-remote-control-start-session",
+      "pr": "https://github.com/gsemet/chantier/pull/385",
+      "rounds": 1,
+      "cost_usd": 2.6936,
+      "cost_unpriced": {},
+      "order": 25,
+      "after": []
+    }
+  ],
+  "cost_receipt": {
+    "steering": {
+      "label": "Foreman",
+      "usd": 59.71,
+      "calls": 983,
+      "unpriced": {},
+      "wakes": 292,
+      "context_avg": 184489
+    },
+    "drivers": [
+      {
+        "type": "chantier:cr-driver",
+        "usd": 178.5243,
+        "calls": 8074,
+        "unpriced": {}
+      },
+      {
+        "type": "chantier:stack-driver",
+        "usd": 5.3015,
+        "calls": 261,
+        "unpriced": {}
+      }
+    ],
+    "split": [
+      {
+        "part": "steering",
+        "usd": 59.71,
+        "calls": 983,
+        "unpriced": {}
+      },
+      {
+        "part": "drivers",
+        "usd": 64.23,
+        "calls": 3088,
+        "unpriced": {}
+      },
+      {
+        "part": "workers",
+        "usd": 119.6,
+        "calls": 5247,
+        "unpriced": {}
+      }
+    ],
+    "models": [
+      {
+        "model": "claude-sonnet-5-5",
+        "calls": 8171,
+        "usd": 175.29,
+        "unpriced": 0
+      },
+      {
+        "model": "claude-opus-5-5",
+        "calls": 1147,
+        "usd": 68.25,
+        "unpriced": 0
+      }
+    ],
+    "outside": {
+      "grill": {
+        "usd": 101.4204,
+        "calls": 1796,
+        "unpriced": {}
+      },
+      "steering": {
+        "usd": 38.5735,
+        "calls": 676,
+        "unpriced": {}
+      }
+    }
+  },
+  "report": "batch-29.md"
+}

@@ -2,6 +2,7 @@
 import batch from './en-batch.js';
 import board from './en-board.js';
 import costs from './en-costs.js';
+import dashboard from './en-dashboard.js';
 import mr from './en-mr.js';
 import prs from './en-prs.js';
 import write from './en-write.js';
@@ -15,6 +16,7 @@ export default {
   'nav.kanban': 'Kanban',
   'nav.batch': 'Batch',
   'nav.costs': 'Costs',
+  'nav.dashboard': 'Dashboard',
   'nav.config': 'Configuration',
   'nav.prs': 'PRs',
   'nav.overview': 'All projects',
@@ -244,6 +246,7 @@ export default {
   ...prs,
   ...mr,
   ...costs,
+  ...dashboard,
   'writer.title': 'Writer {state}',
   'writer.state.synced': 'synced',
   'writer.state.syncing': 'syncing',

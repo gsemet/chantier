@@ -27,6 +27,9 @@ export const costs = (project) => read('costs.get', { project });
 // with no `batch`, the batch in 4-batch/, else the newest closed one.
 export const prs = (project, batch) => read('prs.get', { project, ...(batch ? { batch } : {}) });
 
+// The Dashboard's figures over the project's closed batches (`range`: '10', '20' or 'all').
+export const dashboard = (project, range) => read('dashboard.get', { project, range });
+
 export const tree = (project, path) => read('project.tree', { project, path });
 
 // A text file: its text, whether the server cut it, and the SHA-256 of its bytes (an editor sends

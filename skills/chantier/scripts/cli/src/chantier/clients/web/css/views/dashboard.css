@@ -1,0 +1,98 @@
+/* The Dashboard view: the head row (the tabs, the range), the live line, and a grid of tiles (the
+   figure card and the chart are components; this sheet only lays them out). Two columns on a wide
+   screen, Spending's tiles and the ranking across both; one column below the phone width. */
+.dash {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+}
+
+.dash .dhead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dash .tabs {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.dash .mut {
+  margin: 0;
+}
+
+.dash .dlink {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--link);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.dash .derr {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  color: var(--bad-ink);
+}
+
+.dash .dgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.dash .dgrid > * {
+  min-width: 0;
+}
+
+.dash .dgrid-spending > * {
+  grid-column: 1 / -1;
+}
+
+.dash .dtop {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.dash .dtop .h2t {
+  margin: var(--space-2) 0 0;
+}
+
+.dash tr.click {
+  cursor: pointer;
+}
+
+.dash tr.click:hover td {
+  background: var(--row-hover);
+}
+
+.dash td.tt {
+  width: 100%;
+  max-width: 0;
+}
+
+/* a CR's title in a table cell: one line, cut with an ellipsis; the full text is its title attribute */
+.dash td .ct {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .dash .dgrid {
+    grid-template-columns: 1fr;
+  }
+
+  .dash .hide-phone {
+    display: none;
+  }
+}
