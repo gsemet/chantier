@@ -198,13 +198,23 @@ def test_w2_a_shell_inside_the_folder_refuses_then_lets_go(
     host(monkeypatch)
     monkeypatch.setattr(core_files, "HELD_WAIT_S", 1.0)
     item = prepared(repo, chantier, "Held by a process")
-    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"], cwd=item)
+    # the child takes its working directory while it starts, after `Popen` returns: wait for its
+    # word that it runs before moving the folder, or the move can come first and succeed
+    child = subprocess.Popen(
+        [sys.executable, "-c", "import time; print('up', flush=True); time.sleep(60)"],
+        cwd=item,
+        stdout=subprocess.PIPE,
+        text=True,
+    )
     try:
+        assert child.stdout is not None and child.stdout.readline().strip() == "up"
         code, _, err = chantier("triage", str(item), "--ready")
         assert code == EXIT_EXTERNAL and "refused for 1 s, the folder is likely held" in err
         assert item.is_dir() and not (changes(repo) / "3-ready" / item.name).exists()
     finally:
         child.kill()
         child.wait()
+        if child.stdout:
+            child.stdout.close()
     code, _, err = chantier("triage", str(item), "--ready")
     assert code == 0, err

@@ -175,6 +175,9 @@ def once(links: list[Link], models: list[Model]) -> None:
     finally:
         stop.set()
     with lock:
+        # a reader raises `--only`'s error after its last feed, so the loop may see every board
+        # complete before the error is kept: judge the finished models here, whatever the order
+        _check_only(models)
         screen.plain(models, _width(), height_for(models), sys.stdout)
 
 
