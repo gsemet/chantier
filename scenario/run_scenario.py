@@ -9331,6 +9331,7 @@ def stack_hold(w: World) -> None:
     w.chantier("order", "unhold", c)
     w.chantier("agents", "set", "stack", "-", "--epoch", 1)
     w.chantier("take", "stack", "--note", f"unhold {c}", "--epoch", 1)
+    w.chantier("stack", a, b, c)
     forge_base(w, PR_LINK["github"] + "203", branch(b))
     edit_cr(c, pr_base=branch(b))
     code, out = w.chantier("forge-stack", "rebuild", env=on_path)
