@@ -40,7 +40,9 @@ import tempfile
 import threading
 import time
 import traceback
+import urllib.error
 import urllib.parse
+import urllib.request
 import types
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -118,7 +120,7 @@ UNITS = {
     "surface-board": (
         710,
         ["github"],
-        ["remote_board", "forge_hub", "serve_and_webui", "outside_poller", "typed_waits", "surface_server",
+        ["remote_board", "forge_hub", "serve_and_webui", "several_boards", "outside_poller", "typed_waits", "surface_server",
          "external_surface", "surface_writer", "cr_summary"],
     ),
     "qa-driver": (255, ["github"], ["lost_messages", "qa_on_head", "driver_liveness", "restore_cr"]),
@@ -2811,6 +2813,140 @@ def serve_and_webui(w: World) -> None:
             proc.stop()
 
 
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Hand a redirect back as an error, so its status and `Set-Cookie` can be read."""
+
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+def several_boards(w: World) -> None:
+    """CR-460: one browser (one cookie jar) with three boards of three surfaces on one host and two
+    tabs of one board: each keeps working across reloads and across the others' restarts; the
+    cookie is SameSite=Lax; a read-only link adds its own cookie; a fresh jar pastes the whole
+    link into the refusal page's form and gets in. Step 16d2 of the plan, numbered 16d1b here
+    (16d2 is the outside poller's)."""
+    import http.cookiejar
+    from websockets.sync.client import connect
+    note("\n## 16d1b. Several boards in one browser: three surfaces, two tabs, restarts, a paste")
+    worlds = [SurfaceWorld(w.root / f"many{i}") for i in range(3)]
+    for each in worlds:
+        each.root.mkdir()
+        each.build()
+        each.chantier("init")
+    jar = http.cookiejar.CookieJar()
+    browser = urllib.request.build_opener(urllib.request.ProxyHandler({}),
+                                          urllib.request.HTTPCookieProcessor(jar))
+    stopped = urllib.request.build_opener(urllib.request.ProxyHandler({}),
+                                          urllib.request.HTTPCookieProcessor(jar), NoRedirect)
+
+    def through(opener, port: int, path: str, headers: dict | None = None, data: bytes | None = None):
+        """One request of the browser: the status, the headers (lower case) and the body."""
+        req = urllib.request.Request(f"http://127.0.0.1:{port}{path}", data, headers or {})
+        try:
+            with opener.open(req, timeout=10) as r:
+                return r.status, {k.lower(): v for k, v in r.getheaders()}, r.read()
+        except urllib.error.HTTPError as e:
+            return e.code, {k.lower(): v for k, v in e.headers.items()}, e.read()
+
+    def serving(world: SurfaceWorld) -> BoardProc:
+        # no `--seat`; its own free port (the default may be held by a real board here)
+        return BoardProc(world, "--project", "demo", "serve", "--host", "127.0.0.1", "--port",
+                         free_port(), cwd=world.surface)
+
+    page = {"Accept": "text/html"}
+    procs: list[BoardProc] = []
+    try:
+        for world in worlds:
+            procs.append(serving(world))
+        links = [Link(p.line()) for p in procs]
+        check("three surfaces' servers start, each with its own port and cookie name",
+              all(x.ok for x in links) and len({x.port for x in links}) == 3
+              and len({x.cookie_name for x in links}) == 3, str([x.port for x in links]))
+        if not all(x.ok for x in links):
+            return
+        codes = []
+        for link in links:
+            code, head, _ = through(stopped, link.port, f"/?k={link.key}", page)
+            codes.append((code, head.get("location"), "SameSite=Lax" in head.get("set-cookie", "")))
+        check("each printed link answers 303 to `./` with a `SameSite=Lax` cookie (read on the header)",
+              codes == [(303, "./", True)] * 3, str(codes))
+        names = sorted(c.name for c in jar if c.domain == "127.0.0.1")
+        check("the jar holds three distinct `chantier_board_<id>` cookies for 127.0.0.1",
+              names == sorted(x.cookie_name for x in links), str(names))
+
+        def reloads(only: list[Link]) -> list[tuple[int, int]]:
+            return [(through(browser, x.port, "/", page)[0], through(browser, x.port, "/api/board")[0])
+                    for x in only]
+
+        shown = reloads(links)
+        check("a reload of each (`GET /` and `/api/board` through the one jar) answers 200",
+              shown == [(200, 200)] * 3, str(shown))
+        # two tabs of the first server: the jar's Cookie header and the own origin
+        header = "; ".join(f"{c.name}={c.value}" for c in jar)
+        first = links[0]
+
+        def tab():
+            ws = connect(f"ws://127.0.0.1:{first.port}/api/v1/ws", additional_headers={"Cookie": header},
+                         origin=API_ORIGIN(first.port), compression=None, proxy=None, open_timeout=10)
+            ws.send(json.dumps({"t": "hello", "protocol": 1, "client": "scenario/tab"}))
+            return ws, frame_of(ws, "welcome")
+
+        (tab1, welcome1), (tab2, welcome2) = tab(), tab()
+        check("two WebSocket tabs of the first server, with the jar's cookies, are both welcomed",
+              bool(welcome1) and bool(welcome2), f"{welcome1} {welcome2}")
+        tab1.close()
+        tab2.send(json.dumps({"t": "call", "id": "g", "op": "board.get", "args": {}}))
+        got = frame_of(tab2, "result", lambda f: f.get("id") == "g")
+        check("one tab closed, the other still answers a `call` of `board.get`",
+              bool(got) and "data" in got and "error" not in got, str(got)[:200])
+        tab2.close()
+        # the second server stops, and starts again on another port: no new link
+        procs[1].stop()
+        during = reloads([links[0], links[2]])
+        procs[1] = serving(worlds[1])
+        again = Link(procs[1].line())
+        after = reloads([links[0], again, links[2]])
+        check("the second server stopped and started again (another port, same surface): the first "
+              "and third answer 200 during and after, the second at its new start, with no new link",
+              again.ok and again.cookie_name == links[1].cookie_name and during == [(200, 200)] * 2
+              and after == [(200, 200)] * 3, f"{during} {after} {again.port}")
+        # CR-457: the read-only link adds its own cookie; the private cookie still wins
+        read_line = procs[0].read_only.get(timeout=10)
+        found = re.search(r"http://127\.0\.0\.1:(\d+)/\?k=(\S+)", read_line or "")
+        code = through(stopped, first.port, f"/?k={found[2]}", page)[0] if found else 0
+        names = sorted(c.name for c in jar if c.domain == "127.0.0.1")
+        call = {"Content-Type": "application/json"}
+        _, head1, _ = through(browser, first.port, "/api/v1/call/board.get", call, b"{}")
+        _, head3, _ = through(browser, links[2].port, "/api/v1/call/board.get", call, b"{}")
+        check("the first server's read-only link adds `chantier_board_<id>_read`, its answers still "
+              "carry `X-Chantier-Access: write`, and the third's are unchanged",
+              code == 303 and f"{first.cookie_name}_read" in names and len(names) == 4
+              and head1.get("x-chantier-access") == "write" == head3.get("x-chantier-access"),
+              f"{code} {names} {head1.get('x-chantier-access')} {head3.get('x-chantier-access')}")
+        # a fresh jar (a home-screen app, a private tab): the refusal page's form, the whole link
+        fresh = http.cookiejar.CookieJar()
+        bare = urllib.request.build_opener(urllib.request.ProxyHandler({}),
+                                           urllib.request.HTTPCookieProcessor(fresh), NoRedirect)
+        plain = urllib.request.build_opener(urllib.request.ProxyHandler({}),
+                                            urllib.request.HTTPCookieProcessor(fresh))
+        code, _, body = through(bare, first.port, "/", page)
+        text = body.decode("utf-8", "replace")
+        check("a fresh jar: `GET /` with `Accept: text/html` answers 401 with the form (a field `k`, "
+              "no script)",
+              code == 401 and '<form method="get"' in text and 'name="k"' in text
+              and "<script" not in text, f"{code} {text[:200]}")
+        whole = urllib.parse.quote(f"http://127.0.0.1:{first.port}/?k={first.key}", safe="")
+        code, head, _ = through(bare, first.port, f"/?k={whole}", page)
+        check("submitting the whole printed link, URL-encoded, answers 303 and sets the cookie",
+              code == 303 and head.get("location") == "./" and first.cookie_name in head.get("set-cookie", ""),
+              f"{code} {head}")
+        check("the reload of the fresh jar answers 200", through(plain, first.port, "/", page)[0] == 200)
+    finally:
+        for proc in reversed(procs):
+            proc.stop()
+
+
 def outside_poller(w: World) -> None:
     """An outside poller writes issue events into the journal: `interests`, `journal add` and the
     watcher that tells the line; the hub reads no issue."""
@@ -3355,10 +3491,10 @@ def remote_board(w: World) -> None:
               str(refused))
         code, head, _ = fetch(port, f"/?k={link.key}")
         cookie = head.get("set-cookie", "")
-        check("`/?k=<key>` answers 303 with the cookie (HttpOnly, SameSite=Strict) and a relative "
+        check("`/?k=<key>` answers 303 with the cookie (HttpOnly, SameSite=Lax) and a relative "
               "`Location` with no `k`",
               code == 303 and head.get("location") == "./" and f"{link.cookie_name}={link.key}" in cookie
-              and "HttpOnly" in cookie and "SameSite=Strict" in cookie, f"{code} {head}")
+              and "HttpOnly" in cookie and "SameSite=Lax" in cookie, f"{code} {head}")
         code, head, _ = fetch(port, "/?k=wrong")
         check("a wrong key answers 401 and sets no cookie", code == 401 and "set-cookie" not in head,
               str(code))
@@ -11355,6 +11491,7 @@ CASES = {
     "remote_board": remote_board,
     "forge_hub": forge_hub,
     "serve_and_webui": serve_and_webui,
+    "several_boards": several_boards,
     "outside_poller": outside_poller,
     "typed_waits": typed_waits,
     "surface_server": surface_server,

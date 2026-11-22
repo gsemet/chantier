@@ -50,7 +50,7 @@ def _frame(ctx: Context, req: Request, key: str) -> Reply:
     writes, then the route."""
     held = guard.access(req, key, ctx.cookie, ctx.key.read_current())
     if held is None:
-        return text(401, guard.NEEDS_KEY)
+        return guard.refused_key(req)
     if req.path.startswith("/api/") and req.path != PROBE:
         return _unknown()  # a route of an older version, whatever its method
     if req.method not in guard.ALLOWED:

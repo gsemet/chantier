@@ -129,7 +129,7 @@ def test_the_default_start_prints_one_line(
 
 def test_the_cookie_lasts_30_days_and_the_exchange_sets_it() -> None:
     cookie = keys.set_cookie("k", "name")
-    assert "Max-Age=2592000" in cookie and "HttpOnly" in cookie and "SameSite=Strict" in cookie
+    assert "Max-Age=2592000" in cookie and "HttpOnly" in cookie and "SameSite=Lax" in cookie
     got = guard.exchange(Request("GET", "/", {"k": "k"}, {}), "k", "name")
     assert got is not None and got.status == SEE_OTHER
     assert "Max-Age=2592000" in got.all_headers()["Set-Cookie"]

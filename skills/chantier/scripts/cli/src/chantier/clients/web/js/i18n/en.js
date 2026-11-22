@@ -64,7 +64,8 @@ export default {
   'foot.upgraded': 'Board upgraded: reload the page',
   'foot.unreachable': 'Board unreachable: data {age} ago',
   'foot.never': 'No data yet',
-  'notice.key': 'This board needs the link with its key: ask the Chief of Staff for it.',
+  'notice.key':
+    'This board needs the link with its key: paste it here, or ask the Chief of Staff for it.',
   'view.empty': 'This view is drawn by a later change.',
   'state.working': 'working',
   'state.queued': 'queued',

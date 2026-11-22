@@ -153,4 +153,6 @@ def cookie_value(raw: str | None, name: str) -> str | None:
 
 
 def set_cookie(key: str, name: str) -> str:
-    return f"{name}={key}; Max-Age={COOKIE_MAX_AGE_S}; Path=/; HttpOnly; SameSite=Strict"
+    """`SameSite=Lax`, not `Strict`: a link from another site or app, followed by the exchange's
+    `303`, must carry it. Writes stay guarded by `Sec-Fetch-Site`/`Origin` and by `POST`."""
+    return f"{name}={key}; Max-Age={COOKIE_MAX_AGE_S}; Path=/; HttpOnly; SameSite=Lax"

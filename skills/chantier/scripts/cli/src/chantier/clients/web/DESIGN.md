@@ -460,6 +460,21 @@ Escape, its close button, a second click on its card or Back closes it. A close 
 entry (the router's `closeTopic()`), so Back never reopens a closed detail. The token table does
 not change.
 
+## The key notice
+
+When the server refuses the page's key after the page loaded (`state.denied`: a WebSocket closed
+4401, an HTTP 401, `--new-key` while the page is open, a cookie expired or cleared), the header's
+notice (`ui/header.js`'s `notice`, drawn by `main.js`'s `drawNotice`) holds its line, a text field
+and an "Open" button (`js/ui/key-notice.js`). "Open", or Enter in the field, navigates to the page's
+own address with `k` set to the field's text; the server's exchange reads a key or a whole link,
+sets its `HttpOnly` cookie and answers `303` to the same page with no `k`. The text is never kept:
+no store field, no `localStorage`, no `sessionStorage`, no cookie written by script (a test reads
+the scripts for it). The field and the button are the existing form controls' look (`css/shell.css`
+beside `.notice`, tokens only; no new token). The server's own refusal page, shown before any page
+loads (a link with no key, a browser with no cookie), belongs to the server (`board/key_page.py`),
+not to this client, and shows with `--ui none` too. Another tab of the same board that is denied
+too recovers at its next reload, the cookie being the browser's.
+
 ## The board's Griller
 
 A discussion with a Griller, in the file panel, for an item of the inbox, the backlog (P1 to P4) or

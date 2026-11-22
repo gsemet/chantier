@@ -16,6 +16,7 @@ import { navigator } from './ui/batch-nav.js';
 import { bottomBar } from './ui/bottombar.js';
 import { bindScroll, crumbs, notice, stats, title } from './ui/header.js';
 import { show } from './ui/host.js';
+import { bindKeyNotice } from './ui/key-notice.js';
 import { menu, trigger } from './ui/picker.js';
 import { heard, languageButton, navigation, projectSide } from './ui/sidebar.js';
 import { dot, pill } from './ui/writer.js';
@@ -147,6 +148,7 @@ function listenToFrame() {
   delegate(body, 'click', '[data-new]', () => openNew());
   bindPanel($('#panel'));
   bindWriter(body);
+  bindKeyNotice(body);
   delegate(body, 'keydown', '[tabindex][data-go], [tabindex][data-project]', (event, el) => {
     if (event.key === 'Enter') el.click();
   });

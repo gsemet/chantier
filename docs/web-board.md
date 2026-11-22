@@ -200,7 +200,11 @@ files, and declare the next batch ready (`next-batch.json`, the time and the CRs
   `on this machine: http://127.0.0.1:<port>/?k=<key>` (same key): open that one on the machine
   that runs the board, where the Costs page's image copy works (a browser allows it on a secure
   origin only). Open it
-  once: the board keeps the key in a cookie, for 30 days, and takes it out of the address. The link is yours
+  once: the board keeps the key in a cookie, for 30 days (`SameSite=Lax`), and takes it out of the
+  address. A browser with no cookie for the board (a home-screen web app on iOS, a private tab, an
+  app's built-in browser, a cleared jar) shows a field: paste the key or the whole link there.
+  Several boards, of one surface or of several, work side by side in one browser, each with its own
+  cookie. The link is yours
   only; whoever has it reads the planning folder. `chantier serve --new-key` replaces the key
   while the board runs: the old link, the cookies and the open pages stop working at once. The key lives in the repository's git folder
   (`chantier/server.json`), so it survives restarts and is never pushed. While the board runs,
