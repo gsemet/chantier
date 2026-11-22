@@ -2888,7 +2888,8 @@ def surface_server(w: World) -> None:
         c["pr"] = url(number)
     batch_file.write_text(json.dumps(d, indent=2))
     record = batch_file.read_bytes()
-    cli_form = (f'uv run --no-sync --project "{SKILL.parents[1].resolve().as_posix()}" chantier '
+    cli_form = (f'uvx --from "{SKILL.parents[1].resolve().as_posix()}" chantier '
+                f'--skill "{SKILL.resolve().as_posix()}" '
                 f'--project "{sw.project.resolve().as_posix()}"')
     sw.chantier("seat", "take", "sess-a")  # A's seat is this session's
     board_port(sw)
