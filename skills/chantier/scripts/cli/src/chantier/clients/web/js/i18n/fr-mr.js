@@ -4,6 +4,8 @@ export default {
   'mr.nav.prs': 'MR',
   'mr.pv.nopr': "Aucune CR n'a encore de MR.",
   'mr.open': 'ouvrir la MR',
+  'mr.inbox.sub':
+    'Questions, approbations, MR à fusionner et CR bloquées qui vous attendent. Pas la boîte de planification : les demandes à passer au grill sont dans Triage.',
   'mr.tag': 'MR',
   'mr.draft': 'MR en draft, ne pas merger',
   'mr.home.open_prs': 'MR ouvertes',

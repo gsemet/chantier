@@ -1,0 +1,30 @@
+// English words of the Inbox page: the lead, the four kinds, the actions and the notification
+// button. Merged into en.js.
+export default {
+  'inbox.lead': 'What needs you',
+  'inbox.sub':
+    'Questions, approvals, PRs to merge and blocked CRs that wait for you. Not the planning inbox: the requests to grill are in Triage.',
+  'inbox.filter': 'Kinds',
+  'inbox.kind.question': 'Question',
+  'inbox.kind.approval': 'Approval asked',
+  'inbox.kind.merge': 'Ready to merge',
+  'inbox.kind.blocked': 'Blocked',
+  'inbox.none': 'Nothing needs you',
+  'inbox.new': 'new',
+  'inbox.open': 'Open',
+  'inbox.snooze': 'Snooze',
+  'inbox.later': 'Later',
+  'inbox.discard': 'Discard',
+  'inbox.restore': 'Restore',
+  'inbox.hidden': 'Hidden ({n})',
+  'inbox.until': 'until {time}',
+  'inbox.until_morning': 'until tomorrow 08:00',
+  'inbox.while': 'while it lasts',
+  'inbox.session': 'Answer in: {title}',
+  'inbox.no_session': 'No session holds the seat',
+  'inbox.merge_place': '{n} of {total} in the merge order',
+  'inbox.notify_on': 'Notify me on this device',
+  'inbox.notify_off_button': 'Stop notifications on this device',
+  'inbox.notify_denied': 'This browser blocks notifications for the board',
+  'inbox.notify_title': '{kind} · {project}',
+};

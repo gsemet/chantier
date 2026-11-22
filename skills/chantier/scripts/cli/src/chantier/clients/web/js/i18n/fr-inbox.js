@@ -1,0 +1,30 @@
+// Mots français de la page Boîte de réception : l'en-tête, les quatre sortes, les actions et le
+// bouton de notification. Fusionnés dans fr.js.
+export default {
+  'inbox.lead': 'Ce qui vous attend',
+  'inbox.sub':
+    'Questions, approbations, PR à fusionner et CR bloquées qui vous attendent. Pas la boîte de planification : les demandes à passer au grill sont dans Triage.',
+  'inbox.filter': 'Sortes',
+  'inbox.kind.question': 'Question',
+  'inbox.kind.approval': 'Approbation demandée',
+  'inbox.kind.merge': 'Prête à fusionner',
+  'inbox.kind.blocked': 'Bloquée',
+  'inbox.none': 'Rien ne vous attend',
+  'inbox.new': 'nouveau',
+  'inbox.open': 'Ouvrir',
+  'inbox.snooze': 'Reporter 1 h',
+  'inbox.later': 'Plus tard',
+  'inbox.discard': 'Écarter',
+  'inbox.restore': 'Rétablir',
+  'inbox.hidden': 'Masquées ({n})',
+  'inbox.until': "jusqu'à {time}",
+  'inbox.until_morning': "jusqu'à demain 08:00",
+  'inbox.while': 'tant que ça dure',
+  'inbox.session': 'Répondre dans : {title}',
+  'inbox.no_session': 'Aucune session ne tient le siège',
+  'inbox.merge_place': '{n} sur {total} dans l’ordre de fusion',
+  'inbox.notify_on': 'Me prévenir sur cet appareil',
+  'inbox.notify_off_button': 'Ne plus me prévenir sur cet appareil',
+  'inbox.notify_denied': 'Ce navigateur bloque les notifications du board',
+  'inbox.notify_title': '{kind} · {project}',
+};

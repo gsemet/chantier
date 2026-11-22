@@ -34,8 +34,8 @@ fails when the table and `tokens.css` disagree.
   `css/components/chip.css`; the priority chip is Triage's, filled with the priority colour, on
   every card that has a priority (inbox, P1 to P4, 3-ready); a card of a CR in the batch shows in
   that place its batch folder (1-pending, 2-actives, 3-done) in a neutral grey chip, never a
-  priority; a chip used as a filter toggle is the
-  same chip, filled when on, outlined grey when off, the same size in both states. A lane, built by
+  priority; a chip used as a filter toggle (Triage's priorities, the Inbox's kinds) is the
+  same chip, filled when on, outlined grey when off (`.tag.st.off`), the same size in both states. A lane, built by
   the same module (`lane(parts)`), sits in a column's body and has no dot: a Backlog lane's head is
   its priority chip, its count and its grill counts; Triage's last column holds two named lanes,
   "Running batch" over "Next batch", each with its name, count, grill counts and own grey sub-line.
@@ -348,3 +348,26 @@ computed from the closed batch records and apart from the drawing: the views com
   unchanged (not a component; moving it is a separate CR). Every word is an i18n key of
   `en-dashboard.js` and `fr-dashboard.js`.
 - No protected feature is added; the Costs page and its protected features are untouched.
+
+## The Inbox page
+
+The second view, after Home: what waits for the user, in one list, newest first. It reads only the
+project line's `needs_you` of the `board` topic (built by the server from the record and the
+backlog's waits) and draws nothing of its own: each entry is one card built by `js/ui/card.js`
+(through `js/inbox/entry.js`), with its kind as a chip, a one-line title, the CR, how long it has
+waited, and its actions (Open, Snooze 1 h, Later, Discard). Four kinds: question, approval, merge,
+blocked; kind chips filter the list, and the filter is a preference.
+
+- **Hides stay in the browser.** Snooze (1 hour), Later (next 08:00) and Discard (while the fact
+  lasts) are kept in `localStorage` through `core/store.js`'s `pref`/`setPref`, keyed by the entry's
+  `key` (one occurrence of a fact: a new occurrence has a new key and shows again). Nothing is sent
+  to the server; hidden entries sit in a closed `details` below the list, with Restore.
+- **The count.** The bar's Inbox badge counts the entries not hidden, of the scope shown.
+  `js/model/inbox.js` is pure (no storage, no transport); `js/inbox/marks.js` writes storage only
+  and never calls `update()`, so drawing the page cannot redraw it.
+- **Notifications.** Off until the user turns them on from the page; a new entry then raises one
+  browser notification, once (`js/inbox/watch.js`), every call guarded: a browser with none shows
+  nothing and breaks nothing.
+- **Look.** Tokens, the shared card, chip and column components; `css/views/inbox.css` only lays
+  out. No new colour, size or side border. Words in both languages (`en-inbox.js`, `fr-inbox.js`,
+  with `mr.inbox.sub` for GitLab).

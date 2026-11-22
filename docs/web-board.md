@@ -27,6 +27,12 @@ With several projects, Home is the table of the surface (its name is the page's 
 
 A project's Home answers "what needs me?": five tiles (**To review**, the PRs ready to merge; **Waiting for you**, the CRs that are blocked; **In grill**, the items being grilled or specified; **Next batch**; **Written by the board**), the batch with its progress gauge, the open PRs (a row opens its PR or MR on the forge, and its CR number opens the CR's folder), the pipeline of the backlog, the recent activity of the batch (with no batch running, it names the last closed one), the last merged CRs and the five latest closed batches, one line each, with a link to the costs.
 
+### Inbox
+
+![The Inbox](web-board/inbox-pc.png)
+
+The Inbox lists what waits for you, newest first, for the project chosen, or for every project on the surface's Home: a **question** (an open `answer` wait), an **approval** (an open `approval` wait, with its PR or MR), a PR or MR **to merge** (ready, with its place in the merge order) and a **blocked** CR. It is not the planning inbox: the requests to grill are in Triage. Each entry is a card with **Open** (the PR or MR on the forge, else the CR), **Snooze 1 h**, **Later** (next 08:00) and **Discard** (until the fact changes). Hidden entries stay in a closed list below, with **Restore**; they are kept in this browser only, so another device shows them again. Chips filter the kinds, and the bar's Inbox badge counts what is not hidden. **Notify me on this device** (off by default) asks your browser for a notification when a new entry arrives. The page only shows: you answer, approve or merge in your session.
+
 ### Batch
 
 ![The batch: levels, PRs to review and PRs in draft](web-board/batch-pc.png)
@@ -144,7 +150,7 @@ Each view fits a phone: the bar is at the bottom, the project picker and **+ New
 | --- | --- | --- | --- | --- |
 | ![The batch on a phone](web-board/batch-phone.png) | ![Triage on a phone](web-board/triage-phone.png) | ![Triage with two post-its selected and the bottom bar](web-board/triage-selection-phone.png) | ![The project picker on a phone](web-board/picker-phone.png) | ![The writer on a phone](web-board/writer-phone.png) |
 
-The other views, each at both sizes, are in [`docs/web-board/`](web-board/): `<view>-pc.png` and `<view>-phone.png`.
+The Inbox on a phone is `web-board/inbox-phone.png`. The other views, each at both sizes, are in [`docs/web-board/`](web-board/): `<view>-pc.png` and `<view>-phone.png`.
 
 ## Language
 

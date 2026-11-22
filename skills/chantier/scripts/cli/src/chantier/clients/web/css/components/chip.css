@@ -198,6 +198,13 @@ button.tag {
   background: var(--state-queued-tint);
 }
 
+/* a state chip drawn as a toggle and turned off: outlined grey like `.tag.off`, which the state rules outrank */
+.tag.st.off {
+  --edge: var(--line);
+  background: var(--panel);
+  color: var(--ink2);
+}
+
 /* a state badge: the state's icon and word in its colour, on its tint, at a card's top right */
 .sb {
   display: inline-flex;

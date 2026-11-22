@@ -57,8 +57,9 @@ export function stats(state) {
   return state.data ? of(state.data) : t('stats.loading');
 }
 
+// The surface's name heads its Home only; every other page shows its own word.
 export const title = (state) =>
-  state.project === ALL ? surfaceName(state) : t(entry(state.view).word);
+  state.project === ALL && state.view === 'home' ? surfaceName(state) : t(entry(state.view).word);
 
 export const notice = (state) => (state.denied ? t('notice.key') : '');
 

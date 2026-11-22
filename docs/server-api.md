@@ -74,7 +74,7 @@ refused (400).
 
 | Op | Arguments | Data |
 | --- | --- | --- |
-| `board.get` | none | `board`, `version`, `surface`, `pid`, `served`, `served_origin`, `local_url`, `seats`, `projects`, `writer`, `protocols`, `now` |
+| `board.get` | none | `board`, `version`, `surface`, `pid`, `served`, `served_origin`, `local_url`, `seats`, `projects`, `writer`, `protocols`, `now`. Each line of `projects` carries `needs_you`, the list of what needs the user (kinds `question`, `approval`, `merge` and `blocked`, each with `key`, `kind`, `cr`, `item`, `title`, `folder`, `pr`, `text`, `note`, `since`, `session`, `merge_place`, `merge_total`, newest first), built from the record and the planning folder, read-only |
 | `project.state` | `project`, `rev`? | the project's state, with `rev` and `now`; with `rev` equal to the current one, `{"changed": false, "rev": ...}`. Each CR row of `batch.crs` has `lease`, and the batch `stack_lease`: `null` when the unit never had a lease, else `{n, renewed, expires, ended, holds, gate}`, facts only (`holds`: the running `lease hold`s of this lease; `gate`: `"gate running"`, `"gate queued"` or `null`); a client compares `expires` with `now` itself |
 | `project.tree` | `project`, `path`? | `{path, files, now}`: the files and folders of the planning folder at `path` |
 | `project.file` | `project`, `path` | a text file as `{text, cut, sha256}` (`cut` is true when the text was shortened); a binary file is 415 (read it over HTTP, below) |
