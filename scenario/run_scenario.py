@@ -1668,8 +1668,15 @@ class Link:
         self.over = found["over"] if found else ""
 
     @property
+    def cookie_name(self) -> str:
+        """The server's own cookie, named from the served folder its start line prints."""
+        from chantier.board.key import cookie_name
+
+        return cookie_name(self.over)
+
+    @property
     def cookie(self) -> dict[str, str]:
-        return {"Cookie": f"chantier_board={self.key}"}
+        return {"Cookie": f"{self.cookie_name}={self.key}"}
 
 
 def fetch(port: int, path: str, method: str = "GET", headers: dict | None = None,
