@@ -11,6 +11,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import pytest
+from api_client import settled
 from batch_helpers import changes
 from test_board_prs import Board
 
@@ -42,11 +43,13 @@ class World:
         data = {"schema": 1, "batch": name, "state": state, "crs": crs}
         path = self.root / "5-archives" / "batches" / f"{name}.json"
         path.write_text(json.dumps(data), encoding="utf-8")
+        self.settle()
 
     def status(self, archive: str, text: str) -> None:
         folder = self.root / archive
         folder.mkdir(parents=True, exist_ok=True)
         (folder / "STATUS.json").write_text(text, encoding="utf-8")
+        self.settle()
 
     def running(self, crs: list[dict[str, Any]], events: list[dict[str, Any]]) -> None:
         folder = self.root / "4-batch"
@@ -58,6 +61,10 @@ class World:
     def events(self, events: list[dict[str, Any]]) -> None:
         lines = [json.dumps({"actor": "t", **e}) for e in events]
         (self.root / "4-batch" / "events.jsonl").write_text("\n".join(lines) + "\n", "utf-8")
+        self.settle()
+
+    def settle(self) -> None:
+        settled(self.board.ctx)  # what the file watch does once a change is quiet
 
     def get(self, period: str, on: str | None = None, tz: str = PARIS) -> dict[str, Any]:
         args = {
