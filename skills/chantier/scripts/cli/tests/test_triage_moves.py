@@ -121,7 +121,8 @@ def test_a_lasting_hold_is_refused_with_its_cause(
     assert code == EXIT_EXTERNAL
     wait = f"{core_files.HELD_WAIT_S:.3f}".rstrip("0").rstrip(".")
     assert f"refused for {wait} s, the folder is likely held; nothing moved" in err
-    assert "the board need not stop" in err and "32" in err  # the OS error stays at the end
+    # the OS error stays at the end (its str() differs by platform: winerror shows on Windows only)
+    assert "the board need not stop" in err and f"({world.error})" in err
     assert world.now >= core_files.HELD_WAIT_S and max(world.pauses) <= LONGEST_PAUSE_S
     assert (item / SPEC).read_text("utf-8") == before and item.parent.name == "1-inbox"
     ready = changes(repo) / "3-ready"
