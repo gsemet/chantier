@@ -220,6 +220,13 @@ button.tag {
   font-weight: 500;
 }
 
+/* on a narrow Batch graph level the badge keeps its icon; the word stays in its title */
+@container graph-level (max-width: 239px) {
+  .sb .sbw {
+    display: none;
+  }
+}
+
 .sb.queued {
   background: var(--state-queued-tint);
 }

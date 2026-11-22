@@ -200,6 +200,60 @@ export function edges(rows) {
   return rows.flatMap((c) => (c.after ?? []).filter((d) => found.has(d)).map((d) => [d, c.cr]));
 }
 
+// The arrows the graph draws: the pairs of `edges(rows)` that no other path among `rows` implies,
+// in `edges`' order. A cycle among the waits returns `edges(rows)` whole.
+export function reducedEdges(rows) {
+  const all = edges(rows);
+  const next = new Map();
+  for (const [a, b] of all) next.set(a, [...(next.get(a) ?? []), b]);
+  const state = new Map(); // 1 while on the walk, 2 once done
+  const cyclic = (id) => {
+    if (state.get(id) === 1) return true;
+    if (state.get(id) === 2) return false;
+    state.set(id, 1);
+    const found = (next.get(id) ?? []).some(cyclic);
+    state.set(id, 2);
+    return found;
+  };
+  if ([...next.keys()].some(cyclic)) return all;
+  const reach = (from, goal, skip) => {
+    const seen = new Set();
+    const stack = [...(next.get(from) ?? [])].filter((x) => x !== skip);
+    while (stack.length) {
+      const id = stack.pop();
+      if (id === goal) return true;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      stack.push(...(next.get(id) ?? []));
+    }
+    return false;
+  };
+  return all.filter(([a, b]) => !reach(a, b, b));
+}
+
+// The columns of `levels(rows)` reordered to cut crossings: three barycentre passes (down, up, down)
+// over `pairs` (`reducedEdges(rows)`), each sort stable. Depends on the waits only.
+export function orderLevels(cols, pairs) {
+  const out = cols.map((col) => [...(col ?? [])]);
+  const sort = (i, side) => {
+    const place = new Map();
+    out.forEach((col) => col.forEach((c, k) => place.set(c.cr, k)));
+    const key = (c, k) => {
+      const mates = pairs
+        .filter((p) => p[1 - side] === c.cr && place.has(p[side]))
+        .map((p) => place.get(p[side]));
+      return mates.length ? mates.reduce((x, y) => x + y, 0) / mates.length : k;
+    };
+    const keyed = out[i].map((c, k) => [key(c, k), c]);
+    keyed.sort((x, y) => x[0] - y[0]);
+    out[i] = keyed.map(([, c]) => c);
+  };
+  for (let i = 1; i < out.length; i++) sort(i, 0); // sources: pair [from, to], c is `to`
+  for (let i = out.length - 2; i >= 0; i--) sort(i, 1); // targets: c is `from`
+  for (let i = 1; i < out.length; i++) sort(i, 0);
+  return out;
+}
+
 // A paused batch that never held a CR: opened empty, waiting for its first `order add`.
 export const noCrYet = (batch) => batch?.state === 'paused' && batch.crs_total === 0;
 

@@ -1,6 +1,8 @@
-// The batch graph: the CRs in levels, each CR in its place for its whole life (its level, then the
-// record's order), with an arrow from a CR to the one that waits for it. The arrows are an SVG
-// layer measured from the nodes and redrawn after every paint, on a resize and once the font is
+// The batch graph: the CRs in levels, each CR in its level, ordered within it by a barycentre pass of
+// the drawn arrows (its place changes when a wait changes or, while folded, when a CR merges or is
+// cancelled), with an arrow from a CR to the one that waits for it. Only the transitive reduction of
+// the waits is drawn, and the done CRs are folded behind one chip on a live batch. The arrows are an
+// SVG layer measured from the nodes and redrawn after every paint, on a resize and once the font is
 // loaded. A hover (or a focus) lights a CR, what it waits for and what waits for it, on the graph
 // and on the Gantt (any element that carries a `data-id`). A CR that changed state in the last
 // ten minutes carries a small burst. An arrow is a line only: one head is drawn per waiting CR,
@@ -9,10 +11,11 @@
 import { $, $$, delegate, html, setHtml } from '../core/dom.js';
 import { age, slug, title, usd } from '../core/format.js';
 import {
-  edges,
   gateWords,
   levels,
   mergedAt,
+  orderLevels,
+  reducedEdges,
   related,
   roundText,
   vstate,
@@ -28,7 +31,7 @@ const BURST_MS = 10 * 60 * 1000;
 
 // The badge in a node's top right corner: the state's icon and word, both in the state's colour.
 export const badge = (c) =>
-  html`<span class="sb ${vstate(c)}">${stateIcon(c)}${t(`state.${vstate(c)}`)}</span>`;
+  html`<span class="sb ${vstate(c)}" title="${t(`state.${vstate(c)}`)}">${stateIcon(c)}<span class="sbw">${t(`state.${vstate(c)}`)}</span></span>`;
 
 // What a merged CR's band adds: when it merged and, when the record holds it, the long gate.
 function mergedBand(c, now) {
@@ -39,7 +42,10 @@ function mergedBand(c, now) {
 }
 
 // A CR of a closed record: its folder, title, badge, rounds, cost and "PR"; no opener, no phase.
-const deps = (c) => (c.after?.length ? html`<span>${icon('dep')} ${c.after.length}</span>` : '');
+const deps = (c) =>
+  c.after?.length
+    ? html`<span title="${t('batch.waits_for', { list: c.after.join(', ') })}">${icon('dep')} ${c.after.length}</span>`
+    : '';
 const prMark = (c) => (c.pr ? html`<span>${t('pr.tag')}</span>` : '');
 
 const recordedNode = (c) =>
@@ -82,11 +88,34 @@ const level = (rows, i, draw) => {
   return html`<div class="lvl"><div class="lvlh">${head}</div>${rows.map(draw)}</div>`;
 };
 
+const done = (c) => c.state === 'merged' || c.state === 'cancelled';
+
+let unfolded = false; // the done CRs are folded at every page load
+
+export function toggleFold() {
+  unfolded = !unfolded;
+}
+
+// The bar above the graph: the toggle chip, filled while the done CRs are drawn, outlined while folded.
+const foldBar = (rows) => {
+  const merged = rows.filter((c) => c.state === 'merged').length;
+  const cancelled = rows.filter((c) => c.state === 'cancelled').length;
+  const text =
+    t('batch.fold_merged', { n: merged }) +
+    (cancelled ? ` · ${t('batch.fold_cancelled', { n: cancelled })}` : '');
+  const hint = t(unfolded ? 'batch.fold_hide' : 'batch.fold_show');
+  return html`<div class="gbar"><button type="button" class="tag st merged${unfolded ? '' : ' off'}" data-fold aria-expanded="${unfolded}" title="${hint}">${text}</button></div>`;
+};
+
 // The graph of the live batch's rows, or of a closed record's (`recorded`: rows from `recordRows`).
 export function graphBlock(rows, batch, now, recorded = false) {
   const draw = recorded ? recordedNode : (c) => node(c, batch, now);
   const hint = recorded ? '' : html`<p class="note">${t('batch.hover')}</p>`;
-  return html`<div class="gscroll"><div class="graph" data-key="graph"><svg class="edges" aria-hidden="true"></svg>${levels(rows).map((r, i) => level(r, i, draw))}<svg class="edges top" aria-hidden="true"></svg></div></div>${hint}`;
+  const foldable = !recorded && rows.some(done) && rows.some((c) => !done(c));
+  const shown = foldable && !unfolded ? rows.filter((c) => !done(c)) : rows;
+  const cols = orderLevels(levels(shown), reducedEdges(shown));
+  const bar = foldable ? foldBar(rows) : '';
+  return html`${bar}<div class="gscroll"><div class="graph" data-key="graph"><svg class="edges" aria-hidden="true"></svg>${cols.map((r, i) => level(r, i, draw))}<svg class="edges top" aria-hidden="true"></svg></div></div>${hint}`;
 }
 
 const TAIL = 12; // the last, straight stretch of an arrow, along which its head points
@@ -168,11 +197,18 @@ export function drawEdges(root, rows) {
   const svg = $('svg.edges:not(.top)', root);
   if (!graph || !svg) return;
   const found = (id) => $(`.node[data-id="${CSS.escape(id)}"]`, graph);
-  const paths = edges(rows)
+  const shown = rows.filter((c) => found(c.cr));
+  const paths = reducedEdges(shown)
     .map(([a, b]) => [found(a), found(b)])
     .filter(([a, b]) => a && b);
   const targets = [...new Set(paths.map(([, b]) => b))];
-  for (const layer of $$('svg.edges', root)) {
+  const layers = $$('svg.edges', root);
+  // measured from zero: the layers are children of `.graph` and would otherwise count in its size
+  for (const layer of layers) {
+    layer.setAttribute('width', 0);
+    layer.setAttribute('height', 0);
+  }
+  for (const layer of layers) {
     layer.setAttribute('width', graph.scrollWidth);
     layer.setAttribute('height', graph.scrollHeight);
   }
