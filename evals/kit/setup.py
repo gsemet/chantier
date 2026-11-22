@@ -201,6 +201,7 @@ def main(campaign: str, dest: Path) -> None:
         gh.chmod(0o755)
     # the Drivers and the Foreman call `gh` themselves: the forge's folder comes first on PATH
     env = {"FAKE_GH_STATE": str(state), "LIVE_ORIGIN": str(origin),
+           sandbox.CONFIG_HOME_VAR: config_home_of(dest),
            "LIVE_CI_DELAY": "120", "PATH": str(forge) + os.pathsep + os.environ.get("PATH", "")}
     if spec.get("contracts"):
         env["LIVE_CI_CONTRACTS"] = str(HERE / "contracts")
@@ -304,14 +305,21 @@ def allow_rules(spec: dict) -> list[str]:
     return rules
 
 
+def config_home_of(ws: Path) -> str:
+    """The profiles folder of a workspace's sessions: beside the workspace, like its origin and its forge."""
+    return sandbox.config_home(ws.with_name(ws.name + ".config"))
+
+
 def write_settings(ws: Path, spec: dict) -> int:
-    """The workspace's ignored `.claude/settings.local.json`: the allow rules, nothing else."""
+    """The workspace's ignored `.claude/settings.local.json`: the allow rules, and the one variable that keeps
+    the maintainer's profiles (`chantier login`) from turning the sessions remote."""
     path = ws / ".claude" / "settings.local.json"
     if path.exists():
         raise sandbox.Stop(PRECONDITION, f"{path} already exists")
     rules = allow_rules(spec)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes((json.dumps({"permissions": {"allow": rules}}, indent=2) + "\n").encode("utf-8"))
+    data = {"env": {sandbox.CONFIG_HOME_VAR: config_home_of(ws)}, "permissions": {"allow": rules}}
+    path.write_bytes((json.dumps(data, indent=2) + "\n").encode("utf-8"))
     return len(rules)
 
 
@@ -365,7 +373,8 @@ def sandbox_main(campaign: str, dest: Path) -> int:
         head = sandbox.run(["git", "rev-parse", "HEAD"], cwd=dest).strip()
         if head != base:
             raise sandbox.Stop(PRECONDITION, f"the clone's HEAD is {head}, not the base {base}")
-        sandbox.run(["uv", "run", "--locked", "--project", str(ROOT), "chantier", "init"], cwd=dest)
+        sandbox.run(["uv", "run", "--locked", "--project", str(ROOT), "chantier", "init"], cwd=dest,
+                    env={**os.environ, sandbox.CONFIG_HOME_VAR: config_home_of(dest)})
         sandbox.run(["uv", "sync", "--locked"], cwd=dest)
         allowed = write_settings(dest, spec) if spec["host"] == "claude" else 0
         # 4. the frozen CRs with the run's PR-title convention

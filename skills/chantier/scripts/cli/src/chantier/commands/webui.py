@@ -12,6 +12,7 @@ from chantier.board.address import is_loopback, local_url, url
 from chantier.board.command import BEYOND, _running_lines, read_only_lines
 from chantier.board.key import public_key
 from chantier.board.projects import open_projects
+from chantier.clients.remote import profile_for
 from chantier.core.errors import EXIT_EXTERNAL, ChantierError
 from chantier.hub.feed import Board
 from chantier.hub.watch import START_S, STEP_S
@@ -28,6 +29,10 @@ def _answering(board: Board, found: tuple[dict[str, Any], str] | None) -> bool:
 
 
 def webui(args: argparse.Namespace, board: Board | None = None) -> list[str]:
+    if taken := profile_for(args):  # a profile's server: its link, nothing started, no network
+        name, profile = taken
+        kind = "private" if profile.access == "write" else "read-only"
+        return [f"board at {profile.url}?k={profile.key} (profile {name}, {kind})"]
     board = board or Board()
     projects = open_projects()
     repo = projects.home

@@ -260,6 +260,13 @@ class GrillerSendArgs(_Model):
     sender: str = Field(alias="from")
 
 
+class CliRunArgs(_Model):
+    argv: list[str] = Field(min_length=1)
+    project: str | None = None
+    env: dict[str, str] = Field(default_factory=dict[str, str])
+    stdin: str | None = None
+
+
 class EventsArgs(_Model):
     project: str
     after: int | None = None
@@ -288,6 +295,7 @@ OP_ARGS: dict[str, type[BaseModel]] = {
     "config.get": ProjectArgs,
     "config.put": ConfigPutArgs,
     "writer.sync": NoArgs,
+    "cli.run": CliRunArgs,
     "griller.get": GrillerArgs,
     "griller.send": GrillerSendArgs,
     "griller.stop": GrillerArgs,

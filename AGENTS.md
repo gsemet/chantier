@@ -16,12 +16,12 @@
   the code repository's root `chantier.yaml`): the user's `AGENTS.md`, and optional `chantier.yaml` (or
   `chantier.yml`) files, at the project's root and, with an external planning surface, at the
   surface's root and in the project's folder there, are the only configuration, above the plugin's
-  shipped `config/chantier.defaults.yml` (with none, chantier runs on the shipped defaults; `uv` is the only tool to install, and the CLI needs no network once uv's cache holds its
-  packages, except the server's read of a batch's PRs, the forge hub, the surface server's writer, whose fetch and push need it, the board's Griller run (the host CLI's calls to its model), and the forge calls of `ship`, `take`, `round`, `handoff` and `forge-stack`, made with the user's own `gh` or `glab` (below)), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
+  shipped `config/chantier.defaults.yml`; the user's profiles (`chantier login`), below, only say where a project's commands run (with none, chantier runs on the shipped defaults; `uv` is the only tool to install, and the CLI needs no network once uv's cache holds its
+  packages, except the server's read of a batch's PRs, the forge hub, the surface server's writer, whose fetch and push need it, the board's Griller run (the host CLI's calls to its model), and the forge calls of `ship`, `take`, `round`, `handoff` and `forge-stack`, made with the user's own `gh` or `glab` (below), and a command run through a profile (`chantier login`), which reaches the profile's server), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
   external planning surface), as plain JSON and Markdown, and the project's `chantier.yaml` in an
   external planning surface's project folder, from the board's Configuration page, and a CR's
   cleaned archive in its PR when the project asks for it, and fast-forwards a clean main checkout
-  after a merge it records, the surface server keeps its two keys, the host CLI that the board's Griller runs keeps its own
+  after a merge it records, the surface server keeps its two keys, and the user's profiles (`chantier login`, `logout`), in one file outside any project, `chantier/profiles.json` in the user's config folder (`$CHANTIER_CONFIG_HOME`, else `%APPDATA%` on Windows, else `$XDG_CONFIG_HOME` or `~/.config`), mode 0600; a profile applies only to the projects it was logged in for, and to none served by another surface on this machine, the host CLI that the board's Griller runs keeps its own
   session files, as for any session of the user, and while it serves its PID, address
   and version, and the forge hub's PID, version and last reads, in the repository's git folder
   (`chantier/server.json`, with its write lock `chantier/server.json.lock`; the hub's lock is
@@ -72,7 +72,7 @@
   surface (`projects/<name>/chantier.yaml`), only through the CLI's role-free commands and its
   own reading, checking and writing of that file, and the board's Griller's
   writes in one CR's folder; it never edits a batch and never messages an
-  agent (the board's Griller, below, is not one); one named exception, a batch's PRs: while a client asks for them (one read, or a subscription),
+  agent (the board's Griller, below, is not one); it never edits a batch itself, but for the fifth exception below, a client's command; one named exception, a batch's PRs: while a client asks for them (one read, or a subscription),
   at most once every 10 s per project and batch, while a PR of that batch is not done, a
   subscription's first read included (within the same 10 s), it reads the forge, read-only, through the
   connector of its forge, with the user's own `gh` or `glab`, on its own (no agent asks it), and
@@ -81,7 +81,7 @@
   `forge-journal.jsonl` (planning folder, never published), which
   `status` prints for the Chief of Staff to record at its next `status`; the
   board itself records nothing and messages no agent, but its writer's commits of the planning
-  surface's published paths (below) and its journal lines (`sync-*@1`), and the board's Griller (the
+  surface's published paths (below) and its journal lines (`sync-*@1`), and the commands its `cli.run` runs for a client, which record what they record when run locally, and the board's Griller (the
   fourth exception, which passes the words a holder of the private key typed to a run the server started for
   the key's holder, and is not a message of the board to an agent); a third, from a configuration save (the web client's Configuration page, or any client's `config.put`): a save
   appends one `config@1` line to the same journal (`source: board`) for each key whose effective value it
@@ -126,7 +126,7 @@
   refuses with one line while the surface's writer is not running or stopped, and no agent starts
   it; the board speaks plain HTTP, so on the network the key and every turn's text travel in clear,
   and `chantier serve --new-key` replaces both keys; built on the user's direction of 2026-11-17 and
-  answers "Tout" (2026-11-21) and board-griller-Q4 B and Q20, with no measured cost; it takes its
+  answers "Tout" (2026-11-21) and board-griller-Q4 B and Q20, with no measured cost; a fifth, a client's command: for a client logged in with `chantier login`, the `cli.run` op runs one chantier command (any but `serve`, `webui`, `watch`, `live`, `login`, `logout` and `gate`) as a child process of the server's own build, never forwarded again, in its planning folder on the server's machine (its worktrees, transcripts and paths), with the client's arguments and its batch, host and session variables, behind the private key, and returns its output, its exit code and its launch form; that command edits the batch and the planning folder exactly as when run locally, but prints no watcher line; built on the user's answers remote-cli-Q2, Q5, Q10, Q12 and Q15 (2026-11-22), with no measured cost; it takes its
   dependencies like the rest of the CLI and knows no role but the board's Griller. The same process is the
   forge hub while it runs (one per planning surface and machine, started by a session's watcher,
   detached, when none runs and the session holds the seat, on the user's one yes for the watcher
@@ -155,7 +155,7 @@
   sooner than `events.wake_every` after its start, which wakes its session, or when the project's
   seat is another session's, or 2 h after its start with no event for it that wakes (so a watcher
   an ended session left behind stops); the
-  hub records nothing in a batch, runs no git and messages no agent (the server runs no git but its writer's); every journal line, the CLI commands' included in their own process, goes through the one append function; an outside poller (the user's own program, never
+  hub records nothing in a batch, runs no git and messages no agent (the server runs no git but its writer's and that of a command its `cli.run` runs, the batch's end cleanup); every journal line, the CLI commands' included in their own process, goes through the one append function; an outside poller (the user's own program, never
   started by chantier) writes into a project's journal only through `journal add`, only `issue@1`
   lines, and only for an issue a CR's `issue:` line names; each watcher holds a lock of
   its own in the git folder, `chantier/watch-<project>/<session>.lock` (one per project and session
@@ -172,8 +172,9 @@
   poller only); `journal add` is the one entry by which an outside poller appends an `issue@1`
   line to a project's journal; built on the user's answer planning-server-Q24 (2026-11-20: issues
   polled from outside), with no measured cost.
+  `login` and `logout`: `login` stores a server's address and key in a profile of the user's config folder for the projects named, after which every command for those projects but `serve`, `watch`, `webui`, `live`, `login` and `logout` runs on that server (`gate` is refused there), and `logout` removes it; built on the user's answers remote-cli-Q4, Q7, Q8 and Q17 (2026-11-22), with no measured cost.
   `webui`: prints the web board's link with its key, and starts the surface server, detached,
-  when none runs; built on the user's answers remote-cli-Q1, Q3 and Q14 (2026-11-22), with no
+  when none runs (with an active profile, it prints the profile's link and starts nothing); built on the user's answers remote-cli-Q1, Q3 and Q14 (2026-11-22), with no
   measured cost.
   `wait`: a CR's typed
   waits (answer, approval, pipeline, merge), recorded, cleared and shown, the hub signalling a wait
@@ -183,7 +184,7 @@
   a CR or push its branch, and changes nothing; built on the user's answer of 2026-11-20 ("tout":
   all five of Vercel Board's ideas, planning-server-Q9), with no measured cost.
   `live`: a read-only terminal client of the surface server's published API, shipped in
-  `clients/tui/`; it reads the server only (never the planning folder, the forge or git), writes
+  `clients/tui/`; it reads the server only (the recorded one, or the active profile's) (never the planning folder, the forge or git), writes
   nothing and messages no agent; built on the user's request of 2026-11-20, with no measured
   cost.
   The forge calls of the batch's commands, with the user's own `gh` or `glab`, and the network for

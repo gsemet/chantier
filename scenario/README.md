@@ -435,6 +435,12 @@ does a unit that is not in `UNITS` and a test that does not exist.
     only; `webui` on a running server prints `board already running at`; after the server is killed it starts
     `serve --stop-idle` with no `--seat`, prints `board on` and the idle-stop line, and the server answers
     `board.get`; a watcher's board still runs `serve --seat ... --stop-idle`;
+  - remote commands (CR-458, unit: surface-board): `login <private link>` stores the profile for the served project and prints
+    no key; through it a `file` lands in the server's inbox, a `note` shows in the record, and a `status` prints what
+    `status --profile local` prints less the `watch:` line; `gate` is refused (exit 1); `login <read link> --profile ro
+    --no-default` then a `note --profile ro` is refused with nothing written; `logout` ends the profiles; with the server
+    stopped and a profile set, a remote `status` exits 4 with its `error: remote:` line and a command for another
+    project still runs here;
   - the surface server (CR-386, CR-429), on the same surface: `chantier serve --port 0` started by
     hand prints `board: watches the planning files`, `server.json` names its PID in `server` and in
     `hub` with its file watch, `status` prints `forge hub: PID <board pid>, the surface server, idle

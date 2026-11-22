@@ -70,6 +70,15 @@ class Parser(argparse.ArgumentParser):
         raise SystemExit(USAGE)
 
 
+CONFIG_HOME_VAR = "CHANTIER_CONFIG_HOME"  # where chantier keeps the user's profiles (`chantier login`)
+
+
+def config_home(folder=None) -> str:
+    """A profiles folder of the eval's own: `folder` (under the eval's workspace), else one in the system's
+    temporary folder. A maintainer's own profile, or another surface's, then never turns an eval remote."""
+    return str(Path(folder) if folder else Path(tempfile.gettempdir()) / "chantier-eval-config")
+
+
 def git_env() -> dict:
     """The user's git config reaches nothing: no autocrlf, no signing, no template, no hooks."""
     env = dict(os.environ)
@@ -80,6 +89,7 @@ def git_env() -> dict:
 def remote_env() -> dict:
     """Talking to GitHub keeps the user's git config (credential helper); it never prompts."""
     env = dict(os.environ)
+    env[CONFIG_HOME_VAR] = config_home()
     env["GIT_TERMINAL_PROMPT"] = "0"
     return env
 

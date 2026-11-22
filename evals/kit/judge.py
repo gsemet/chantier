@@ -52,6 +52,7 @@ def project_env() -> dict:
     env = dict(os.environ)
     for name in ("VIRTUAL_ENV", "SHELF_DATA"):
         env.pop(name, None)
+    env[sandbox.CONFIG_HOME_VAR] = sandbox.config_home()  # no profile of the maintainer's turns a run remote
     return env
 
 

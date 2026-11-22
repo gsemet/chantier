@@ -118,9 +118,9 @@ UNITS = {
     "direct": (220, ["github"], ["direct_batch", "seat_handover", "foreman_in_a_worktree",
                                  "empty_batch", "running_batch"]),
     "surface-board": (
-        710,
+        735,
         ["github"],
-        ["remote_board", "forge_hub", "serve_and_webui", "several_boards", "outside_poller", "typed_waits", "surface_server",
+        ["remote_board", "forge_hub", "serve_and_webui", "several_boards", "remote_cli", "outside_poller", "typed_waits", "surface_server",
          "external_surface", "surface_writer", "cr_summary"],
     ),
     "qa-driver": (255, ["github"], ["lost_messages", "qa_on_head", "driver_liveness", "restore_cr"]),
@@ -304,7 +304,9 @@ class World:
                     "CLAUDE_CODE_ENTRYPOINT": "claude-desktop", "CHANTIER_HOST": "claude",
                     "CLAUDE_CODE_SESSION_ID": "uuid-chief",  # the Chief of Staff's session
                     # a board's API: it looks every 1 s, holds a long-poll 6 s, ticks and waits for a hello 5 s
-                    "CHANTIER_API_TEST_TIMES": "1:6:5:5"}
+                    "CHANTIER_API_TEST_TIMES": "1:6:5:5",
+                    # the user's profiles (`chantier login`): this world's own, never the maintainer's
+                    "CHANTIER_CONFIG_HOME": str(root / "config")}
         for var in ("CHANTIER_ROOT", "CHANTIER_BATCH", "CHANTIER_PLUGIN_ROOT",
                     "COPILOT_AGENT_SESSION_ID"):
             self.env.pop(var, None)
@@ -2945,6 +2947,109 @@ def several_boards(w: World) -> None:
     finally:
         for proc in reversed(procs):
             proc.stop()
+
+
+def remote_cli(w: World) -> None:
+    """CR-458: `chantier login` stores a profile; with it every command for the project runs on the
+    server (`cli.run`), the other projects and `--profile local` run here, `gate` is refused, a
+    read-only profile acts on nothing, `logout` ends it, and a dead server answers `error: remote:`."""
+    note("\n## 16d1b. Remote commands: `login`, a profile, `cli.run`, `logout`")
+    sw = SurfaceWorld(w.root / "remote")
+    sw.root.mkdir()
+    sw.build()
+    sw.chantier("init")
+    sw.chantier("init", project="other")
+    sw.chantier("open", sw.prepare("Remote CR"), "--direct", "--slots", 1, *FROM_AGENTS_MD)
+    batch_file = sw.state / "4-batch" / "batch.json"
+    d = json.loads(batch_file.read_text(encoding="utf-8"))
+    cr, batch = d["crs"][0]["id"], d["id"]
+    sw.chantier("foreman", "set", "uuid-chief", "--epoch", 1, "--batch", batch)
+    profiles = Path(sw.env["CHANTIER_CONFIG_HOME"]) / "profiles.json"
+    board = BoardProc(sw, "serve", "--project", "demo", "--host", "127.0.0.1", "--port", 0, cwd=sw.surface)
+
+    def stored() -> dict:
+        try:
+            return json.loads(profiles.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+
+    def notes() -> list[str]:
+        d = json.loads(batch_file.read_text(encoding="utf-8"))
+        return next(c for c in d["crs"] if c["id"] == cr).get("notes", [])
+
+    def login(*args, expect=0):
+        return World.chantier(sw, "login", *args, cwd=sw.surface, expect=expect)
+
+    try:
+        link = Link(board.line())
+        if not link.ok:
+            check("the server starts for the remote commands", False, str(link.over))
+            return
+        found = re.search(r"http://\S+", board.read_only.get(timeout=10) or "")
+        read_link = found[0] if found else ""
+        private = f"http://127.0.0.1:{link.port}/?k={link.key}"
+        code, out = login(private)
+        data = stored()
+        check("`login <private link>` stores the profile `default` for `demo`, private, the default, "
+              "and prints no key",
+              code == 0 and data.get("default") == "default"
+              and data.get("profiles", {}).get("default", {}).get("projects") == ["demo"]
+              and data["profiles"]["default"].get("access") == "write"
+              and out and out[0].startswith("logged in: profile default")
+              and link.key not in " ".join(out), f"{out} {data}")
+        code, out = sw.chantier("file", "Remote idea")
+        check("a remote `file` lands in the server's inbox",
+              code == 0 and (sw.state / "1-inbox" / "remote-idea").is_dir(), str(out))
+        code, out = sw.chantier("note", cr, "from afar", "--batch", batch)
+        check("a remote `note <cr> \"from afar\"` shows in the record", code == 0 and "from afar" in notes(),
+              str(notes()))
+        code, remote = sw.chantier("status", "--batch", batch)
+        _, local = sw.chantier("status", "--batch", batch, "--profile", "local")
+        kept = [x for x in local if not x.startswith("watch:")]
+        check("a remote `status` prints what `status --profile local` prints, less the `watch:` line",
+              code == 0 and bool(remote) and remote == kept and len(kept) < len(local)
+              and not any(x.startswith("watch:") for x in remote), f"{remote} / {local}")
+        code, _ = sw.chantier("gate", cr, "scenario", named=False, expect=1)
+        check("`gate` is refused through a profile (exit 1)",
+              code == 1 and "gate runs on the server's machine" in sw.last_stderr, sw.last_stderr)
+        code, _ = login(read_link, "--profile", "ro", "--no-default")
+        data = stored()
+        check("`login <read link> --profile ro --no-default` stores a read profile and keeps the default",
+              code == 0 and data.get("default") == "default"
+              and data["profiles"].get("ro", {}).get("access") == "read", str(data))
+        before = notes()
+        code, _ = sw.chantier("note", cr, "nope", "--batch", batch, "--profile", "ro", expect=1)
+        check("`note --profile ro` is refused before any request, and writes nothing",
+              code == 1 and "read-only" in sw.last_stderr and notes() == before, sw.last_stderr)
+        _, out = login()
+        check("`login` with no link lists the profiles, the default marked, no key",
+              len(out) == 2 and "(default)" in out[0] and out[1].startswith("ro ")
+              and link.key not in " ".join(out), str(out))
+        code, out = World.chantier(sw, "logout", "--profile", "ro", cwd=sw.surface)
+        code2, out2 = World.chantier(sw, "logout", cwd=sw.surface)
+        check("`logout --profile ro` then `logout` end both, none is the default",
+              code == 0 and code2 == 0 and stored().get("default") is None
+              and stored().get("profiles") == {}, f"{out} {out2} {stored()}")
+        _, again = sw.chantier("status", "--batch", batch)
+        check("after `logout` a `status` runs here again (its `watch:` line is back)",
+              any(x.startswith("watch:") for x in again), str(again))
+        login(private)
+        board.stop()
+        end = time.monotonic() + 20
+        while surface_alive(sw) and time.monotonic() < end:
+            time.sleep(0.25)
+        code, out = sw.chantier("status", "--batch", batch, expect=4)
+        check("with the server stopped and a profile set, a remote `status` exits 4 with its "
+              "`error: remote:` line", code == 4 and sw.last_stderr.startswith("error: remote:"),
+              sw.last_stderr)
+        code, _ = sw.chantier("status", project="other", expect=None)
+        check("with the server stopped, a command for another project (`other`) still runs here: its own `no running batch` error (exit 2), no request",
+              code == 2 and "remote" not in sw.last_stderr and "no running batch" in sw.last_stderr,
+              sw.last_stderr)
+        World.chantier(sw, "logout", cwd=sw.surface)
+    finally:
+        surface_kill(sw)
+        board.stop()
 
 
 def outside_poller(w: World) -> None:
@@ -11492,6 +11597,7 @@ CASES = {
     "forge_hub": forge_hub,
     "serve_and_webui": serve_and_webui,
     "several_boards": several_boards,
+    "remote_cli": remote_cli,
     "outside_poller": outside_poller,
     "typed_waits": typed_waits,
     "surface_server": surface_server,

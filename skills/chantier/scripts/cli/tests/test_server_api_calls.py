@@ -110,6 +110,8 @@ def test_a_good_call_of_every_op_answers_the_data_its_route_gave_or_the_store_ho
     status, _ = call(board, "griller.send", {**item, "text": "hi", "from": "p"})
     good.seen.add("griller.send")
     assert status == NOT_FOUND  # no such item: refused before anything starts
+    ran = good("cli.run", {**good.args, "argv": ["rules"]})
+    assert ran["code"] == 0 and "launch" in ran
     _written(good)
     assert good.seen == set(protocol.OPS)
 
