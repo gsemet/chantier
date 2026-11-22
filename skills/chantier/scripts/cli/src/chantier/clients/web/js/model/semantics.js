@@ -206,16 +206,6 @@ export function reducedEdges(rows) {
   const all = edges(rows);
   const next = new Map();
   for (const [a, b] of all) next.set(a, [...(next.get(a) ?? []), b]);
-  const state = new Map(); // 1 while on the walk, 2 once done
-  const cyclic = (id) => {
-    if (state.get(id) === 1) return true;
-    if (state.get(id) === 2) return false;
-    state.set(id, 1);
-    const found = (next.get(id) ?? []).some(cyclic);
-    state.set(id, 2);
-    return found;
-  };
-  if ([...next.keys()].some(cyclic)) return all;
   const reach = (from, goal, skip) => {
     const seen = new Set();
     const stack = [...(next.get(from) ?? [])].filter((x) => x !== skip);
@@ -228,6 +218,7 @@ export function reducedEdges(rows) {
     }
     return false;
   };
+  if (all.some(([a, b]) => reach(b, a))) return all;
   return all.filter(([a, b]) => !reach(a, b, b));
 }
 
@@ -237,7 +228,7 @@ export function orderLevels(cols, pairs) {
   const out = cols.map((col) => [...(col ?? [])]);
   const sort = (i, side) => {
     const place = new Map();
-    out.forEach((col) => col.forEach((c, k) => place.set(c.cr, k)));
+    for (const col of out) for (const [k, c] of col.entries()) place.set(c.cr, k);
     const key = (c, k) => {
       const mates = pairs
         .filter((p) => p[1 - side] === c.cr && place.has(p[side]))

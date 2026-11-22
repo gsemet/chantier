@@ -68,10 +68,14 @@ def test_each_mode_word_of_a_live_batch_has_a_tip_in_both_languages() -> None:
 
 def test_the_graph_draws_the_reduction_folds_the_done_and_fits_the_column() -> None:
     semantics = _read("js", "model", "semantics.js")
-    assert "export function reducedEdges(" in semantics and "export function orderLevels(" in semantics
+    assert (
+        "export function reducedEdges(" in semantics and "export function orderLevels(" in semantics
+    )
 
     graph = _read("js", "views", "batch-graph.js")
-    drawn = graph[graph.index("export function drawEdges") : graph.index("export function bindLight")]
+    drawn = graph[
+        graph.index("export function drawEdges") : graph.index("export function bindLight")
+    ]
     assert "reducedEdges(" in drawn and "edges(" not in drawn.replace("reducedEdges(", "")
     block = graph[graph.index("const foldBar") : graph.index("const TAIL")]
     assert "orderLevels(" in block and "data-fold" in block and "aria-expanded" in block
