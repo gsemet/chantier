@@ -242,11 +242,10 @@ def start_on_for(
     """The branch a CR taken from `queued` is to start on, to record on it: in a stack batch, for
     a CR that is neither a release nor a fix and has no open dependency, the branch of the nearest
     CR below it in `chain` that has a PR, when that CR is handed back `ready` (`_start_candidate`),
-    else None (the default branch);
-    in a series batch, the branch of an open `series_predecessor` (the one `start_base`'s series
-    rule gives). None in a parallel batch and for any other CR; a stack CR with an open
-    dependency gets none, its base follows its dependencies' places. A CR of `landed` (its PR seen
-    merged on the forge) reads as ended."""
+    else None (the default branch); in a series batch, the branch of an open `series_predecessor`
+    (the one `start_base`'s series rule gives). None in a parallel batch and for any other CR; a
+    stack CR with an open dependency gets none, its base follows its dependencies' places. A CR of
+    `landed` (its PR seen merged on the forge) reads as ended."""
     if b_data.mode == "series":
         pred = series_predecessor(b_data.crs, c) if _alone(c) else None
         return pred.branch if pred and pred.status != "merged" and pred.id not in landed else None
@@ -304,16 +303,12 @@ def stack_start(
         return str(c.start_on)
     dep = _nearest_open(b_data, c, landed)
     if not c.stacked:
-        if dep is not None:
-            return dep[1].branch
-        if c.status != "queued":
-            return default
-        cand = _start_candidate(b_data, c, landed)
-        return cand[1].branch if cand else default
+        cand = _start_candidate(b_data, c, landed) if c.status == "queued" else None
+        pick = dep or cand
+        return pick[1].branch if pick else default
     below = _below_with_pr(b_data, c, landed)
-    if below is not None:
-        return dep[1].branch if dep is not None and dep[0] > below[0] else below[1].branch
-    return dep[1].branch if dep is not None else default
+    pick = dep if below is None or (dep is not None and dep[0] > below[0]) else below
+    return pick[1].branch if pick else default
 
 
 def start_base(
