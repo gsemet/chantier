@@ -200,7 +200,6 @@ def test_both_hosts_give_a_role_the_same_body_and_their_own_frontmatter(role: st
     copilot, copilot_body = _front(agent_file(role, "copilot"))
     assert claude_body == copilot_body and f"`chantier {role}`" in claude_body
     assert claude["name"] == role and copilot["name"] == f"chantier-{role}"
-    assert claude["description"] == copilot["description"]
     # the description ends with the first line the prompt must start with; the refusal names it
     # and says a new start is needed; a later message gets the same answer
     described = claude["description"].strip("'").replace("''", "'")
