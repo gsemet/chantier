@@ -24,6 +24,7 @@ else:
 
 _T = TypeVar("_T")
 LOCK_TIMEOUT_S = 30
+HELD_WAIT_S = 10.0  # how long a CR folder move waits for a held folder on Windows
 FRONTMATTER = re.compile(r"\A\ufeff?---[ \t]*\n(?:.*?\n)?---[ \t]*(?:\n|\Z)", re.S)
 HEADING_LINE = re.compile(r"#{1,6} (.*)")
 LEAD = re.compile(r"^\ufeff?[#\s]*(?:change\s+specification\s*:\s*)?", re.I)
@@ -103,6 +104,28 @@ def retry(op: Callable[..., _T], *args: Any) -> _T:
                 raise
             time.sleep(0.01)
     return op(*args)
+
+
+def on_windows() -> bool:
+    return sys.platform == "win32"
+
+
+def retry_held(op: Callable[..., _T], *args: Any) -> _T:
+    """`retry` for a folder move: on Windows a folder cannot move while a process holds it (its
+    working directory, an open file), so try again for up to `HELD_WAIT_S`, with a growing pause
+    (0.05 s to 0.5 s), then raise the last `PermissionError`. On POSIX, one call."""
+    if not on_windows():
+        return op(*args)
+    deadline = time.monotonic() + HELD_WAIT_S
+    pause = 0.05
+    while True:
+        try:
+            return op(*args)
+        except PermissionError:
+            if time.monotonic() >= deadline:
+                raise
+            time.sleep(pause)
+            pause = min(pause * 2, 0.5)
 
 
 def read_text(path: Path, errors: str = "strict") -> str:

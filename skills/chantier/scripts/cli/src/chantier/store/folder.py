@@ -11,6 +11,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
+from chantier.core import files as core_files
 from chantier.core.errors import (
     EXIT_CONFLICT,
     EXIT_EXTERNAL,
@@ -23,6 +24,7 @@ from chantier.core.files import (
     read_text,
     rel_in,
     retry,
+    retry_held,
     try_lock,
     unlock,
     write_bytes,
@@ -171,8 +173,19 @@ class FolderStore:
             raise ChantierError(f"invalid CR move: {source} to {destination}", EXIT_USAGE)
         destination.parent.mkdir(parents=True, exist_ok=True)
         try:
-            retry(source.rename, destination)
+            retry_held(source.rename, destination)
         except OSError as e:
+            if isinstance(e, PermissionError) and core_files.on_windows():
+                wait = f"{core_files.HELD_WAIT_S:.3f}".rstrip("0").rstrip(".")
+                raise ChantierError(
+                    f"cannot move CR folder {source} to {destination}: refused for {wait} s, "
+                    "the folder is likely held; nothing moved. On Windows a folder cannot move "
+                    "while a process holds it: a shell or a program whose working directory is "
+                    "inside it, or a file of it open in an editor or a viewer. Leave it (cd "
+                    "elsewhere, close the file) and run the command again; the board need not "
+                    f"stop. ({e})",
+                    EXIT_EXTERNAL,
+                ) from e
             raise ChantierError(
                 f"cannot move CR folder {source} to {destination}: {e}", EXIT_EXTERNAL
             ) from e

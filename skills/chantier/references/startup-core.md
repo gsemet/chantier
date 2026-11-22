@@ -23,3 +23,8 @@ invent capacity: a host path not exercised is labelled untested.
 
 Before an action, read every reading the manifest lists for it; one that cannot be read blocks
 that action only.
+
+No shell call changes its folder (`cd`, `Set-Location`, `pushd`, alone or chained before a
+command) into a CR folder (any stage), whatever your role: name the target with absolute paths.
+On Windows a process whose current folder is inside a folder keeps that folder from being moved
+(WinError 32), so the CR's next move fails.
