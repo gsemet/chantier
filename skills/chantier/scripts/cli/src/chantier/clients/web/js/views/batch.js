@@ -18,7 +18,7 @@ import { spentAge } from '../model/spend-age.js';
 import { t } from '../model/words.js';
 import { bindOpen } from '../ui/open.js';
 import { empty, kpi, meter } from '../ui/parts.js';
-import { bindLight, drawEdges, graphBlock } from './batch-graph.js';
+import { bindLight, drawEdges, graphBlock, toggleFold } from './batch-graph.js';
 import { kanbanBlock } from './batch-kanban.js';
 import { bindGateLinks } from './batch-pr-card.js';
 import { prsBlock } from './batch-prs.js';
@@ -140,7 +140,12 @@ const graphTab = {
     let alive = true;
     document.fonts?.ready.then(() => alive && onResize());
     const stop = bindLight(root, rowsNow);
+    const stopFold = delegate(root, 'click', '[data-fold]', () => {
+      toggleFold();
+      update({});
+    });
     return () => {
+      stopFold();
       alive = false;
       window.removeEventListener('resize', onResize);
       cancelAnimationFrame(frame);

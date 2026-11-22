@@ -64,3 +64,30 @@ def test_each_mode_word_of_a_live_batch_has_a_tip_in_both_languages() -> None:
         assert "'mode.current':" in words, lang
     english = 'To switch, ask the Chief of Staff to "change the batch to {mode}"'
     assert english in _read("js", "i18n", "en.js")
+
+
+def test_the_graph_draws_the_reduction_folds_the_done_and_fits_the_column() -> None:
+    semantics = _read("js", "model", "semantics.js")
+    assert "export function reducedEdges(" in semantics and "export function orderLevels(" in semantics
+
+    graph = _read("js", "views", "batch-graph.js")
+    drawn = graph[graph.index("export function drawEdges") : graph.index("export function bindLight")]
+    assert "reducedEdges(" in drawn and "edges(" not in drawn.replace("reducedEdges(", "")
+    block = graph[graph.index("const foldBar") : graph.index("const TAIL")]
+    assert "orderLevels(" in block and "data-fold" in block and "aria-expanded" in block
+    assert "edges(" in _read("js", "views", "batch-gantt.js")
+
+    css = _read("css", "views", "batch-graph.css")
+    lvl = _rule(css, ".batch .lvl")
+    assert "flex: 1 1 0" in lvl and "min-width" in lvl and "max-width" in lvl
+    assert "container: graph-level" in lvl
+    assert "max-content" not in _rule(css, ".batch .graph")
+    chip = _read("css", "components", "chip.css")
+    assert re.search(r"@container graph-level \([^)]*\)\s*\{[^}]*\.sbw", chip)
+
+    keys = ("fold_merged", "fold_cancelled", "fold_show", "fold_hide", "waits_for")
+    for lang in ("en", "fr"):
+        words = _read("js", "i18n", f"{lang}.js")
+        for key in keys:
+            assert f"'batch.{key}':" in words, (lang, key)
+        assert re.search(r"'batch\.arrow':\s*['\"][^\n]*;", words), lang
