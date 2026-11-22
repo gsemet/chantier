@@ -381,9 +381,7 @@ At startup, identify the role, batch, project and parent session.
 - **Griller:** a session that keeps the inbox and the backlog with the user (file, triage, grill,
   answers, specification) and may prepare work for the Chief of Staff. It opens no batch, sends
   no order, steers nothing, closes nothing, merges nothing. Usually short: started for a few
-  items, it ends quickly. The board's Griller is a Griller the surface server starts headless from the
-  web board, on one CR, for any holder of the board's key, under the limits of the Griller card's
-  "Started from the board".
+  items, it ends quickly. The board's Griller: the server starts one headless from the web board, on one CR.
 - **The Chief of Staff's seat:** a small file kept by the CLI, `seat.json` in the planning folder (one per project, local), that
   names the repository's Chief of Staff session: its session id, its transcript id, the
   environment, the title and the link. It records no date: no activity date is ever taken as
