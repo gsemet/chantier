@@ -25,14 +25,26 @@ anything else:
   name what would be left (the uncommitted files, the commits) and ask. Where the host's reference
   names a way to move this session and marks it proved, offer that; Claude Code's is refused for
   an isolated worktree (its reference).
-- With a planning surface, "the main checkout" is the surface's checkout, on its default branch,
-  or the project's main checkout with the surface added as a working directory. In both, the
-  planning folder is the surface's project folder, written by absolute paths, and the project's
-  clone of `checkout.yml` hosts no session. A session tells the two cases apart by what it has:
-  the surface added as a working directory and `$CHANTIER` given `--project` in it. A session
-  started alone in a project whose `AGENTS.md` holds the pointer line (`- planning: <url>,
-  projects/<name>`), without the surface added, says, first, "this project plans in the
-  surface at <url>; start the session there", and plans nothing in the project.
+- With a planning surface, the session's folder is a main checkout, of the surface (on its default
+  branch) or of the project (its clone, nested in the surface or beside it, as `checkout.yml`
+  places it); the other folder is added to the session. P6 and P7 accept both and refuse a linked
+  worktree of either.
+- Finding the surface, once per session, before `$CHANTIER` runs: read the project's `AGENTS.md`
+  pointer line (`- planning: <url>, projects/<name>`). With no pointer line and a
+  `.agents/changes/` in the checkout, the project plans in itself (in-project layout): no
+  `--project`. With one, the surface is the session folder (cwd or added working directory) whose
+  `git remote get-url origin` names that url (compare without a trailing `.git`, and the same
+  host and path over https or ssh) and that holds `projects/<name>/`; when the cwd is the surface
+  itself, its own `projects/` names the project. `$CHANTIER` is then the skill's command plus
+  `--project <absolute surface folder>/projects/<name>` for the whole session.
+- Once found, the session keeps it: the plan's writes go through `$CHANTIER` (by absolute paths),
+  and the session's own git reads run with `git -C <surface>` for the plan and `git -C <clone>`
+  for the project's code, never with a bare `git` that reads whichever folder the cwd is.
+- A session whose project `AGENTS.md` holds the pointer line and that has no folder matching it
+  says, first, "this project plans in the surface at <url>; add its checkout to this session, or
+  start the session there", and plans nothing in the project.
+- The project's clone hosts the session when it is the cwd; its linked worktrees (the CRs') never
+  do.
 
 The other preflight lines are a batch's and are not reported here, except what the configuration
 checks add to the first message (P5, P9, P10), which goes in the same message; P10's warning

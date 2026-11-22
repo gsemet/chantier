@@ -77,9 +77,10 @@ def _settings_rules(
     absent holds nothing."""
     files = [Path.home() / ".claude" / "settings.json"]
     if repo:
+        folder = repo.session_checkout().top or repo.session_root
         files += [
-            repo.session_root / ".claude" / "settings.json",
-            repo.session_root / ".claude" / "settings.local.json",
+            folder / ".claude" / "settings.json",
+            folder / ".claude" / "settings.local.json",
         ]
     rules: dict[str, list[str]] = {"allow": [], "deny": [], "ask": []}
     unreadable: list[str] = []
@@ -110,7 +111,7 @@ def _dev_mode(repo: Repo | None) -> bool:
 def _forges(remote: str, repo: Repo | None) -> set[str]:
     """The forges that apply: the remote's forge, the `gh stack` extension when
     `gh extension list` names it; and the mode's rows, `dev` or `plugin`."""
-    url = git("remote", "get-url", remote, check=False).lower()
+    url = git("remote", "get-url", remote, cwd=repo.root if repo else None, check=False).lower()
     host = re.sub(r"^.*?(?:://|@)", "", url).split("/")[0].split(":")[0]
     forges = {"any", "dev" if _dev_mode(repo) else "plugin"}
     if "gitlab" in host:
@@ -297,7 +298,7 @@ def commands_not_allowed(
     if repo:
         with contextlib.suppress(Exception):
             remote = repo.config.get("remote") or remote
-    remotes = git("remote", check=False).split()
+    remotes = git("remote", cwd=repo.root if repo else None, check=False).split()
     if remote not in remotes and remotes:
         remote = "origin" if "origin" in remotes else remotes[0]
     rules, unreadable, origins = _settings_rules(repo)

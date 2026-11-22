@@ -51,7 +51,7 @@ fact.
 | List the sessions; is the seat's session alive | not known: the seat's session always "looks stopped" to a new session, and the "looks stopped" line of `session-start.md` is asked (unproved) |
 | Message another session of the user (hand-over, a Griller's line) | `send_message` to its link (unproved) |
 | A Griller in a worktree | its files sent as for a Griller on Claude Code (unproved) |
-| A session in a planning surface writing in the project's clone and worktrees (outside its folder) | the host must allow those folders (unproved); the remote finding is Claude Code's: not tried on Copilot |
+| A session in a planning surface writing in the project's clone and worktrees (outside its folder); the session's folder may be the surface's main checkout or the project's clone (P6 and P7 accept both), still unproved on this host | the host must allow those folders (unproved); the remote finding is Claude Code's: not tried on Copilot |
 
 Known host issues: a `model` array once refused by the CLI ([copilot-cli#2133](https://github.com/github/copilot-cli/issues/2133)); an SDK-provided agent's model dropped at `session.create` ([copilot-sdk#1609](https://github.com/github/copilot-sdk/issues/1609)); an unknown identifier falling back silently ([copilot-sdk#2856](https://github.com/github/copilot-sdk/issues/2856)); sub-agents on another model than the session's with no sign, fixed in CLI v1.0.62 ([copilot-cli#3824](https://github.com/github/copilot-cli/issues/3824)).
 

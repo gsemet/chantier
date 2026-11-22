@@ -9,7 +9,6 @@ from pathlib import Path
 from chantier.core.batch import RESTORED_NUMBER_FILE, move_directory
 from chantier.core.clock import stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.core.git import git
 from chantier.core.records import (
     CrEntry,
     read_batch_json,
@@ -39,14 +38,9 @@ def init(args: argparse.Namespace) -> list[str]:
             f"no git repository found ({e}): chantier needs one; run `git init` first",
             EXIT_PRECONDITION,
         ) from e
-    gitdir = Path(
-        git("rev-parse", "--path-format=absolute", "--git-dir", check=False) or "."
-    ).resolve()
-    if gitdir != repo.git_dir:  # preflight's P7
-        raise ChantierError(
-            f"this is a linked worktree: init runs in the main checkout ({repo.session_root})",
-            EXIT_PRECONDITION,
-        )
+    here = repo.session_checkout()
+    if here.linked:  # preflight's P7
+        raise ChantierError(repo.linked_text(here, here.top), EXIT_PRECONDITION)
     repo.changes.mkdir(parents=True, exist_ok=True)
     repo.ensure_gitignore()
     lines = []
