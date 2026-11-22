@@ -265,8 +265,8 @@ def views(page: Page, url: str, size: str) -> None:
 
 
 def panel(page: Page, url: str, size: str) -> None:
-    goto(page, url, "batch", "shop-api")
-    page.locator('[data-key="node-open-c:CR-145"], [data-key^="open-c:CR-145"]').first.click()
+    goto(page, url, "batch&t=kanban", "shop-api")  # the page keeps the last tab it showed
+    page.locator('[data-key^="open-c:CR-145"]').first.click()
     page.wait_for_selector('[data-key^="file-"]')
     settle(page)
     shot(page, "panel", size)
