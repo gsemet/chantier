@@ -36,7 +36,7 @@ Ground rules:
   and the rest is carried, saying so. A clean rebase that leaves the CR's patch unchanged, proved
   by git's exact patch-ids, recorded at `ship` (the same, commit by commit), touches no judgment; CI at the new head still runs.
 - Never claim a check you did not run. A test, a smoke run or a probe of the board's write paths
-  (`chantier board`'s edits of the backlog, and the role-free CLI commands it calls) never points
+  (`chantier serve`'s edits of the backlog, and the role-free CLI commands it calls) never points
   at the project's live planning folder (`.agents/changes/`, or the planning surface's). The
   project's own tests keep their fixtures and tmp folders as they are. A throwaway you make
   yourself (a scratch planning folder, a probe project, a hand-run smoke run) goes under the
@@ -44,7 +44,7 @@ Ground rules:
   folder or any other path outside your prompt's `writes:` folders, and you remove it at your end
   (it is inside your writes). The scratch project is its own git repository: run `git init
   <scratch project>` before anything else there, and before any chantier command. Every `chantier`
-  or `chantier board` call aimed at it names it: `--project <the scratch project's folder>` (a
+  or `chantier serve` call aimed at it names it: `--project <the scratch project's folder>` (a
   scratch planning surface), or the call runs with the scratch repository as its working folder and
   no `--project` and no `CHANTIER_ROOT` that points elsewhere. Never use the prompt's `$CHANTIER`
   line as printed there: it names the live project.

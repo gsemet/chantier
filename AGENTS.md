@@ -51,11 +51,13 @@
   exceptions. The end of a batch's last CR (`order merged`, `handback released`, `cancel`,
   `order drop`) removes the batch's merged CRs' worktrees and branches whose Driver has ended
   (`git worktree remove`, `git branch -D`, from the main checkout or the project's clone, with no
-  `--force`), then pauses the batch; it does nothing else in git. The surface server, `chantier board`: the web board's server, for the user on this machine and the local
+  `--force`), then pauses the batch; it does nothing else in git. The surface server, `chantier serve`: the web board's server, for the user on this machine and the local
   network, behind a key (in its URL for the web client, in a header or a WebSocket's first message
   for any other client), through one published API over a WebSocket, and over HTTP as the same
   protocol for a network where a WebSocket does not pass, behind a proxy for instance (not a
-  fallback): it serves the record and the planning folder's files (it alone reads the planning
+  fallback): two surfaces' servers on one machine never clash: each keeps its key and record in its own git
+  folder, and one that finds the default port held by another chantier board takes a free port
+  and prints it (the user's answer remote-cli-Q17, 2026-11-22); it serves the record and the planning folder's files (it alone reads the planning
   files for the live clients, told of changes by the system's file notifications (inotify,
   FSEvents, ReadDirectoryChangesW), or, on a system where none works, by a check every 5 s (the
   user's own decision of 2026-11-21, not a fallback), and publishes 1 s after the last change),
@@ -120,12 +122,14 @@
   its memory only (the host CLI keeps its own session files, as for any session of the user),
   refuses with one line while the surface's writer is not running or stopped, and no agent starts
   it; the board speaks plain HTTP, so on the network the key and every turn's text travel in clear,
-  and `chantier board --new-key` revokes the key; built on the user's direction of 2026-11-17 and
+  and `chantier serve --new-key` revokes the key; built on the user's direction of 2026-11-17 and
   answers "Tout" (2026-11-21) and board-griller-Q4 B and Q20, with no measured cost; it takes its
   dependencies like the rest of the CLI and knows no role but the board's Griller. The same process is the
   forge hub while it runs (one per planning surface and machine, started by a session's watcher,
   detached, when none runs and the session holds the seat, on the user's one yes for the watcher
-  and the board, or by the Chief of Staff on a host that cannot run the watcher; one a watcher
+  and the board, or by the Chief of Staff on a host that cannot run the watcher, or by
+  `chantier webui` when none runs (the user's typing it is the yes; that server has no seat and
+  stops by itself 30 minutes after its last client); one a watcher or `webui`
   started stops by itself when its seat leaves or 30 minutes after its last subscribed client,
   after its writer's last cycle): it holds the OS file lock in the git folder
   (`chantier/hub.lock`). The hub reads the forge, read-only, with the user's
@@ -165,6 +169,9 @@
   poller only); `journal add` is the one entry by which an outside poller appends an `issue@1`
   line to a project's journal; built on the user's answer planning-server-Q24 (2026-11-20: issues
   polled from outside), with no measured cost.
+  `webui`: prints the web board's link with its key, and starts the surface server, detached,
+  when none runs; built on the user's answers remote-cli-Q1, Q3 and Q14 (2026-11-22), with no
+  measured cost.
   `wait`: a CR's typed
   waits (answer, approval, pipeline, merge), recorded, cleared and shown, the hub signalling a wait
   met; built on the user's answer of 2026-11-20 ("tout", planning-server-Q9), with no measured
@@ -214,7 +221,7 @@
   session, run that build and serve every project of the surface, chantier included, with no
   notice while the version is equal, until the next version bump or until stopped by hand and
   started again from a chantier session; but a chantier session in the dev mode is told, on
-  `status`, the watcher's start line and `board`, when the board runs another build than its
+  `status`, the watcher's start line and `serve`, when the board runs another build than its
   checkout's, even at the same version string (`server.json` records each entry's `source`).
   A dependency ships wheels for Linux, macOS
   and Windows and replaces hand-written code. The CLI stays portable (POSIX and Windows, UTF-8

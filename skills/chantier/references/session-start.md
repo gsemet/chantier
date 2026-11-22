@@ -79,12 +79,12 @@ session's one question (**The watcher**, below), and the one a watcher starts st
 the seat leaves or 30 minutes after its last client.
 
 On a host whose reference says the watcher cannot run (no background command whose end starts a
-turn), ask the board question alone, as before: ask before starting `$CHANTIER board --seat <own
+turn), ask the board question alone, as before: ask before starting `$CHANTIER serve --seat <own
 session id> --forge-always` in the background, explaining the above; after acceptance, start it by
 the host's means (the host's reference, "Run the board"), with `--forge-always` and no
 `--stop-idle`, and read its first lines. That board stops when the seat moves, and reads the forge
 every 20 s with or without a client, so the pull path, run at each user message, still prints its
-`forge saw merged` lines. The yes holds for the session and covers starting `$CHANTIER board --seat
+`forge saw merged` lines. The yes holds for the session and covers starting `$CHANTIER serve --seat
 <own session id> --forge-always` again, by the host's means, when the board stopped (a refused
 write to the surface naming no running writer). A decline starts no server, so the session's writes
 to the surface are refused. A host with no background command at all: one line with the reason. A
@@ -95,7 +95,7 @@ changes at each version bump. The board server, its writer and the forge hub, st
 another project's session, run that build and serve every project of the surface, chantier
 included, with no notice while the version is equal, until the next version bump or until
 stopped by hand and started again from a chantier session; but a chantier session in the dev
-mode is told, on `status`, the watcher's start line and `board`, when the board runs another
+mode is told, on `status`, the watcher's start line and `serve`, when the board runs another
 build than its checkout's, even at the same version string (`server.json` records each entry's
 `source`). (The dev mode runs only in chantier's
 own checkout, when the session's project is chantier: the launch paragraph of the SKILL.md.) The
@@ -112,7 +112,7 @@ watcher that is the hub (below) runs the same build.
 - `board: no local network address found; on this machine only` (after the `board on` line, when `board.host: network` found no network address): the board is on this machine only; pass it on, and once the network is back the user stops it by the host's means, then it is started again.
 - `board already running at <URL>`: the same line (and the same second line, when it follows, then the `board: listens on the local network (...)` line when the board listens beyond this machine, which you pass on, and an added `board runs another build` line: say it once to the user as printed, never stop or restart the board), if
   not given yet in this session. One board
-  serves a planning surface (or a repository), on whatever port: a second session's `board --seat
+  serves a planning surface (or a repository), on whatever port: a second session's `serve --seat
   <id>` registers its seat on it and prints this line.
 - `board: watches the planning files`, or `board: no file notifications here; checks every 5 s`
   (the board's last start line, or after `board already running`, or after the watcher's start
@@ -122,11 +122,11 @@ watcher that is the hub (below) runs the same build.
 - `board: the running board reads the forge only while a client is subscribed ...` (a
   `--forge-always` start on a board another session's watcher started): tell the user once, in
   one line, that merges come only while a client is subscribed.
-- `error: board not started: chantier board <v> (PID <n>) already serves this surface ...` or
+- `error: board not started: chantier serve <v> (PID <n>) already serves this surface ...` or
   `... holds this surface at <host>:<port> and does not answer ...`, or the watcher's `does not
   answer` line: one line to the user with the
   version, the PID and the stop command as printed. Never stop it yourself and never start one on
-  another port to get round it: the user decides, then you run `board --seat <id>` again on the
+  another port to get round it: the user decides, then you run `serve --seat <id>` again on the
   user's word.
 - `board: writer not started: <reason>`: one line with the reason; the board serves anyway, and
   writes to the surface are refused until a writer runs. The board's other start line is the
@@ -134,11 +134,11 @@ watcher that is the hub (below) runs the same build.
 - `error: board not started: ...`, the watcher's `did not start within 20 s` or `refused the key`
   line, or a host that cannot run a background command: one line with the reason (and the printed
   command), then go on. The board never blocks the session, a preflight, a batch or a report.
-  When the user's word asks for a board started by hand (`board --seat <id>`, as the watcher's line
+  When the user's word asks for a board started by hand (`serve --seat <id>`, as the watcher's line
   prints it), run it by the host's background means (the host's reference, "Run the board"),
   never in the foreground (a board that starts never returns), and read its first lines.
 
-On a surface, `$CHANTIER board --seat <id>` keeps the `--project` that `$CHANTIER` holds.
+On a surface, `$CHANTIER serve --seat <id>` keeps the `--project` that `$CHANTIER` holds.
 
 **The watcher.** A Chief of Staff (never a Griller, a Foreman, a Driver or the router before a
 role), whatever its project's batch (running, paused or none), asks the user one question once per
@@ -164,12 +164,12 @@ message." A host that cannot run a background command: one line with the reason,
 workaround. Its lines:
 
 - `watch: <project> from cursor <n> for ...; started the board (PID <n>)`: say once that the board
-  was started, with its link from `status` or `board --seat`. The `board: listens on the local
+  was started, with its link from `status` or `serve --seat`. The `board: listens on the local
   network (...)`, `board: no local network address found ...` and file-watch lines that may follow
   it (or the start line on a running board): pass each on, in one line, as the board's own. The
   start line's `board is chantier <v>: restart it to run this version`: tell the user once, in one
   line, and go on.
-- `watch: the board did not start within 20 s ...`, `watch: a chantier board <v> (PID <n>) ...
+- `watch: the board did not start within 20 s ...`, `watch: a chantier serve <v> (PID <n>) ...
   does not answer ...`, `watch: the board at <host>:<port> refused the key of server.json ...`,
   `watch: no seat for <project> ...`, `watch: the seat of <project> records no session transcript
   ...`, `... cannot be read ...` and `watch: this run has no session key ...`: one line to the user
@@ -188,7 +188,7 @@ the PID of the watcher's start line or of `status`'s `forge hub:` line: `taskkil
 on Windows, `kill <pid>` elsewhere.
 
 A reload starts nothing: the board survives a compaction, and at the next skill invocation the
-`board` run is a reuse.
+`serve` run is a reuse.
 
 **The user's word changes the role at any time, both ways:**
 
@@ -321,8 +321,8 @@ Read before the first sync of a dev-mode session (`$CHANTIER`'s mode is set in `
 
 3. With none, run `uv sync --locked --project "<plugin root>"`.
 
-4. With any holder (a gate, a watcher, the board or hub, of any project or surface, this session's own included), or when the sync fails with os error 32 (a holder the listing missed, or one that started in between), never stop or kill a process and ask no one to: go on unsynced, saying `sync pending: held by <holders>` (each holder as `PID <n> <subcommand> <project>`, or `an unlisted process` when the listing found none), and try again from step 1 at each next turn but a reload (`session-start.md`, "5. Reload": a reload runs no `uv sync`).
+4. With any holder (a gate, a watcher, the board or hub, of any project or surface, this session's own included), or when the sync fails with os error 32 (a holder the listing missed, or one that started in between), never stop or kill a process and ask no one to: go on unsynced, saying `sync pending: held by <holders>` (each holder as `PID <n> <subcommand> <project>`, a server `$CHANTIER webui` started (`serve --stop-idle`, no `--seat`) as `PID <n> serve <project> (started by webui)`, or `an unlisted process` when the listing found none), and try again from step 1 at each next turn but a reload (`session-start.md`, "5. Reload": a reload runs no `uv sync`).
 
-5. Still pending 3 minutes after its first try, tell the user once, naming the holders, that the sync waits for them (in a batch as the **For you** item of `status-layout.md`; outside a batch one chat line, and at most one more, step 6's offer), then go on as in step 4.
+5. Still pending 3 minutes after its first try, tell the user once, naming the holders, that the sync waits for them (a `webui`-started server still listed is named with its stop command (`taskkill /PID <n> /T /F` on Windows, `kill <n>` elsewhere, as `serve`'s refusal prints it), for the user to run by hand: it has no seat, its idle stop does not come while this session's watcher stays subscribed, and chantier never stops it; in a batch as the **For you** item of `status-layout.md`; outside a batch one chat line, and at most one more, step 6's offer), then go on as in step 4.
 
-6. Your own board and watcher, on your yes: at the first try, at or after those 3 minutes, where every listed holder is this session's own board or watcher, offer once per pending sync to stop them, stating the cost: the board and the surface's writer are off for all projects meanwhile, the hub too, unless another session's watcher takes it (off a planning surface there is no writer, and the cost names the board and the hub only, with the same "unless"). When that holds at the 3-minute message, the offer is in that message; when it first holds later (a gate held `.venv` at 3 minutes and has ended since), the offer is, in a batch, the **For you** item's new state, and outside a batch one more chat line, the only one after step 5's. No third line: if a gate or another holder appears after the offer, say nothing more; the offer stands for a later yes while the conditions hold. "First try" is a turn, not a timer: no sleep, no monitor, no wake for it. "Own" is the host row's evidence: own board, its command line holds `--seat <this session's id>` and this session's `board --seat` did not print `board already running`; own watcher, a `watch` process with this project's `--project` while this session holds a running watcher task and the project's seat; anything else is not own (another session's board included). An own process is stopped by the host's stop of the background shell that holds it, never by `Stop-Process`, `taskkill`, `kill` or a PID. On the user's yes: stop the watcher and the board, list the holders again, sync only if none, then start the board and the watcher again whatever the result (`session-start.md`'s board start, and the watcher's printed command, as is); a holder still listed after the stop is no longer own (its shell is gone): it is waited on as in step 4, never killed, and the board's restart then meets `board already running`, passed on as is. The yes covers the restart: no second question. A failed sync is one line with uv's text. No offer while another holder is listed or a gate runs (listed, or shown by `$CHANTIER status`). No answer: the offer stands. A no: keep waiting as in step 4, do not ask again; in a batch the **For you** item then names the holders only, plus "a later yes still counts". An ordinary sync failure is, at the session's start, `startup-core.md`'s; at a batch's start or after a merge, one line to the user with uv's text, and you go on.
+6. Your own board and watcher, on your yes: at the first try, at or after those 3 minutes, where every listed holder is this session's own board or watcher, offer once per pending sync to stop them, stating the cost: the board and the surface's writer are off for all projects meanwhile, the hub too, unless another session's watcher takes it (off a planning surface there is no writer, and the cost names the board and the hub only, with the same "unless"). When that holds at the 3-minute message, the offer is in that message; when it first holds later (a gate held `.venv` at 3 minutes and has ended since), the offer is, in a batch, the **For you** item's new state, and outside a batch one more chat line, the only one after step 5's. No third line: if a gate or another holder appears after the offer, say nothing more; the offer stands for a later yes while the conditions hold. "First try" is a turn, not a timer: no sleep, no monitor, no wake for it. "Own" is the host row's evidence: own board, its command line holds `--seat <this session's id>` and this session's `serve --seat` did not print `board already running`; own watcher, a `watch` process with this project's `--project` while this session holds a running watcher task and the project's seat; anything else is not own (another session's board included, and a server `webui` started, whose command line holds no `--seat`: step 6 never offers to stop it). An own process is stopped by the host's stop of the background shell that holds it, never by `Stop-Process`, `taskkill`, `kill` or a PID. On the user's yes: stop the watcher and the board, list the holders again, sync only if none, then start the board and the watcher again whatever the result (`session-start.md`'s board start, and the watcher's printed command, as is); a holder still listed after the stop is no longer own (its shell is gone): it is waited on as in step 4, never killed, and the board's restart then meets `board already running`, passed on as is. The yes covers the restart: no second question. A failed sync is one line with uv's text. No offer while another holder is listed or a gate runs (listed, or shown by `$CHANTIER status`). No answer: the offer stands. A no: keep waiting as in step 4, do not ask again; in a batch the **For you** item then names the holders only, plus "a later yes still counts". An ordinary sync failure is, at the session's start, `startup-core.md`'s; at a batch's start or after a merge, one line to the user with uv's text, and you go on.

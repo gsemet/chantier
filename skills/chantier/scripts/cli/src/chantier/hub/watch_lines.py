@@ -14,7 +14,7 @@ SEAT_LINE = "watch: the seat of {project} is another session's now; ended"
 NO_KEY = (
     "watch: this run has no session key (the host gave no session id), so it cannot hold the "
     "seat of {project}; no board started; ended: for the Chief of Staff, start the watcher from "
-    "the session's own background command, or the board by hand ({cli} board --seat <session id> "
+    "the session's own background command, or the board by hand ({cli} serve --seat <session id> "
     "--forge-always)"
 )
 NO_SEAT = (
@@ -32,7 +32,7 @@ UNREADABLE_SEAT = (
 )
 NOT_STARTED = (
     "watch: the board did not start within 20 s: for the Chief of Staff, start it with {cli} "
-    "board --seat {session} and read its error"
+    "serve --seat {session} and read its error"
 )
 BAD_KEY = (
     "watch: the board at {where} refused the key of server.json: for the Chief of Staff, restart "

@@ -19,7 +19,7 @@ HOST_NOT_NETWORK = (
 
 
 def board_key(node: Node, kline: int, bad: Bad) -> dict[str, Any]:
-    """The `board` key: where `chantier board` listens. Both keys are optional."""
+    """The `board` key: where `chantier serve` listens. Both keys are optional."""
     rec: dict[str, Any] = {}
     if node.kind != "map" or not node.value:
         bad(kline, f'"board" holds its keys: `host:` and `port:` ({", ".join(BOARD_KEYS)})')

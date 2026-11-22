@@ -1,5 +1,5 @@
 """The surface server, the only forge hub: the `hub` entry it keeps, the hub loop of
-`chantier board` and the writers of `server.json`. No test reaches a forge and none
+`chantier serve` and the writers of `server.json`. No test reaches a forge and none
 sleeps: the loop is driven with an injected monotonic time."""
 
 from __future__ import annotations

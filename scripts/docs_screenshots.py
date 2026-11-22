@@ -4,7 +4,7 @@
 # ///
 """Take the screenshots of docs/web-board/ from the real web board, on the fictional demo.
 
-It copies docs/demo/ to a temporary folder outside the repository, starts `chantier board` on the
+It copies docs/demo/ to a temporary folder outside the repository, starts `chantier serve` on the
 copy (loopback, any free port, the clock fixed), opens the board's pages in Chromium at a laptop
 and a phone size, and writes `docs/web-board/<view>-pc.png` and `<view>-phone.png`. The server is
 stopped whatever happens. Nothing falls back: a step that fails stops the script.
@@ -88,7 +88,7 @@ def start_board(surface: Path, home: Path) -> tuple[subprocess.Popen[str], str]:
         "--project",
         str(ROOT),
         "chantier",
-        "board",
+        "serve",
         "--host",
         "127.0.0.1",
         "--port",

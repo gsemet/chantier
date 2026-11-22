@@ -1,4 +1,4 @@
-"""The frame: the static files of the folder `chantier board` was given (`--ui`); none when it
+"""The frame: the static files of the folder `chantier serve` was given (`--ui`); none when it
 was given `none`."""
 
 from __future__ import annotations

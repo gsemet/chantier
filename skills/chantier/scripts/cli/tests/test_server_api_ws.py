@@ -185,7 +185,7 @@ def test_a_hello_that_is_refused_says_why_and_closes(
 def test_a_socket_with_no_hello_is_closed_and_a_foreign_cookie_is_refused(served: Served) -> None:
     ws = served.open()
     assert closed_with(ws) == TIMED_OUT
-    cookie = keys.set_cookie(served.key).split(";")[0]
+    cookie = keys.set_cookie(served.key, served.ctx.cookie).split(";")[0]
     with pytest.raises(InvalidStatus) as refused:
         served.open(additional_headers={"Cookie": cookie}, origin="http://127.0.0.1:1")
     assert refused.value.response.status_code == NO_KEY

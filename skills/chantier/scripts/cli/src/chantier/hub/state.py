@@ -2,7 +2,7 @@
 tree, never pushed, mode 0600 because it holds the board's key.
 
 It holds the `key` and `created` (kept across starts), the `server` entry (the process that runs
-`chantier board`: `pid`, `host`, `port`, `version`, `source`, `served`, `started`, and its `files`,
+`chantier serve`: `pid`, `host`, `port`, `version`, `source`, `served`, `started`, and its `files`,
 `stop_idle` and `forge` when it has them) and the `hub` entry (the process that holds `hub.lock`,
 the server alone: `pid`, `version`, `source`, `started`, `idle` while no client observes it and,
 per project, `read_at`, `error`, `error_at`). `source` is the resolved folder of the loaded

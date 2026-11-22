@@ -1,6 +1,6 @@
 """The forge hub and `chantier watch`.
 
-The forge hub is the surface server (`chantier board`, `loop.py`), one per planning surface (or
+The forge hub is the surface server (`chantier serve`, `loop.py`), one per planning surface (or
 repository) and machine: it holds the OS file lock in the git folder (`chantier/hub.lock`), which
 no other process takes, and it is the only process that reads the forge (`state.py` holds
 `server.json`, which names the server and its hub). While a client observes it, it reads the forge,

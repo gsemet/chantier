@@ -228,7 +228,7 @@ improves the procedure, which stays written and maintained in the project.
 
 ## The CR board
 
-`chantier board` serves the CR board as a web page, on this machine by default, and on the phone or
+`chantier serve` serves the CR board as a web page, on this machine by default, and on the phone or
 any device of the local network once you open it to the network: the live batches, what waits
 for you, the backlog and the merged CRs, and, once opened, it lets you triage the backlog from your phone.
 

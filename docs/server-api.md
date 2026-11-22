@@ -1,6 +1,6 @@
 # The server's API, protocol 1
 
-`chantier board` serves one published API, and a folder of static files (by default the web
+`chantier serve` serves one published API, and a folder of static files (by default the web
 board). The web board is one client of it; a script, an editor
 or a phone app is another. The API has two bindings of the same protocol: a **WebSocket**
 (`/api/v1/ws`), and **HTTP** (`POST /api/v1/call/<op>`, `POST /api/v1/poll`), for a network where
@@ -208,11 +208,11 @@ The server speaks plain HTTP: put TLS on the proxy, and keep the key out of logs
 
 ## Serving another UI
 
-`chantier board` serves a folder of static files at `/`: the shipped web client by default, your
+`chantier serve` serves a folder of static files at `/`: the shipped web client by default, your
 own with `--ui <folder>`, none with `--ui none`. The shipped client's folder
 (`skills/chantier/scripts/cli/src/chantier/clients/web/`) is the example of such a folder.
 
-- `chantier board --ui <folder>` serves that folder's files, `index.html` for `/`, behind the same
+- `chantier serve --ui <folder>` serves that folder's files, `index.html` for `/`, behind the same
   key: the link's `?k=` sets the cookie, and the page then calls the API from the same origin
   (the cookie counts there, as the key section says). The folder must hold an `index.html`, or the
   command refuses to start (the usage exit, 1).
@@ -227,7 +227,7 @@ own with `--ui <folder>`, none with `--ui none`. The shipped client's folder
 - `--ui none`: the API only; `/` answers 404 with the line `this server serves no UI: see
   docs/server-api.md`. A UI served elsewhere (another origin) or a native app uses the key in a
   header or in the WebSocket's first message, as the key section says; it needs no `--ui`.
-- A board already running keeps what it was started with: `--ui` on a second `chantier board`
+- A board already running keeps what it was started with: `--ui` on a second `chantier serve`
   prints `--ui not applied: a board already serves this surface; stop it to change what it
   serves`, and nothing else changes.
 

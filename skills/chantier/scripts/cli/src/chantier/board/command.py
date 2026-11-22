@@ -1,4 +1,4 @@
-"""`chantier board`: the surface server (the web board, the watch of the planning files and the
+"""`chantier serve`: the surface server (the web board, the watch of the planning files and the
 forge hub loop in the same process). The options, the key, the start lines and the probe of a
 server already running; `starlette`, `uvicorn` and `watchfiles` load only once the board serves."""
 
@@ -6,10 +6,8 @@ from __future__ import annotations
 
 import argparse
 import contextlib
-import errno
 import os
 import socket
-import sys
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -28,6 +26,8 @@ from chantier.board.address import (
 from chantier.board.api import times
 from chantier.board.api.push import PushLoop, PushThread
 from chantier.board.app import make_server
+from chantier.board.binding import bind as _bind
+from chantier.board.binding import not_started as _not_started
 from chantier.board.context import Context
 from chantier.board.griller import Registry
 from chantier.board.idle import IdleStop, IdleThread
@@ -36,8 +36,8 @@ from chantier.board.projects import Projects, check_planning, open_projects
 from chantier.board.seats import Seats
 from chantier.board.watch_files import NOTIFY, FileWatchThread
 from chantier.core import clock
-from chantier.core.errors import EXIT_EXTERNAL, EXIT_USAGE, ChantierError
-from chantier.declare.board import SHIPPED_UI
+from chantier.core.errors import EXIT_USAGE, ChantierError
+from chantier.declare.serve import SHIPPED_UI
 from chantier.hub import state
 from chantier.hub.lines import foreign_build_clause
 from chantier.hub.loop import HubLoop, HubThread
@@ -73,16 +73,7 @@ def files_line(mode: object) -> str | None:
     return WATCHES if mode == NOTIFY else CHECKS if mode else None
 
 
-def _not_started(reason: object) -> ChantierError:
-    return ChantierError(f"board not started: {' '.join(str(reason).split())}", EXIT_EXTERNAL)
-
-
-WSAEADDRINUSE = 10048  # Windows' "address in use"
 WAY_OUT = "pass --port <n> (0: any free port)"
-
-
-def _in_use(e: OSError) -> bool:
-    return e.errno == errno.EADDRINUSE or getattr(e, "winerror", None) == WSAEADDRINUSE
 
 
 def _held_by(host: str, port: int, key: str, from_config: bool) -> str:
@@ -104,22 +95,14 @@ def _held_by(host: str, port: int, key: str, from_config: bool) -> str:
     return f"{where} is in use (a board may already run there, or another program): {out}"
 
 
-def _bind(host: str, port: int, held: Callable[[], str] | None = None) -> socket.socket:
-    """The socket, bound and listening before anything is printed (a client that connects on the
-    start line is queued): a port held fails here. On
-    Windows SO_REUSEADDR lets a second socket take a port in use: never there."""
-    sock = socket.socket(socket.AF_INET6 if ":" in host else socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        if sys.platform != "win32":
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind((host, port))
-        sock.listen(socket.SOMAXCONN)
-    except (OSError, OverflowError) as e:
-        sock.close()
-        if held is not None and isinstance(e, OSError) and _in_use(e):
-            raise _not_started(held()) from e
-        raise _not_started(e) from e
-    return sock
+def _other_board(host: str, port: int, key: str, served: str) -> str | None:
+    """What names another surface's board that holds the port: its served folder, or "another
+    project's key"; None for a board of this folder or for anything else."""
+    found = probe(host, port, key)
+    if isinstance(found, dict):
+        other = found.get("served")
+        return str(other) if other != served else None
+    return "another project's key" if found == "another-key" else None
 
 
 def _start_writer(projects: Projects) -> WriterThread | None:
@@ -224,8 +207,8 @@ def _run(
 
 def _another_version(version: object, pid: object, link: str, stop: str) -> ChantierError:
     return _not_started(
-        f"chantier board {version} (PID {pid}) already serves this surface at {link}; this is "
-        f"chantier {__version__}: to replace it, stop it ({stop}), then run board again"
+        f"chantier serve {version} (PID {pid}) already serves this surface at {link}; this is "
+        f"chantier {__version__}: to replace it, stop it ({stop}), then run serve again"
     )
 
 
@@ -349,6 +332,18 @@ def _options(args: argparse.Namespace) -> None:
             ) from e
 
 
+def _listen(
+    args: argparse.Namespace, projects: Projects, host: str, port: int, key: str
+) -> socket.socket:
+    """The bound socket: a port held refuses, but a default port held by another surface's board
+    takes a free one."""
+    from_config = args.port is None and "port" in load_board(projects.home)[0]
+    served = projects.served.as_posix()
+    default = args.port is None and not from_config
+    other = (lambda: _other_board(host, port, key, served)) if default else None
+    return _bind(host, port, lambda: _held_by(host, port, key, from_config), other)
+
+
 def board(args: argparse.Namespace) -> list[str]:
     _options(args)
     ui = _ui(args.ui)
@@ -378,8 +373,7 @@ def board(args: argparse.Namespace) -> list[str]:
             lines.append(found)
         return lines
     _writing(lambda: state.check_writable(git_dir))  # a refused write: known before any bind
-    from_config = args.port is None and "port" in load_board(projects.home)[0]
-    sock = _bind(host, port, lambda: _held_by(host, port, key, from_config))
+    sock = _listen(args, projects, host, port, key)
     bound, served = sock.getsockname()[1], projects.served.as_posix()
     ctx = _context(projects, seats, sock, ui)
     files = _watch_files(ctx)  # the mode is known before the start line

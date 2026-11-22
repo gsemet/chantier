@@ -307,7 +307,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
   missing from the PR until it is there; `order merged` writes `delivery.md`; `rules` lists the
   project's instructions then the surface's; `close` archives the CR (unit: surface-board)
   (test: test_external_archive.py::test_an_external_surface_gets_the_planning_folder_and_the_project_stays_clean);
-- the surface's writer: a real `board --seat` on a surface with a bare origin prints its `writer:` line;
+- the surface's writer: a real `serve --seat` on a surface with a bare origin prints its `writer:` line;
   a `file` then `triage` reach the origin within the shortened bound (`CHANTIER_WRITER_TEST_TIMES`);
   `seat` prints `writer: synced`; a commit pushed from a second clone is integrated; a change on both
   sides gives `writer: conflict` and `sync-conflict@1`, and the Chief of Staff's resolution is pushed
@@ -315,13 +315,13 @@ does a unit that is not in `UNITS` and a test that does not exist.
   board stopped `file` is refused with "the surface's writer is not running: nothing written" and
   nothing changes; an in-project board has `writer == {"state":"off"}`, no `autosync` key and a
   route of the versions before protocol 1 (`/api/autosync`) answers 404 (unit: surface-board);
-- the live terminal view (CR-418): with the real `board --seat` running over a batch with a working
+- the live terminal view (CR-418): with the real `serve --seat` running over a batch with a working
   CR, `chantier live --once` and `chantier live --once --transport http` each exit 0 with the CR in
   Tasks and `working 1` in the header, the planning folder's git status and `forge-journal.jsonl`
   unchanged; once the board has stopped, `live --once` exits 4 with `no board runs for this
   surface` (unit: surface-board) (test:
   test_live_link.py::test_live_once_prints_the_working_cr_and_its_lease_and_a_journal_line_comes_once);
-- two sessions on one machine (CR-323): `status` and `preflight` list the other batches of the surface (`other batches on this surface: <project> <batch> <state>, steering <who>, <n> Drivers`, P14 informational, passing, and no P14 line in-project); one board per repository: a second `board --port 0` with a live board prints `board already running at` its link, also from another project of the surface with `--seat`, `GET /api/board` answers its `pid`, `server.json` holds the `server` entry while the board runs and no more once it has stopped, the key staying, and a `board.json` of an older version (a key, a live older `running` record) is migrated into it and deleted, the new board refused with the stop command (unit: surface-board) (test: test_board_running.py::test_a_new_board_reuses_refuses_or_starts_by_what_the_surface_already_runs);
+- two sessions on one machine (CR-323): `status` and `preflight` list the other batches of the surface (`other batches on this surface: <project> <batch> <state>, steering <who>, <n> Drivers`, P14 informational, passing, and no P14 line in-project); one board per repository: a second `serve --port 0` with a live board prints `board already running at` its link, also from another project of the surface with `--seat`, `GET /api/board` answers its `pid`, `server.json` holds the `server` entry while the board runs and no more once it has stopped, the key staying, and a `board.json` of an older version (a key, a live older `running` record) is migrated into it and deleted, the new board refused with the stop command (unit: surface-board) (test: test_board_running.py::test_a_new_board_reuses_refuses_or_starts_by_what_the_surface_already_runs);
 - typed waits (CR-409): `wait add` records a merge, approval, pipeline and answer wait on a CR
   (ids w1..w4, the forge ones on its PR), `status` shows them on the CR's row, the hub tells the
   approval and pipeline waits the forge shows met in one `wait-cleared@1` line each, once
@@ -430,12 +430,17 @@ does a unit that is not in `UNITS` and a test that does not exist.
     test_outside_poller.py::test_journal_add_writes_the_event_once,
     test_outside_poller.py::test_journal_add_refuses_what_it_must_and_writes_nothing,
     test_forge_hub.py::test_the_hub_never_collects_the_issues_provider);
-  - the surface server (CR-386, CR-429), on the same surface: `chantier board --port 0` started by
+  - `serve` and `webui` (CR-456, unit: surface-board): a second surface's `serve` on a default port the first holds
+    takes a free port and prints `board: port ... takes port <n>`, each server answers with its own cookie
+    only; `webui` on a running server prints `board already running at`; after the server is killed it starts
+    `serve --stop-idle` with no `--seat`, prints `board on` and the idle-stop line, and the server answers
+    `board.get`; a watcher's board still runs `serve --seat ... --stop-idle`;
+  - the surface server (CR-386, CR-429), on the same surface: `chantier serve --port 0` started by
     hand prints `board: watches the planning files`, `server.json` names its PID in `server` and in
     `hub` with its file watch, `status` prints `forge hub: PID <board pid>, the surface server, idle
     (no client subscribed)`, and no `board.json` or `hub.json` is left; a `project` subscription
     over a WebSocket gets an event for a CR filed by the CLI, and a `backlog.move` over HTTP reaches
-    it as an event with a new `rev` within 3 s; a second `board --port 0` prints `board already
+    it as an event with a new `rev` within 3 s; a second `serve --port 0` prints `board already
     running at`, also with `--seat` from the other project; a `board.json` prepared with a key and a
     live older `running` record refuses `board` with the stop command and its key lands in
     `server.json`; a watcher of A started while the board runs subscribes, starts no board, and ends
@@ -495,7 +500,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
   writes nothing; the marked CR moved back to `P2` loses its mark. The no-open-batch drop has no
   step here: its cover is the in-process test (unit: surface-board) (test:
   test_board_running_lane.py::test_a_drop_that_marks_nothing);
-- the server's API, protocol 1 (CR-406), against the real `chantier board` process, its times
+- the server's API, protocol 1 (CR-406), against the real `chantier serve` process, its times
   shortened by `CHANTIER_API_TEST_TIMES` (`1:6:5:5`), through `websockets.sync.client` and `http.client`:
   a WebSocket with the cookie from the board's own origin gets `welcome` (the 26 ops, the 8 topics,
   the probe's PID); a `project` subscription gets its event, then `chantier file` run as a command in
@@ -514,16 +519,16 @@ does a unit that is not in `UNITS` and a test that does not exist.
   test_server_api.py::test_an_old_route_answers_404_even_for_a_post_a_cookie_carries,
   test_server_api_ws.py::test_a_socket_says_hello_gets_welcome_and_watches_a_project,
   test_server_api_ws.py::test_a_stopping_server_closes_each_socket_with_1001);
-- the board's exposure (CR-426): `board --port 0` with no `--host` and no `chantier.yaml` listens on
+- the board's exposure (CR-426): `serve --port 0` with no `--host` and no `chantier.yaml` listens on
   127.0.0.1 (`server.json` records it, one start line); with `board.host: network` it accepts either
   outcome, as the runner's network decides: the link on a network address (`server.json` records
   0.0.0.0, then the `on this machine:` link, then the `board: listens on the local network (` line),
   or the link on 127.0.0.1 and the `board: no local network address found; on this machine only` line;
   `board.host: 127.0.0.1` in `chantier.yaml` is refused by `playbook` and `board` (exit 2) with the
-  message pointing to `--host`; a second `board --new-key` on a running board prints another key, the
+  message pointing to `--host`; a second `serve --new-key` on a running board prints another key, the
   first link answers 401 and the new one 303 with `Max-Age=2592000` (unit: surface-board) (test:
   test_board_exposure.py::test_the_default_is_this_machine_and_network_is_found_at_each_start);
-- the board's UI folder (CR-411): `board --ui <folder>` serves that folder's `index.html` with the
+- the board's UI folder (CR-411): `serve --ui <folder>` serves that folder's `index.html` with the
   policy and its `app.js`, and none of the shipped client's files; `--ui none` answers the 404 line
   outside `/api/` while `board.get` answers over HTTP; a folder with no `index.html` is refused
   with the usage exit (1) and records no board entry; `--ui` on a running board prints the `--ui not applied` line,

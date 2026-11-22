@@ -3,7 +3,7 @@
 
 `hub.lock` is taken with `core.files.try_lock` and never waited on: the OS releases it when the
 holder exits or dies, so no stale lock exists. The holder is the forge hub: the surface server
-(`chantier board`), and no other process; a watcher never takes it. The hub's record is the `hub`
+(`chantier serve`), and no other process; a watcher never takes it. The hub's record is the `hub`
 entry of `server.json`, written by the holder only.
 
 The surface's writer holds `writer.lock` the same way, and `writer.wake` is the file that `sync now`

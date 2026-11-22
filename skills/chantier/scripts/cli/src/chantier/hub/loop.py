@@ -1,4 +1,4 @@
-"""The surface server's hub loop: a thread of `chantier board` that tries `hub.lock` (never
+"""The surface server's hub loop: a thread of `chantier serve` that tries `hub.lock` (never
 waiting) every `poll_s()` until it holds it, then runs `Hub.cycle` whenever `Hub.due` says so and
 a client observes the server (`observed`: the push loop's, or always for `--forge-always`); with
 none, the hub keeps its lock and its entry, marked idle, and reads nothing.

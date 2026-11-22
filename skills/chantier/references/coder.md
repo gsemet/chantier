@@ -25,7 +25,7 @@ Ground rules:
   raw log in a `*.log` file or `work/gates/`, never in a file that is published with the CR
   (reports and evidence are).
 - Run the project's fast gate yourself and never claim a check you did not run.
-- A test, a smoke run or a probe of the board's write paths (`chantier board`'s edits of the
+- A test, a smoke run or a probe of the board's write paths (`chantier serve`'s edits of the
   backlog, and the role-free CLI commands it calls) points at a scratch planning folder (a fresh
   temporary folder, or one under the worktree's test fixtures), never at the project's live
   planning folder (`.agents/changes/`, or the planning surface's), and removes it at its end.

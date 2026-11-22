@@ -15,7 +15,7 @@ WRITE = ("POST", "PUT")
 ALLOWED = (*READ, *WRITE)
 
 
-def exchange(req: Request, key: str) -> Reply | None:
+def exchange(req: Request, key: str, cookie: str) -> Reply | None:
     """A request with `k`: a bad one is refused; a good one with a method the board does not
     know gets `405`; a good read gets the cookie and a `303` to the same address without it (a
     relative `Location`); a good `POST` carries on (it still needs the cookie or the header)."""
@@ -28,16 +28,16 @@ def exchange(req: Request, key: str) -> Reply | None:
     rest = {k: v for k, v in req.query.items() if k != "k"}
     last = req.path.rsplit("/", 1)[-1]  # relative, so a path prefix behind a proxy is kept
     where = "./" + quote(last, safe="") + (f"?{urlencode(rest)}" if rest else "")
-    return text(303, "the key is in the cookie now", {"Location": where, **_cookie(key)})
+    return text(303, "the key is in the cookie now", {"Location": where, **_cookie(key, cookie)})
 
 
-def _cookie(key: str) -> dict[str, str]:
-    return {"Set-Cookie": keys.set_cookie(key)}
+def _cookie(key: str, name: str) -> dict[str, str]:
+    return {"Set-Cookie": keys.set_cookie(key, name)}
 
 
-def authorised(req: Request, key: str) -> bool:
+def authorised(req: Request, key: str, cookie: str) -> bool:
     """The key from the header (scripts, the probe) or the cookie."""
-    got = req.headers.get(keys.HEADER) or keys.cookie_value(req.headers.get("cookie"))
+    got = req.headers.get(keys.HEADER) or keys.cookie_value(req.headers.get("cookie"), cookie)
     return keys.is_good(got, key)
 
 

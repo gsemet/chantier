@@ -234,7 +234,7 @@ def test_a_write_with_no_live_writer_answers_409_and_writes_nothing(surface: Sur
 
 
 def test_a_write_from_each_cell_of_the_key_matrix(board: Board) -> None:  # noqa: F811
-    cookie = keys.set_cookie(board.key).split(";")[0]
+    cookie = keys.set_cookie(board.key, board.ctx.cookie).split(";")[0]
     own = {"cookie": cookie, "origin": f"http://{HOST}"}
     foreign = {"origin": "http://evil.example"}
     cases = [

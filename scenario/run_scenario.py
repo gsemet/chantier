@@ -117,7 +117,7 @@ UNITS = {
     "surface-board": (
         710,
         ["github"],
-        ["remote_board", "forge_hub", "outside_poller", "typed_waits", "surface_server",
+        ["remote_board", "forge_hub", "serve_and_webui", "outside_poller", "typed_waits", "surface_server",
          "external_surface", "surface_writer", "cr_summary"],
     ),
     "qa-driver": (255, ["github"], ["lost_messages", "qa_on_head", "driver_liveness", "restore_cr"]),
@@ -1600,7 +1600,7 @@ def scenario(w: World) -> None:
 
 
 class BoardProc:
-    """A `chantier board` run in the background: its printed lines are read as they come."""
+    """A `chantier serve` run in the background: its printed lines are read as they come."""
 
     def __init__(self, w: World, *args, cwd=None, env: dict | None = None):
         self.p = subprocess.Popen([sys.executable, "-m", "chantier", *map(str, args)],
@@ -1782,7 +1782,7 @@ def frame_of(ws, kind: str, match=None, timeout: float = 15) -> dict | None:
 
 
 def board_api(w: World, port: int, link: Link, project: str):
-    """Protocol 1 against the real `chantier board` process: the WebSocket with the cookie, a
+    """Protocol 1 against the real `chantier serve` process: the WebSocket with the cookie, a
     `chantier file` seen as an event, a write over the socket and its `board` line, the HTTP
     binding and its long-poll, the foreign origin, an old route, the probe. It returns a welcomed
     WebSocket left open for the caller's 1001 check at the board's stop."""
@@ -2290,7 +2290,8 @@ def surface_link(sw: World) -> Link:
     """The running board's address and key, from `server.json`, as its start line says them."""
     data = surface_entry(sw)
     port = data.get("server", {}).get("port")
-    return Link(f"board on http://127.0.0.1:{port}/?k={data.get('key')} over the surface")
+    served = data.get("server", {}).get("served") or "the surface"  # names the server's own cookie
+    return Link(f"board on http://127.0.0.1:{port}/?k={data.get('key')} over {served}")
 
 
 def surface_kill(sw: World) -> None:
@@ -2456,6 +2457,9 @@ def forge_hub(w: World) -> None:
               "start line names the PID `server.json` names, then the board's file-watch line",
               start.startswith("watch: demo from cursor 0 for project") and board_pid is not None
               and board_pid == surface_pid(sw) and files == WATCHES, f"{start} {files}")
+        argv = psutil.Process(board_pid).cmdline() if board_pid else []
+        check("the board a watcher starts runs `serve --seat <session> --stop-idle` (its command line)",
+              "serve" in argv and "--stop-idle" in argv and "--seat" in argv, str(argv))
         wb = watcher("other")
         start_b = started(wb)
         check("B's watcher subscribes to the same board and starts none",
@@ -2624,7 +2628,7 @@ def forge_hub(w: World) -> None:
                                      watch=f"{cli_of('other')} watch --after 1")]
               and wn.p.returncode == 1 and not surface_alive(sw), f"{got} {wn.p.returncode}")
         # 10. a board started by hand with `--forge-always` (a host that cannot run the watcher)
-        board = BoardProc(sw, "board", "--project", "other", "--host", "127.0.0.1", "--port", 0,
+        board = BoardProc(sw, "serve", "--project", "other", "--host", "127.0.0.1", "--port", 0,
                           "--forge-always", cwd=sw.surface, env=quick)
         procs.append(board)
         check("the `--forge-always` board starts", Link(board.line()).ok)
@@ -2679,6 +2683,75 @@ def forge_hub(w: World) -> None:
             proc.stop()
 
 
+def serve_and_webui(w: World) -> None:
+    """CR-456: `serve` is the surface server's command and `webui` prints its link, starting it
+    (no seat, `--stop-idle`) when none runs; a second surface's server on the same machine takes a
+    free port when the default is held by the first."""
+    from chantier.board.address import DEFAULT_PORT
+    note("\n## 16d1. `chantier serve` and `chantier webui`; two surfaces' servers on one machine")
+    sw = SurfaceWorld(w.root / "serve1")
+    sw2 = SurfaceWorld(w.root / "serve2")
+    for each in (sw, sw2):
+        each.root.mkdir()
+        each.build()
+    procs: list[BoardProc] = []
+    try:
+        first = BoardProc(sw, "--project", "demo", "serve", "--host", "127.0.0.1", "--port",
+                          DEFAULT_PORT, "--seat", "sess-1", cwd=sw.surface)
+        procs.append(first)
+        link = Link(first.line())
+        if not link.ok:
+            note(f"    the default port {DEFAULT_PORT} is held by another program here: "
+                 "the second-surface step is skipped")
+        else:
+            second = BoardProc(sw2, "--project", "demo", "serve", "--host", "127.0.0.1", "--seat",
+                               "sess-2", cwd=sw2.surface)
+            procs.append(second)
+            said, start = second.line(), second.line()
+            link2 = Link(start)
+            check("a second surface's server, with the default port held by the first, prints the "
+                  "`board: port ... takes port <n>` line, then its start line on another port",
+                  said is not None
+                  and said.startswith(f"board: port {DEFAULT_PORT} is held by another chantier board")
+                  and said.endswith(f"this one takes port {link2.port}")
+                  and link2.ok and link2.port != DEFAULT_PORT, f"{said} {start}")
+            got1 = fetch(link.port, "/api/board", headers=link.cookie)
+            got2 = fetch(link2.port, "/api/board", headers=link2.cookie)
+            check("both answer `board.get` with their own key and cookie, and not with the other's",
+                  got1[0] == 200 and got2[0] == 200 and link.cookie_name != link2.cookie_name
+                  and fetch(link.port, "/api/board", headers=link2.cookie)[0] == 401
+                  and fetch(link2.port, "/api/board", headers=link.cookie)[0] == 401,
+                  f"{got1[0]} {got2[0]}")
+            second.stop()
+            check("the second surface's server stops", second.p.poll() is not None)
+        # `webui` on the running server prints its link
+        _, out = sw.chantier("webui")
+        running = surface_link(sw)
+        check("`webui` on a running server prints `board already running at <link>`",
+              bool(out) and out[0] == f"board already running at http://127.0.0.1:{running.port}/?k={running.key}",
+              str(out))
+        first.stop()
+        surface_kill(sw)
+        end = time.monotonic() + 20
+        while surface_alive(sw) and time.monotonic() < end:
+            time.sleep(0.25)
+        _, out = sw.chantier("webui")
+        pid = surface_pid(sw)
+        argv = psutil.Process(pid).cmdline() if pid else []
+        link3 = surface_link(sw)
+        check("with none running, `webui` starts `serve --stop-idle` with no `--seat`, and prints "
+              "`board on` and the idle-stop line",
+              out[:1] == [f"board on http://127.0.0.1:{link3.port}/?k={link3.key} over {link3.over}"]
+              and any(x.startswith("board: stops by itself after 30 min") for x in out)
+              and "serve" in argv and "--stop-idle" in argv and "--seat" not in argv, f"{out} {argv}")
+        check("the server `webui` started answers `board.get`",
+              fetch(link3.port, "/api/board", headers=link3.cookie)[0] == 200)
+    finally:
+        surface_kill(sw)
+        for proc in reversed(procs):
+            proc.stop()
+
+
 def outside_poller(w: World) -> None:
     """An outside poller writes issue events into the journal: `interests`, `journal add` and the
     watcher that tells the line; the hub reads no issue."""
@@ -2707,7 +2780,7 @@ def outside_poller(w: World) -> None:
           == [(link, "jira", "outside", b) for b in by], str(out))
     calls = len(forge_calls(sw))
     # The watcher subscribes to a running board: this one, started by hand, follows no seat.
-    board = BoardProc(sw, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0,
+    board = BoardProc(sw, "serve", "--project", "demo", "--host", "127.0.0.1", "--port", 0,
                       cwd=sw.surface, env={"CHANTIER_HUB_TEST_TIMES": "1:4"})
     watcher = None
     try:
@@ -2804,7 +2877,7 @@ def typed_waits_gitlab(w: World) -> None:
           str(waits))
     try:
         # No client subscribes here: `--forge-always` keeps the hub reading.
-        board = BoardProc(sw, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0,
+        board = BoardProc(sw, "serve", "--project", "demo", "--host", "127.0.0.1", "--port", 0,
                           "--forge-always", cwd=sw.surface, env={"CHANTIER_HUB_TEST_TIMES": "1:4"})
         procs.append(board)
         board.line()
@@ -2883,7 +2956,7 @@ def typed_waits(w: World) -> None:
           any(cr in x and "| waits: merge, approval, pipeline, answer" in x for x in out), str(out))
     try:
         # No client subscribes here: `--forge-always` keeps the hub reading.
-        board = BoardProc(sw, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0,
+        board = BoardProc(sw, "serve", "--project", "demo", "--host", "127.0.0.1", "--port", 0,
                           "--forge-always", cwd=sw.surface, env={"CHANTIER_HUB_TEST_TIMES": "1:4"})
         procs.append(board)
         board.line()
@@ -2913,7 +2986,7 @@ def typed_waits(w: World) -> None:
 
 
 def surface_server(w: World) -> None:
-    """CR-386 and CR-429: one surface server per surface and machine, `chantier board`, that is
+    """CR-386 and CR-429: one surface server per surface and machine, `chantier serve`, that is
     also the hub; it watches the planning files, and a watcher subscribes to it or starts it."""
     from websockets.sync.client import connect
 
@@ -2961,12 +3034,12 @@ def surface_server(w: World) -> None:
         return got
 
     def start_board() -> BoardProc:
-        procs.append(BoardProc(sw, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0,
+        procs.append(BoardProc(sw, "serve", "--project", "demo", "--host", "127.0.0.1", "--port", 0,
                                cwd=sw.surface, env=quick))
         return procs[-1]
 
     def run_board(project: str, *extra) -> subprocess.CompletedProcess:
-        return subprocess.run([sys.executable, "-m", "chantier", "board", "--project", project,
+        return subprocess.run([sys.executable, "-m", "chantier", "serve", "--project", project,
                                "--host", "127.0.0.1", "--port", "0", *extra], cwd=sw.surface,
                               env={**sw.env, **quick}, capture_output=True, text=True,
                               encoding="utf-8", timeout=60)
@@ -3048,7 +3121,7 @@ def surface_server(w: World) -> None:
         # 2. a second board answers with the first one's address, whichever project it serves
         for project, extra in (("demo", ()), ("other", ("--seat", "sess-o"))):
             p = run_board(project, *extra)
-            check(f"a second `board {' '.join(extra)}` answers `board already running at`",
+            check(f"a second `serve {' '.join(extra)}` answers `board already running at`",
                   p.returncode == 0 and p.stdout.startswith("board already running at "),
                   p.stdout + p.stderr)
         # 3. a watcher of A started while the board runs subscribes and registers A's seat; the
@@ -3128,7 +3201,7 @@ def surface_server(w: World) -> None:
         said = p.stdout + p.stderr
         check("a live older board in `board.json` refuses the new one with its stop command, the "
               "key moves to `server.json` and `board.json` is gone",
-              p.returncode != 0 and "then run board again" in said
+              p.returncode != 0 and "then run serve again" in said
               and state().get("key") == old["key"] and not (git / "board.json").exists(),
               f"{said} {state()}")
         # 8. the record is as it was, only read-only calls were made, the folder holds the state
@@ -3196,7 +3269,7 @@ def remote_board(w: World) -> None:
         # 1. the start lines: a free port, the key in the link, nothing else on a loopback address
         from chantier.board.command import CHECKS, WATCHES
 
-        first = board("board", "--host", "127.0.0.1", "--port", 0, "--seat", "s-1")
+        first = board("serve", "--host", "127.0.0.1", "--port", 0, "--seat", "s-1")
         line = first.line()
         link = Link(line)
         port = link.port
@@ -3225,7 +3298,7 @@ def remote_board(w: World) -> None:
         cookie = head.get("set-cookie", "")
         check("`/?k=<key>` answers 303 with the cookie (HttpOnly, SameSite=Strict) and a relative "
               "`Location` with no `k`",
-              code == 303 and head.get("location") == "./" and f"chantier_board={link.key}" in cookie
+              code == 303 and head.get("location") == "./" and f"{link.cookie_name}={link.key}" in cookie
               and "HttpOnly" in cookie and "SameSite=Strict" in cookie, f"{code} {head}")
         code, head, _ = fetch(port, "/?k=wrong")
         check("a wrong key answers 401 and sets no cookie", code == 401 and "set-cookie" not in head,
@@ -3398,7 +3471,7 @@ def remote_board(w: World) -> None:
         board_prs(w, port, link, project, (one, two, three, four))
         held = board_api(w, port, link, project)
         # 8. a second board, a port held
-        again = [sys.executable, "-m", "chantier", "board", "--host", "127.0.0.1", "--port", str(port)]
+        again = [sys.executable, "-m", "chantier", "serve", "--host", "127.0.0.1", "--port", str(port)]
         p = subprocess.run([*again, "--seat", "s-1"], cwd=w.work, env=w.env, capture_output=True,
                            text=True, encoding="utf-8", timeout=30)
         check("a second `board` on the same address says it is running, with the same link and its "
@@ -3410,14 +3483,14 @@ def remote_board(w: World) -> None:
         check("when the seat moves the board stops by itself, exit 0", exits(first) == 0)
         check("the board stopping closes the open WebSocket with 1001 (going away)",
               close_code(held) == 1001, str(close_code(held)))
-        second = board("board", "--host", "127.0.0.1", "--port", port, "--seat", "s-2")
+        second = board("serve", "--host", "127.0.0.1", "--port", port, "--seat", "s-2")
         again_link = Link(second.line())
         check("a board for the new seat starts on the same port with the same link",
               again_link.ok and again_link.port == port and again_link.key == link.key
               and op(port, link, "board.get")[2].get("seats") == 1)
         p = subprocess.run([*again, "--seat", "s-3"], cwd=w.work, env=w.env, capture_output=True,
                            text=True, encoding="utf-8", timeout=30)
-        check("`board --seat s-3` registers the seat on the running board",
+        check("`serve --seat s-3` registers the seat on the running board",
               p.returncode == 0 and p.stdout.startswith("board already running at ")
               and op(port, link, "board.get")[2].get("seats") == 2, p.stdout + p.stderr)
         w.chantier("seat", "take", "s-3", "--over", "s-2")
@@ -3425,17 +3498,17 @@ def remote_board(w: World) -> None:
         check("the seat moving from s-2 to s-3 keeps the board running",
               second.p.poll() is None and fetch(port, "/api/board", headers=link.cookie)[0] == 200)
         # one board per repository, whatever the port: `--port 0` with a live board reuses it
-        p = subprocess.run([sys.executable, "-m", "chantier", "board", "--host", "127.0.0.1", "--port",
+        p = subprocess.run([sys.executable, "-m", "chantier", "serve", "--host", "127.0.0.1", "--port",
                             "0"], cwd=w.work, env=w.env, capture_output=True, text=True,
                            encoding="utf-8", timeout=30)
-        check("a second `board --port 0` with a live board of the repository prints `board already "
+        check("a second `serve --port 0` with a live board of the repository prints `board already "
               "running at` its link and its file-watch line, exit 0, and starts none",
               p.returncode == 0 and already_running(p.stdout, f"http://127.0.0.1:{port}/?k={link.key}"),
               p.stdout + p.stderr)
-        p = subprocess.run([sys.executable, "-m", "chantier", "board", "--host", "127.0.0.1", "--port",
+        p = subprocess.run([sys.executable, "-m", "chantier", "serve", "--host", "127.0.0.1", "--port",
                             "0", "--ui", "none", "--seat", "s-1"], cwd=w.work, env=w.env,
                            capture_output=True, text=True, encoding="utf-8", timeout=30)
-        check("`board --ui none` on a running board prints `board already running at` its link and "
+        check("`serve --ui none` on a running board prints `board already running at` its link and "
               "the `--ui not applied` line, exits 0, and the board still serves the shipped client",
               p.returncode == 0
               and p.stdout.splitlines()[:1] == [f"board already running at http://127.0.0.1:{port}/?k={link.key}"]
@@ -3458,10 +3531,10 @@ def remote_board(w: World) -> None:
         ui_dir.mkdir(exist_ok=True)
         (ui_dir / "index.html").write_text("<!doctype html><p>own-ui-marker</p>", encoding="utf-8")
         (ui_dir / "app.js").write_text("export const mine = 1;\n", encoding="utf-8")
-        own_ui = board("board", "--host", "127.0.0.1", "--port", 0, "--ui", ui_dir)
+        own_ui = board("serve", "--host", "127.0.0.1", "--port", 0, "--ui", ui_dir)
         own_link = Link(own_ui.line())
         code, head, page = fetch(own_link.port, "/", headers=own_link.cookie)
-        check("`board --ui <folder>` serves that folder's `index.html` at `/` with the policy, its "
+        check("`serve --ui <folder>` serves that folder's `index.html` at `/` with the policy, its "
               "`app.js` as JavaScript, none of the shipped client's files, and the API",
               own_link.ok and code == 200 and b"own-ui-marker" in page
               and "script-src 'self'" in head.get("content-security-policy", "")
@@ -3471,10 +3544,10 @@ def remote_board(w: World) -> None:
               and fetch(own_link.port, "/api/board", headers={"X-Chantier-Board-Key": own_link.key})[0] == 200,
               f"{code} {head}")
         own_ui.stop()
-        no_ui = board("board", "--host", "127.0.0.1", "--port", 0, "--ui", "none")
+        no_ui = board("serve", "--host", "127.0.0.1", "--port", 0, "--ui", "none")
         no_link = Link(no_ui.line())
         code, _, page = fetch(no_link.port, "/", headers=no_link.cookie)
-        check("`board --ui none` answers 404 with the line naming the API's doc outside `/api/`, the "
+        check("`serve --ui none` answers 404 with the line naming the API's doc outside `/api/`, the "
               "API answers, and `board.get` over HTTP gives 200",
               no_link.ok and code == 404
               and page.decode().strip() == "this server serves no UI: see docs/server-api.md"
@@ -3484,19 +3557,19 @@ def remote_board(w: World) -> None:
         empty = w.root / "empty-ui"
         empty.mkdir(exist_ok=True)
         recorded_before = key_file.read_text(encoding="utf-8")
-        p = subprocess.run([sys.executable, "-m", "chantier", "board", "--host", "127.0.0.1", "--port",
+        p = subprocess.run([sys.executable, "-m", "chantier", "serve", "--host", "127.0.0.1", "--port",
                             "0", "--ui", str(empty)], cwd=w.work, env=w.env, capture_output=True,
                            text=True, encoding="utf-8", timeout=30)
-        check("`board --ui` naming a folder with no `index.html` exits 1 with the one line, prints no "
+        check("`serve --ui` naming a folder with no `index.html` exits 1 with the one line, prints no "
               "start line and records no board",
               p.returncode == 1 and not p.stdout.strip()
               and p.stderr.strip() == f"error: --ui {empty}: not a folder with an index.html: give a "
               "folder of static files, or none"
               and key_file.read_text(encoding="utf-8") == recorded_before, p.stdout + p.stderr)
         # a board started by hand (no `--seat`) records a session's seat and follows none
-        late = board("board", "--host", "127.0.0.1", "--port", 0)
+        late = board("serve", "--host", "127.0.0.1", "--port", 0)
         late_link = Link(late.line())
-        p = subprocess.run([sys.executable, "-m", "chantier", "board", "--host", "127.0.0.1", "--port",
+        p = subprocess.run([sys.executable, "-m", "chantier", "serve", "--host", "127.0.0.1", "--port",
                             str(late_link.port), "--seat", "s-4"], cwd=w.work, env=w.env,
                            capture_output=True, text=True, encoding="utf-8", timeout=30)
         registered = op(late_link.port, late_link, "board.get")[2].get("seats")
@@ -3519,7 +3592,7 @@ def remote_board(w: World) -> None:
             held.bind(("127.0.0.1", 0))
             held.listen()
             busy = held.getsockname()[1]
-            p = subprocess.run([sys.executable, "-m", "chantier", "board", "--host", "127.0.0.1",
+            p = subprocess.run([sys.executable, "-m", "chantier", "serve", "--host", "127.0.0.1",
                                 "--port", str(busy)], cwd=w.work, env=w.env, capture_output=True,
                                text=True, encoding="utf-8", timeout=30)
         check("a port held by another program exits 4 with one `board not started` line naming the port"
@@ -3528,7 +3601,7 @@ def remote_board(w: World) -> None:
               and p.stderr.startswith("error: board not started: ") and not p.stdout.strip()
               and f"port {busy}" in p.stderr and "--port" in p.stderr, p.stderr)
         # 10. a wider address says so; the clock
-        wide = board("board", "--host", "0.0.0.0", "--port", 0)
+        wide = board("serve", "--host", "0.0.0.0", "--port", 0)
         head, warning = wide.line(), wide.line()
         if (warning or "").startswith("on this machine: "):  # printed when the main link is not loopback
             warning = wide.line()
@@ -3537,24 +3610,24 @@ def remote_board(w: World) -> None:
               f"{head} / {warning}")
         wide.stop()
         # the default stays on this machine, and a key replaced while the board runs revokes the old link
-        mine = board("board", "--port", 0)
+        mine = board("serve", "--port", 0)
         mine_head = mine.line()
         mine_link = Link(mine_head)
-        check("`board --port 0` with no `--host` and no `chantier.yaml` listens on 127.0.0.1: its first "
+        check("`serve --port 0` with no `--host` and no `chantier.yaml` listens on 127.0.0.1: its first "
               "line is the link on 127.0.0.1, it opens, `server.json` records that host, and only "
               "the file-watch line follows",
               mine_link.ok and (mine_head or "").startswith("board on http://127.0.0.1:")
               and fetch(mine_link.port, f"/?k={mine_link.key}")[0] == 303
               and json.loads(key_file.read_text(encoding="utf-8"))["server"]["host"] == "127.0.0.1"
               and (mine.line() or "").startswith("board: ") and mine.line(0.5) is None, str(mine_head))
-        p = subprocess.run([sys.executable, "-m", "chantier", "board", "--new-key"], cwd=w.work,
+        p = subprocess.run([sys.executable, "-m", "chantier", "serve", "--new-key"], cwd=w.work,
                            env=w.env, capture_output=True, text=True, encoding="utf-8", timeout=30)
         renewed = re.match(r"^board already running at http://127\.0\.0\.1:(\d+)/\?k=(\S+)$",
                            (p.stdout.strip().splitlines() or [""])[0])
         new_key = renewed[2] if renewed else ""
         old_code = fetch(mine_link.port, f"/?k={mine_link.key}")[0]
         new_code, new_head, _ = fetch(mine_link.port, f"/?k={new_key}")
-        check("a second `board --new-key` on a running board prints `board already running at` a link "
+        check("a second `serve --new-key` on a running board prints `board already running at` a link "
               "with another key: the first link answers 401, the new one 303 with a cookie of "
               "`Max-Age=2592000`",
               p.returncode == 0 and renewed is not None and new_key != mine_link.key
@@ -3563,7 +3636,7 @@ def remote_board(w: World) -> None:
         mine.stop()
         yaml_net = w.work / "chantier.yaml"
         yaml_net.write_text("board:\n  host: network\n", encoding="utf-8")
-        net = board("board", "--port", 0)
+        net = board("serve", "--port", 0)
         net_head, net_next = net.line(), net.line()
         net_link = Link(net_head)
         recorded_host = json.loads(key_file.read_text(encoding="utf-8")).get("server", {}).get("host")
@@ -3584,7 +3657,7 @@ def remote_board(w: World) -> None:
               ok, f"{net_head} / {net_next} / {recorded_host}")
         net.stop()
         yaml_net.unlink()
-        timed = board("board", "--host", "127.0.0.1", "--port", 0, "--clock", "2026-01-02T03:04:05Z")
+        timed = board("serve", "--host", "127.0.0.1", "--port", 0, "--clock", "2026-01-02T03:04:05Z")
         tlink = Link(timed.line())
         _, thead, tapi = op(tlink.port, tlink, "board.get")
         check("`--clock` fixes `now` in the answers and in `X-Chantier-Now`",
@@ -3596,7 +3669,7 @@ def remote_board(w: World) -> None:
         for attempt in range(2):  # a port free a moment ago can be taken by another unit: one retry
             other = free_port()
             yaml.write_text(f"board:\n  port: {other}\n", encoding="utf-8")
-            configured = board("board")
+            configured = board("serve")
             line = configured.line()
             if line is not None and line.startswith(f"board on http://127.0.0.1:{other}/?k="):
                 break
@@ -3608,14 +3681,14 @@ def remote_board(w: World) -> None:
             yaml.write_text(f"board:\n  host: network\n  {bad}\n", encoding="utf-8")
             code, out = w.chantier("playbook", expect=None)
             problem = "chantier.yaml:3: board: " in "\n".join(out) and wrong in "\n".join(out)
-            code_board, _ = w.chantier("board", "--port", 0, expect=None)
+            code_board, _ = w.chantier("serve", "--port", 0, expect=None)
             check(f"an invalid `board` ({bad}) is reported by `playbook` with its line, and the board "
                   "refuses to start with it",
                   code == 2 and problem and code_board == 2 and "chantier.yaml:3: board: " in w.last_stderr,
                   f"{out} / {w.last_stderr}")
         yaml.write_text("board:\n  host: 127.0.0.1\n", encoding="utf-8")
         code, out = w.chantier("playbook", expect=None)
-        code_board, _ = w.chantier("board", "--port", 0, expect=None)
+        code_board, _ = w.chantier("serve", "--port", 0, expect=None)
         check("a fixed `board.host` (127.0.0.1) in chantier.yaml is refused by `playbook` and by "
               "`board`, exit 2, with the message pointing to `--host`",
               code == 2 and "--host" in "\n".join(out) and code_board == 2 and "--host" in w.last_stderr,
@@ -10373,7 +10446,7 @@ def surface_publishes(w: SurfaceWorld, label: str) -> None:
 
 
 def surface_writer(tmp: Path) -> None:
-    note("\n## 20b. The surface's writer: a real `board --seat` commits and pushes the plan")
+    note("\n## 20b. The surface's writer: a real `serve --seat` commits and pushes the plan")
     tmp.mkdir()
     w = SurfaceWorld(tmp)
     w.build()
@@ -10407,7 +10480,7 @@ def surface_writer(tmp: Path) -> None:
 
     w.chantier("init")
     w.chantier("seat", "take", "sess-w", "--env", "remote", "--title", "[remote] writer", "--link", "l")
-    bp = BoardProc(w, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0, "--seat",
+    bp = BoardProc(w, "serve", "--project", "demo", "--host", "127.0.0.1", "--port", 0, "--seat",
                    "sess-w", cwd=w.surface)
     try:
         link = Link(bp.line())
@@ -10476,7 +10549,7 @@ def surface_config_page(w: SurfaceWorld, coder_line: Callable[..., str], frozen:
     commits nothing itself: the surface server's writer does."""
     target = w.project / "chantier.yaml"
     head = w.sh("git", "rev-parse", "HEAD", cwd=w.surface)
-    bp = BoardProc(w, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0, cwd=w.surface)
+    bp = BoardProc(w, "serve", "--project", "demo", "--host", "127.0.0.1", "--port", 0, cwd=w.surface)
     try:
         link = Link(bp.line())
         code, _, view = op(link.port, link, "config.get", {"project": "demo"})
@@ -10589,7 +10662,7 @@ def surface_config_page(w: SurfaceWorld, coder_line: Callable[..., str], frozen:
           and "opus (claude-opus-5-5, Claude Opus 5.5) [surface project]" in coder_line(),
           f"{coder_line()} / {coder_line('--batch', w.name)}")
     # the writer commits and pushes the file when asked (a fresh board, its writer's `sync now`)
-    bw = BoardProc(w, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0, cwd=w.surface)
+    bw = BoardProc(w, "serve", "--project", "demo", "--host", "127.0.0.1", "--port", 0, cwd=w.surface)
     try:
         Link(bw.line())
         bw.line()  # its file-watch line
@@ -10796,16 +10869,16 @@ def external_surface(tmp: Path) -> None:
     for p in slot_files:
         p.unlink()
     # the web board at a surface: every project of the surface, each confined to its own folder
-    bp = BoardProc(w, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0, cwd=w.surface)
+    bp = BoardProc(w, "serve", "--project", "demo", "--host", "127.0.0.1", "--port", 0, cwd=w.surface)
     try:
         link = Link(bp.line())
         check("`board` at a surface starts with the link and its key", link.ok, str(link.over))
         w.chantier("seat", "take", "sess-b", "--env", "remote", "--title", "[remote] other", "--link",
                    "l", project="other")
-        p = subprocess.run([sys.executable, "-m", "chantier", "board", "--project", "other", "--host",
+        p = subprocess.run([sys.executable, "-m", "chantier", "serve", "--project", "other", "--host",
                             "127.0.0.1", "--port", "0", "--seat", "sess-b"], cwd=w.surface, env=w.env,
                            capture_output=True, text=True, encoding="utf-8", timeout=30)
-        check("a second session's `board --project other --port 0 --seat <id>` prints `board already "
+        check("a second session's `serve --project other --port 0 --seat <id>` prints `board already "
               "running at` the same link and its file-watch line, exit 0, and `/api/board` answers its PID",
               p.returncode == 0 and already_running(p.stdout, f"http://127.0.0.1:{link.port}/?k={link.key}")
               and isinstance(jget(link.port, link, "/api/board")[2].get("pid"), int),
@@ -11222,6 +11295,7 @@ CASES = {
     "foreman_in_a_worktree": foreman_in_a_worktree,
     "remote_board": remote_board,
     "forge_hub": forge_hub,
+    "serve_and_webui": serve_and_webui,
     "outside_poller": outside_poller,
     "typed_waits": typed_waits,
     "surface_server": surface_server,

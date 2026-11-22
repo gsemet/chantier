@@ -6,7 +6,7 @@ from chantier.commands.registry import NO_BATCH, Subparsers, add_command
 
 HELP = (
     "wait in the background for the events of this project, subscribed to the surface server "
-    "(chantier board): the forge's (merges, CI red on a PR ready to merge), the board's writes "
+    "(chantier serve): the forge's (merges, CI red on a PR ready to merge), the board's writes "
     "(backlog, configuration) and the issue events an outside poller writes, with or without a "
     "batch; with no server running it starts one, detached, when the project's seat is this "
     "session's, else it ends and says why; every event is addressed (its audience: project, "

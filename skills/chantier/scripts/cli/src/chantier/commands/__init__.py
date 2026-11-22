@@ -9,7 +9,7 @@ and the forge included; the CLI names what they create (branches, worktrees), ke
 and runs no git command that changes anything: it reads the head, the remote and the status to
 say what is off, and no forge command but `ship`'s, `take`'s, `round`'s and `handoff`'s reads of a
 PR's base (`forge_base.py`) and `forge-stack`'s stacks and bases. One named exception, in
-`board/`: `chantier board`, the web board's server, for the user in remote; it writes only its key
+`board/`: `chantier serve`, the web board's server, for the user in remote; it writes only its key
 file in the git folder, takes its dependencies (starlette, uvicorn) from the root
 pyproject.toml, and knows no role.
 """

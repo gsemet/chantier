@@ -43,8 +43,8 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | "release v1.4.0", a release question | find the project's procedure, ask for the grant, a release CR in a batch | Releases |
 | "auto" during a release | `order grant <release-cr> --note "releases=<k+1>"`, a budget first if the batch has none | Releases |
 | "become a griller", "become chief of staff" | the seat and the role | [session-start](session-start.md) |
-| "board on my phone", "where is the board?" | the board's link again (it holds the key; its PRs page is the live view of the batch's PRs); the board listens on this machine only; on the user's word, to reach it from the phone or another device on the local network, `board.host: network` in `chantier.yaml` (the board finds this machine's address at each start), or `--host` for one start, then the board started again: stop the running one by the host's means, then `$CHANTIER board --seat <id>`; pass on the `board: listens on the local network` line, or the `board: no local network address found; on this machine only` line (then, once the network is back: stop it by the host's means, then start it again; a second start alone only prints `board already running at`); a board refused because another one serves the surface is the user's to stop | [session-start](session-start.md) |
-| "a new board key", "the board's link leaked" | on the user's word, `$CHANTIER board --seat <id> --new-key`: the old link and the open pages stop working; give the user the new link | [session-start](session-start.md) |
+| "board on my phone", "where is the board?" | the board's link again (`$CHANTIER webui` prints the link, and starts the server when none runs; it holds the key; its PRs page is the live view of the batch's PRs); the board listens on this machine only; on the user's word, to reach it from the phone or another device on the local network, `board.host: network` in `chantier.yaml` (the board finds this machine's address at each start), or `--host` for one start, then the board started again: stop the running one by the host's means, then `$CHANTIER serve --seat <id>`; pass on the `board: listens on the local network` line, or the `board: no local network address found; on this machine only` line (then, once the network is back: stop it by the host's means, then start it again; a second start alone only prints `board already running at`); a board refused because another one serves the surface is the user's to stop | [session-start](session-start.md) |
+| "a new board key", "the board's link leaked" | on the user's word, `$CHANTIER serve --seat <id> --new-key`: the old link and the open pages stop working; give the user the new link | [session-start](session-start.md) |
 | "rescan", "I updated the priorities" (the user edited the backlog on the board) | read the backlog again (`$CHANTIER status`, the dashboard, `next-batch.json`); tell the user what moved and whether the next batch is declared ready; with a watcher or the pull path running, the board's writes already came: read the backlog again only when the user asks; a `running-batch` write, a move to `3-ready`, or a move that clears a running-batch mark: act as at a watcher's end | [session-start](session-start.md) |
 
 ## Hard rules
@@ -1500,7 +1500,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
     and the start line's `board is chantier <v>: restart it to run this version`: say it once to
     the user with the restart; never stop or restart the board yourself. A `board runs another
     build` or `board runs a build of chantier <v> older than this notice` line (on `status`, the
-    start line or `board`): say it once to the user as printed; never stop or restart the board.
+    start line or `serve`): say it once to the user as printed; never stop or restart the board.
     The watcher's other lines (its `started the board (PID <n>)` clause, the board's lines it
     passes on, the lines of a board that does not come up or of a seat it cannot start one for):
     as [session-start](session-start.md), "The watcher", says.
@@ -2039,7 +2039,7 @@ Rules only; the models judge the rest.
 - The old one becomes a Griller (or ends), and renames itself. Its board stops by itself when the
   seat moves (or 30 minutes after its last client); the new one's watcher, started from the line
   of its `seat take` on its yes, registers its seat on a board still running, or starts one (on a
-  host that cannot run the watcher, its own `board --seat <id> --forge-always`). The old one's watcher ends by itself
+  host that cannot run the watcher, its own `serve --seat <id> --forge-always`). The old one's watcher ends by itself
   once the new session takes the seat; the new one starts its own from the line of its `seat take`
   or `status` (another session's watcher, the old one's included, does not count; its `status`
   names it).

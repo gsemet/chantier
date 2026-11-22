@@ -202,7 +202,7 @@ def test_write_on_a_surface_with_no_writer_is_refused_and_names_an_older_board(
     assert ask("write")[1] == f"write: refused: the surface's writer is not running; {START}"
     name_server(surface.root / ".git", version="0.0.1")
     line = ask("write")[1]
-    assert f"chantier board 0.0.1 (PID {os.getpid()}) serves this surface with no writer" in line
+    assert f"chantier serve 0.0.1 (PID {os.getpid()}) serves this surface with no writer" in line
     assert "; stop it (" in line and line.endswith(f"), then {START}")
     _writer(surface, {"state": "stopped", "text": "the thread died"})
     assert "writer is stopped: the thread died" in ask("write")[1]

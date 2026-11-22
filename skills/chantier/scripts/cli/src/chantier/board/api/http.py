@@ -98,7 +98,7 @@ def serve(ctx: Context, req: Request, key: str) -> Reply:
     """A request to `/api/v1/`: the preflight, the key, then the route."""
     if req.method == "OPTIONS":
         return auth.preflight()
-    denied = auth.judge(req, key)
+    denied = auth.judge(req, key, ctx.cookie)
     if denied is not None:
         return auth.cors(denied)
     try:

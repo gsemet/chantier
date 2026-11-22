@@ -108,7 +108,7 @@ def test_an_older_board_with_no_writer_is_named_in_the_refusal(
     state.modify(git_dir, lambda data: data.__setitem__(state.SERVER, server))
     code, _, err = chantier("file", "An idea")
     assert code == EXIT_PRECONDITION
-    assert f"chantier board 0.0.1 (PID {os.getpid()}) serves this surface with no writer" in err
+    assert f"chantier serve 0.0.1 (PID {os.getpid()}) serves this surface with no writer" in err
     assert "ask the user to stop it" in err
 
 

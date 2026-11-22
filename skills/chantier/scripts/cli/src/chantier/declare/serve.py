@@ -1,4 +1,4 @@
-"""The parser of the `board` command(s); the handlers load when one runs."""
+"""The parser of the `serve` command; the handlers load when one runs."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ HELP = (
 
 def register(sub: Subparsers) -> None:
     """Declare this module's commands."""
-    s = add_command(sub, "board", "chantier.board.command:board", HELP, NO_BATCH)
+    s = add_command(sub, "serve", "chantier.board.command:board", HELP, NO_BATCH)
     s.add_argument(
         "--host",
         help="the address to listen on, for this start (default: chantier.yaml's board.host: "

@@ -40,34 +40,34 @@ def own_origin(headers: dict[str, str]) -> bool:
     return origin.lower() in (f"http://{host}", f"https://{host}")
 
 
-def source_of(headers: dict[str, str], key: str) -> Source | None:
+def source_of(headers: dict[str, str], key: str, cookie: str) -> Source | None:
     """Where a good key came from: the header, else the cookie from the server's own origin;
     None for none, a bad one, or a cookie from another origin."""
     if keys.is_good(headers.get(keys.HEADER), key):
         return "header"
-    if keys.is_good(keys.cookie_value(headers.get("cookie")), key) and own_origin(headers):
+    if keys.is_good(keys.cookie_value(headers.get("cookie"), cookie), key) and own_origin(headers):
         return "cookie"
     return None
 
 
-def upgrade(headers: dict[str, str], key: str) -> tuple[bool, str | None]:
+def upgrade(headers: dict[str, str], key: str, name: str) -> tuple[bool, str | None]:
     """The WebSocket upgrade, judged as a request: (may it open, the good credential it carries).
     No header and no cookie: it opens, and the key comes in `hello`. A credential that is bad, or
     a cookie from another origin, refuses it (401, no socket)."""
-    cookie = keys.cookie_value(headers.get("cookie"))
+    cookie = keys.cookie_value(headers.get("cookie"), name)
     if keys.HEADER not in headers and cookie is None:
         return True, None
-    source = source_of(headers, key)
+    source = source_of(headers, key, name)
     if source is None:
         return False, None
     return True, headers[keys.HEADER] if source == "header" else cookie
 
 
-def judge(req: Request, key: str) -> Reply | None:
+def judge(req: Request, key: str, cookie: str) -> Reply | None:
     """The refusal of a request to `/api/v1/` (401 for no key, 415 for a body that is not
     JSON), None when it may go on. A cookie from the server's own page and a header key pass
     the same rule: the body is JSON."""
-    if source_of(req.headers, key) is None:
+    if source_of(req.headers, key, cookie) is None:
         return text(401, guard.NEEDS_KEY)
     if req.body and not req.headers.get("content-type", "").startswith("application/json"):
         return text(415, "refused: the body is application/json")

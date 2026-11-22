@@ -193,7 +193,7 @@ KEYS = [
 
 
 def test_the_key_and_the_origin(board: Board) -> None:
-    cookie = keys.set_cookie(board.key).split(";")[0]
+    cookie = keys.set_cookie(board.key, board.ctx.cookie).split(";")[0]
     for name, headers, key, status in KEYS:
         sent = {k: (cookie if v == "KEY" else v) for k, v in headers.items()}
         got, _, answer = http(board, "POST", "/api/v1/call/board.get", {}, key, **sent)
@@ -203,7 +203,7 @@ def test_the_key_and_the_origin(board: Board) -> None:
 
 
 def test_an_old_route_answers_404_even_for_a_post_a_cookie_carries(board: Board) -> None:
-    cookie = keys.set_cookie(board.key).split(";")[0]
+    cookie = keys.set_cookie(board.key, board.ctx.cookie).split(";")[0]
     for path in ("/api/seats", "/api/projects/x/backlog/new", "/api/writer/sync"):
         for kind in ("text/plain", "application/json"):
             head = {"cookie": cookie, "content-type": kind}

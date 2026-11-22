@@ -48,7 +48,7 @@ def _dispatch(ctx: Context, req: Request) -> Reply:
 def _frame(ctx: Context, req: Request, key: str) -> Reply:
     """The probe and the page's files: the cookie or the header, the method, the rule for
     writes, then the route."""
-    if not guard.authorised(req, key):
+    if not guard.authorised(req, key, ctx.cookie):
         return text(401, guard.NEEDS_KEY)
     if req.path.startswith("/api/") and req.path != PROBE:
         return _unknown()  # a route of an older version, whatever its method
@@ -61,7 +61,7 @@ def _frame(ctx: Context, req: Request, key: str) -> Reply:
 def _judged(ctx: Context, req: Request) -> Reply:
     key = ctx.key.current()
     if "k" in req.query:
-        done = guard.exchange(req, key)
+        done = guard.exchange(req, key, ctx.cookie)
         if done:
             return done
     try:
