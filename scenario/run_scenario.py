@@ -881,6 +881,8 @@ def ship(w: World, cr_id: str, title: str, base: str | None = None) -> None:
     first = cr_id not in OPENED
     body.write_text(BODY.format(title=c["title"], cr=cr_id))
     link = OPENED.setdefault(cr_id, open_pr(w, cr_id, title, base or "main") if first else c["pr"])
+    if base and not first:  # a PR kept from an earlier case with this id: it targets the base now
+        forge_base(w, link, base)
     w.chantier("ship", cr_id, link)
 
 
@@ -6618,6 +6620,7 @@ def gate_carry_stack(w: World) -> None:
     wu, wo = Path(w.cr(under)["worktree"]), Path(w.cr(over)["worktree"])
     w.sh("git", "commit", "--quiet", "--amend", "-m", "feat: under, rewritten", cwd=wu)
     w.sh("git", "push", "--quiet", "--force-with-lease", "origin", w.cr(under)["branch"], cwd=wu)
+    w.chantier("ship", under, w.cr(under)["pr"])  # the stack driver ships each CR it restacks
     w.sh("git", "fetch", "--quiet", "origin", cwd=wo)
     w.sh("git", "rebase", "--quiet", f"origin/{w.cr(under)['branch']}", cwd=wo)
     w.sh("git", "push", "--quiet", "--force-with-lease", "origin", w.cr(over)["branch"], cwd=wo)
@@ -6889,7 +6892,7 @@ def stack_batch(w: World) -> None:
     check("the recorded start base falls back to the nearest CR below with a PR while the CR that owns it is "
           "cancelled, and is back with it (recorded, not recomputed)",
           on_two and any(f"base {w.cr(three)['branch']}" in ln for ln in w.chantier("handoff", four)[1]))
-    driver_round(w, four, "stack3.py", "N = 3\n")
+    driver_round(w, four, "stack3.py", "N = 3\n", base=w.cr(three)["branch"])
     w.ready(four, w.cr(four)["pr"])
 
     def edit_batch(cr: str, **fields) -> None:
@@ -7194,7 +7197,9 @@ def base_from_pr(w: World) -> None:
     driver_round(w, two, "base2.py", "N = 2\n")
     w.chantier("stack", one, two, three)
     link = w.cr(two)["pr"]
+    rebase_onto(w, two, one)
     forge_base(w, link, w.cr(one)["branch"])  # the stack driver put it on the CR below
+    w.chantier("ship", two, link)  # and shipped the new head, which the gate and handback below hold
     before = reads()
     _, out = w.chantier("handoff", two)
     check("`handoff` prints a stacked CR's base as its PR has it on the forge (the CR below's branch), "
@@ -7939,7 +7944,7 @@ def batch_modes(w: World) -> None:
           "still waits", any(f"base {w.cr(a)['branch']}" in ln for ln in out)
           and w.chantier("take", c, "--epoch", 0, expect=2)[0] == 2 and f"waits for {b} working" in w.last_stderr,
           str(out))
-    driver_round(w, b, "series_b.py", "B = 1\n")
+    driver_round(w, b, "series_b.py", "B = 1\n", base=w.cr(a)["branch"])
     w.ready(b, w.cr(b)["pr"])
     w.chantier("order", "merged", a)
     _, out = w.chantier("take", b, "--note", f"rebase: {a} merged", "--epoch", 0)
@@ -8069,11 +8074,11 @@ def early_conflict(w: World) -> None:
         a_, b_ = (c["id"] for c in w.batch()["crs"])
         return Foreman(w, epoch=1), a_, b_
 
-    def hand_back(cr: str, value: int) -> None:
+    def hand_back(cr: str, value: int, name: str = "shared.py", base: str | None = None) -> None:
         if w.cr(cr)["status"] == "queued":  # the Foreman's turn may have taken it already
             w.chantier("take", cr, "--epoch", 1)
         start_driver(w, cr)
-        driver_round(w, cr, "shared.py", f"N = {value}\n")
+        driver_round(w, cr, name, f"N = {value}\n", base=base)
         w.ready(cr, w.cr(cr)["pr"])
 
     def merge_trees(fm: Foreman) -> list[tuple[str, ...]]:
@@ -8116,7 +8121,7 @@ def early_conflict(w: World) -> None:
 
     fm, first, second = two_ready(("Early stacked first", "Early stacked second"), "--mode", "stack")
     hand_back(first, 1)
-    hand_back(second, 2)
+    hand_back(second, 2, "shared_second.py", base=w.cr(first)["branch"])  # it starts on the first's branch
     fm.turn()
     check("a stack batch: no merge-tree runs and no `conflict` ask is sent",
           not merge_trees(fm) and not conflict_asks(fm)
@@ -8522,13 +8527,19 @@ def on_branch(w: World, cr_id: str, base: str) -> None:
     w.sh("git", "worktree", "add", "--quiet", "-b", c["branch"], c["worktree"], f"origin/{base}")
 
 
-def restack(w: World, cr_id: str, under: str) -> None:
-    """The stack driver restacks a PR: rebase onto the CR under it, push with a lease, `ship`."""
+def rebase_onto(w: World, cr_id: str, under: str) -> None:
+    """The stack driver's git part of a restack: rebase onto the CR under it, push with a lease."""
     c = w.cr(cr_id)
     wt = Path(c["worktree"])
     w.sh("git", "fetch", "--quiet", "origin", cwd=wt)
     w.sh("git", "rebase", "--quiet", f"origin/{w.cr(under)['branch']}", cwd=wt)
     w.sh("git", "push", "--quiet", "--force-with-lease", "-u", "origin", c["branch"], cwd=wt)
+
+
+def restack(w: World, cr_id: str, under: str) -> None:
+    """The stack driver restacks a PR: rebase onto the CR under it, push with a lease, `ship`."""
+    c = w.cr(cr_id)
+    rebase_onto(w, cr_id, under)
     forge_base(w, c["pr"], w.cr(under)["branch"])  # the PR sits on the branch of the CR under it
     w.chantier("ship", cr_id, c["pr"])
 
@@ -9383,7 +9394,8 @@ def ready_words(w: World) -> None:
     fm.turn()
     w.chantier("stack", a, b, c)
     for i, cr in enumerate((a, b, c)):
-        driver_round(w, cr, f"words{i}.py", f"N = {i}\n")
+        under = (None, a, b)[i]  # each CR is pushed on the branch of the one below it
+        driver_round(w, cr, f"words{i}.py", f"N = {i}\n", base=w.cr(under)["branch"] if under else None)
     forge_base(w, w.cr(b)["pr"], w.cr(a)["branch"])  # the stack driver put each PR on the one below
     forge_base(w, w.cr(c)["pr"], w.cr(b)["branch"])
     forge_draft(w, w.cr(b)["pr"], True)  # the forge holds b's PR as a draft
@@ -9427,7 +9439,10 @@ def ready_words(w: World) -> None:
     # run 1: c out of draft, the forge's base still `main`, b not out of draft: the line names b
     cpr, bpr = w.cr(c)["pr"], w.cr(b)["pr"]
     forge_base(w, cpr, "main")
+    forge_draft(w, cpr, True)  # `ship` refuses c out of draft on main over a and b: ship it as a draft,
     w.chantier("ship", c, cpr)
+    forge_draft(w, cpr, False)
+    edit_cr(c, pr_draft=False)  # then out of draft in the record, as the run reads it
     edit_cr(c, status="working")  # handed back again, the record as a Driver leaves it
     _, out = w.ready(c, cpr)
     check("4. a stacked PR out of draft with the forge's base `main` waits on the CR under it, "
@@ -9507,6 +9522,9 @@ def ready_words(w: World) -> None:
     check("7. `stack --draft` records a PR turned back to a draft; the CR reads `PR in draft`",
           w.cr(c)["pr_draft"] is True and ready_of(c) == "PR in draft"
           and ready_of(b) == "ready to merge", str(w.cr(c)))
+    rebase_onto(w, c, b)  # b has a new head: c is restacked on it as a draft before it goes out of draft
+    forge_draft(w, w.cr(c)["pr"], True)
+    w.chantier("ship", c, w.cr(c)["pr"])
     w.chantier("stack", "--out-of-draft", c)
 
     # an old record, a hand-edited record
@@ -9540,7 +9558,8 @@ def ready_words(w: World) -> None:
     a, b, c = (x["id"] for x in w.batch()["crs"])
     w.chantier("stack", a, b, c)
     for i, cr in enumerate((a, b, c)):
-        driver_round(w, cr, f"forge{i}.py", f"N = {i}\n")
+        under = (None, a, b)[i]  # each CR is pushed on the branch of the one below it
+        driver_round(w, cr, f"forge{i}.py", f"N = {i}\n", base=w.cr(under)["branch"] if under else None)
     for cr in (a, b):
         forge_draft(w, w.cr(cr)["pr"], True)
         w.chantier("ship", cr, w.cr(cr)["pr"])
