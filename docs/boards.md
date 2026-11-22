@@ -72,9 +72,9 @@ The web board is a small web server, `chantier board`, for any device. Every vie
 
 ## The live terminal view
 
-`chantier live` watches a running board in the terminal, read-only: the second client of [the
-server's API](server-api.md), beside the web page. It never starts a board, writes nothing and
-messages no agent.
+`chantier live` watches one to four running boards in the terminal, read-only: the second client
+of [the server's API](server-api.md), beside the web page. It never starts a board, writes nothing
+and messages no agent. Its keys only change what its own screen shows.
 
 What it shows, redrawn once a second:
 
@@ -84,10 +84,14 @@ What it shows, redrawn once a second:
 - on the left (from 100 columns): each project watched with its batch and its backlog, and one
   line per unit an agent holds (`Driver <cr> <phase>`, `Stack driver`);
 - in the centre, the flow: the record's events and the journal's lines of every project
-  watched, newest at the bottom;
+  watched, newest at the bottom; it keeps the last 2000 lines of each board, merged by time;
 - on the right, the tasks: the working CRs with their round and their lease's time left (from the
   server's clock, so a machine with a wrong clock shows the right time), then the CRs to review
   with their age, then the blocked ones with their reason.
+
+With several boards the boards are labelled `a` to `d`, in the order of their `--url`: the header
+has one line per board (`<label>  <address>  <folder>  v<version>  <transport> <link state>`), the
+counts are summed, a project is named `<label>/<project>` and a task's CR reads `<label> <CR>`.
 
 How to start it:
 
@@ -95,12 +99,42 @@ How to start it:
   address. With none: `live: no board runs for this surface: start one with chantier board, or
   pass --url <link>` (exit 4).
 - `chantier live --url <link>`: a board on another machine, from the link it printed (with its
-  `?k=` key); the environment's proxies apply.
+  `?k=` key); the environment's proxies apply. `--url` is repeatable: one to four boards, one key
+  and one connection each. A fifth, or the same board twice, is refused at start (two spellings of
+  one host, `localhost` and `127.0.0.1`, are not detected). The recorded board joins others only
+  by its own link.
 - `--only <project>` (repeatable) watches those projects only; without it, every project, the
-  first 15. `--transport auto|ws|http`: the WebSocket first, else the HTTP long-poll, or one only.
-  A lost link is tried again every 5 s; a refused key exits 4 with the server's sentence.
-- `--once` prints the screen once as plain text and exits: for a script, a test or a bug report.
-  Without it, a stdout that is not a terminal is refused. Ctrl-C leaves the screen.
+  first 15 of each board. `--transport auto|ws|http`: the WebSocket first, else the HTTP
+  long-poll, or one only. Both apply to every board. A lost link is tried again every 5 s while
+  the other boards go on; a refused key on any board exits 4 with the server's sentence and that
+  board's address (never its key).
+- `--once` prints the screen once as plain text and exits, once every board has answered: for a
+  script, a test or a bug report. It reads no key. Without it, a stdout that is not a terminal is
+  refused. `q` or Ctrl-C leaves the screen.
+
+Keys:
+
+| Key | Effect |
+|---|---|
+| Up / Down | the Flow one line older / newer |
+| PgUp / PgDn | the Flow one page older / newer |
+| Home | the oldest kept line of the merged Flow |
+| End | back to the live end (follows again) |
+| `/` | type a filter: characters add, Backspace removes, Enter applies (empty clears), Esc cancels |
+| `?` | show the keys over the screen; any key closes them |
+| Esc | clear the filter; leave the help |
+| `q`, Ctrl-C | quit, exit 0 |
+
+- Only the Flow scrolls. Scrolled back, it does not move when lines arrive and its title reads
+  `Flow  paused, <n> new`, until End, or Down or PgDn reaching the newest line, follows live again.
+- The filter is one text, matched without case against a Flow line's board label, project, CR,
+  who and text, and a task's board label, project, CR, title and phase. It narrows the Flow and
+  the Tasks, not the left column nor the counts, and the footer says `filter: <text>`. It is
+  local: nothing more is asked of the server (`--only` watches fewer projects).
+- With no keyboard (the input is not a terminal), there are no keys and the footer reads
+  `Ctrl-C to quit`; the screen runs as before.
+- The terminal is given back on every way out (`q`, Ctrl-C, a refused key, an error, SIGTERM on
+  POSIX) but a killed process (SIGKILL, a closed terminal window), which cannot.
 
 One `--once` capture, on a board over a small scratch project, a running batch whose first CR is
 taken (its lease live) and the second not yet (120 columns):

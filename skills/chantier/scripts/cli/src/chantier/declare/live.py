@@ -15,9 +15,11 @@ def register(sub: Subparsers) -> None:
     s = add_command(sub, "live", "chantier.commands.live:live", HELP, NO_BATCH)
     s.add_argument(
         "--url",
+        action="append",
+        default=[],
         metavar="LINK",
-        help="the board of that link (http(s)://host:port/[prefix/]?k=<key>); omitted: the "
-        "board recorded as running for this surface or project",
+        help="a board's link (http(s)://host:port/[prefix/]?k=<key>), repeatable, at most 4; "
+        "omitted: the board recorded as running for this surface or project",
     )
     s.add_argument(
         "--only",

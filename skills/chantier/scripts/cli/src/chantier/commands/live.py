@@ -1,13 +1,14 @@
-"""`chantier live`: a running board watched live in the terminal, read-only, through the server's
-published API (`clients/tui/`). The board is the one recorded as running for this surface or
-project, called on the loopback address, or the one of `--url`; `live` never starts one and never
-writes `server.json`. It prints through its own console and returns no lines."""
+"""`chantier live`: one to four running boards watched live in the terminal, read-only, through the
+server's published API (`clients/tui/`). A board is the one recorded as running for this surface or
+project, called on the loopback address, or each `--url`; `live` never starts one and never writes
+`server.json`. It prints through its own console and returns no lines."""
 
 from __future__ import annotations
 
 import argparse
 import contextlib
 import os
+import signal
 import sys
 import threading
 import time
@@ -18,13 +19,17 @@ from chantier.board.address import loopback_base
 from chantier.board.projects import open_projects
 from chantier.clients.tui import screen
 from chantier.clients.tui.link import Link
-from chantier.clients.tui.model import Model
+from chantier.clients.tui.model import Model, merged
+from chantier.clients.tui.view import View
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_USAGE, ChantierError
 from chantier.hub import state
 
 ONCE_S = 10.0  # `--once` waits this long for the first event of every subscription
 ONCE_W = 120  # `--once`'s width when the terminal says none
 FLOW_SHOWN = 40  # `--once` prints at most this many lines of the flow
+MAX_BOARDS = 4
+LABELS = "abcd"
+LOOK_S = 0.05  # `--once` looks at what the readers have found this often
 NO_KEY = "--url: the link holds no key (?k=...): give the link the board printed"
 NO_BOARD = (
     "live: no board runs for this surface: start one with chantier board, or pass --url <link>"
@@ -53,11 +58,21 @@ def recorded() -> tuple[str, str]:
     return loopback_base(str(entry["host"]), int(entry["port"])), key
 
 
-def _check_only(m: Model) -> None:
-    unknown = m.unknown_only()
-    if unknown:
-        served = ", ".join(p["id"] for p in m.projects()) or "none"
-        raise ChantierError(f"--only {unknown[0]}: the board serves {served}", EXIT_USAGE)
+def _check_only(models: list[Model]) -> None:
+    """Refuse a `--only` id that no board serves, once every board is known."""
+    if any(m.board is None for m in models):
+        return
+    if len(models) == 1:
+        unknown = models[0].unknown_only()
+        if unknown:
+            served = ", ".join(p["id"] for p in models[0].projects()) or "none"
+            raise ChantierError(f"--only {unknown[0]}: the board serves {served}", EXIT_USAGE)
+        return
+    ids = {p["id"] for m in models for p in m.projects()}
+    nobody = [x for x in models[0].only if x not in ids]
+    if nobody:
+        names = ", ".join(m.named(p["id"]) for m in models for p in m.projects()) or "none"
+        raise ChantierError(f"--only {nobody[0]}: no board serves it; served: {names}", EXIT_USAGE)
 
 
 def _width() -> int:
@@ -67,85 +82,156 @@ def _width() -> int:
         return ONCE_W
 
 
-def height_for(m: Model) -> int:
+def height_for(models: Model | list[Model]) -> int:
     """`--once`'s height: what the longest column needs."""
-    rows = m.rows()
-    working = sum(1 for _, r in rows if r.get("state") == "working")
-    review = sum(1 for _, r in rows if r.get("to_review"))
-    blocked = sum(1 for _, r in rows if r.get("state") == "blocked")
+    models = [models] if isinstance(models, Model) else models
+    rows = [r for m in models for _, r in m.rows()]
+    working = sum(1 for r in rows if r.get("state") == "working")
+    review = sum(1 for r in rows if r.get("to_review"))
+    blocked = sum(1 for r in rows if r.get("state") == "blocked")
     tasks = 2 * working + review + bool(review) + blocked + bool(blocked) or 1
-    left = 2 * len(m.watched()) + 2 + max(len(m.agents()), 1)
-    body = max(min(len(m.flow), FLOW_SHOWN), tasks, left, 3)
-    return screen.HEADER_H + screen.FOOTER_H + screen.BORDERS + body
+    left = 2 * sum(len(m.watched()) for m in models) + 2
+    left += max(sum(len(m.agents()) for m in models), 1)
+    body = max(min(len(merged(models)), FLOW_SHOWN), tasks, left, 3)
+    return screen.header_height(models) + screen.FOOTER_H + screen.BORDERS + body
 
 
-def once(link: Link, m: Model) -> None:
-    """One printed screen once every subscription has answered; exit 4 with what is missing
-    after `ONCE_S`, on either transport (a poll is never held past the deadline)."""
-    deadline = time.monotonic() + ONCE_S
-    link.deadline = deadline
+def _read(
+    link: Link, m: Model, models: list[Model], lock: threading.Lock, stop: threading.Event
+) -> None:
+    """Feed the model with what the link gives, under the lock, until `stop` is set. A key or
+    protocol refusal of the link ends it with the board's address; `--only`'s errors do not."""
     link.want(m.wanted())
     with contextlib.closing(link.items()) as items:
-        for item in items:
-            m.feed(item)
-            _check_only(m)
-            link.want(m.wanted())
-            if not m.missing():
-                break
-            if time.monotonic() > deadline:
-                missing = ", ".join(m.missing())
-                raise ChantierError(
-                    f"live: the board gave no first answer within {ONCE_S:g} s for {missing}",
-                    EXIT_EXTERNAL,
-                )
-    screen.plain(m, _width(), height_for(m), sys.stdout)
-
-
-def _read(link: Link, m: Model, lock: threading.Lock, stop: threading.Event) -> None:
-    """Feed the model with what the link gives, under the lock, until `stop` is set."""
-    link.want(m.wanted())
-    with contextlib.closing(link.items()) as items:
-        for item in items:
+        while True:
+            try:
+                item = next(items)
+            except StopIteration:
+                return
+            except ChantierError as e:
+                raise ChantierError(f"{e} (board {link.base})", e.code) from e
             if stop.is_set():
                 return
             with lock:
                 m.feed(item)
-                _check_only(m)
+                _check_only(models)
             link.want(m.wanted())
 
 
-def watch(link: Link, m: Model) -> None:
-    """The screen, redrawn once a second, the link read in a thread of its own; Ctrl-C leaves."""
-    lock = threading.Lock()
-    stop = threading.Event()
+def _start(
+    links: list[Link], models: list[Model], lock: threading.Lock, stop: threading.Event
+) -> tuple[list[threading.Thread], list[ChantierError]]:
+    """One reader thread per board; the errors of the readers are kept in the list."""
     failed: list[ChantierError] = []
 
-    def work() -> None:
+    def work(link: Link, m: Model) -> None:
         try:
-            _read(link, m, lock, stop)
+            _read(link, m, models, lock, stop)
         except ChantierError as e:
             failed.append(e)
 
-    reader = threading.Thread(target=work, name="chantier-live", daemon=True)
-    reader.start()
+    threads = [
+        threading.Thread(target=work, args=(k, m), name=f"chantier-live-{i}", daemon=True)
+        for i, (k, m) in enumerate(zip(links, models, strict=True))
+    ]
+    for t in threads:
+        t.start()
+    return threads, failed
+
+
+def _missing(models: list[Model]) -> list[str]:
+    if len(models) == 1:
+        return models[0].missing()
+    return [f"{m.label} {x}" for m in models for x in m.missing()]
+
+
+def once(links: list[Link], models: list[Model]) -> None:
+    """One printed screen once every subscription of every board has answered; exit 4 with what
+    is missing after `ONCE_S`, on either transport (a poll is never held past the deadline)."""
+    deadline = time.monotonic() + ONCE_S
+    for link in links:
+        link.deadline = deadline
+    lock, stop, look = threading.Lock(), threading.Event(), threading.Event()
+    _, failed = _start(links, models, lock, stop)
     try:
-        screen.run(m, lock, reader.is_alive)
+        while True:
+            with lock:
+                missing = _missing(models)
+            if failed:
+                raise failed[0]
+            if not missing:
+                break
+            if time.monotonic() > deadline:
+                what = ", ".join(missing)
+                sentence = (
+                    f"live: the board gave no first answer within {ONCE_S:g} s for {what}"
+                    if len(models) == 1
+                    else f"live: no first answer within {ONCE_S:g} s for {what}"
+                )
+                raise ChantierError(sentence, EXIT_EXTERNAL)
+            look.wait(LOOK_S)
+    finally:
+        stop.set()
+    with lock:
+        screen.plain(models, _width(), height_for(models), sys.stdout)
+
+
+def watch(
+    links: list[Link],
+    models: list[Model],
+    view: View | None = None,
+    term: Any = None,
+    console: Any = None,
+) -> None:
+    """The screen, redrawn once a second and at each key, one reader thread per board; `q` and
+    Ctrl-C (and SIGTERM on POSIX) leave, with the terminal given back."""
+    view = view or View()
+    lock, stop = threading.Lock(), threading.Event()
+    threads, failed = _start(links, models, lock, stop)
+
+    def terminate(_signum: int, _frame: Any) -> None:
+        raise KeyboardInterrupt
+
+    previous = None
+    if sys.platform != "win32" and threading.current_thread() is threading.main_thread():
+        previous = signal.signal(signal.SIGTERM, terminate)
+    try:
+        screen.run(models, view, lock, lambda: all(t.is_alive() for t in threads), term, console)
     except KeyboardInterrupt:
         return
     finally:
         stop.set()
+        if previous is not None:
+            signal.signal(signal.SIGTERM, previous)
     if failed:
         raise failed[0]
+
+
+def _boards(args: argparse.Namespace) -> list[tuple[str, str]]:
+    """The (base address, key) of each board asked for, or of the recorded one."""
+    if len(args.url) > MAX_BOARDS:
+        raise ChantierError(f"--url: at most {MAX_BOARDS} boards in one screen", EXIT_USAGE)
+    boards = [from_link(u) for u in args.url]
+    seen: set[str] = set()
+    for base, _ in boards:
+        if base in seen:
+            raise ChantierError(f"--url {base}: given twice", EXIT_USAGE)
+        seen.add(base)
+    return boards or [recorded()]
 
 
 def live(args: argparse.Namespace) -> list[Any]:
     if not args.once and not sys.stdout.isatty():
         raise ChantierError(NO_TERMINAL, EXIT_USAGE)
-    base, key = from_link(args.url) if args.url else recorded()
-    link = Link(base, key, args.transport, proxies=bool(args.url))
-    m = Model(only=list(args.only))
+    boards = _boards(args)
+    links = [Link(b, k, args.transport, proxies=bool(args.url)) for b, k in boards]
+    labels = list(LABELS[: len(boards)]) if len(boards) > 1 else [""]
+    models = [
+        Model(only=list(args.only), label=label, base=base)
+        for (base, _), label in zip(boards, labels, strict=True)
+    ]
     if args.once:
-        once(link, m)
+        once(links, models)
     else:
-        watch(link, m)
+        watch(links, models)
     return []
