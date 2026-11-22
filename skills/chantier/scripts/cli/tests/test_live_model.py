@@ -19,7 +19,7 @@ from chantier.clients.tui.link import Event, Idle, Linked
 from chantier.clients.tui.model import FLOW, Line, Model, lease_left, merged
 from chantier.clients.tui.view import HELP, View
 from chantier.commands import live as live_command
-from chantier.core.errors import EXIT_EXTERNAL, ChantierError
+from chantier.core.errors import EXIT_EXTERNAL, EXIT_USAGE, ChantierError
 
 CAP = 2000
 
@@ -353,3 +353,22 @@ def test_watch_leaves_on_every_exit_and_gives_the_terminal_back(
     assert term.log == ["in", "out"]
     if sys.platform != "win32":  # SIGTERM's own handler is put back
         assert signal.getsignal(signal.SIGTERM) in (signal.SIG_DFL, signal.SIG_IGN)
+
+
+def test_once_refuses_an_unserved_only_before_the_reader_keeps_its_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The forced interleaving: every model is complete (the readers fed the last answer) before
+    any reader's `--only` error is kept; `once` still ends with the `--only` sentence."""
+    models = [Model(only=["nope"], base="http://a/"), Model(only=["nope"], base="http://b/")]
+
+    def start(links: Any, models: list[Model], *_a: Any) -> tuple[list[Any], list[Any]]:
+        for m in models:
+            m.feed(Event("board", "board", {"projects": [{"id": "p"}]}, NOW))
+        return [], []  # no error kept yet
+
+    monkeypatch.setattr(live_command, "_start", start)
+    with pytest.raises(ChantierError, match="--only nope: no board serves it") as e:
+        stubs: list[Any] = [Stub(), Stub()]
+        live_command.once(stubs, models)
+    assert e.value.code == EXIT_USAGE
