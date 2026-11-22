@@ -11,7 +11,7 @@ import pytest
 from batch_helpers import FROM_AGENTS_MD, host, prepared
 from conftest import PLUGIN_ROOT, Chantier, Surface
 from test_playbook_config import CODER, DRIVER, HEAD, OPUS, A, ci_line
-from test_plugin_files import ROLES, _front, agent_file
+from test_plugin_files import ALL_ROLES, _front, agent_file
 
 from chantier.board.address import settings
 from chantier.core.errors import EXIT_PRECONDITION
@@ -63,7 +63,8 @@ def test_the_shipped_defaults_give_each_role_the_model_its_agent_file_declares(
     held = tree.value["hosts"][1].value[host_name][1].value
     assert set(held) == {"roles", "timing"}
     roles = held["roles"][1].value
-    assert sorted(roles) == sorted(ROLES) == sorted(plugin_roles(host_name))  # one per agent file
+    # one per agent file
+    assert sorted(roles) == sorted(ALL_ROLES) == sorted(plugin_roles(host_name))
     for role, (_, node) in roles.items():
         assert set(node.value) in ({"model"}, {"model", "escalation"})
         assert not any(is_reset(n) for _, n in node.value.values())  # no reset

@@ -42,6 +42,8 @@ CHIEF_ROLES = (
 
 
 ROLES = DRIVERS + WORKERS + CHIEF_ROLES
+BOARD_ROLES = ("board-griller",)  # started by the surface server, headless; its own contract
+ALL_ROLES = ROLES + BOARD_ROLES
 
 
 CLAUDE_OPUS_ROLES = {
@@ -186,7 +188,7 @@ def test_no_tracked_file_starts_with_a_utf8_byte_order_mark() -> None:
 def test_each_host_ships_one_agent_per_role_and_nothing_else(host: str) -> None:
     folder = agent_file("coder", host).parent
     assert sorted(p.name for p in folder.iterdir()) == sorted(
-        agent_file(r, host).name for r in ROLES
+        agent_file(r, host).name for r in ALL_ROLES
     )
 
 
@@ -222,6 +224,20 @@ def test_both_hosts_give_a_role_the_same_body_and_their_own_frontmatter(role: st
     assert (claude.get("background") == "true") == (role in DRIVERS)
 
 
+def test_the_board_griller_has_the_same_body_on_both_hosts_and_refuses_another_prompt() -> None:
+    claude, claude_body = _front(agent_file("board-griller", "claude"))
+    copilot, copilot_body = _front(agent_file("board-griller", "copilot"))
+    assert claude_body == copilot_body
+    assert claude["name"] == "board-griller" and copilot["name"] == "chantier-board-griller"
+    assert claude["description"] == copilot["description"]
+    assert claude["model"] == "claude-opus-5-5" and "Opus 5.5" in copilot["model"]
+    assert copilot["model-policy"] == "required" and copilot["user-invocable"] == "false"
+    assert "Agent" not in claude["tools"] and '"agent"' not in copilot["tools"]
+    start = "chantier board-griller for the board, in the project <root>."
+    assert f"My prompt must start with `{start}`" in claude_body
+    assert "## Started from the board" in claude_body
+
+
 @pytest.mark.parametrize("host", ["claude", "copilot"])
 @pytest.mark.parametrize("role", [r for r in WORKERS if r != "demo-explorer"])
 def test_a_worker_agent_file_points_to_its_card_and_refuses_a_prompt_without_it(
@@ -238,7 +254,7 @@ def test_a_worker_agent_file_points_to_its_card_and_refuses_a_prompt_without_it(
 
 @pytest.mark.parametrize("host", ["claude", "copilot"])
 def test_the_model_table_names_every_model_the_agent_files_name(host: str) -> None:
-    for role in ROLES:
+    for role in ALL_ROLES:
         front, _ = _front(agent_file(role, host))
         # Copilot writes `[Display name, id]`; Claude the id alone
         named = front["model"].strip("[]").split(", ")[-1]

@@ -25,6 +25,7 @@
     "demo-explorer": "demo-explorer.md",
     "spec-writer": "spec-writer.md",
     "spec-critic": "spec-critic.md",
+    "board-griller": "griller.md",
     "retro-critic": "retro-critic.md",
     "chief-of-staff": "../../chief-of-staff/SKILL.md",
     "griller": "../../griller/SKILL.md",
@@ -40,7 +41,8 @@
     "chief-of-staff": ["../../chief-of-staff/SKILL.md#Startup core"],
     "griller": ["../../griller/SKILL.md#Startup core"],
     "router": ["../../chantier/SKILL.md#Startup core"],
-    "status": ["../../status/SKILL.md#Startup core"]
+    "status": ["../../status/SKILL.md#Startup core"],
+    "board-griller": ["griller.md#Started from the board"]
   },
   "actions": {
     "route": ["routing.md", "../../chantier/SKILL.md", "session-start.md"],
@@ -59,6 +61,7 @@
     "batch": ["foreman.md", "concepts.md", "hosts/claude-code.md", "hosts/copilot.md"],
     "spec-writer": ["spec-writer.md"],
     "spec-critic": ["spec-critic.md"],
+    "board-griller": ["griller.md"],
     "retro-critic": ["retro-critic.md"],
     "investigator": ["investigator.md"],
     "coder": ["coder.md"],

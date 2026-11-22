@@ -10,7 +10,15 @@ from conftest import PLUGIN_ROOT, SKILL
 STARTUP_LIMIT = 12_544
 DRIVER_ROLES = ("cr-driver", "stack-driver", "qa-driver", "release-driver")
 MANIFEST_VERSION = 2
-WITH_SECTIONS = {*DRIVER_ROLES, "foreman", "chief-of-staff", "griller", "router", "status"}
+WITH_SECTIONS = {
+    *DRIVER_ROLES,
+    "foreman",
+    "chief-of-staff",
+    "griller",
+    "router",
+    "status",
+    "board-griller",
+}
 FOREMAN_SECTIONS = [
     "concepts.md#Startup core",
     {"claude": "hosts/claude-code.md#Startup core", "copilot": "hosts/copilot.md#Startup core"},
