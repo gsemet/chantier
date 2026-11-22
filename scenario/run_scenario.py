@@ -1740,14 +1740,29 @@ def board_api(w: World, port: int, link: Link, project: str):
     frame_of(ws, "result", lambda f: f["id"] == "e")
     ws.send(json.dumps({"t": "call", "id": "m", "op": "backlog.move",
                         "args": {"project": project, "items": ["scenario-socket-idea"], "to": "P3"}}))
-    moved = frame_of(ws, "result", lambda f: f["id"] == "m") or {}
+    # the server orders no call's `result` against another subscription's `event`: keep the `e`
+    # events seen while waiting for the move's result, so the check below does not depend on it
+    kept: list[dict] = []
+    moved = {}
+    end = time.monotonic() + 15
+    while (left := end - time.monotonic()) > 0:
+        try:
+            got = json.loads(ws.recv(timeout=left))
+        except TimeoutError:
+            break
+        if got.get("t") == "event" and got.get("sub") == "e":
+            kept.append(got)
+        elif got.get("t") == "result" and got.get("id") == "m":
+            moved = got
+            break
     lines = forge_lines()
     check("`backlog.move` over the WebSocket moves the folder and writes exactly one `board@1` line",
           moved.get("status") == 200 and (w.state / "2-backlog" / "P3" / "scenario-socket-idea").is_dir()
           and len(lines) == before + 1 and lines[-1]["type"] == "board@1"
           and lines[-1]["action"] == "move" and lines[-1]["items"] == ["scenario-socket-idea"],
           f"{moved} {lines[-1:]}")
-    said = frame_of(ws, "event", lambda f: f["sub"] == "e" and f["data"]["lines"])
+    said = next((f for f in kept if f["data"]["lines"]), None) \
+        or frame_of(ws, "event", lambda f: f["sub"] == "e" and f["data"]["lines"])
     check("an `events` subscription gets that line, with its `seq`",
           said is not None and said["data"]["lines"][-1]["seq"] == lines[-1]["seq"]
           and said["data"]["lines"][-1]["type"] == "board@1", str(said)[:300])
