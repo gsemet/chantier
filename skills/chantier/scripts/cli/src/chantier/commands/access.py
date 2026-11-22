@@ -119,7 +119,7 @@ def _claim_lines(
     repo.command = "take"  # a refusal of the store names `take`, the command it explains
     try:
         # `note` is only read for its truth: the --note rule is `take`'s, said in the answer
-        check_take_all(repo, d, c, note="-", reclaim=False, read_only=True)
+        check_take_all(repo, d, c, note="-", reclaim=False)
     except ChantierError as e:
         out = [f"claim: refused: {str(e).removeprefix('take: ')}"]
     else:
@@ -152,7 +152,7 @@ def _push_lines(
     if lost := _lease_lost(lease, args.lease):
         return [f"push: refused: {lost}"]
     push = f"push {c.branch} without force; {REWRITE}"
-    if leases.liveness(repo, c.id, lease, drop=False).state == leases.LIVE:
+    if leases.liveness(repo, c.id, lease).state == leases.LIVE:
         return [f"push: allowed: lease {lease.n} of {c.id} is live; {push}"]
     return [
         f"push: allowed: lease {lease.n} of {c.id} not confirmed since {leases.hm(lease.expires)}, "

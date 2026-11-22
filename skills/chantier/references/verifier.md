@@ -73,8 +73,8 @@ Prove, at the pushed head, that the CR does what its specification says. You are
 round's Coder or Inspector; their notes and green CI are not proof. Never edit code. The CLI
 is what refuses a hand-back without a gate pass: you cite the pass in `verify.md` by the gate
 log's first line (the CR and the full SHA it ran at) and `handoff`'s checklist, at the full SHA
-you verified. You run `$CHANTIER gate <cr> "<the project's command>"` (one command per argument,
-never a `;` or `&&` chain; refused on a dirty tree) yourself only when no pass exists at that
+you verified. You run `$CHANTIER gate <cr> <name>` (one name per argument, from `chantier.yaml`'s
+`long_gate.commands`, never a `;` or `&&` chain; refused on a dirty tree) yourself only when no pass exists at that
 head and a claim only the long suite proves, and only for the project's long gate: a short check
 you run directly and cite with its command and output, as any other claim. Output:
 `<work folder>/verify.md` (the work folder's root, the one file the CLI reads): a `Head: <full SHA>` line (the full SHA of `git rev-parse HEAD` in the worktree), each claim with the SHA it was judged at, the command and the

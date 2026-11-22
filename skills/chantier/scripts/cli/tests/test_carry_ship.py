@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from batch_helpers import changes, record, write_record
+from batch_helpers import changes, name_gate, record, write_record
 from conftest import Chantier, sh
 from stack_world import Batch, stack_of
 from test_gate_carry import commit, git_at
@@ -19,7 +19,7 @@ from chantier.core.batch import read_batch
 from chantier.core.errors import EXIT_PRECONDITION
 from chantier.core.repo import Repo
 
-GATE = "python -c pass"
+GATE = "ok"
 PR = "https://github.com/acme/demo/pull/7"
 
 
@@ -39,6 +39,7 @@ def stack(
 ) -> tuple[Path, Chantier, list[dict[str, Any]]]:
     """A stack batch of two CRs, both started on main, each in its worktree (copied)."""
     crs = stack_of(Batch("stack2", ("Cr a", "Cr b")), repo, chantier, monkeypatch)
+    name_gate(repo, GATE, "python -c pass")
     monkeypatch.setattr(delivery, "read_state", lambda link: ("main", False, ""))
     return repo, chantier, crs
 
@@ -197,6 +198,7 @@ def stack3(
         remote(work, "main", sh("git", "rev-parse", "HEAD", cwd=work))
 
     crs = stack_of(Batch("stack3", titles, after=main_on_remote), repo, chantier, monkeypatch)
+    name_gate(repo, GATE, "python -c pass")
     monkeypatch.setattr(delivery, "read_state", lambda link: ("main", False, ""))
     return repo, chantier, crs
 

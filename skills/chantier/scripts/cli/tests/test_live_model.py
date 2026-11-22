@@ -19,7 +19,7 @@ WIDE, NARROW, HIGH = 140, 90, 20
 
 def _lease(**over: Any) -> dict[str, Any]:
     facts = {"n": 1, "renewed": NOW, "expires": "2030-01-01T00:04:30Z", "ended": None}
-    return {**facts, "holds": 0, "gate": None, **over}
+    return {**facts, "gate": None, **over}
 
 
 def _crs() -> list[dict[str, Any]]:
@@ -85,7 +85,6 @@ def test_the_model_counts_and_keeps_each_new_line_once() -> None:
     [
         ({}, "04:30"),
         ({"expires": "2029-12-31T23:57:00Z", "gate": "gate"}, "gate"),
-        ({"expires": "2029-12-31T23:57:00Z", "holds": 1}, "held"),
         ({"expires": "2029-12-31T23:57:00Z"}, "not confirmed 3 min"),
         ({"ended": "2029-12-31T23:59:00Z"}, None),
     ],

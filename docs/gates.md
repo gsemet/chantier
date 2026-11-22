@@ -18,15 +18,25 @@ Two checks guard every change, in any project. You declare them in your `AGENTS.
   commits, and records it. CI still runs at the new head. One command may serve as both gates. The fast gate is never run
   through `chantier gate`.
 
-Declare them with one line each, the exact commands, one command per item, never chained with
-`&&` or `;` (the Driver passes each as its own argument to `chantier gate`, so it runs the same
-way on every OS):
+The long gate is declared in two places: your `AGENTS.md` names it, and the code repository's root
+`chantier.yaml` (`long_gate.commands`) holds its command; a planning surface's `commands` are
+ignored. `chantier gate` runs only a name given there, never a free command. Declare the gates
+with one line each, the exact commands, one command per item, never chained with `&&` or `;`
+(the Driver passes each name as its own argument to `chantier gate`, so it runs the same way on
+every OS):
 
 ```markdown
 - Fast gate (after each change): `npm run lint`, `npm test -- --changed`.
 - Long gate (before a pull request): `npm test`.
 - Before the first push, for a change under `src/`: `<cmd>`.
 - A change to the docs alone needs no long gate.
+```
+
+```yaml
+# chantier.yaml, at the code repository's root
+long_gate:
+  commands:
+    tests: npm test
 ```
 
 An exemption (the last line) and a project with no long gate at all (`This project has no long

@@ -381,9 +381,3 @@ def load_board(repo: Repo) -> tuple[dict[str, Any], list[str]]:
     """The `board` key alone, for `chantier board`: `({}, [])` when there is none."""
     found, problems = read_key(repo, "board")
     return found.get("board", {}), problems
-
-
-def load_long_gate(repo: Repo) -> tuple[int, list[str]]:
-    """The `long_gate` key alone, for `chantier gate`: `(1, [])` when there is none."""
-    found, problems = read_key(repo, "long_gate")
-    return found.get("long_gate", 1), problems

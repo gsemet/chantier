@@ -243,7 +243,7 @@ running again, until the user's close.
   ended, and only then take the CR again with `take <cr> --reclaim --note "resume: lease not
   confirmed"` (a QA order: the restart path with `agents set O-k <id> --reclaim`; the stack: `take stack
   --reclaim`). `agents set <cr>|O-k|stack - --epoch <n>` after an agent's reported end ends its live
-  lease, so the restart does not wait. `take stack` for the stack
+  lease, so the restart does not wait. A `lease hold` keeps a lease live up to 90 minutes with no process behind it; once the host shows its holder ended, that `agents set ... -` ends it with no word of the user; `--reclaim` on a live lease stays the user's word, for a holder the host cannot show ended. `take stack` for the stack
   driver, in this order: `take stack --epoch <n>`, its output in the stack driver's prompt, the start, then
   `agents set stack <id> --epoch <n>`; the stack driver never runs `take stack`. To start a Driver, read `$CHANTIER playbook --batch <batch>`: its agent and model are passed as printed, with no model when none is printed
   ("Starting an agent"), or the generic agent with the printed contract lines. Its prompt is the skeleton `take` (or `take stack`) printed, copied whole, each `<…>` filled in (the `Steering:` means from the host's reference); add no `writes:` line the skeleton does not print, and drop none it prints; see [concepts](https://github.com/gsemet/chantier/blob/main/skills/chantier/references/concepts.md), "A Driver's prompt". A refused start is fixed by a new start with the skeleton's first line. Record each agent's id with `$CHANTIER agents set <cr>|stack <id> --epoch <n>` (`-`

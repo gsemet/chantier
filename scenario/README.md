@@ -116,8 +116,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
   `NOT VERIFIED` accepted without it (unit: gates)
   (test: test_verdict_note.py::test_verified_needs_a_verify_note_naming_the_head);
 - leases (unit: parallel): a stale `--lease` exits 3 `claim lost` and a missing one
-  exits 2, nothing recorded; a CI watch run under `lease <cr> hold` outlives the shortened TTL
-  (`CHANTIER_LEASE_TEST_TTL=3`) and the lease stays live, held by 1 background task;
+  exits 2, nothing recorded; a `lease <cr> hold` keeps the lease live through its minutes (`CHANTIER_LEASE_TEST_MINUTE`), with no process running, and one given a `--` command is refused;
 - the step a working CR is at: `round` recording `coder r1`, `phase` recording the inspector, a
   gate with its detail, `ci`, in the CR's STATUS.json, the batch row, `chantier status` and
   STATUS.md, the `phase` event outside the Progress steps, the step cleared by `handback` and

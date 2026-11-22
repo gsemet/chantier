@@ -15,10 +15,12 @@ from chantier.playbook.lines import (
     escalate_line,
     events_line,
     limits_line,
+    long_gate_lines,
     playbook_lines,
     timing_lines,
     timing_warnings,
 )
+from chantier.playbook.long_gate import load_long_gate
 from chantier.plugin_files import (
     INSTRUCTIONS,
     chief_prompt_lines,
@@ -89,6 +91,12 @@ def playbook(args: argparse.Namespace) -> tuple[list[str], int]:
                 *problems,
             ], EXIT_PRECONDITION
     lines = playbook_lines(made, host, plugin_roles(host), label, escalation)
+    gate = load_long_gate(repo)  # live, like the limits: the commands are never frozen
+    lines += (
+        long_gate_lines(gate.commands, gate.ignored)
+        if not gate.problems
+        else [f"long gate: not readable: {gate.problems[0]}"]
+    )
     lines += timing_lines(timing, host) + timing_warnings(timing, host)
     lines.append(
         limits_line(limits, specifying_markers(repo))

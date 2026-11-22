@@ -13,23 +13,22 @@ from chantier.stack_apart import refuse_parked_waiting
 from chantier.stacks import refuse_held
 
 
-def check_take_all(  # noqa: PLR0913 - the keywords say what each is
+def check_take_all(
     repo: Repo,
     d: BatchRecord,
     c: CrEntry,
     *,
     note: str | None,
     reclaim: bool,
-    read_only: bool = False,
 ) -> Lease | None:
     """The checks from a CR held out of the stack to the published paths, in `take`'s order,
     first refusal raised; returns the last lease for `--reclaim` to end. The batch and the
     epoch, checked before it, are `take`'s own (a check added before this one is not answered
-    by `access`). `read_only`: no dead lease-hold record is removed."""
+    by `access`)."""
     refuse_held(c)
     refuse_parked_waiting(c)
     check_take(d, c, note)
-    old = leases.check_free(repo, d, c.id, reclaim, drop=not read_only)
+    old = leases.check_free(repo, d, c.id, reclaim)
     if c.status != "working":
         check_release_branch(repo, d, c)
     paths, here = stage_layout(repo), cr_directory(repo, c)

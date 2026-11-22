@@ -10,6 +10,7 @@ from chantier.core.repo import Repo
 from chantier.lifecycle.layout_check import Finding, Severity, placement, shape, stage_crs
 from chantier.lifecycle.links import broken_links
 from chantier.lifecycle.stages import PRIORITIES, stage_layout
+from chantier.playbook.long_gate import load_long_gate
 from chantier.summaries.format import summary_findings
 from chantier.summaries.gaps import gap_line, gap_of
 from chantier.summaries.title import title_findings
@@ -47,6 +48,15 @@ def findings(repo: Repo) -> tuple[list[Finding], int]:
         if gap and gap.kind not in ("unreadable", "no heading", "long title"):
             path, _, text = gap_line(repo, gap).partition(": ")
             found.append(Finding("gap", path, text))
+    for shown in load_long_gate(repo).ignored:  # a surface's file: the root file alone names it
+        found.append(
+            Finding(
+                "gap",
+                shown,
+                "long_gate.commands ignored: only the code repository's root chantier.yaml "
+                "names a long gate's command",
+            )
+        )
     return found, len(live) + len(closed)
 
 

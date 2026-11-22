@@ -125,14 +125,14 @@ def _register_lease(sub: Subparsers) -> None:
         "lease",
         "chantier.commands.leases:lease",
         "a unit's lease: `lease <unit>` shows it, `lease <unit> renew --lease <n>` renews it, "
-        "`lease <unit> hold --lease <n> -- <command> [args...]` keeps it live while the command "
-        "runs",
+        "`lease <unit> hold --lease <n> [--minutes N]` keeps it live for N minutes (1 to 90, 45 by "
+        "default) and runs nothing",
         BATCH,
     )
     s.add_argument("unit", help="a CR, `stack` or a QA order `O-k`")
     s.add_argument(
         "rest",
         nargs=argparse.REMAINDER,
-        help="[renew|hold] [--lease N] [--batch B] [-- <command> [args...]]: the form after the "
-        "unit, as written in `lease --help`",
+        help="[renew|hold] [--lease N] [--minutes N] [--batch B]: the form after the unit, as "
+        "written in `lease --help`",
     )

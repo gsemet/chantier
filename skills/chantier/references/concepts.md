@@ -61,9 +61,9 @@ At startup, identify the role, batch, project and parent session.
   nothing open sits below it ([foreman](foreman.md), Your means, "Merging on GitHub").
 - **Lease:** a numbered hold of a Driver, the stack driver or a QA driver on its unit (a CR, `stack`
   or a QA order `O-k`), started by `take` (or `order qa`), lasting 10 minutes and renewed by the
-  commands that carry `--lease <n>`, by `lease <unit> renew` and by a `lease <unit> hold` child
-  that runs. It is local to the machine that runs the batch. **Live** while it has not ended and
-  it is within its 10 minutes, a long gate of the CR runs or waits, or a hold runs. **Not
+  commands that carry `--lease <n>` and by `lease <unit> renew`; `lease <unit> hold` sets its expiry ahead (45
+  minutes, 90 at most). It is local to the machine that runs the batch. **Live** while it has not ended and
+  it is within its 10 minutes, or a long gate of the CR runs or waits (the expiry a hold set counts as within its time). **Not
   confirmed** when it ran out with none of these: its holder may only be waiting for its worker, so
   it is not gone, and its holder's next command with the current number is accepted while nobody
   took the unit again. Only the steering session, once it checked with the host that the Driver
@@ -141,7 +141,7 @@ At startup, identify the role, batch, project and parent session.
   completed by `close`) and `batch-NN.md` (for a person: the Completion table, the cost, the retro).
   The next batch number is read from these records. `$CHANTIER validate` checks the whole planning
   folder (stages, CR folders, outside archives' names, `summary.json`'s format, missing or late summaries, broken links
-  between its Markdown files), writes nothing, exits 0 when it finds only gaps (their count on its
+  between its Markdown files, and, as a gap, a surface `chantier.yaml`'s `long_gate.commands`, which is ignored), writes nothing, exits 0 when it finds only gaps (their count on its
   first line), 3 on errors and 1 when it cannot run; a surface's own validation calls it; it
   blocks no other command.
 - **Planning surface:** a git repository of its own, one folder per project, always worked on
@@ -430,8 +430,9 @@ At startup, identify the role, batch, project and parent session.
   round limit (`round`). A CR argument takes its bare number: `165`, `CR-165` and `cr-165` are
   one CR. Heads are the full 40-character SHA in the state and the events (7 characters only for
   display); a head recorded short by an older version matches the full SHA it is a prefix of.
-  The long gate is `gate <cr> "<cmd>" ["<cmd>"...]`: one command per argument, never a `;` or
-  `&&` chain; it stops at the first failure, and it has passed at a head when the last `gate`
+  The long gate is `gate <cr> <name> [<name>...]`: one name per argument, never a `;` or
+  `&&` chain, each name from `long_gate.commands` in the code repository's root `chantier.yaml`
+  (a surface's `commands` are ignored); it stops at the first failure, and it has passed at a head when the last `gate`
   there passed every command it was given and the head did not move during the run. The log's
   first line names the CR, the branch and the full SHA it ran at; its last line, the result.
   As many long gates run at once as `chantier.yaml`'s `long_gate.parallel` says (one when absent),

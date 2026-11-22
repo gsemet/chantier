@@ -11,7 +11,8 @@ def register(sub: Subparsers) -> None:
         sub,
         "gate",
         "chantier.commands.gate:gate",
-        "run the long gate in the CR worktree, as many at once as chantier.yaml's "
+        "run the long gate, by the names chantier.yaml's long_gate.commands gives, in the CR "
+        "worktree, as many at once as chantier.yaml's "
         "long_gate.parallel (1 by default), the others wait their turn: the next "
         "merge's first, then those moved first, then arrival order; --stop stops this CR's "
         "running one; --first --epoch moves a waiting one first",
@@ -19,10 +20,10 @@ def register(sub: Subparsers) -> None:
     )
     s.add_argument("cr")
     s.add_argument(
-        "command",
+        "name",
         nargs="*",
-        help="the long gate's commands, from the project's rules: "
-        "one per argument, never chained with ; or &&; they stop at the first failure",
+        help="the long gate's names from chantier.yaml's long_gate.commands, run in order, "
+        "one per argument; they stop at the first failure",
     )
     s.add_argument(
         "--stop",

@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import json
 import os
-import sys
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Protocol, cast
@@ -14,8 +12,6 @@ from batch_helpers import DEAD, batch_of, changes, events, open_batch, record, w
 from conftest import Chantier
 from stack_world import TAKEN, Batch, stack_of
 
-from chantier.board.fingerprint import fingerprint
-from chantier.board.state import project_state
 from chantier.commands.closing import _live_lease_lines
 from chantier.core import clock, leases
 from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION
@@ -23,7 +19,7 @@ from chantier.core.repo import Repo
 from chantier.rails_idle import running
 
 T0 = "2030-01-01T00:00:00Z"  # a lease taken at T0 expires at 00:10:00
-SECOND, THIRD, LATE_MINUTES, CHILD_EXIT = 2, 3, 5, 7
+SECOND, THIRD, LATE_MINUTES, HOLD_LATE = 2, 3, 5, 16
 
 
 class Cli(Protocol):
@@ -170,7 +166,7 @@ def test_the_stack_drivers_writing_forms_need_its_lease_and_its_reading_forms_no
     assert code == EXIT_CONFLICT and "claim lost" in err
 
 
-def test_the_lease_command_shows_renews_and_runs_a_command_under_it(leased: Led) -> None:
+def test_the_lease_command_shows_renews_and_holds_and_runs_nothing(leased: Led) -> None:
     repo, chantier, (one, _) = leased
     code, out, _ = chantier.bare("lease", one)
     assert code == 0 and out == [f"lease 1 of {one}: live until 00:10:00 (renewed 00:00:00)"]
@@ -180,16 +176,26 @@ def test_the_lease_command_shows_renews_and_runs_a_command_under_it(leased: Led)
     assert chantier.bare("lease", one, "renew", "--lease", 9)[0] == EXIT_CONFLICT
     at(30)
     assert "not confirmed since 00:14 (16 min ago)" in chantier.bare("lease", one)[1][0]
-    marker = repo / "ran.txt"
-    write = f"import pathlib; pathlib.Path({str(marker)!r}).write_text('x')"
-    child = f"import sys; {write}; sys.exit({CHILD_EXIT})"
     hold = ("lease", one, "hold", "--lease")
-    code, _, err = chantier.bare(*hold, 9, "--", sys.executable, "-c", child)
-    assert code == EXIT_CONFLICT and not marker.exists(), err  # a stale number runs nothing
-    code, _, err = chantier.bare(*hold, 1, "--", sys.executable, "-c", child)
-    assert code == CHILD_EXIT and marker.read_text() == "x"  # the child's own exit code
-    assert not list(changes(repo).glob(".lease-hold.*.run"))
-    assert cr_of(repo, one)["lease"]["expires"] == "2030-01-01T00:40:00Z"  # renewed at its end
+    before = cr_of(repo, one)["lease"]
+    assert chantier.bare(*hold, 9)[0] == EXIT_CONFLICT  # a stale number holds nothing
+    assert cr_of(repo, one)["lease"] == before
+    code, out, err = chantier.bare(*hold, 1)  # 45 minutes by default
+    assert code == 0, err
+    assert out == [f"lease 1 of {one}: live until 01:15:00 (renewed 00:30:00)"]
+    lapsed = [e for e in events(repo) if e["kind"] == "lease-late"]
+    assert len(lapsed) == 1 and lapsed[0]["minutes"] == HOLD_LATE  # it was not confirmed
+    last = [e for e in events(repo) if e["kind"] == "lease"][-1]
+    assert (last["lease"], last["minutes"]) == (1, leases.HOLD_DEFAULT)
+    at(40)  # a renewal never shortens what a hold set
+    assert chantier.bare("lease", one, "renew", "--lease", 1)[0] == 0
+    assert cr_of(repo, one)["lease"]["expires"] == "2030-01-01T01:15:00Z"
+    at(80)  # past the hold, a renewal sets the TTL again
+    assert chantier.bare("lease", one, "renew", "--lease", 1)[0] == 0
+    assert cr_of(repo, one)["lease"]["expires"] == "2030-01-01T01:30:00Z"
+    code, out, _ = chantier.bare(*hold, 1, "--minutes", 90)
+    assert code == 0 and out[0].endswith("live until 02:50:00 (renewed 01:20:00)")
+    assert not list(changes(repo).glob(".lease-hold.*"))  # nothing is written but the record
 
 
 def test_a_long_gate_a_queue_ticket_or_a_hold_keeps_an_expired_lease_live(
@@ -211,15 +217,10 @@ def test_a_long_gate_a_queue_ticket_or_a_hold_keeps_an_expired_lease_live(
         patch.setattr("chantier.gate_slots.slot_of", lambda _repo, _cr: slot)
         patch.setattr("chantier.gate_slots.holder_alive", lambda *_: True)
         assert chantier.bare("lease", one)[1][0].endswith("gate running")
-    clock.fix(clock.after(30 * 60, T0))
-    dead = changes(repo) / f".lease-hold.{one}.1.run"
-    dead.write_text(json.dumps({"unit": one, "lease": 1, "pid": DEAD}), encoding="utf-8")
-    _, out, err = chantier.bare("lease", one)
-    assert "not confirmed" in out[0] and not dead.exists(), err
-    where = SimpleNamespace(changes=changes(repo), store=Repo.find().store)
-    path = leases.write_hold(where, one, 1, ["x"])  # type: ignore[arg-type]
-    assert "held by 1 background task(s)" in chantier.bare("lease", one)[1][0]
-    path.unlink()
+    at(30)
+    assert "not confirmed" in chantier.bare("lease", one)[1][0]
+    assert chantier.bare("lease", one, "hold", "--lease", 1)[0] == 0
+    assert "live until 01:15:00" in chantier.bare("lease", one)[1][0]  # a hold keeps it live
 
 
 def test_a_qa_orders_lease_starts_with_the_order_and_a_restart_needs_it_free(
@@ -370,31 +371,3 @@ def test_claude_close_shows_a_live_lease_beside_the_transcripts_and_it_is_no_cau
     assert not any("lease" in x for x in running(Repo.find(), d)[0])
     at(15)
     assert _live_lease_lines(Repo.find(), d) == []
-
-
-def test_the_board_shows_each_lease_as_facts_and_its_read_removes_no_hold(leased: Led) -> None:
-    repo, _, (one, two) = leased
-    found = Repo.find(readonly=True)
-
-    def shown() -> tuple[dict[str, Any], Any]:
-        batch = project_state("p", found, False, None)["batch"]
-        return {r["cr"]: r["lease"] for r in batch["crs"]}, batch["stack_lease"]
-
-    rows, stack = shown()
-    assert rows[two] is None and stack is None  # never taken: null
-    expires = "2030-01-01T00:10:00Z"
-    facts = {"n": 1, "renewed": T0, "expires": expires, "ended": None, "holds": 0, "gate": None}
-    assert rows[one] == facts  # facts only: never the word `live`, which moves with the clock
-    before = fingerprint(found.store, found.changes)
-    dead = changes(repo) / f".lease-hold.{one}.1.run"
-    dead.write_text(json.dumps({"unit": one, "lease": 1, "pid": DEAD}), encoding="utf-8")
-    moved = fingerprint(found.store, found.changes) != before
-    assert moved  # a hold record at the root moves the rev
-    held = leases.write_hold(found, one, 1, ["x"])
-    assert shown()[0][one]["holds"] == 1 and dead.exists() and held.exists()  # read-only
-    data = record(repo)
-    data["stack_lease"] = {"n": 2, "taken": T0, "renewed": T0, "expires": expires, "ended": None}
-    next(c for c in data["crs"] if c["id"] == one)["lease"]["ended"] = T0  # handed back
-    write_record(repo, data)
-    rows, stack = shown()
-    assert rows[one]["ended"] == T0 and (stack["n"], stack["holds"]) == (SECOND, 0)

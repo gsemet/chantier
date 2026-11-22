@@ -7,18 +7,18 @@
 - The long gate is the pipeline's `just scenario (ubuntu-latest)` job, green at the PR's head: a
   change to the CLI, the cards or the scenario passes it before its PR; a change to the docs or the
   eval kit alone needs none. Windows coverage: in each batch, the CR on top of the stack also
-  passes `just scenario` locally (`chantier gate`) at its head before the user merges; when a CR
-  joins on top, the local run moves to it.
+  passes the long gate `scenario` locally (`chantier gate <cr> scenario`) at its head before the
+  user merges; when a CR joins on top, the local run moves to it.
 - A change to `hooks/` or `types/` passes `just mod` before its PR; the agent runs it itself, and
   one that cannot stops and says so, with no workaround.
 - `main` is protected: work on a branch, open a PR, merge by rebase when CI is green.
-- The plugin must work with no setup: the user's `AGENTS.md`, and optional `chantier.yaml` (or
+- The plugin must work with no setup (a runnable long gate needs its `long_gate.commands` entry in
+  the code repository's root `chantier.yaml`): the user's `AGENTS.md`, and optional `chantier.yaml` (or
   `chantier.yml`) files, at the project's root and, with an external planning surface, at the
   surface's root and in the project's folder there, are the only configuration, above the plugin's
   shipped `config/chantier.defaults.yml` (with none, chantier runs on the shipped defaults; `uv` is the only tool to install, and the CLI needs no network once uv's cache holds its
   packages, except the server's read of a batch's PRs, the forge hub, the surface server's writer, whose fetch and push need it, and the forge calls of `ship`, `take`, `round`, `handoff` and `forge-stack`, made with the user's own `gh` or `glab` (below)), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
-  external planning surface), as plain JSON and Markdown (with the `.lease-hold.*.run` records of
-  `lease hold`, never published), and the project's `chantier.yaml` in an
+  external planning surface), as plain JSON and Markdown, and the project's `chantier.yaml` in an
   external planning surface's project folder, from the board's Configuration page, and a CR's
   cleaned archive in its PR when the project asks for it, and fast-forwards a clean main checkout
   after a merge it records, the surface server keeps its key, and while it serves its PID, address
@@ -116,8 +116,8 @@
   `lease`, an exception to the measured-cost rule and not a git one (with `take --reclaim` and
   `lease hold`), a Driver's, the stack driver's and a QA driver's short lease on their unit, renewed
   by their commands, built on the user's answer of 2026-11-20 ("tout": all five of Board's ideas);
-  `lease hold` runs only what a Driver gives it, to keep a lease live, and the hub writes nothing
-  for leases. `interests`
+  `lease hold` runs nothing: it keeps a lease live for a bounded time (45 minutes by default, 90 at
+  most), and the hub writes nothing for leases. `interests`
   and `journal add`: `interests` lists, read-only, what the CRs wait for (the running batch's PRs
   or MRs, read by the forge hub, and the issues the CRs' `issue:` lines name, read by an outside
   poller only); `journal add` is the one entry by which an outside poller appends an `issue@1`

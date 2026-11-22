@@ -140,7 +140,7 @@ def _qa_skeleton(repo: Repo, b: Batch, qa_row: tuple[DriverRow, str], req: _Req)
         note=req.note,
         lease=(
             f"lease: {n} of {req.oid} (renew at each wake: lease {req.oid} renew --lease {n}; "
-            f"run a long test under lease {req.oid} hold --lease {n} -- <command>)"
+            f"before a long test: lease {req.oid} hold --lease {n} [--minutes N])"
         ),
     )
     return driver_prompt_lines(row, b.record, block)

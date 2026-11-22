@@ -17,6 +17,7 @@ from chantier.board.address import settings
 from chantier.core.errors import EXIT_PRECONDITION
 from chantier.core.repo import Repo
 from chantier.playbook import config, layers
+from chantier.playbook.long_gate import load_long_gate
 from chantier.playbook.yaml_subset import is_reset
 from chantier.plugin_files import plugin_roles, read_playbook
 
@@ -215,12 +216,12 @@ def test_the_light_readers_see_the_board_and_long_gate_keys_of_any_layer(
     )
     (surface.clone / "chantier.yaml").write_text("long_gate:\n  parallel: 3\n", encoding="utf-8")
     repo = Repo.find()
-    assert layers.load_long_gate(repo) == (3, [])  # the stronger layer wins
+    assert load_long_gate(repo) == (3, {}, [], [])  # the stronger layer wins
     board, problems = layers.load_board(repo)
     assert problems == [] and board.get("port") == PORT
     assert settings(repo, None, None) == ("127.0.0.1", PORT, False)
     (surface.clone / "chantier.yaml").write_text("long_gate: default\n", encoding="utf-8")
-    assert layers.load_long_gate(repo) == (1, [])  # a reset takes the weaker value back too
+    assert load_long_gate(repo) == (1, {}, [], [])  # a reset takes the weaker value back too
 
 
 def test_a_prices_entry_is_replaced_whole_and_a_reset_model_is_accepted_on_copilot(

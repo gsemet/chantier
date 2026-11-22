@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 
 import pytest
+from batch_helpers import name_gate
 from conftest import SKILL, Chantier, sh
 
 from chantier.commands.allow_samples import RECOMMENDED_ALLOW, SAMPLES, filled_allow
@@ -100,7 +101,8 @@ def test_the_plugin_runs_with_no_setup_and_writes_only_in_the_planning_folder(
     # the CLI names the branch and the worktree; the Driver creates them
     assert not (repo.parent / f"{repo.name}.worktrees").exists()
     assert sh("git", "branch", "--list", "chantier/*", cwd=repo) == ""
-    assert chantier("gate", "CR-101", "true")[0] == EXIT_PRECONDITION
+    name_gate(repo, "ok", "true")
+    assert chantier("gate", "CR-101", "ok")[0] == EXIT_PRECONDITION
     code, out, _ = chantier("take", "CR-101", "--epoch", 0)
     assert code == 0 and out[0].startswith("took CR-101")
     assert any(ln.startswith("cards: ") and "references/" in ln for ln in out)
@@ -123,6 +125,7 @@ def test_the_plugin_runs_with_no_setup_and_writes_only_in_the_planning_folder(
     assert chantier("round", "CR-101")[0] == 0
     _, out, _ = chantier("rules", "--batch", "1")  # every prompt passes --batch
     assert out[0].startswith(str(repo / "AGENTS.md").replace("\\", "/"))
+    (repo / "chantier.yaml").unlink()  # the test's own file: the gate's name, not a write
     assert sh("git", "status", "--porcelain", "-uall", cwd=repo).splitlines() and all(
         line.startswith("?? .agents/changes/")
         for line in sh("git", "status", "--porcelain", "-uall", cwd=repo).splitlines()

@@ -1,21 +1,18 @@
 """Leases: a Driver's, the stack driver's and a QA driver's short hold on the unit `take` (or
 `order qa`) gave them, kept in `batch.json` (local, never published).
 
-A lease is **live** while it has not ended and one of: it expires in the future, a long gate of
-the CR runs or waits in the queue, or a `lease hold` of the unit runs. Else it is **not confirmed**
+A lease is **live** while it has not ended and one of: it expires in the future (a `lease hold`
+sets the expiry ahead, 45 minutes by default and 90 at most), or a long gate of the CR runs or
+waits in the queue. Else it is **not confirmed**
 (it expired: its holder may only be waiting for its worker, and can still renew it as long as
 nobody took the unit again) or **ended**. In the code an expired lease is `not confirmed`, the
 words every text uses. Every time in a text is UTC. Every "now" goes through `core/clock.py`."""
 
 from __future__ import annotations
 
-import json
 import os
-import re
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
-from chantier import procs
 from chantier.core.clock import after, now, seconds_until
 from chantier.core.errors import (
     EXIT_CONFLICT,
@@ -33,9 +30,10 @@ if TYPE_CHECKING:
 TTL_S = 10 * 60
 RENEW_S = 3 * 60
 TEST_TTL = "CHANTIER_LEASE_TEST_TTL"  # seconds; read here only
+TEST_MINUTE = "CHANTIER_LEASE_TEST_MINUTE"  # seconds a hold's minute lasts (60); read here only
+HOLD_DEFAULT, HOLD_MAX = 45, 90  # a hold's minutes: the default and the most
+MINUTE_S = 60
 LIVE, NOT_CONFIRMED, ENDED = "live", "not confirmed", "ended"
-HOLD = ".lease-hold"
-_HOLD_NAME = re.compile(r"\.lease-hold\.(.+)\.(\d+)\.run")
 
 
 def ttl_seconds() -> int:
@@ -47,6 +45,17 @@ def ttl_seconds() -> int:
         return max(1, int(float(raw)))
     except ValueError as e:
         raise ChantierError(f"{TEST_TTL} is seconds, not {raw!r}", EXIT_USAGE) from e
+
+
+def minute_seconds() -> float:
+    """What a hold's minute lasts: 60 seconds, or the test seam's value."""
+    raw = os.environ.get(TEST_MINUTE)
+    if not raw:
+        return MINUTE_S
+    try:
+        return max(0.1, float(raw))
+    except ValueError as e:
+        raise ChantierError(f"{TEST_MINUTE} is seconds, not {raw!r}", EXIT_USAGE) from e
 
 
 def hms(ts: str) -> str:
@@ -102,8 +111,16 @@ def start(d: BatchRecord, unit: str) -> Lease:
 
 
 def renew(lease: Lease) -> None:
+    """A renewal: the expiry is the later of the current one (a hold's, maybe) and now + the TTL."""
     lease.renewed = now()
-    lease.expires = after(ttl_seconds())
+    if seconds_until(lease.expires) < ttl_seconds():
+        lease.expires = after(ttl_seconds())
+
+
+def hold(lease: Lease, minutes: int) -> None:
+    """`lease hold`: the expiry is now + `minutes`, with no process behind it."""
+    lease.renewed = now()
+    lease.expires = after(max(1, round(minutes * minute_seconds())))
 
 
 def end(lease: Lease | None) -> None:
@@ -114,37 +131,7 @@ def end(lease: Lease | None) -> None:
 
 class Liveness(NamedTuple):
     state: str  # `live`, `not confirmed` or `ended`
-    holds: int = 0  # the `lease hold` runs of this lease
     gate: str | None = None  # `gate running` or `gate queued`: a long gate of the CR keeps it
-
-
-def hold_records(
-    repo: Repo, unit: str | None = None, drop: bool = True
-) -> list[tuple[Path, dict[str, Any]]]:
-    """The `.lease-hold.<unit>.<k>.run` records whose process is still the one that wrote them.
-    A record whose process is gone holds nothing and is removed here (unless `drop` is False:
-    a read-only caller leaves it); one that cannot be read is left alone."""
-    found = []
-    store = repo.store
-    for name in store.glob(".", f"{HOLD}.*.run"):
-        p = repo.changes / name
-        m = _HOLD_NAME.fullmatch(name)
-        if not m or (unit is not None and m[1] != unit):
-            continue
-        try:
-            data = json.loads(store.read_text(name))
-            pid = int(data["pid"])
-            stamp = store.stat(name)
-            if stamp is None:
-                raise FileNotFoundError(name)
-            recorded = stamp[1] / 1e9
-        except (OSError, ValueError, KeyError, TypeError):
-            continue
-        if procs.alive_since(pid, recorded, False):
-            found.append((p, data))
-        elif drop:
-            p.unlink(missing_ok=True)
-    return found
 
 
 def gate_keeping(repo: Repo, unit: str) -> str | None:
@@ -166,14 +153,13 @@ def gate_keeping(repo: Repo, unit: str) -> str | None:
     return None
 
 
-def liveness(repo: Repo, unit: str, lease: Lease, drop: bool = True) -> Liveness:
+def liveness(repo: Repo, unit: str, lease: Lease) -> Liveness:
     if lease.ended:
         return Liveness(ENDED)
-    holds = sum(1 for _, rec in hold_records(repo, unit, drop) if rec.get("lease") == lease.n)
     gate = gate_keeping(repo, unit)
-    if seconds_until(lease.expires) > 0 or holds or gate:
-        return Liveness(LIVE, holds, gate)
-    return Liveness(NOT_CONFIRMED, holds, gate)
+    if seconds_until(lease.expires) > 0 or gate:
+        return Liveness(LIVE, gate)
+    return Liveness(NOT_CONFIRMED, gate)
 
 
 def line(repo: Repo, unit: str, lease: Lease | None) -> str:
@@ -189,8 +175,6 @@ def line(repo: Repo, unit: str, lease: Lease | None) -> str:
             f"{head}not confirmed since {hm(lease.expires)} ({minutes_ago(lease.expires)} min ago)"
         )
     text = f"{head}live until {hms(lease.expires)} (renewed {hms(lease.renewed)})"
-    if live.holds:
-        text += f", held by {live.holds} background task(s)"
     if live.gate:
         text += f", {live.gate}"
     return text
@@ -215,17 +199,14 @@ def not_confirmed(repo: Repo, unit: str, lease: Lease | None) -> str | None:
     return not_confirmed_text(lease)
 
 
-def check_free(
-    repo: Repo, d: BatchRecord, unit: str, reclaim: bool, drop: bool = True
-) -> Lease | None:
+def check_free(repo: Repo, d: BatchRecord, unit: str, reclaim: bool) -> Lease | None:
     """What `take` (and a QA driver's restart) asks of the unit's last lease: free when it has
     none or it ended. A live one (exit 3, "held") and a not confirmed one (exit 3, "check with the
-    host") are refused unless `reclaim`: then the lease is returned, for `reclaim` to end.
-    `drop` False: read-only, no dead hold record is removed."""
+    host") are refused unless `reclaim`: then the lease is returned, for `reclaim` to end."""
     lease = lease_of(d, unit)
     if lease is None or lease.ended:
         return None
-    state = liveness(repo, unit, lease, drop).state
+    state = liveness(repo, unit, lease).state
     if reclaim:
         return lease
     if state == LIVE:
@@ -323,24 +304,3 @@ def renewed_in_session(  # noqa: PLR0913
     with RenderedBatch(repo, batch, actor="driver") as b:
         if claim(b, unit, number, what=what, required=required, ended_ok=ended_ok) is not None:
             b.log("lease", unit, lease=number)
-
-
-def write_hold(repo: Repo, unit: str, number: int, command: list[str]) -> Path:
-    """`.lease-hold.<unit>.<k>.run`, `k` the first free number, written atomically."""
-    from chantier.core.files import write_file  # noqa: PLC0415
-
-    taken = {
-        int(m[2]) for name in repo.store.glob(".", f"{HOLD}.*.run")
-        if (m := _HOLD_NAME.fullmatch(name)) and m[1] == unit
-    }  # fmt: skip
-    k = next(i for i in range(1, len(taken) + 2) if i not in taken)
-    path = repo.changes / f"{HOLD}.{unit}.{k}.run"
-    record = {
-        "unit": unit,
-        "lease": number,
-        "pid": os.getpid(),
-        "command": command,
-        "started": now(),
-    }
-    write_file(path, json.dumps(record) + "\n")
-    return path

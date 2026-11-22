@@ -210,8 +210,8 @@ workers" when it starts a worker.
 ## Means: the long gate
 
 - The long gate, the project's command, before the first push and the PR (with the `ci: beside
-  the long gate` line: "Means: CI beside the long gate"): `$CHANTIER gate <cr> "<command>"
-  ["<command>"...]` runs only the long gate the project's rules name, in the worktree, in order,
+  the long gate` line: "Means: CI beside the long gate"): `$CHANTIER gate <cr> <name>
+  [<name>...]` runs only the long gates `chantier.yaml` names (`long_gate.commands`; the facts' checklist and `$CHANTIER playbook` print the names), in the worktree, in order,
   as many at once as the project allows (`chantier.yaml`, one by default), the rest wait in a queue (its order: "Means: stopping a long gate"); a running gate is never stopped. A rebase with a conflict resolved takes `ship --conflict` and the early push ("Means: carries, conflicts and the early push"). The CLI reads no CI: you read CI at the new head, which must be green. A short gate (the fast gate, or the check that the rules ask of a CR they exempt from
   the long gate, such as a docs-only change) you run yourself in the worktree, never through
   `gate`: it would wait behind the long gates. A pipeline job named as the long gate: "Means: CI beside the long gate". A rule that asks the batch's or the stack's top for a local run: "Means: carries, conflicts and the early push".
@@ -219,7 +219,7 @@ workers" when it starts a worker.
   refused (exit 2) on a dirty tree: a gate binds to a commit, so commit first. The log's
   first line names the CR, the branch and the full SHA it ran at, its last line the result; a
   head that moved during the run (a gate command committed) is no pass at either head (exit 4).
-  One command per argument, never a `;` or `&&` chain.
+  One name per argument, never a `;` or `&&` chain. A refused name is a `blocked` line to the steering session, never a free command.
   Stopping a gate (`gate <cr> --stop`: only your own CR's, only when its result can no longer count) and a long wait in the queue: "Means: stopping a long gate". `cancel` is the steering session's, never a Driver's.
 - A gate log is never taken whole: its result from `handoff` (the last five lines it prints) or from the log's last lines.
 
@@ -227,7 +227,7 @@ workers" when it starts a worker.
 
 - CI: while CI runs, do everything that does not need its result first: `pr-body.md` and the
   description as far as they can go, the archive's `delivery.md` when `take` printed an archive path, your notes. Then one long wait:
-  the forge's watch in a background shell, `lease <cr> hold --lease <n> -- <the watch>` (`gh pr checks
+  the forge's watch in a background shell, start it yourself, then `lease <cr> hold --lease <n>` (45 minutes; `--minutes` up to 90) (`gh pr checks
   <pr> --watch`, `glab ci status --live`), end your turn, and let its end wake you; no `gh pr checks` or `glab ci` look in
   between (the two looks of the "no CI" rule below come before the long wait, or instead of it
   when no check is listed). Read the result yourself (`gh pr checks`, `glab ci list`) and judge it by the project's rules: a skipped job is never a green
@@ -570,7 +570,7 @@ You never escalate yourself.
   runs again at the pushed head. (GitLab and Copilot: unproved.)
 - With the `ci: beside the long gate` line (a CR Driver only), after the approved round,
     the commit and the rebase: push, open the PR as a draft or update it (the audit pass on
-    `pr-body.md` first), `ship`, then start the long gate (`$CHANTIER gate <cr> "<command>"…`)
+    `pr-body.md` first), `ship`, then start the long gate (`$CHANTIER gate <cr> <name>…`)
     and the CI watch (`gh pr checks <pr> --watch --fail-fast`; on GitLab `glab ci status
     --live`, unproved; trial: a red job of a GitLab pipeline ends the watch or shows in its
     output before the pipeline's end), each in its own background shell by the host's means
@@ -764,12 +764,11 @@ Read when you wait, or when a lease is refused. Your lease is 10 minutes, renewe
 that carries `--lease <n>` (the number `take` printed); times in its texts are UTC.
 
 - Renew at each wake: the next command carries `--lease <n>`, or run `lease <cr> renew --lease
-  <n>`; with `driver-wake`, at its wake. A wait over 3 minutes that runs a command (a review, a
-  worker's run, a test) runs it as `lease <cr> hold --lease <n> -- <command>`: the lease stays live
-  while the child runs, and renews once when it ends. `hold` keeps no shell, runs only what you
-  give it, exits with the child's code, and reads `--batch` and `--lease` only before `--`.
+  <n>`; with `driver-wake`, at its wake. A wait over 3 minutes (a review, a
+  worker's run, a test) runs `lease <cr> hold --lease <n> [--minutes N]` before the wait (45 by
+  default, 90 at most), and again at a wake when the wait goes on; `hold` runs nothing.
 - A long gate of yours, running or waiting in the queue, keeps the lease live with no `hold`.
-- Not confirmed: the lease ran out while you waited, which is not a failure and not "gone". Your next
+- Not confirmed: the lease ran out while you waited (past a hold too, and a running long gate or watch is never stopped for it), which is not a failure and not "gone". Your next
   command with the current number is accepted (the log notes `lease-late`) while nobody took the CR
   again; read it with `lease <cr>`.
 - `claim lost`: the steering session took the CR again, or ended your lease (`cancel`, `order
@@ -1164,7 +1163,7 @@ and quote its output in the anomaly, without carrying on from it.
 **The local gate at the mergeable top.** When the project's rules ask the stack's top for a
 local run and the stack has drafts on top or CRs to come (a partial stack), the top of the
 mergeable part must have passed that local gate at its pushed head. Run it there when it has
-not: `$CHANTIER gate <cr> "<the project's command>"…` in that CR's worktree (clean, at the head
+not: `$CHANTIER gate <cr> <name>…` in that CR's worktree (clean, at the head
 you shipped), as any long gate (its queue, its lock, never stopped for slowness). A head with a
 pass is not run again: a `gate` that passed there, or that CR's `ship` printed `carried:` for the
 gate at that head (a clean restack). This holds at the first stack made and at each new top of
@@ -1400,9 +1399,10 @@ you); at `context: not measured`, go on.
 
 **Lease.** Your facts carry `lease: stack <n>`. Pass `--lease <n>` on `stack <crs…>`, `stack
 --out-of-draft`, `stack --draft` and `forge-stack create|rebuild|unstack` (`forge-stack show` and the
-bare `stack` need none; nor does `ship` of a CR handed back, whose lease ended). A long gate you run goes under `lease stack hold --lease <n> -- <the
-gate command>`, which keeps the stack lease live; renew and hold the same way while you wait
-("Means: the lease", with `stack` for `<cr>`).
+bare `stack` need none; nor does `ship` of a CR handed back, whose lease ended). Before your local gate, `lease stack hold --lease <n> --minutes 90`, then
+`$CHANTIER gate <cr> <name>`; run the hold again at each wake while the gate runs or waits (a CR's
+gate keeps that CR's lease live, not the stack's); past the hold the stack lease is "not confirmed",
+no failure, and the gate is never stopped for it ("Means: the lease", with `stack` for `<cr>`).
 
 **Resuming.** When a take's note names `resume:`, or a take finds the stack partly restacked, read
 `$CHANTIER stack` once. A CR you move is done when its last `restack: on …` note names the CR
@@ -1412,8 +1412,9 @@ head>` note exists. Go on from the first CR, bottom up, that is not done; never 
 ## QA driver
 
 Your order has a lease: the skeleton `order qa` printed carries `lease: <n> of O-k`. You run no
-`round` or `handback`, so renew it with `lease O-k renew --lease <n>` at each wake and run a long
-test as `lease O-k hold --lease <n> -- <command>`; "Means: the lease" gives the rest.
+`round` or `handback`, so renew it with `lease O-k renew --lease <n>` at each wake and, before a
+long test, run `lease O-k hold --lease <n> [--minutes N]` ("not confirmed" past it is no failure);
+"Means: the lease" gives the rest.
 
 Use the project as its user would, at the head of its default branch, never an unmerged PR, and
 report what breaks. Your prompt gives a work folder in the inbox and what to test; you hold no

@@ -100,7 +100,7 @@ prints the result as `timing:` lines; a running batch keeps the timing it opened
 
 The file's other keys are `prices`, `board` (where [the web board](web-board.md) listens: `host`
 and `port`), `ci` (`beside_gate: true`: a CR's CI runs while its local long gate runs; it spends CI
-minutes on every approved round, off by default) and `long_gate` (how many long gates may run at once, [your gates](gates.md)). Only the `chantier` CLI reads these files: it refuses an unknown role, key or model, and an
+minutes on every approved round, off by default) and `long_gate` (`parallel`: how many long gates may run at once; `commands`: the long gate's names and their commands, read only from the code repository's root `chantier.yaml`; [your gates](gates.md)). Only the `chantier` CLI reads these files: it refuses an unknown role, key or model, and an
 incomplete price entry, with the line, and turns a model name into an exact identifier
 (`chantier playbook` shows the result); the agents pass it as printed. On Copilot the names it
 knows are GitHub's own tables (`github/docs`, refreshed by `just copilot-models`): the identifier is

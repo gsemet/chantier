@@ -107,6 +107,8 @@ def stop_gate(s: Slot, h: Holder, b: Batch, fallback_head: str) -> Stopped:
             with open(run.log, "a", encoding="utf-8") as f:
                 f.write(f"result: stopped at {head}: no pass\n")
         on = {"base": run.base} if run.base else {}
+        if run.name:
+            on["name"] = run.name
         b.log("gate", h.cr, result="stopped", head=head, command=run.command, run=run.run, **on)
         s.run.unlink(missing_ok=True)
         return Stopped(head, pg, True)

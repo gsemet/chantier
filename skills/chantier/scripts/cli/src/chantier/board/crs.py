@@ -65,19 +65,15 @@ def base_of(d: BatchRecord, c: CrEntry, repo: Repo) -> dict[str, str]:
 
 def lease_view(repo: Repo, unit: str, lease: Lease | None) -> dict[str, Any] | None:
     """A unit's last lease as facts, None when it never had one: the record's `n`, `renewed`,
-    `expires` and `ended`, the running `lease hold`s of this lease and the long gate keeping it.
-    Read-only (no hold record removed); never the word `live`, which changes with the clock."""
+    `expires` and `ended`, and the long gate keeping it. Read-only; never the word `live`, which
+    changes with the clock."""
     if lease is None:
         return None
-    holds = sum(
-        1 for _, rec in leases.hold_records(repo, unit, drop=False) if rec.get("lease") == lease.n
-    )
     return {
         "n": lease.n,
         "renewed": lease.renewed,
         "expires": lease.expires,
         "ended": lease.ended,
-        "holds": holds,
         "gate": leases.gate_keeping(repo, unit),
     }
 
