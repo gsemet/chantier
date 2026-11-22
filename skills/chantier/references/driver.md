@@ -211,7 +211,7 @@ workers" when it starts a worker.
 
 - The long gate, the project's command, before the first push and the PR (with the `ci: beside
   the long gate` line: "Means: CI beside the long gate"): `$CHANTIER gate <cr> <name>
-  [<name>...]` runs only the long gates `chantier.yaml` names (`long_gate.commands`; the facts' checklist and `$CHANTIER playbook` print the names), in the worktree, in order,
+  [<name>...]` runs only the long gates `chantier.yaml` names (`$CHANTIER playbook` prints them), in the worktree, in order,
   as many at once as the project allows (`chantier.yaml`, one by default), the rest wait in a queue (its order: "Means: stopping a long gate"); a running gate is never stopped. A rebase with a conflict resolved takes `ship --conflict` and the early push ("Means: carries, conflicts and the early push"). The CLI reads no CI: you read CI at the new head, which must be green. A short gate (the fast gate, or the check that the rules ask of a CR they exempt from
   the long gate, such as a docs-only change) you run yourself in the worktree, never through
   `gate`: it would wait behind the long gates. A pipeline job named as the long gate: "Means: CI beside the long gate". A rule that asks the batch's or the stack's top for a local run: "Means: carries, conflicts and the early push".
@@ -219,7 +219,7 @@ workers" when it starts a worker.
   refused (exit 2) on a dirty tree: a gate binds to a commit, so commit first. The log's
   first line names the CR, the branch and the full SHA it ran at, its last line the result; a
   head that moved during the run (a gate command committed) is no pass at either head (exit 4).
-  One name per argument, never a `;` or `&&` chain. A refused name is a `blocked` line to the steering session, never a free command.
+  One name per argument, never a `;` or `&&` chain. A refused name is a `blocked` line, never a free command.
   Stopping a gate (`gate <cr> --stop`: only your own CR's, only when its result can no longer count) and a long wait in the queue: "Means: stopping a long gate". `cancel` is the steering session's, never a Driver's.
 - A gate log is never taken whole: its result from `handoff` (the last five lines it prints) or from the log's last lines.
 
@@ -227,7 +227,7 @@ workers" when it starts a worker.
 
 - CI: while CI runs, do everything that does not need its result first: `pr-body.md` and the
   description as far as they can go, the archive's `delivery.md` when `take` printed an archive path, your notes. Then one long wait:
-  the forge's watch in a background shell, start it yourself, then `lease <cr> hold --lease <n>` (45 minutes; `--minutes` up to 90) (`gh pr checks
+  the forge's watch in a background shell, start it, then `lease <cr> hold --lease <n>` (45 min, up to 90) (`gh pr checks
   <pr> --watch`, `glab ci status --live`), end your turn, and let its end wake you; no `gh pr checks` or `glab ci` look in
   between (the two looks of the "no CI" rule below come before the long wait, or instead of it
   when no check is listed). Read the result yourself (`gh pr checks`, `glab ci list`) and judge it by the project's rules: a skipped job is never a green
@@ -764,11 +764,11 @@ Read when you wait, or when a lease is refused. Your lease is 10 minutes, renewe
 that carries `--lease <n>` (the number `take` printed); times in its texts are UTC.
 
 - Renew at each wake: the next command carries `--lease <n>`, or run `lease <cr> renew --lease
-  <n>`; with `driver-wake`, at its wake. A wait over 3 minutes (a review, a
-  worker's run, a test) runs `lease <cr> hold --lease <n> [--minutes N]` before the wait (45 by
+  <n>`; with `driver-wake`, at its wake. A wait over 3 minutes (a worker's run,
+  a test) runs `lease <cr> hold --lease <n> [--minutes N]` before the wait (45 by
   default, 90 at most), and again at a wake when the wait goes on; `hold` runs nothing.
 - A long gate of yours, running or waiting in the queue, keeps the lease live with no `hold`.
-- Not confirmed: the lease ran out while you waited (past a hold too, and a running long gate or watch is never stopped for it), which is not a failure and not "gone". Your next
+- Not confirmed: the lease ran out while you waited (past a hold too; a running gate is never stopped), which is not a failure and not "gone". Your next
   command with the current number is accepted (the log notes `lease-late`) while nobody took the CR
   again; read it with `lease <cr>`.
 - `claim lost`: the steering session took the CR again, or ended your lease (`cancel`, `order
