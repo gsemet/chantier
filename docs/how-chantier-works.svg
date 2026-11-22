@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1310 962" width="1310" height="962" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
   <title>How chantier works</title>
-  <desc>A CR is a change request: an idea, a bug, a feature, an intent. You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates. An optional Griller, another session of yours, grills and specifies the backlog beside the Chief of Staff. On your word that a CR is grilled enough, its Spec-writer writes the Change Specification, in the background; on an impactful CR a Spec critic checks it and never edits it. On your go the Chief of Staff starts the batch in one of two modes. In Foreman mode, a nested session, one Foreman per batch, not recommended in a remote session, the conversation with the Chief of Staff stays fully dynamic and natural. In direct mode the Chief of Staff plays the Foreman's role in the same session: it works in a remote session, but it cannot grill while the batch runs, so use a Griller session. The steering session starts Drivers; the CR driver runs short workers: Investigator, Coder, Inspector, which reads the diff before the commit, Verifier, which runs it at the pushed head, and Debugger. The project harness, AGENTS.md and its encoded rules, always prevails and can define custom agents or skills. The chantier Python CLI frames them: the change-request lifecycle, the limits and the means to synchronise. It writes only in the planning folder (.agents/changes in the project, or an external planning surface), as JSON and Markdown; in a planning surface, the surface server commits and pushes it. Foreman mode runs in Claude Desktop or a Copilot SDK host; direct mode in any Claude Code entry point or a Copilot agent session.</desc>
+  <desc>A CR is a change request: an idea, a bug, a feature, an intent. You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates. An optional Griller, another session of yours, grills and specifies the backlog beside the Chief of Staff. On your word that a CR is grilled enough, its Spec-writer writes the Change Specification, in the background; on an impactful CR a Spec critic checks it and never edits it. On your go the Chief of Staff starts the batch in one of two modes. In Foreman mode, a nested session, one Foreman per batch, not recommended in a remote session, the conversation with the Chief of Staff stays fully dynamic and natural. In direct mode the Chief of Staff plays the Foreman's role in the same session: it works in a remote session, but it cannot grill while the batch runs, so use a Griller session. The steering session starts Drivers; the CR driver runs short workers: Investigator, Coder, Inspector, which reads the diff before the commit, Verifier, which runs it at the pushed head, and Debugger. The project harness, AGENTS.md and its encoded rules, always prevails and can define custom agents or skills. The chantier Python CLI frames them: the change-request lifecycle, the limits and the means to synchronise. It writes only in the planning folder (.agents/changes in the project, or an external planning surface), as JSON and Markdown; in a planning surface, the surface server (the board, the forge hub and the writer, drawn in surface-server.svg) commits and pushes it. Foreman mode runs in Claude Desktop or a Copilot SDK host; direct mode in any Claude Code entry point or a Copilot agent session.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
@@ -38,8 +38,8 @@
 
   <!-- Spec critic: checks an impactful CR's spec, never edits it -->
   <rect x="740" y="22" width="250" height="52" rx="9" fill="#e0e7ff" stroke="#1e3a8a" stroke-width="1.5"/>
-  <text x="756" y="42" font-size="15" font-weight="700" fill="#0f172a">🧐 Spec critic</text>
-  <g font-size="12.5" fill="#475569"><text x="756" y="60">checks an impactful CR's spec,</text><text x="756" y="72">never edits it</text></g>
+  <text x="756" y="39" font-size="15" font-weight="700" fill="#0f172a">🧐 Spec critic</text>
+  <g font-size="12.5" fill="#475569"><text x="756" y="55">checks an impactful CR's spec,</text><text x="756" y="68">never edits it</text></g>
   <line x1="865" y1="76" x2="865" y2="86" stroke="#334155" stroke-width="1.6" marker-start="url(#arrow)"/>
 
   <!-- Spec-writer: the Chief of Staff's agent -->
@@ -205,4 +205,10 @@
     <line x1="714" y1="216" x2="996" y2="216"/>
     <line x1="714" y1="450" x2="996" y2="450"/>
   </g>
+
+  <!-- The surface server, drawn in surface-server.svg -->
+  <line x1="1024" y1="676" x2="1256" y2="676" stroke="#334155" stroke-width="1.5"/>
+  <text x="1024" y="705" font-size="17.5" font-weight="700" fill="#e2e8f0">🖥️ Surface server</text>
+  <text x="1024" y="727" font-size="15" fill="#cbd5e1">board · hub · writer</text>
+  <text x="1024" y="750" font-size="13" fill="#fb923c" font-family="ui-monospace, Menlo, monospace">surface-server.svg</text>
 </svg>

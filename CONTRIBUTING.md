@@ -96,7 +96,7 @@ chantier is four things in one repository:
    Markdown: the CR folders in `1-inbox/`, `2-backlog/`,
    `3-ready/`, `4-batch/` (`1-pending/`, `2-actives/`, `3-done/`), `5-archives/` and `6-trash/`
    (each with a `work/` folder while it runs), and the batch's own files at the root of
-   `4-batch/` (`batch.json`, `events.jsonl`, the brief, `STATUS.md`). The one write elsewhere is not the CLI's: on the user's yes, the Chief of Staff adds to `~/.claude/settings.json` the allow rules preflight's P10 named, and nothing else there. There is no configuration file: every agent reads the project's `AGENTS.md`.
+   `4-batch/` (`batch.json`, `events.jsonl`, the brief, `STATUS.md`). The one write elsewhere is not the CLI's: on the user's yes, the Chief of Staff adds to `~/.claude/settings.json` the allow rules preflight's P10 named, and nothing else there. The agents read the project's `AGENTS.md`, and the optional `chantier.yaml` files (the project's root and, with an external planning surface, the surface's) set the team, the models and the limits above the plugin's shipped defaults.
    The CLI knows no role: the cards hold each role's contract, and the Foreman and the Drivers
    write the prompts. One named exception among the tools: `serve`, the web board's server, for
    the user on this machine and the local network, behind a key (in its URL for the web client, in
@@ -122,6 +122,14 @@ chantier is four things in one repository:
    rest of the CLI and knows no role; its web client, in `clients/web/`, is hand-written HTML, CSS and ES modules, with no
    build step, served as plain files (`--ui` serves another folder, or none); the server's code
    names nothing of it (a test checks it)).
+   The server keeps two keys, a private one that reads and acts and a public one that reads only;
+   a client that holds the public key opens an allow-list of reads and acts on nothing. `chantier
+   webui` prints the board's link and starts the server when none runs; `chantier login` stores a
+   server's address and key as a profile so that the CLI's other commands (`--profile`) run on
+   another machine through the private-key op `cli.run`. The board's Griller (a named exception, see
+   `docs/web-board.md`) starts the headless host CLI as the `board-griller`
+   agent, one run per typed message, on an item of the inbox, the backlog or `3-ready` only.
+   The server's three jobs and what it reads are drawn in [`docs/surface-server.svg`](docs/surface-server.svg).
    The board's process also runs the surface's writer, a named git exception: while the server
    runs, it commits, rebases and pushes the planning surface's published paths and the local
    commits of the surface's branch; the board's own code commits nothing.
