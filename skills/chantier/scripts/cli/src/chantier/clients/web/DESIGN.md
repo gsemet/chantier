@@ -459,3 +459,31 @@ are the one card (`help-card`, `help-detail`, the `sel` variant for the open one
 Escape, its close button, a second click on its card or Back closes it. A close adds no history
 entry (the router's `closeTopic()`), so Back never reopens a closed detail. The token table does
 not change.
+
+## The board's Griller
+
+A discussion with a Griller, in the file panel, for an item of the inbox, the backlog (P1 to P4) or
+`3-ready` only: never a CR of the batch or a merged one (`js/panel/griller.js`).
+
+- **The button.** "Grill" (`data-grill`) sits in the panel's actions place, built with the existing
+  button classes, filled while the discussion is on. A host that is not proved or not told gets it
+  disabled, the server's reason in its `title`.
+- **The discussion** replaces the file view in the document region; the tree stays, so the files the
+  Griller writes appear, and a click on a file, or a second click on Grill, goes back to the files.
+  It follows the `griller` topic through `js/core/transport.js` (`js/api/griller.js`), and the box
+  with the typed text is kept between redraws.
+- **Before the first message:** the notice (the CLI, the machine and the model the server names, the
+  first message is the yes), the sentence that the conversation is shared, and the plain-HTTP warning
+  with the server's command (`BOARD_COMMAND` of `js/panel/griller-view.js`, the one place that names
+  it). The last two stay under the conversation once it has started.
+- **Turns.** One turn at a time: while one runs, a working mark in words, the text box and Send
+  disabled, and Stop for every holder of the key; End after one confirmation, with no turn running.
+  No streaming: the answer shows at the turn's end. The typed text is plain text, the answer goes
+  through the panel's Markdown renderer. A turn sent from another client says so in words (the page's
+  client id lives in `sessionStorage`). A turn that stopped, timed out or failed shows its one line,
+  and the files it wrote, saying the turn was cut when it was. Another item's turn running disables
+  Send with its project and slug.
+- **Look.** `css/griller.css` lays out only, with tokens: a turn is told apart by its fill (`--band`
+  for the typed text, `--panel` for the answer) and the hairline all around; no side accent, no new
+  component, token or colour; states are words only. Every word is an i18n key of `en-griller.js` and
+  `fr-griller.js`.

@@ -40,11 +40,9 @@ CHIEF_ROLES = (
     "retro-critic",
 )  # started by the Chief of Staff or the Foreman; its card is its own file
 
-
 ROLES = DRIVERS + WORKERS + CHIEF_ROLES
 BOARD_ROLES = ("board-griller",)  # started by the surface server, headless; its own contract
 ALL_ROLES = ROLES + BOARD_ROLES
-
 
 CLAUDE_OPUS_ROLES = {
     "spec-writer",
@@ -200,6 +198,7 @@ def test_both_hosts_give_a_role_the_same_body_and_their_own_frontmatter(role: st
     copilot, copilot_body = _front(agent_file(role, "copilot"))
     assert claude_body == copilot_body and f"`chantier {role}`" in claude_body
     assert claude["name"] == role and copilot["name"] == f"chantier-{role}"
+    assert claude["description"] == copilot["description"]
     # the description ends with the first line the prompt must start with; the refusal names it
     # and says a new start is needed; a later message gets the same answer
     described = claude["description"].strip("'").replace("''", "'")

@@ -210,12 +210,22 @@ class Registry:
 
     # the turn
 
+    def _saved(self, s: _Start) -> bool:
+        """Whether the host saved a conversation for a cut first run's id: asked of the host's own
+        state outside the registry's lock (the turn that decides is checked under it)."""
+        with self._lock:
+            chat = self._chats.get((s.project.id, s.item))
+            asked = chat is not None and not chat.resumable and bool(chat.turns)
+            session = chat.session if chat else ""
+        return asked and HEADLESS[s.avail["host"]].saved(session)
+
     def _start(self, s: _Start) -> Turn:
+        saved = self._saved(s)
         with self._lock:
             if self._turn is not None:  # the check and the set are one lock: two sends, one turn
                 raise Refused(409, _BUSY.format(project=self._turn[0], item=self._turn[1]))
             chat = self._chats.setdefault((s.project.id, s.item), Conversation())
-            first = _first(chat, s.avail["host"])
+            first = _first(chat, saved)
             turn = Turn(len(chat.turns) + 1, s.sender, s.text, started=clock.now())
             chat.turns.append(turn)
             chat.stopping = None
@@ -229,14 +239,14 @@ class Registry:
         return turn
 
     def _work(self, s: _Start, chat: Conversation, turn: Turn, run: Run) -> None:
-        s.before, s.began = files.listing(s.folder), time.time_ns()
-        before, where = s.before, s.folder
+        where = s.folder
         try:
             try:
+                s.before, s.began = files.listing(s.folder), time.time_ns()
                 where = _drive(s, chat, turn, run)
             except Exception as e:  # a code fault never leaves a turn running for ever
                 turn.state, turn.error = "failed", f"{type(e).__name__}: {e}"
-            turn.wrote = files.changed(before, files.listing(where)) if where.is_dir() else []
+            turn.wrote = files.changed(s.before, files.listing(where)) if where.is_dir() else []
             turn.ended = clock.now()
             _record(s, turn)
         finally:
@@ -258,12 +268,10 @@ class _Start:
     began: int = 0  # the turn's start, ns
 
 
-def _first(chat: Conversation, host: str) -> bool:
+def _first(chat: Conversation, saved: bool) -> bool:
     """Whether the next run is the conversation's first: no run's result was read and the host
     saved no conversation for the id (a cut first run that the host kept is resumed)."""
-    if chat.resumable:
-        return False
-    return not (chat.turns and HEADLESS[host].saved(chat.session))
+    return not chat.resumable and not (chat.turns and saved)
 
 
 def _run_of(s: _Start, session: str, first: bool) -> Run:
