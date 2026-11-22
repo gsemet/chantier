@@ -68,3 +68,22 @@ def refusal(*args: str, cwd: Path | str | None = None) -> str | None:
     except ChantierError as e:
         return " ".join(str(e).removeprefix(f"git {' '.join(args)}: ").split())
     return None
+
+
+def is_ancestor(older: str, newer: str, cwd: Path | str | None = None) -> bool | None:
+    """A read: whether `older` is an ancestor of `newer` (`git merge-base --is-ancestor`): True on
+    exit 0, False on exit 1, None on any other exit (a commit or a ref git cannot read)."""
+    if cwd is not None and not Path(cwd).is_dir():
+        raise ChantierError(f"no folder {cwd}: git cannot run there", EXIT_PRECONDITION)
+    env = {**os.environ, "GIT_EDITOR": "true", "GIT_PAGER": "cat", "GIT_TERMINAL_PROMPT": "0"}
+    p = subprocess.run(
+        ["git", "--no-pager", "merge-base", "--is-ancestor", older, newer],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+        check=False,
+    )
+    return {0: True, 1: False}.get(p.returncode)

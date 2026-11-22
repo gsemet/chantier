@@ -203,7 +203,8 @@ workers" when it starts a worker.
   reads the PR's base and draft state from the forge, records the PR at this head (the full SHA) and
   says what is off: uncommitted changes, a head not pushed, no long gate passed at it). The PR's
   base is the `base` that `take` printed, never another (the stack driver retargets, a Driver does
-  not). A change of a PR's base or draft state on the forge is followed by `ship <cr> <link>`. What else `ship` prints (`base ?`, `off: no long gate
+  not). A change of a PR's base or draft state on the forge is followed by `ship <cr> <link>` (a `ship` refused `branch not based on` there: rebase first, as that
+  refusal says, then `ship`). What else `ship` prints (`base ?`, `off: no long gate
   passed`, a PR that carries another CR's head): "Means: carries, conflicts and the early push".
 
 ## Means: the long gate
@@ -493,7 +494,8 @@ You never escalate yourself.
 
 - Any change of a PR's base or draft state on the forge (`gh pr ready`, `gh pr ready --undo`,
   `glab mr update --ready`, `glab mr update --draft`, a retarget) is followed by `ship <cr>
-  <link>`, so the record follows the forge.
+  <link>`, so the record follows the forge (a `ship` refused `branch not based on` there: rebase
+  first, as that refusal says, then `ship`).
 - `ship`'s other lines: a failed read of the forge prints `base ? (not read from <link>: …)` and `draft
   not read`: the CR reads `PR in draft` until a `ship` reads the forge. With the `ci: beside the long
   gate` line `ship` runs before the gate passes, so `off: no long gate passed at <sha>` is expected
@@ -947,12 +949,26 @@ on the base `take` printed: a Driver still retargets nothing but on a `rebase:` 
 In a stack batch the `base` that `take` prints may be another CR's branch: the nearest earlier CR
 of the batch that has a PR that the forge does not show merged. Create the worktree on that base and no other, never on a branch with
 no PR (the PR's base is the `base` that `take` printed, never another), and open the PR on it as a
-draft; that branch is the stack driver's, never rebased by you but on a note. A `base:` line after
+draft; that branch is the stack driver's, never rebased by you but on a note or on a `ship` refused `branch not based on`. A `base:` line after
 the `worktree:` line says the CLI left a CR out of the base because the forge shows its PR merged (not
 recorded yet): it only explains the base; the worktree goes on the base the `worktree:` line names. A `note rebase: stacked on
 <cr below>` received while working: rebase onto that CR's branch (not the default branch), retarget
 your PR to it (`gh pr edit --base`, `glab mr update --target-branch`) while it is in no native
 stack, push with `--force-with-lease`, `ship` (`--conflict` by the rule above).
+
+A `ship` refused in a stack or series batch (a CR placed on another CR's branch, the CR below it in
+a series batch its predecessor):
+- `branch not based on <cr>'s head` (your first `ship` included, on a branch taken onto another CR's
+  branch that has shipped a new head since) means the CR below moved under you. You own your
+  branch: rebase onto the branch the refusal names at once, without waiting for a `rebase:` note,
+  as for a `rebase: stacked on <cr below>` note (in a series batch, the predecessor's branch), push
+  with `--force-with-lease`, and `ship` again. This is a move: "CR driver: moves and conflicts"
+  applies.
+- `<cr>'s branch moved since its last ship (<rec7> -> <tip7>)` means you are already on its branch,
+  and that CR has not shipped its new head: do not rebase again; wait for its `ship` (its Driver's,
+  or the stack driver's, bottom up), then `ship` again.
+- If the forge shows the CR the refusal names already merged, the record does not hold that merge
+  yet: once the journal or the record holds the merge (`status` shows it merged), `ship` again.
 
 A CR taken with the note `unhold: <O-m>` (the user's `order unhold` released a CR held while it was
 working): resume it as a `resume:` does (`handoff <cr>` for where it stands, the worktree as the
@@ -969,10 +985,12 @@ again. The `rebase:` line of "Means: a Driver started again" already sends a Dri
 
 A CR taken (or a `note`) with `rebase: mode <mode>` (the batch switched mode with `order mode`; a
 stack was dissolved first by `forge-stack unstack` where it applied): put the PR to draft first
-(`gh pr ready --undo`, `glab mr update --draft`, `ship`), rebase onto the base `take`
+on the forge (`gh pr ready --undo`, `glab mr update --draft`), rebase onto the base `take`
 printed (parallel: the default branch, or the branch of its open dependency; series: its
 predecessor's branch, the bottom CR on the default branch), retarget the PR to it, push with
-`--force-with-lease`, `ship` (`--conflict` by the rule above), read CI at the new head (the long gate and a `verifier` only when
+`--force-with-lease`, then `ship` (`--conflict` by the rule above): that one `ship` records the
+draft state and the new base (a `ship` before the rebase is refused, `branch not based on`, when
+the new mode puts the CR on another CR's branch), read CI at the new head (the long gate and a `verifier` only when
 the carry does not hold: `ship`'s `off: … does not carry` line), and hand back `ready`;
 the PR leaves draft once it is ready to merge, as any CR of that mode (a series PR above the bottom
 stays a draft). A clean rebase and green CI start no new `coder` round and no new `verifier`.
@@ -1063,19 +1081,43 @@ dependencies, as `stack` enforces), free to move any CR. Rebase each moved CR on
 and push each branch with the Push bullet's rewrite form (`git -C <worktree> push
 --force-with-lease -u <remote> <branch>`, one command per branch), `ship` each moved CR, run
 `forge-stack rebuild` (or `create` if no stack is on the forge yet), read it back with
-`forge-stack show` (the five checks), turn the mergeable part ready and `stack --out-of-draft`;
-then hand back as today. One linear native stack is its end.
+`forge-stack show` (the five checks), the chain check ("Check the chain" below), then turn the mergeable part ready and
+`stack --out-of-draft`; then hand back as today. One linear native stack is its end.
 
 **Who moves a branch.** A CR with no live Driver (handed back `ready`, or `blocked`) is rebased and pushed by you,
 as below. A `working` CR's branch is its Driver's: you never rebase or push it. The Foreman sends
 its Driver `[foreman→driver <cr>] note rebase: stacked on <cr below>`; that Driver rebases once
-before its next push and `ship`s. A CR printed `not on its place` is to come until its Driver
+before its next push and `ship`s, or at once when its `ship` is refused `branch not based on`,
+without waiting for the note. A CR printed `not on its place` is to come until its Driver
 rebases; the Foreman sends the note.
+
+**Check the chain.** Check with `git -C <its worktree> merge-base --is-ancestor <head of the CR
+below> <its head>`, for each CR of the stack from the bottom, the release last (the head of the CR
+below read from `$CHANTIER stack`), before you conclude that a CR needs no restack and before you
+turn any PR ready (`gh pr ready`, `glab mr update --ready`). Exit 0: it starts from the CR below. Exit 1: it needs a restack (or, for a working CR, its Driver's rebase). Any other exit: git
+cannot read a head; fetch and check again, never read it as "based". Matching PR bases on the forge
+prove nothing about the branches.
+- Ship the CRs you move bottom up: `ship` refuses a CR whose branch does not hold the recorded head
+  of the CR below (`branch not based on <cr>'s head`: rebase onto the branch it names), and a CR
+  below is recorded at its new head only once it is shipped.
+- `<cr below>'s branch moved since its last ship (<rec7> -> <tip7>)`: that CR is not shipped at its
+  new head. With no live Driver (handed back `ready`, or `blocked`), ship it first, then the CR
+  above. When it is `working`, its branch and its `ship` are its Driver's: leave the CR above to
+  come (its PR a draft, not turned out of draft), hand back the mergeable part below it as usual,
+  and name it in the hand-back's tail: `<cr> to come: <cr below> not shipped at <tip7>` (one per
+  such CR). The Foreman takes the stack again after that Driver's `ship`.
+- `stack --out-of-draft` refuses the same broken chain on the recorded heads, after you have
+  already turned the PRs ready on the forge: put back to draft the PRs the refusal names (`gh pr
+  ready --undo`, `glab mr update --draft`; nothing to record with `stack --draft`, the refused
+  call recorded nothing), restack, push, `ship`, then `stack --out-of-draft` again.
+- A CR below the forge shows merged that the refusal still names: the record does not hold that
+  merge yet. Once the journal or the record holds the merge (`status` shows it merged), `ship`
+  again.
 
 Order the stack's CRs (`$CHANTIER stack <cr>…`, bottom first), rebase and push each PR on the one
 under it (each branch with the Push bullet's rewrite form, one command per branch, never a loop
 or a script), in the CRs' own worktrees (one that is gone: `git -C <main checkout> worktree add <path> <branch>`),
-`ship` each one you moved, and keep the stack green with heavy CI once at the top (by default; a
+`ship` each one you moved (bottom up: the CR below first), and keep the stack green with heavy CI once at the top (by default; a
 head the steering session names gets it too). You edit no project file yourself, through the shell
 either: a conflict goes to a `conflict-resolver`, code to an `anomaly`, and you never discard a CR
 worktree's work with `git reset --hard` (a `conflict-resolver`, or `git rebase --abort`). You open
@@ -1097,10 +1139,10 @@ marked stale in the PR and is an `anomaly`.
 restacked, pushed, `ship`ped, CI green at the top), create the native stack on the forge with the
 means your prompt names: the `gh stack` extension, or `$CHANTIER forge-stack create` when the
 user declined the extension (it retargets the PRs of the stack as it stands whose base is not the
-record's, then creates the stack, in one command; never a retarget by hand); the PRs bottom to top, the CRs not handed back ready on top, as drafts; the CRs handed back ready form the mergeable part, turned ready after the stack is made. The first take ends with the stack made, whatever a working CR is doing. Then turn every PR of
+record's, then creates the stack, in one command; never a retarget by hand); the PRs bottom to top, the CRs not handed back ready on top, as drafts; the CRs handed back ready form the mergeable part, turned ready after the stack is made. The first take ends with the stack made, whatever a working CR is doing. Then, after the chain check, turn every PR of
 the mergeable part ready (`gh pr ready`), not only the bottom one, and record them right after
 the forge command: `$CHANTIER stack --out-of-draft <cr>…` (refused for a CR not handed back `ready`
-and for one with a draft under it). A means that is not available as the prompt names it
+for one with a draft under it, and for one whose recorded head does not hold its CR below's). A means that is not available as the prompt names it
 (the extension not installed, the command refused by the forge, the API missing) is an `anomaly`
 with the exact text: no other means without the user's word (no fallback). On GitLab the means is always
 `$CHANTIER forge-stack create` (no extension): the MRs of the mergeable part are turned ready
@@ -1143,8 +1185,8 @@ draft that turns ready, an insertion and a restack after a merge, each ending wi
 
 **A draft that turns ready to merge** (its CR handed back `ready`) moves into the mergeable part. When it
 is the lowest draft, nothing moves: no `rebuild`; read the stack back and turn its PR ready once
-the five checks hold and, under the rule, its local gate passed at its head, then `stack --out-of-draft <cr>`. When drafts sit under it, order it below them (`stack`), rebase it and the
-drafts above (theirs by their Drivers' notes when working), `rebuild`, then turn it ready and `stack --out-of-draft <cr>`.
+the five checks hold, the chain check passes and, under the rule, its local gate passed at its head, then `stack --out-of-draft <cr>`. When drafts sit under it, order it below them (`stack`), rebase it and the
+drafts above (theirs by their Drivers' notes when working), `rebuild`, then, after the chain check, turn it ready and `stack --out-of-draft <cr>`.
 
 **A merge during a take.** On `[foreman→stack] note merged: <cr>…`, read the stack again
 (`$CHANTIER stack`), restack what remains on `origin/<default branch>` with the CRs being added
@@ -1168,8 +1210,9 @@ GitLab the checks read the chain (each MR's target is the branch below, the firs
 branch; no other MR on a branch of the stack but drafts of CRs to come; drafts only on top; the
 release on top; unproved; trial: one run on a GitLab project).
 Green and checked: `[stack→foreman] hand-back ready to merge <stack
-link> <cr>=<link>…[ local gate <cr> at <head7>: passed|failed|not run]`, the tail present under
-the rule on every hand-back that leaves a partial stack.
+link> <cr>=<link>…[ local gate <cr> at <head7>: passed|failed|not run][ <cr> to come: <cr below> not shipped at <tip7>]…`,
+the local gate tail present under the rule on every hand-back that leaves a partial stack, a
+`to come` clause for each CR left to come ("Check the chain").
 
 The stack is what your prompt gives from `take stack`, each CR with its base (the state computes
 it: the CR under it, the first on the default branch). Each row's label is the CR's hand-back
@@ -1194,7 +1237,7 @@ one restack for what remains, whatever the number of CRs one merge action of the
      (`conflict-resolver`, or "A conflict that needs code").
   3. Push every moved branch right after the last rebase, back to back, once each with
      `--force-with-lease` (a refused one goes up as above; one command per branch, never a loop or
-     a script), so the forge starts every PR's CI at once; then `ship` each one once (`--conflict`
+     a script), so the forge starts every PR's CI at once; then `ship` each one once, bottom up (`--conflict`
      by the rule of the long-gate bullet): `ship` records the new base and the carry. Pushing a branch and waiting for its CI before rebasing the next one is
      what this pass avoids.
   4. One CI wait for all of them (heavy CI once at the top), the proofs each move touched judged
@@ -1215,7 +1258,7 @@ on top. A CR with an `after` (its dependencies) stands, once `stack` has ordered
 in the stack, as `take stack` prints, and `stack` refuses an order that puts it below one
 of them; a dependency sent back to a Driver is yours to restack. The release CR is the top piece:
 `take stack` lists it last. Restack it like any PR above (rebase onto the CR under it, push with
-`--force-with-lease`, `ship`, `--conflict` by the rule of the long-gate bullet); its checks run again, and no `verifier` and no `inspector` is
+`--force-with-lease`, `ship`, `--conflict` by the rule of the long-gate bullet), shipped last, after the top CR is shipped at its new head (`ship` refuses it otherwise); its checks run again, and no `verifier` and no `inspector` is
 started for it (it has no verdict). A release with no PR yet is no anomaly: it is to come, and
 joins like any CR when it has its PR. Its PR stays a draft on top until its CR is handed back `ready` and the
 checks hold, then it turns ready with the others (`stack --out-of-draft`). A fix CR is not in the stack. The batch stays running until its last CR ends.
@@ -1229,7 +1272,7 @@ checks hold, then it turns ready with the others (`stack --out-of-draft`). A fix
    may have done it already: check it on the forge).
 2. Order the stack with the new CR at the place named (`$CHANTIER stack <cr>…`, bottom first; the
    release CR stays last), rebase the new PR on the one under it and each PR above on the one
-   under it, push with `--force-with-lease`, `ship` each one moved (`--conflict` by the rule of the
+   under it, push with `--force-with-lease`, `ship` each one moved, bottom up (`--conflict` by the rule of the
    long-gate bullet; fix the PR body lines `ship` names as stale, as above); the proofs a move touched are judged again as above (`verifier`,
    `inspector`), a clean restack carrying the verdict.
 3. Update the stack on the forge: `$CHANTIER forge-stack rebuild` (it dissolves the stack,
@@ -1238,7 +1281,7 @@ checks hold, then it turns ready with the others (`stack --out-of-draft`). A fix
    and hand back; the Foreman sends the release back (`take <release> --note "redo: <new cr>
    inserted"`) so that its notes name the new change, then takes the stack again.
 5. Verify every PR of the stack again on the forge (the five checks), run the local gate at the
-   mergeable top when its head carries no pass, and only then turn the PRs
+   mergeable top when its head carries no pass, and only then, after the chain check, turn the PRs
    above ready (`stack --out-of-draft <cr>…`), the release PR last; hand back with the stack's link.
 
 **Removing a dropped CR.** Taken with a note, or sent one, that names `drop: <cr> to <destination>`
@@ -1256,8 +1299,8 @@ draft). Steps 1 to 4 apply to every destination:
    rebase. Skip a `working` CR: its Driver does it, on the Foreman's note. A conflict that only
    needs resolving goes to a `conflict-resolver`; one that needs code goes the way "A conflict
    that needs code" says.
-3. Push each moved branch with `--force-with-lease`, one command per branch, and `ship` each one
-   (`--conflict` by the rule of the long-gate bullet). Judge again the proofs each move touched (a
+3. Push each moved branch with `--force-with-lease`, one command per branch, and `ship` each one,
+   bottom up (`--conflict` by the rule of the long-gate bullet). Judge again the proofs each move touched (a
    `verifier` given the move, and an `inspector` when the patch changed, always after a
    `conflict-resolver`); a drop carries when the CR's own commits are unchanged, as `ship` says
    (`carried:` or `off:`). Fix the PR body lines `ship` names as stale.
@@ -1270,7 +1313,7 @@ draft). Steps 1 to 4 apply to every destination:
    `close`. For a CR moved to the backlog or the next batch (`3-ready`), turn its PR to a draft (`gh pr ready
    --undo`, `glab mr update --draft`): no close, no comment, no rebase of its branch, no retarget
    by hand; its branch and worktree stay.
-6. Run the local gate at the mergeable top when its head carries no pass, then turn the
+6. Run the local gate at the mergeable top when its head carries no pass, then, after the chain check, turn the
    mergeable part ready (`stack --out-of-draft <cr>…`). A release above stays a draft, waiting for the Foreman's
    `redo:`. Hand back as for any take.
 
@@ -1295,7 +1338,7 @@ branch; the CRs above it no longer stand on it):
    `$CHANTIER forge-stack rebuild`: it dissolves the stack, moves the held PR to the default
    branch (`held out of the stack`) and makes the stack without it.
 6. Read it back (the five checks), run the local gate at the mergeable top when its head carries
-   no pass, and turn the mergeable part ready again (`stack --out-of-draft <cr>…`, the held CR
+   no pass, and, after the chain check, turn the mergeable part ready again (`stack --out-of-draft <cr>…`, the held CR
    never named).
 
 A clean rebase carries the CR's gate and verdict as any clean restack. A conflict that only needs
@@ -1393,6 +1436,12 @@ inside the procedure and the grant, and ask for anything beyond them.
   long wait (CI, the publication) is renewed or held as "Means: the lease" says.
 - Your PR: you open it as the base says, ready on the default branch, a draft on another base; the stack
   and Release drivers' PRs keep their form, by the project's rules.
+- A `ship` refused in an ordered batch (the CR below you is the top CR): `branch not based on <top
+  cr>'s head`: rebase onto the branch it names, push with `--force-with-lease`, `ship` again
+  (`--conflict` by the `ship --conflict` rule, "Means: carries, conflicts and the early push").
+  `<top cr>'s branch moved since its last ship`: wait for that CR's `ship`, then `ship` again. A
+  top CR the forge shows merged: once the journal or the record holds the merge (`status` shows it
+  merged), `ship` again.
 - At each step of the procedure: `$CHANTIER phase <cr> release "<the step>"` (at most 40
   characters), one call, as the step starts.
 - An **irreversible action** is any step of the project's procedure that cannot be taken back or

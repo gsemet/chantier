@@ -858,29 +858,33 @@ def commit(w: World, cr_id: str, filename: str, content: str, subject: str | Non
     w.sh("git", "commit", "--quiet", "-F", str(msg), cwd=wt)
 
 
-def push(w: World, cr_id: str) -> None:
-    """The Driver rebases on the fresh base and pushes with a lease."""
+def push(w: World, cr_id: str, base: str | None = None) -> None:
+    """The Driver rebases on the fresh base and pushes with a lease. The base is the one given,
+    else the CR's recorded base: its `pr_base`, else its `start_on`, else the default branch (a CR
+    on another CR's branch holds that CR's head, as `ship` checks)."""
     c = w.cr(cr_id)
     wt = Path(c["worktree"])
+    onto = base or c.get("pr_base") or c.get("start_on") or "main"
     w.sh("git", "fetch", "--quiet", "origin", cwd=wt)
-    w.sh("git", "rebase", "--quiet", "origin/main", cwd=wt)
+    w.sh("git", "rebase", "--quiet", f"origin/{onto}", cwd=wt)
     w.sh("git", "push", "--quiet", "--force-with-lease", "-u", "origin", c["branch"], cwd=wt)
 
 
-def ship(w: World, cr_id: str, title: str, base: str = "main") -> None:
+def ship(w: World, cr_id: str, title: str, base: str | None = None) -> None:
     """The Driver writes the PR body, pushes, opens or updates the PR itself, then records it.
-    `base` is the branch a new PR targets: the CR under it, for a CR that carries its commits."""
+    `base` is the branch a new PR targets (main when none) and the one the push rebases onto when
+    given: the CR under it, for a CR that carries its commits."""
     c = w.cr(cr_id)
     body = w.at(c["path"]) / "work" / "pr-body.md"
     body.parent.mkdir(exist_ok=True)
-    push(w, cr_id)
+    push(w, cr_id, base)
     first = cr_id not in OPENED
     body.write_text(BODY.format(title=c["title"], cr=cr_id))
-    link = OPENED.setdefault(cr_id, open_pr(w, cr_id, title, base) if first else c["pr"])
+    link = OPENED.setdefault(cr_id, open_pr(w, cr_id, title, base or "main") if first else c["pr"])
     w.chantier("ship", cr_id, link)
 
 
-def driver_round(w: World, cr_id: str, filename: str, content: str, base: str = "main") -> None:
+def driver_round(w: World, cr_id: str, filename: str, content: str, base: str | None = None) -> None:
     """A round counted, a Coder's change, then the Driver's commit, long gate and ship."""
     w.chantier("round", cr_id, "--note", f"edit {filename}")
     commit(w, cr_id, filename, content)
@@ -6823,7 +6827,17 @@ def stack_batch(w: World) -> None:
     check("after `stack` marks the CRs the trigger line is absent", not trigger(), str(trigger()))
     forge_base(w, w.cr(two)["pr"], w.cr(one)["branch"])  # the stack driver retargets the PRs
     forge_base(w, w.cr(three)["pr"], w.cr(two)["branch"])
-    w.chantier("ship", three, w.cr(three)["pr"])
+    three_head, shipped = w.cr(three).get("head"), len(ship_bases(three))
+    code, _ = w.chantier("ship", three, w.cr(three)["pr"], expect=2)
+    two_head = w.sh("git", "rev-parse", "--short=7", "HEAD", cwd=Path(w.cr(two)["worktree"]))
+    check("`ship` refuses a stacked CR whose branch does not hold the recorded head of the CR below "
+          "it, says to rebase onto that branch, and records nothing",
+          code == 2 and "branch not based on" in w.last_stderr and w.cr(two)["branch"] in w.last_stderr
+          and two_head in w.last_stderr and "nothing recorded" in w.last_stderr
+          and w.cr(three).get("head") == three_head and len(ship_bases(three)) == shipped,
+          w.last_stderr)
+    restack(w, two, one)  # bottom up: each CR holds the head the one below recorded
+    restack(w, three, two)
     w.chantier("ship", one, w.cr(one)["pr"])
     check("after `stack`, `ship` records the CR under it, the first on the default branch",
           ship_bases(three)[-1] == w.cr(two)["branch"] and ship_bases(one)[-1] == "main",
