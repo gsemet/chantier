@@ -62,15 +62,18 @@ export function resolve(projects, search = location.search) {
   const sort = only('sort', PRS_SORTS);
   const tab =
     view !== 'batch' ? TABS[0] : TABS.includes(asked.get('t')) ? asked.get('t') : keptTab();
+  return { project: wanted ?? lastOf(ids), view, batch, tab, st, sort, ...askedKeys(view, asked) };
+}
+
+// What the address says for the Dashboard, History and Help views (each only on its own view).
+function askedKeys(view, asked) {
   const dash = (key, values) =>
     view === 'dashboard' && values.includes(asked.get(key)) ? asked.get(key) : values[0];
-  const dt = dash('dt', DASH_TABS);
-  const dr = dash('dr', DASH_RANGES);
   const hp =
     view === 'history' && HISTORY_PERIODS.includes(asked.get('hp')) ? asked.get('hp') : null;
   const hd = view === 'history' && isDate(asked.get('hd')) ? asked.get('hd') : null;
   const topic = view === 'help' && rules.topics.includes(asked.get('h')) ? asked.get('h') : null;
-  return { project: wanted ?? lastOf(ids), view, batch, tab, st, sort, dt, dr, hp, hd, topic };
+  return { dt: dash('dt', DASH_TABS), dr: dash('dr', DASH_RANGES), hp, hd, topic };
 }
 
 // A view that "All projects" does not show opens on the last real project.
@@ -127,7 +130,7 @@ function apply(place) {
   const moved = place.project !== now.project;
   const turned = place.view !== now.view;
   keep(place);
-  const { project, view, batch, tab, st, sort, dt, dr, hp, hd, topic } = place;
+  const { project, view, batch, tab, st, sort } = place;
   update({
     ...(turned ? closed : {}),
     ...(moved ? reset : {}),
@@ -137,13 +140,18 @@ function apply(place) {
     batchTab: tab ?? TABS[0],
     prsState: st ?? null,
     prsSort: sort ?? null,
-    dashTab: dt ?? DASH_TABS[0],
-    dashRange: dr ?? DASH_RANGES[0],
-    historyPeriod: hp ?? null,
-    historyDate: hd ?? null,
-    helpTopic: topic ?? null,
+    ...viewState(place),
   });
 }
+
+// The Dashboard's, History's and Help's state of a place.
+const viewState = ({ dt, dr, hp, hd, topic }) => ({
+  dashTab: dt ?? DASH_TABS[0],
+  dashRange: dr ?? DASH_RANGES[0],
+  historyPeriod: hp ?? null,
+  historyDate: hd ?? null,
+  helpTopic: topic ?? null,
+});
 
 // The dashboard's tab and range in the address, each only when not the default.
 function dashQuery(place) {
@@ -163,6 +171,9 @@ const historyKeys = (place) => {
   };
 };
 
+// The Help view's open topic in an address.
+const helpKeys = (place) => (place.view === 'help' && place.topic ? { h: place.topic } : {});
+
 // The relative address of a place: it keeps the page's own address in front of the query.
 export const href = (place) =>
   `?${new URLSearchParams({
@@ -175,7 +186,7 @@ export const href = (place) =>
     ...(place.view === 'prs' && place.st ? { st: place.st } : {}),
     ...(place.view === 'prs' && place.sort ? { sort: place.sort } : {}),
     ...historyKeys(place),
-    ...(place.view === 'help' && place.topic ? { h: place.topic } : {}),
+    ...helpKeys(place),
     ...(place.view === 'batch' && place.tab ? { t: place.tab } : {}),
     ...dashQuery(place),
   })}`;
