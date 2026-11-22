@@ -53,7 +53,7 @@ const FACTS = {
   item: (target) => itemFacts(target),
 };
 
-export function head(target, batch, count) {
+export function head(target, batch, count, actions = '') {
   const facts = FACTS[target.kind](target, batch);
-  return html`<div class="ph"><div class="row-tags">${facts}<span class="grow"></span><span class="place" data-place="panel-actions"></span><button class="x" type="button" data-close aria-label="${t('panel.close')}">${icon('close')}</button></div><h2>${title(target.title)}</h2><div class="path">${target.folder}/ · ${tn('panel.files', count)}</div></div>`;
+  return html`<div class="ph"><div class="row-tags">${facts}<span class="grow"></span><span class="place" data-place="panel-actions">${actions}</span><button class="x" type="button" data-close aria-label="${t('panel.close')}">${icon('close')}</button></div><h2>${title(target.title)}</h2><div class="path">${target.folder}/ · ${tn('panel.files', count)}</div></div>`;
 }

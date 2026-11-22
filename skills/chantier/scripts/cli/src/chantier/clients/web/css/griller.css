@@ -1,0 +1,68 @@
+/* The board's Griller in the file panel: the discussion that takes the file view's place. Layout
+   only: a turn is told apart by its fill, with the hairline all around. */
+.griller .gbox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.gbox .glog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.gbox .gturn {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  overflow-wrap: anywhere;
+}
+
+.gbox .gsaid {
+  background: var(--band);
+}
+
+.gbox .ganswer {
+  background: var(--panel);
+}
+
+.gbox .gtyped {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.gbox .gnote {
+  margin: 0;
+  color: var(--ink2);
+  font-size: var(--text-small);
+}
+
+.gbox .gform {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.gbox .gtext {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font: inherit;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  padding: var(--space-2) var(--space-3);
+}
+
+.gbox .gbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.gbox .gmsg {
+  color: var(--ink3);
+  font-size: var(--text-small);
+}

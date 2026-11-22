@@ -8,6 +8,7 @@ import { bindEditor, confirmLeave, syncEditor } from '../edit/markdown-editor.js
 import { targetFor } from '../model/targets.js';
 import { t } from '../model/words.js';
 import { fileView } from './file-view.js';
+import { bindGriller, grillAction, grillerPlace, isOn, syncGriller } from './griller.js';
 import { head } from './head.js';
 import { loadFile, loadTree } from './load.js';
 import { treeMarkup } from './tree.js';
@@ -19,6 +20,7 @@ export function openPanel(state, target) {
   openerKey = document.activeElement?.dataset?.key ?? null;
   update({
     panel: { ...target, project: state.project },
+    grillOn: null,
     panelTree: null,
     panelFile: null,
     editing: null,
@@ -26,7 +28,14 @@ export function openPanel(state, target) {
 }
 
 export const closePanel = () =>
-  update({ panel: null, panelTree: null, panelFile: null, editing: null });
+  update({
+    panel: null,
+    grillOn: null,
+    griller: null,
+    panelTree: null,
+    panelFile: null,
+    editing: null,
+  });
 
 // The target as the data now says it (a live refresh moves a CR's round or cost); as it was opened
 // when the record no longer holds it.
@@ -38,8 +47,11 @@ export function panelMarkup(state) {
   const target = current(state);
   const { panelTree: tree, panelFile: file } = state;
   const list = tree?.list ?? null;
-  const open = file ? `doc:${file.path}` : 'doc';
-  return html`${head(target, state.data?.batch, list?.length ?? target.files ?? 0)}<div class="pbody"><nav class="tree" data-scroll="tree" aria-label="${t('panel.tree')}">${treeMarkup(list, file?.path, tree?.failed)}</nav><div class="doc" data-scroll="${open}" tabindex="0" role="region" aria-label="${t('panel.doc')}">${fileView(target, list, file, state.editing)}</div></div>`;
+  const grilling = isOn(state);
+  const open = grilling ? 'doc:grill' : file ? `doc:${file.path}` : 'doc';
+  const doc = grilling ? grillerPlace() : fileView(target, list, file, state.editing);
+  const count = list?.length ?? target.files ?? 0;
+  return html`${head(target, state.data?.batch, count, grillAction(state, target))}<div class="pbody"><nav class="tree" data-scroll="tree" aria-label="${t('panel.tree')}">${treeMarkup(list, file?.path, tree?.failed)}</nav><div class="doc" data-scroll="${open}" tabindex="0" role="region" aria-label="${t('panel.doc')}">${doc}</div></div>`;
 }
 
 // Read what the open panel needs and does not have: its listing, again when the folder's file
@@ -61,6 +73,7 @@ export function syncPanel(state) {
 // The focus goes into the panel when it opens and back to what opened it when it closes.
 export function afterPanel(root, state) {
   syncEditor(root, state);
+  syncGriller(root, state);
   const key = state.panel?.key ?? null;
   if (key === shownKey) return;
   shownKey = key;
@@ -75,11 +88,15 @@ export function afterPanel(root, state) {
 export function bindPanel(root) {
   const offs = [
     bindEditor(root),
+    bindGriller(root),
     delegate(root, 'click', '[data-file]', async (_, button) => {
       if (!(await confirmLeave())) return;
       const { panel, panelTree: tree } = snapshot();
       const entry = tree?.list?.find((f) => f.path === button.dataset.file);
-      if (panel && entry) loadFile(panel.key, entry);
+      if (panel && entry) {
+        if (isOn(snapshot())) update({ grillOn: null });
+        loadFile(panel.key, entry);
+      }
     }),
   ];
   return () => {

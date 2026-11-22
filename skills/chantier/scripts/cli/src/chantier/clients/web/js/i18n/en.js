@@ -3,6 +3,7 @@ import batch from './en-batch.js';
 import board from './en-board.js';
 import costs from './en-costs.js';
 import dashboard from './en-dashboard.js';
+import griller from './en-griller.js';
 import help from './en-help.js';
 import history from './en-history.js';
 import inbox from './en-inbox.js';
@@ -264,6 +265,7 @@ export default {
   ...costs,
   ...dashboard,
   ...help,
+  ...griller,
   'writer.title': 'Writer {state}',
   'writer.state.synced': 'synced',
   'writer.state.syncing': 'syncing',

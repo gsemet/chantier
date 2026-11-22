@@ -281,16 +281,11 @@ def test_the_allow_list_matches_the_four_commands_and_no_other(in_project: World
     [(True, False, False), (False, True, False), (False, False, True)],
 )
 def test_a_cut_first_run_is_resumed_only_when_the_host_saved_its_conversation(
-    resumable: bool, saved: bool, first: bool, monkeypatch: pytest.MonkeyPatch
+    resumable: bool, saved: bool, first: bool
 ) -> None:
-    monkeypatch.setitem(
-        gh.HEADLESS,
-        "claude",
-        gh.Headless("claude", lambda r, e: [], lambda s: saved, "x"),
-    )
     chat = griller.Conversation(resumable=resumable, turns=[griller.Turn(1, "p", "hi")])
-    assert griller._first(chat, "claude") is first
-    assert griller._first(griller.Conversation(), "claude") is True
+    assert griller._first(chat, saved) is first
+    assert griller._first(griller.Conversation(), saved) is True
 
 
 def test_a_result_with_no_json_is_a_failed_turn_with_the_last_lines() -> None:

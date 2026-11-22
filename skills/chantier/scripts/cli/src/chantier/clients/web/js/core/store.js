@@ -25,6 +25,8 @@ const data = {
   panelFile: null, // the open panel's file: { path, rel, kind, text, sha256, cut, loading, failed }
   panel: null, // the target (kind, key, title, folder, files, row) whose folder is open, else null
   editing: null, // the panel's Markdown editor: { path, original, draft, base, saving, error }
+  grillOn: null, // the key of the panel whose Griller discussion replaces the file view, else null
+  griller: null, // the open item's `griller` topic: its value and `key`, the panel's key
   writer: { open: false, busy: false, error: '' }, // the writer panel: open, a call running, its error
   prsState: null, // PRs: the state filter ('open', 'draft', 'merged'), null for all
   prsSort: null, // PRs: the sort ('opened', 'activity', 'cr'), null for the batch's order
