@@ -24,6 +24,8 @@ hosts:
       session:
         cache_ttl: 1h
     roles:
+      board-griller:
+        model: claude-opus-5-5
       coder:
         model: claude-sonnet-5-5
         escalation: claude-opus-5-5
@@ -61,6 +63,8 @@ hosts:
       cache_ttl: 5m
       ci_reruns: 1
     roles:
+      board-griller:
+        model: claude-opus-5.5
       coder:
         model: gpt-6.1-sol
         escalation: claude-opus-5.5

@@ -141,8 +141,11 @@ agent file's.
 | Verifier, Debugger, Conflict resolver | Sonnet 5.5 | GPT-6.1 Terra |
 | Spec-writer | Opus 5.5 | Claude Opus 5.5 |
 | Spec critic | Opus 5.5 (Fable on request) | Claude Opus 5.5 |
+| Board's Griller | Opus 5.5 | Claude Opus 5.5 |
 
-By default every role but the Spec-writer and the Spec critic runs Sonnet 5.5 on Claude Code. The roles that judge
+The board's Griller runs only the plugin's own agent: its model is yours to set, its agent is not (see [the web board](web-board.md#the-boards-griller)).
+
+By default every role but the Spec-writer, the Spec critic and the board's Griller runs Sonnet 5.5 on Claude Code. The roles that judge
 keep cards with goals and boundaries, not procedures. On a named trouble a coding task goes to a new
 agent on the role's `escalation` model (Opus 5.5 by default, set per role in the configuration),
 once per CR and then the user, and the report says so. On Copilot the agent files' models run when no

@@ -17,11 +17,12 @@
   `chantier.yml`) files, at the project's root and, with an external planning surface, at the
   surface's root and in the project's folder there, are the only configuration, above the plugin's
   shipped `config/chantier.defaults.yml` (with none, chantier runs on the shipped defaults; `uv` is the only tool to install, and the CLI needs no network once uv's cache holds its
-  packages, except the server's read of a batch's PRs, the forge hub, the surface server's writer, whose fetch and push need it, and the forge calls of `ship`, `take`, `round`, `handoff` and `forge-stack`, made with the user's own `gh` or `glab` (below)), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
+  packages, except the server's read of a batch's PRs, the forge hub, the surface server's writer, whose fetch and push need it, the board's Griller run (the host CLI's calls to its model), and the forge calls of `ship`, `take`, `round`, `handoff` and `forge-stack`, made with the user's own `gh` or `glab` (below)), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
   external planning surface), as plain JSON and Markdown, and the project's `chantier.yaml` in an
   external planning surface's project folder, from the board's Configuration page, and a CR's
   cleaned archive in its PR when the project asks for it, and fast-forwards a clean main checkout
-  after a merge it records, the surface server keeps its key, and while it serves its PID, address
+  after a merge it records, the surface server keeps its key, the host CLI that the board's Griller runs keeps its own
+  session files, as for any session of the user, and while it serves its PID, address
   and version, and the forge hub's PID, version and last reads, in the repository's git folder
   (`chantier/server.json`, with its write lock `chantier/server.json.lock`; the hub's lock is
   `chantier/hub.lock`), and the surface server's writer commits, rebases and pushes the planning
@@ -39,8 +40,10 @@
 - A role's contract lives in `skills/chantier/references/` (the cards), never in an agent file
   or in the CLI: the parent that starts an agent names the card in its prompt. A card says what
   the role judges; the CLI (`rails.py`) says what it refuses; a user's project rules rank above
-  both. The CLI knows no role; one named exception: the cost code knows the two specification
-  agents by their agent type (`spec-writer`, `spec-critic`), to put them on the grill line.
+  both. The CLI knows no role; two named exceptions: the cost code knows the two specification
+  agents by their agent type (`spec-writer`, `spec-critic`), to put them on the grill line, and the surface
+  server knows the board's Griller (`board-griller`), to start it with its brief and read its
+  `[griller→board]` line (below).
 - The CLI's scope: the CR lifecycle, the batch's frame (limits, record, STATUS files), the means
   to synchronise, and a few tools (among them `validate`, a read-only check of a planning folder
   that a surface would otherwise keep in its own drifting script). The agents do the work, git and the forge included, but for the forge calls named below; a new
@@ -62,8 +65,9 @@
   each role's agent, model and escalation, per host, and the two limits (`specifying.parallel`,
   `batch.slots`), in the project's configuration file in the planning
   surface (`projects/<name>/chantier.yaml`), only through the CLI's role-free commands and its
-  own reading, checking and writing of that file; it never edits a batch and never messages an
-  agent; one named exception, a batch's PRs: while a client asks for them (one read, or a subscription),
+  own reading, checking and writing of that file, and the board's Griller's
+  writes in one CR's folder; it never edits a batch and never messages an
+  agent (the board's Griller, below, is not one); one named exception, a batch's PRs: while a client asks for them (one read, or a subscription),
   at most once every 10 s per project and batch, while a PR of that batch is not done, a
   subscription's first read included (within the same 10 s), it reads the forge, read-only, through the
   connector of its forge, with the user's own `gh` or `glab`, on its own (no agent asks it), and
@@ -72,7 +76,9 @@
   `forge-journal.jsonl` (planning folder, never published), which
   `status` prints for the Chief of Staff to record at its next `status`; the
   board itself records nothing and messages no agent, but its writer's commits of the planning
-  surface's published paths (below) and its journal lines (`sync-*@1`); a third, from a configuration save (the web client's Configuration page, or any client's `config.put`): a save
+  surface's published paths (below) and its journal lines (`sync-*@1`), and the board's Griller (the
+  fourth exception, which passes the words a holder of the key typed to a run the server started for
+  the key's holder, and is not a message of the board to an agent); a third, from a configuration save (the web client's Configuration page, or any client's `config.put`): a save
   appends one `config@1` line to the same journal (`source: board`) for each key whose effective value it
   changes (the two limits, and each role's agent, model and escalation), which `status` and the
   watcher carry to the Chief of Staff; and each write it makes to the backlog also appends one
@@ -80,7 +86,43 @@
   a drop of a `3-ready` CR on the running batch writes no file in the CR's folder and appends
   only its journal lines (its `board@1` line, action `running-batch`, which the Chief of Staff
   turns into `order add`);
-  it takes its dependencies like the rest of the CLI and knows no role. The same process is the
+  a fourth, the board's Griller: on the request of any client holding the board's key (this machine,
+  or the local network when `board.host: network`), and on an item of the inbox, the backlog
+  (`2-backlog/P1`...`P4`) or `3-ready` only (never a CR of `4-batch/`, an archive or the trash), the
+  server starts the headless CLI of the host it runs under (`claude -p`; `copilot -p` only once a
+  trial has proved the same limits; on a host not proved or not told, the Grill action refuses with
+  one line), as the plugin's own `board-griller` agent only (any other agent set for that role
+  refuses the Grill action with one line naming the setting) with the project's model for that role
+  on that host, one run per message typed in the board, each run resuming the conversation of the run
+  before, one shared conversation per CR that every holder of the key reads and any holder may stop
+  or end, at most one run per planning surface (per project's planning folder in-project) at a time
+  and at most 10 minutes per run, and no process between two runs; the first run's prompt is a fixed
+  brief that names the Griller card, the CR's folder and the CLI, followed by the typed text, and each
+  later run's prompt is the typed text alone, passed unchanged; the run loads none of the user's,
+  project's or local host settings (allow rules, hooks, MCP servers), loads chantier explicitly, and
+  works from an allow list alone, which the role's skills and tools never widen: it may read the
+  project, the planning folder and the plugin's skill folder (read-only), write only in that CR's
+  folder, and run only the four `chantier` commands that the Griller card's "Started from the board"
+  names, `summary lint` and `summary set` on that CR's folder only: no other shell command, no
+  network tool (no web fetch or search, no shell beyond those four commands; the host CLI's own
+  calls to its model aside), no MCP tool, no subagent; a host whose flags cannot give all of these
+  limits gets no run; it grills as that card says, messages no session and runs no git command of
+  its own; while a run works on an item, the board's own writes on that item (its moves, the trash
+  and the running batch included, its file edits, labels and groups) are refused, and when another
+  session moves the item during a run, the server stops the run and removes, at the old path, only
+  the files that appeared there after the move; this is not the board messaging an agent: the
+  server sends a run nothing of its own
+  but that fixed brief, only the words a holder of the key typed, to a run it started for the key's
+  holder, and it sends nothing to any session (no Chief of Staff, Foreman, Driver or Griller
+  session) and records nothing in a batch; when a run has written in that CR's folder, the server
+  appends one `board@1` line (action `grill`) to the project's `forge-journal.jsonl` through the one
+  append function, which the Chief of Staff's watcher carries; the server keeps the conversation in
+  its memory only (the host CLI keeps its own session files, as for any session of the user),
+  refuses with one line while the surface's writer is not running or stopped, and no agent starts
+  it; the board speaks plain HTTP, so on the network the key and every turn's text travel in clear,
+  and `chantier board --new-key` revokes the key; built on the user's direction of 2026-11-17 and
+  answers "Tout" (2026-11-21) and board-griller-Q4 B and Q20, with no measured cost; it takes its
+  dependencies like the rest of the CLI and knows no role but the board's Griller. The same process is the
   forge hub while it runs (one per planning surface and machine, started by a session's watcher,
   detached, when none runs and the session holds the seat, on the user's one yes for the watcher
   and the board, or by the Chief of Staff on a host that cannot run the watcher; one a watcher
