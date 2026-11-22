@@ -6,7 +6,8 @@ they are read and written is in `chantier.core.batch_records`.
 from __future__ import annotations
 
 from chantier.core.batch_records import Rec, open_record
-from chantier.core.records import TRASH, BatchRecord, CrEntry
+from chantier.core.cr_times import ended
+from chantier.core.records import TRASH, BatchRecord, CrEntry, EventRecord
 from chantier.core.repo import Repo
 from chantier.core.steering import NO_SESSION
 from chantier.rails import usd_text
@@ -40,7 +41,10 @@ def archive_of(c: CrEntry) -> str | None:
     return str(path).replace("\\", "/") if path else None
 
 
-def cr_entry(c: CrEntry, by_cr: Rec) -> Rec:
+def cr_entry(c: CrEntry, by_cr: Rec, events: list[EventRecord] | None = None) -> Rec:
+    """A CR of the record. `events` are the CR's own events, for the times it keeps."""
+    own = [e for e in events or [] if e.cr == c.id]
+    ship = next((e for e in own if e.kind == "ship"), None)
     cost = by_cr.get(c.id)
     to = {} if c.status == "merged" else {"to": c.left_to or TRASH}  # an older drop: trash
     return {
@@ -55,11 +59,20 @@ def cr_entry(c: CrEntry, by_cr: Rec) -> Rec:
         "cost_unpriced": cost[2] if cost else {},
         "order": c.order,
         "after": list(c.after),
+        "kind": c.kind,
+        "ended": ended(own, c),
+        "shipped": ship.t if ship else None,
+        "version": c.released,
     }
 
 
-def close_record(
-    d: BatchRecord, closed: str, total: float | None, unpriced: Rec, by_cr: Rec
+def close_record(  # noqa: PLR0913, PLR0917 - the batch's figures, then its events
+    d: BatchRecord,
+    closed: str,
+    total: float | None,
+    unpriced: Rec,
+    by_cr: Rec,
+    events: list[EventRecord] | None = None,
 ) -> Rec:
     """`d` is the batch as it is at `close`, its CRs' `path` already the archives'. A `total` of
     None is a batch no session steered: `cost_usd` is null, with `cost_cause` beside it."""
@@ -71,7 +84,7 @@ def close_record(
         "cost_usd": None if total is None else round(total, 4),
         **({"cost_cause": NO_SESSION} if total is None else {}),
         "cost_unpriced": unpriced,
-        "crs": [cr_entry(c, by_cr) for c in crs],
+        "crs": [cr_entry(c, by_cr, events) for c in crs],
         "report": f"{d.id}.md",
     }
 

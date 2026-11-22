@@ -403,6 +403,16 @@ blocked; kind chips filter the list, and the filter is a preference.
   out. No new colour, size or side border. Words in both languages (`en-inbox.js`, `fr-inbox.js`,
   with `mr.inbox.sub` for GitLab).
 
+## History
+
+A read-only view (`js/views/history.js`), fed by the `history` topic only (`js/views/history-feed.js`;
+no field of the project state). Its address keys are `hp` (day, week, month) and `hd` (a date), each
+only when not the default. Its rows are words, the existing chip and one-line titles (the state
+chip's variants only: merged, blocked, draft, ready), five plain figures, and a day head; a row opens
+its CR in the side panel, its batch name goes to the Batch view and its PR number is a link. There
+is no chart (charts are not this page's), and no new token, component or colour: `css/views/history.css`
+only lays things out. Its every word is an i18n key of `js/i18n/en-history.js` and `fr-history.js`.
+
 ## Triage: folded rows and the writes count
 
 Each Backlog row, P1 to P4, folds on a click on its head: `lane(parts)`'s `fold`, `folded` and

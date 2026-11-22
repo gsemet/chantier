@@ -3,6 +3,7 @@ import batch from './fr-batch.js';
 import board from './fr-board.js';
 import costs from './fr-costs.js';
 import dashboard from './fr-dashboard.js';
+import history from './fr-history.js';
 import inbox from './fr-inbox.js';
 import mr from './fr-mr.js';
 import prs from './fr-prs.js';
@@ -18,6 +19,7 @@ export default {
   'nav.kanban': 'Kanban',
   'nav.batch': 'Batch',
   'nav.prs': 'PR',
+  'nav.history': 'Historique',
   'nav.costs': 'Coûts',
   'nav.dashboard': 'Tableau de bord',
   'nav.config': 'Configuration',
@@ -249,6 +251,7 @@ export default {
   ...batch,
   ...board,
   ...prs,
+  ...history,
   ...mr,
   ...inbox,
   ...costs,

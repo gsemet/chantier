@@ -10,7 +10,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from chantier.board import costs, journal, prs, reads
+from chantier.board import costs, history_page, journal, prs, reads
 from chantier.board.api import ops, times
 from chantier.board.context import Context
 from chantier.board.projects import Project
@@ -87,6 +87,12 @@ def _prs(ctx: Context, project: Project, a: Any, last: str | None) -> Reading:
     return _unchanged(rev, last, lambda: found)
 
 
+def _history(ctx: Context, project: Project, a: Any, last: str | None) -> Reading:
+    found = history_page.answer(ctx, project, a.period, a.date, a.tz)
+    rev = _hash({k: v for k, v in found.items() if k != "now"})
+    return _unchanged(rev, last, lambda: found)
+
+
 def _journal(ctx: Context, project: Project, a: Any, last: str | None) -> Reading:
     store = project.repo.store
     info = store.stat(rel_in(store.root, project.repo.changes / journal.FILE))
@@ -144,6 +150,7 @@ READS: dict[str, Read] = {
     "project": _on_project(_project),
     "costs": _on_project(_costs),
     "prs": _on_project(_prs),
+    "history": _on_project(_history),
     "journal": _on_project(_journal),
     "events": _on_project(_events),
 }

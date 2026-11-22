@@ -1,7 +1,8 @@
 // The address is the state of the page: ?p=<project>&v=<view>&b=<batch> (the batch only on the
 // Costs, Batch and PRs views), &t=<tab> (the Batch view's tab, every tab of it), on the PRs view
-// &st=<state>&sort=<sort>, on the Dashboard view &dt=<tab>&dr=<range> (each only when not the
-// default), and the browser's history. With no `t=`, the Batch view opens the tab
+// &st=<state>&sort=<sort>, on the Dashboard view &dt=<tab>&dr=<range>, on the History view
+// &hp=<period>&hd=<YYYY-MM-DD> (each only when not the default), and the browser's history.
+// With no `t=`, the Batch view opens the tab
 // last shown on this device (the preference `batchTab`). With the store, this module is the only one
 // that writes the URL. `transport=http` (the HTTP binding, forced) is kept in every address.
 import { FILTER_BUCKETS, pref, setPref, snapshot, update } from './store.js';
@@ -15,7 +16,17 @@ export const PRS_STATES = ['open', 'draft', 'merged']; // the PRs view's state f
 export const PRS_SORTS = ['opened', 'activity', 'cr']; // its sort (absent: the batch's order)
 export const DASH_TABS = ['productivity', 'spending']; // the Dashboard's tabs, the first is the default
 export const DASH_RANGES = ['10', '20', 'all']; // its range of closed batches, the first is the default
+export const HISTORY_PERIODS = ['day', 'week', 'month']; // the History view's periods, the first is the default
 export const TABS = ['kanban', 'graph', 'gantt', 'cards']; // the Batch view's tabs, the first is the default
+
+// A `YYYY-MM-DD` that is a real calendar date.
+const isDate = (text) => {
+  const found = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text ?? '');
+  if (!found) return false;
+  const [, y, m, d] = found.map(Number);
+  const at = new Date(Date.UTC(y, m - 1, d));
+  return at.getUTCFullYear() === y && at.getUTCMonth() === m - 1 && at.getUTCDate() === d;
+};
 
 // The views the page knows, and those that stay on "All projects" (the registry says which).
 export function configure(views, overview) {
@@ -53,14 +64,19 @@ export function resolve(projects, search = location.search) {
     view === 'dashboard' && values.includes(asked.get(key)) ? asked.get(key) : values[0];
   const dt = dash('dt', DASH_TABS);
   const dr = dash('dr', DASH_RANGES);
-  return { project: wanted ?? lastOf(ids), view, batch, tab, st, sort, dt, dr };
+  const hp =
+    view === 'history' && HISTORY_PERIODS.includes(asked.get('hp')) ? asked.get('hp') : null;
+  const hd = view === 'history' && isDate(asked.get('hd')) ? asked.get('hd') : null;
+  return { project: wanted ?? lastOf(ids), view, batch, tab, st, sort, dt, dr, hp, hd };
 }
 
 // A view that "All projects" does not show opens on the last real project.
 function settle(place) {
   const ids = (snapshot().board?.projects ?? []).map((p) => p.id);
   const next =
-    place.project === ALL ? { ...place, batch: null, tab: TABS[0], st: null, sort: null } : place;
+    place.project === ALL
+      ? { ...place, batch: null, tab: TABS[0], st: null, sort: null, hp: null, hd: null }
+      : place;
   if (place.project === ALL && !rules.overview.includes(place.view)) {
     const { dt, dr } = place;
     const tab = place.view === 'batch' ? keptTab() : TABS[0];
@@ -85,6 +101,9 @@ const reset = {
   dashboard: null,
   prsState: null,
   prsSort: null,
+  historyPage: null,
+  historyPeriod: null,
+  historyDate: null,
   journalOpen: false,
   journal: null,
   pending: [],
@@ -105,7 +124,7 @@ function apply(place) {
   const moved = place.project !== now.project;
   const turned = place.view !== now.view;
   keep(place);
-  const { project, view, batch, tab, st, sort, dt, dr } = place;
+  const { project, view, batch, tab, st, sort, dt, dr, hp, hd } = place;
   update({
     ...(turned ? closed : {}),
     ...(moved ? reset : {}),
@@ -117,6 +136,8 @@ function apply(place) {
     prsSort: sort ?? null,
     dashTab: dt ?? DASH_TABS[0],
     dashRange: dr ?? DASH_RANGES[0],
+    historyPeriod: hp ?? null,
+    historyDate: hd ?? null,
   });
 }
 
@@ -129,6 +150,15 @@ function dashQuery(place) {
   };
 }
 
+// The History view's keys of an address: each only when not the default (the day, today).
+const historyKeys = (place) => {
+  if (place.view !== 'history') return {};
+  return {
+    ...(place.hp && place.hp !== HISTORY_PERIODS[0] ? { hp: place.hp } : {}),
+    ...(place.hd ? { hd: place.hd } : {}),
+  };
+};
+
 // The relative address of a place: it keeps the page's own address in front of the query.
 export const href = (place) =>
   `?${new URLSearchParams({
@@ -140,6 +170,7 @@ export const href = (place) =>
     ...(place.batch ? { b: place.batch } : {}),
     ...(place.view === 'prs' && place.st ? { st: place.st } : {}),
     ...(place.view === 'prs' && place.sort ? { sort: place.sort } : {}),
+    ...historyKeys(place),
     ...(place.view === 'batch' && place.tab ? { t: place.tab } : {}),
     ...dashQuery(place),
   })}`;
@@ -172,6 +203,15 @@ export function dashOf(place, now, project, view) {
     : { dt: DASH_TABS[0], dr: DASH_RANGES[0] };
 }
 
+// The History view's period and date after a move: set by the place (`null` clears), else kept on
+// the same project's History view, else cleared. Any other view has none.
+export function historyOf(place, now, project, view) {
+  if (view !== 'history') return { hp: null, hd: null };
+  const keep = (key, held) =>
+    place[key] !== undefined ? place[key] : project === now.project ? held : null;
+  return { hp: keep('hp', now.historyPeriod), hd: keep('hd', now.historyDate) };
+}
+
 // The Batch view's tab after a move: the place's own, else the current one while the page stays on
 // the Batch view of the same project (the batch navigator keeps it), else the one kept on this
 // device (the Kanban the first time); the first tab on any other view.
@@ -194,6 +234,7 @@ export function go(place, { replace = false } = {}) {
     tab: tabOf(place, now, project, view),
     ...prsOf(place, now, project, view),
     ...dashOf(place, now, project, view),
+    ...historyOf(place, now, project, view),
   });
   if (replace) history.replaceState(null, '', href(next));
   else history.pushState(null, '', href(next));

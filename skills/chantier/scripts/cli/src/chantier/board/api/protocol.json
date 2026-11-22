@@ -725,6 +725,47 @@
     "title": "DashboardArgs",
     "type": "object"
   },
+  "op.history.get": {
+    "additionalProperties": false,
+    "properties": {
+      "date": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Date"
+      },
+      "period": {
+        "enum": [
+          "day",
+          "week",
+          "month"
+        ],
+        "title": "Period",
+        "type": "string"
+      },
+      "project": {
+        "title": "Project",
+        "type": "string"
+      },
+      "tz": {
+        "title": "Tz",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project",
+      "period",
+      "tz"
+    ],
+    "title": "HistoryArgs",
+    "type": "object"
+  },
   "op.journal.get": {
     "additionalProperties": false,
     "properties": {
@@ -919,6 +960,47 @@
       "project"
     ],
     "title": "EventsArgs",
+    "type": "object"
+  },
+  "topic.history": {
+    "additionalProperties": false,
+    "properties": {
+      "date": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Date"
+      },
+      "period": {
+        "enum": [
+          "day",
+          "week",
+          "month"
+        ],
+        "title": "Period",
+        "type": "string"
+      },
+      "project": {
+        "title": "Project",
+        "type": "string"
+      },
+      "tz": {
+        "title": "Tz",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project",
+      "period",
+      "tz"
+    ],
+    "title": "HistoryArgs",
     "type": "object"
   },
   "topic.journal": {

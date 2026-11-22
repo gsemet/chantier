@@ -5,35 +5,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from chantier.core.cr_times import ended as _ended
+from chantier.core.cr_times import last_event as _last
 from chantier.core.records import CrEntry, EventRecord
 
 END = "end"
 STATE_KINDS = {"take", "round", "handback", "pr-draft", "cancel"}
-
-
-def _last(own: list[EventRecord], kind: str, **where: Any) -> EventRecord | None:
-    found = [e for e in own if e.kind == kind and all(getattr(e, k) == v for k, v in where.items())]
-    return found[-1] if found else None
-
-
-def _ended(own: list[EventRecord], c: CrEntry) -> str | None:
-    """When the CR finished: merged, or cancelled; `None` for any other state."""
-    if c.status == "merged":
-        if c.merged_at:
-            return c.merged_at
-        found = [
-            e.t
-            for e in (
-                _last(own, "handback", result="merged"),
-                _last(own, "order", order_kind="merged"),
-            )
-            if e
-        ]
-        return max(found) if found else None
-    if c.status == "cancelled":
-        found = [e.t for e in (_last(own, "cancel"), _last(own, "order", order_kind="drop")) if e]
-        return max(found) if found else None
-    return None
 
 
 def _moves(e: EventRecord) -> bool:

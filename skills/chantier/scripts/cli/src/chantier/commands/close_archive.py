@@ -22,7 +22,7 @@ from chantier.core.batch_records import (
 )
 from chantier.core.clock import now
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
-from chantier.core.records import BatchRecord, CrEntry
+from chantier.core.records import BatchRecord, CrEntry, read_events
 from chantier.core.repo import Repo
 from chantier.core.steering import never_steered
 from chantier.history import close_markdown, close_record, release_retro_line, stopped_agents
@@ -142,6 +142,7 @@ def _close_files(k: Closing, record: BatchRecord) -> tuple[Rec, str]:
             None if never_steered(k.d) else sum(r["usd"] for r in k.rows),
             sum_unpriced(k.rows),
             by_cr,
+            read_events(k.repo.store, k.folder),
         ),
         "cost_receipt": k.receipt,
         **stopped_agents(k.stopped, closed),

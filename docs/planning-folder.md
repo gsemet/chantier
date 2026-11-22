@@ -101,7 +101,7 @@ transcript shows it still runs; one that stopped without handing back passes on 
 the batch's record keeps it; on Copilot, until `copilot-close-end-event` lands, a held agent runs while its lease is live, and the current Foreman while its heartbeat is under 10 minutes old; the session's other subagents and replaced Foremans are listed, not a block); on a batch set running again it names what runs. Once nothing runs, it prices the final cost and shows it with
 what goes (the batch's own files, the dropped CRs' worktrees and branches) and what moves to `5-archives`; if it cannot price it (no
 priced call, no Foreman transcript recorded) it refuses, naming the cause, and the Chief of Staff
-reports it to you. On your yes, `chantier close --yes` moves each merged CR to `5-archives`, writes the batch's record (`5-archives/batches/batch-NN.json`) and its Markdown, retro included (`batch-NN.md`), keeps in each CR of the record its `order` and its `after` list (the CRs it waited for), deletes the batch's other files and removes the rest with git;
+reports it to you. On your yes, `chantier close --yes` moves each merged CR to `5-archives`, writes the batch's record (`5-archives/batches/batch-NN.json`) and its Markdown, retro included (`batch-NN.md`), keeps in each CR of the record its `order` and its `after` list (the CRs it waited for), its kind, when it ended, when its PR was first opened and, for a release, its version, deletes the batch's other files and removes the rest with git;
 without a yes, everything stays. Close last: those files hold the exit report and the event log.
 
 ## The event journal

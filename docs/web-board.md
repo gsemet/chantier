@@ -76,6 +76,12 @@ The batch navigator is on this page as on Costs and Batch: a past batch's PRs ar
   shows as `no connector reads <link>`, and the other rows are read.
 - **A paused batch** says so in the header; with no batch running the page shows the last closed batch (read once), and says "No batch running" only when the project has no history at all.
 
+### History
+
+What was done, by day, week or month: every CR merged or dropped, every PR opened and every release, grouped by local day (newest first) under five figures (CRs merged, CRs dropped, PRs opened, releases, and the cost of the CRs that ended in the period). Three chips choose the period, previous and next move by one, and Today comes back to now; the choice is in the address (`hp=`, `hd=`), so Back, a reload and a shared link walk the same periods. Days are the browser's local days (the week runs Monday to Sunday), counted by the server in the browser's time zone. A row shows the time, what happened, the CR, its title, its batch (a click opens the Batch page), its rounds and cost, where a dropped CR went, a release's version and the PR (a link to the forge); a click on the row opens the CR's files in the side panel when the record kept its folder.
+
+The page reads the closed batches' records, the archived CRs' steps and the running batch; it never reads the forge or git and writes nothing. A CR that ended with no recorded time is in no period: a quiet line at the foot counts them (the records written before this page do not hold the end time of a dropped CR, nor of most CRs before batch-20). A PR made ready (out of draft) is not shown, because no record keeps that time. The cost is that of the CRs, not the steering and grill costs of a batch, which are not spread over days (the Costs page has them). Today's period follows the board live; a past period does not move.
+
 ### Kanban
 
 ![The kanban: Inbox, Backlog, Grill, 3-ready, In progress, Handed back, Done](web-board/kanban-pc.png)

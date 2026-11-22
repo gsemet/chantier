@@ -31,6 +31,9 @@ const data = {
   dashTab: 'productivity', // Dashboard: the open tab (the address's dt=)
   dashRange: '10', // Dashboard: the range of closed batches (the address's dr=)
   dashboard: null, // Dashboard: the last dashboard.get answer, kept across a failed read
+  historyPeriod: null, // History: the period ('week', 'month'), null for the day
+  historyDate: null, // History: the date asked (YYYY-MM-DD), null for today
+  historyPage: null, // History: the `history` topic's last value, kept across a failed read
   copying: false, // Costs: the receipt is being copied as an image
   recomputing: false, // Costs: a recompute was asked and its figure has not arrived
   spendBy: 'model', // Costs: the card's switch, by 'model' or by 'role'

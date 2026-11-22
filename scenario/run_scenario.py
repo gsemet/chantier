@@ -5042,8 +5042,16 @@ def close_batch(w: World) -> None:
                   if c["result"] == "merged")
           and all(c["archive"].startswith("6-trash/") for c in rec["crs"]
                   if c["result"] == "dropped")
-          and all(c["pr"] and c["rounds"] is not None and c["cost_usd"] is not None
+          and all((c["pr"] or c.get("kind") == "release") and c["rounds"] is not None
+                  and c["cost_usd"] is not None
                   for c in rec["crs"] if c["result"] == "merged"), str(rec["crs"]))
+    check("its CRs carry the History page's four keys: a `kind`, an `ended` instant for every "
+          "CR, a `shipped` instant for a merged one with a PR (a release CR merged with no PR "
+          "has none)",
+          all({"kind", "ended", "shipped", "version"} <= c.keys() and c["kind"]
+              and c["ended"] for c in rec["crs"])
+          and all(c["shipped"] for c in rec["crs"] if c["result"] == "merged" and c["pr"]),
+          str(rec["crs"]))
     order_ids = [c["cr"] for c in rec["crs"]]
     after_before = {c["id"]: list(c.get("after", [])) for c in d0["crs"]}
     check("its CRs carry an integer `order` and an `after` list, as the batch left them, sorted "
