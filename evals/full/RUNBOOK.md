@@ -39,7 +39,8 @@ operator from New session in the Claude Desktop Code tab (pick the workspace fol
 spelling, then paste the line), or ask a Desktop session at the desk to start a new session on the
 workspace with it. This campaign needs the desk, to start the Foreman and type the go, and the eval
 root does not change that (the evals README, "The host's limits"). The workspace is inside the trusted eval
-root, so the app does not ask to trust it (setup refuses a workspace outside it; **unproved** until the trial reports).
+root, so it asks for no new trust (setup refuses a workspace outside it; Claude Code: hosts/claude-code.md,
+"The eval operator from a remote client").
 
 ## Batch 1
 
