@@ -235,9 +235,12 @@ def views(page: Page, url: str, size: str) -> None:
     shot(page, "inbox", size)
     goto(page, url, "batch", "shop-api")
     shot(page, "batch", size)
-    for tab in ("gantt", "cards") if size == "pc" else ():  # on a phone the PR column comes first
+    # on a phone the PR column comes first
+    for tab in ("graph", "gantt", "cards") if size == "pc" else ():
         goto(page, url, "batch&t=" + tab, "shop-api")
-        page.wait_for_selector(".gt-svg *, .tcards .card", state="attached")
+        page.wait_for_selector(
+            ".gt-svg *, .tcards .card, .graph svg.edges path.head", state="attached"
+        )
         settle(page)
         shot(page, "batch-" + tab, size)
     goto(page, url, "kanban", "shop-api")
@@ -266,7 +269,7 @@ def views(page: Page, url: str, size: str) -> None:
 
 def panel(page: Page, url: str, size: str) -> None:
     goto(page, url, "batch&t=kanban", "shop-api")  # the page keeps the last tab it showed
-    page.locator('[data-key^="open-c:CR-145"]').first.click()
+    page.locator('[data-key="node-open-c:CR-145"], [data-key^="open-c:CR-145"]').first.click()
     page.wait_for_selector('[data-key^="file-"]')
     settle(page)
     shot(page, "panel", size)

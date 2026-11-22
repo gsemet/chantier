@@ -333,7 +333,25 @@ legend and the Stack / Series / Parallel switch sit in the title row, built by
 - On a phone a tip anchors at the slot's left edge, no wider than the slot, so it stays within the
   screen.
 - Both pills show `cursor: help`.
+- On a live batch, each word of the Stack / Series / Parallel switch carries a tooltip on the legend
+  pill's pattern (hover, focus, focus-within; `cursor: help`). The tooltip is anchored at the
+  word's right edge, so it stays within the screen. It says how to ask the Chief of Staff to switch
+  (`mode.switch_to`), or "This batch's mode." (`mode.current`). There is none on a closed batch. A
+  click does nothing.
 - No new colour, size or token.
+
+## The Batch graph's arrows
+
+- An arrow goes from the right edge of a CR to the middle of the left edge of the CR that waits for
+  it, and arrives level.
+- All of a CR's arrows share that point, under one arrowhead drawn once per CR
+  (`path.head[data-to]`), never one per arrow.
+- Unlit arrows are drawn behind the cards.
+- On hover or focus, the lit arrows and their heads are drawn again in `--accent` in a layer above
+  the cards (`svg.edges.top`, `z-index` 2, no pointer events), so an arrow that skips a level can
+  be followed end to end.
+- No routing around cards, and no new colour, size or token.
+- The Gantt keeps its own markers.
 
 ## Waits on a card
 

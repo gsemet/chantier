@@ -19,9 +19,21 @@ const modePill = (batch) => {
   return html`<span class="mpill" tabindex="0" aria-describedby="mtip">${words.name} · ${steeringWord(batch)}<span class="tip" id="mtip" role="tooltip">${words.text}</span></span>`;
 };
 
-// The three modes; the current one is `on`. It shows the mode and changes nothing.
-const modeSwitch = (batch) =>
-  html`<span class="ms">${MODES.map((m) => html`<span class="${m === batch.mode ? 'on' : ''}">${t(`mode.${m}`)}</span>`)}</span>`;
+// The three modes; the current one is `on`. It shows the mode and changes nothing. On a live batch
+// each word carries a tooltip that says how to switch (ask the Chief of Staff); a closed record's
+// words are plain.
+const modeWord = (batch, m, live) => {
+  const cls = m === batch.mode ? 'on' : '';
+  if (!live) return html`<span class="${cls}">${t(`mode.${m}`)}</span>`;
+  const sentence =
+    m === batch.mode
+      ? t('mode.current')
+      : t('mode.switch_to', { mode: t(`mode.${m}`).toLowerCase() });
+  return html`<span class="${cls}" tabindex="0" aria-describedby="mstip-${m}">${t(`mode.${m}`)}<span class="tip" id="mstip-${m}" role="tooltip">${sentence}</span></span>`;
+};
+
+const modeSwitch = (batch, live = false) =>
+  html`<span class="ms">${MODES.map((m) => modeWord(batch, m, live))}</span>`;
 
 // "States and arrows": a grey pill that opens a tooltip on hover and on focus. It is in the title
 // row, so it stays visible on every tab: the Gantt's segments use the same colours.
@@ -35,6 +47,6 @@ export function batchMode(state) {
     return html`${record.mode ? modePill(record) : ''}${legend()}${record.mode ? modeSwitch(record) : ''}`;
   const batch = state.data.batch;
   if (!batch) return '';
-  if (noCrYet(batch)) return html`${modePill(batch)}${modeSwitch(batch)}`;
-  return html`${modePill(batch)}${legend()}${modeSwitch(batch)}`;
+  if (noCrYet(batch)) return html`${modePill(batch)}${modeSwitch(batch, true)}`;
+  return html`${modePill(batch)}${legend()}${modeSwitch(batch, true)}`;
 }
