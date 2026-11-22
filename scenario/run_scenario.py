@@ -1808,9 +1808,9 @@ def board_api(w: World, port: int, link: Link, project: str):
     probe = fetch(port, "/api/board", headers=link.cookie)
     seen = json.loads(probe[2].decode("utf-8")) if probe[0] == 200 else {}
     check("the WebSocket with the cookie from the board's own origin gets `welcome`: protocol 1, "
-          "the 22 ops and 7 topics, the server's PID as the probe's",
-          welcome.get("protocol") == 1 and len(welcome.get("ops", [])) == 22
-          and len(welcome.get("topics", [])) == 7 and "board.get" in welcome["ops"]
+          "the 26 ops and 8 topics, the server's PID as the probe's",
+          welcome.get("protocol") == 1 and len(welcome.get("ops", [])) == 26
+          and len(welcome.get("topics", [])) == 8 and "board.get" in welcome["ops"]
           and welcome["server"]["pid"] == seen.get("pid"), str(welcome)[:300])
     check("`GET /api/board` holds the probe's fields only, `protocols: [1]`",
           set(seen) == {"board", "version", "pid", "served", "surface", "protocols"}
