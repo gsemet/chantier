@@ -41,8 +41,10 @@ def lint(args: argparse.Namespace) -> tuple[list[str], int] | list[str]:
     """The gaps, one line each with the command that closes it; nothing is written."""
     repo = Repo.find()
     paths = stage_layout(repo)
-    folders = [_cr_folder(repo, paths, item) for item in args.folders] or cr_folders(paths)
-    crs = [f for f in folders if covered_files(f)]
+    folders = [_cr_folder(repo, paths, item) for item in args.folders] or cr_folders(
+        repo.store, paths
+    )
+    crs = [f for f in folders if covered_files(repo.store, f)]
     gaps = [gap for f in crs if (gap := gap_of(repo.store, f))]
     if not gaps:
         return [f"no gap ({len(crs)} CRs)"]
@@ -67,7 +69,7 @@ def set_summary(args: argparse.Namespace) -> list[str]:
     text = None if args.summary is None else one_line(args.summary, "summary", SUMMARY_MAX)
     if title is None and text is None and not args.unchanged:
         raise ChantierError("summary set takes --title, --summary or --unchanged", EXIT_USAGE)
-    origin = origin_of(issue_url(folder), args.tracker)
+    origin = origin_of(issue_url(repo.store, folder), args.tracker)
     repo.check_publish([folder / SUMMARY_FILE])
     with changes_lock(repo):
         current = store.read_or_new(repo.store, folder)
@@ -76,7 +78,7 @@ def set_summary(args: argparse.Namespace) -> list[str]:
             current.title = title
         if text or args.unchanged:
             current.summary = text or current.summary
-            current.sources = checksums(folder)
+            current.sources = checksums(repo.store, folder)
             current.summarized = now()
         current.origin = origin
         store.write(repo, folder, current)

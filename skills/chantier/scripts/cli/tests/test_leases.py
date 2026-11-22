@@ -216,7 +216,7 @@ def test_a_long_gate_a_queue_ticket_or_a_hold_keeps_an_expired_lease_live(
     dead.write_text(json.dumps({"unit": one, "lease": 1, "pid": DEAD}), encoding="utf-8")
     _, out, err = chantier.bare("lease", one)
     assert "not confirmed" in out[0] and not dead.exists(), err
-    where = SimpleNamespace(changes=changes(repo))
+    where = SimpleNamespace(changes=changes(repo), store=Repo.find().store)
     path = leases.write_hold(where, one, 1, ["x"])  # type: ignore[arg-type]
     assert "held by 1 background task(s)" in chantier.bare("lease", one)[1][0]
     path.unlink()

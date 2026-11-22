@@ -103,7 +103,7 @@ def _stop_processes(repo: Repo, c: CrEntry) -> list[str]:
         v
         and h
         and h.pg is not None
-        and procs.alive_since(h.pg, mtime(v.slot.lock), False)
+        and procs.alive_since(h.pg, mtime(repo.store, v.slot.lock), False)
         and procs.stop_group(h.pg)
     ):
         killed.append(f"pg{h.pg}")

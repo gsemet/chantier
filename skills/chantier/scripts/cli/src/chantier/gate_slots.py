@@ -9,7 +9,9 @@ from pathlib import Path
 from typing import NamedTuple
 
 from chantier import procs
+from chantier.core.files import rel_in
 from chantier.core.repo import Repo
+from chantier.store import PlanStore
 
 
 class Slot(NamedTuple):
@@ -41,12 +43,10 @@ def parse_holder(text: str) -> Holder | None:
     return Holder(m[1], int(m[2]), int(m[3]) if m[3] else None) if m else None
 
 
-def mtime(path: Path) -> float:
+def mtime(store: PlanStore, path: Path) -> float:
     """When the file was last written; 0 if it is gone, which no live process predates."""
-    try:
-        return path.stat().st_mtime
-    except OSError:
-        return 0.0
+    found = store.stat(rel_in(store.root, path))
+    return found[1] / 1e9 if found else 0.0
 
 
 def lock_text(path: Path) -> str:
@@ -59,10 +59,10 @@ def lock_text(path: Path) -> str:
         return ""
 
 
-def holder_alive(lock: Path, h: Holder, unreadable: bool) -> bool:
+def holder_alive(store: PlanStore, lock: Path, h: Holder, unreadable: bool) -> bool:
     """Whether the gate command or its suite named in the lock is still that process: the lock's
     text was written after both existed."""
-    recorded = mtime(lock)
+    recorded = mtime(store, lock)
     return any(procs.alive_since(p, recorded, unreadable) for p in (h.pid, h.pg) if p is not None)
 
 
@@ -80,8 +80,8 @@ def list_slots(repo: Repo) -> list[SlotView]:
     """Each existing lock file with its holder text, in slot order. It globs the files: it does
     not need the number of slots, so a stop works whatever the key says now."""
     found = []
-    for p in repo.changes.glob(".long-gate*.lock"):
-        m = re.fullmatch(r"\.long-gate(?:\.(\d+))?\.lock", p.name)
+    for name in repo.store.glob(".", ".long-gate*.lock"):
+        m = re.fullmatch(r"\.long-gate(?:\.(\d+))?\.lock", name)
         if m:
             found.append(int(m[1]) if m[1] else 1)
     return [SlotView(s, lock_text(s.lock)) for s in (slot(repo, n) for n in sorted(found))]

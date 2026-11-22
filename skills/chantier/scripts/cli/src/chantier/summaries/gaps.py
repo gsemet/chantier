@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from chantier.core.files import heading_of, read_text
+from chantier.core.files import heading_of, rel_in
 from chantier.core.records import TITLE_MAX, CrSummary
 from chantier.core.repo import Repo
 from chantier.summaries import store as summaries_store
@@ -32,7 +32,7 @@ class Gap:
 def gap_of(store: PlanStore, folder: Path) -> Gap | None:
     """The first gap that applies to a CR folder, or None. A folder with no covered file is not a
     CR for this check."""
-    current = checksums(folder)
+    current = checksums(store, folder)
     if not current:
         return None
     try:
@@ -44,8 +44,8 @@ def gap_of(store: PlanStore, folder: Path) -> Gap | None:
     changes = diff(summary.sources, current)
     if changes:
         return Gap("late", folder, tuple(changes))
-    request = folder / REQUEST
-    if request.is_file() and heading_of(read_text(request, "replace")) is None:
+    request = rel_in(store.root, folder / REQUEST)
+    if store.is_file(request) and heading_of(store.read_text(request, "replace")) is None:
         return Gap("no heading", folder)
     return Gap("long title", folder) if len(summary.title) > TITLE_MAX else None
 

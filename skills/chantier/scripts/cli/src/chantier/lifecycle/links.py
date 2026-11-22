@@ -3,15 +3,15 @@ to a `.md` file inside the folder that does not exist. Read-only."""
 
 from __future__ import annotations
 
-import os
 import posixpath
 import re
 from pathlib import Path
 from urllib.parse import unquote
 
-from chantier.core.files import read_text
+from chantier.core.files import rel_in
 from chantier.core.repo import Repo
 from chantier.lifecycle.layout_check import Finding
+from chantier.store import PlanStore
 
 SKIPPED = ("5-archives", "6-trash")  # closed CRs are history
 FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
@@ -61,33 +61,33 @@ def _resolved(here: Path, base: Path, target: str) -> list[str] | None:
     return None if parts[0] == ".." else parts
 
 
-def _listing(cache: dict[Path, set[str]], folder: Path) -> set[str]:
+def _listing(store: PlanStore, cache: dict[Path, set[str]], folder: Path) -> set[str]:
     if folder not in cache:
         try:
-            cache[folder] = set(os.listdir(folder))
+            cache[folder] = set(store.listdir(rel_in(store.root, folder)))
         except OSError:
             cache[folder] = set()
     return cache[folder]
 
 
-def _exists(cache: dict[Path, set[str]], base: Path, parts: list[str]) -> bool:
+def _exists(store: PlanStore, cache: dict[Path, set[str]], base: Path, parts: list[str]) -> bool:
     """Each segment looked up by its exact name in its folder's listing, never by `exists()`,
     which a case-insensitive file system answers differently."""
     folder = base
     for part in parts:
-        if part not in _listing(cache, folder):
+        if part not in _listing(store, cache, folder):
             return False
         folder = folder / part
     return True
 
 
-def _markdown_files(base: Path) -> list[Path]:
+def _markdown_files(store: PlanStore, base: Path) -> list[Path]:
     found: list[Path] = []
-    for root, dirs, files in os.walk(base):
-        top = Path(root) == base
+    for root, dirs, files in store.walk("."):
+        top = root == "."
         dirs[:] = sorted(d for d in dirs if not d.startswith(".") and not (top and d in SKIPPED))
         found += [
-            Path(root) / f for f in sorted(files) if f.lower().endswith(".md") and f != "STATUS.md"
+            base / root / f for f in sorted(files) if f.lower().endswith(".md") and f != "STATUS.md"
         ]
     return found
 
@@ -97,9 +97,10 @@ def broken_links(repo: Repo) -> list[Finding]:
     base = repo.changes.resolve()
     cache: dict[Path, set[str]] = {}
     found: list[Finding] = []
-    for file in _markdown_files(base):
-        for target in targets(read_text(file, "replace")):
+    store = repo.store
+    for file in _markdown_files(store, base):
+        for target in targets(store.read_text(rel_in(store.root, file), "replace")):
             parts = _resolved(file.parent, base, target)
-            if parts and not _exists(cache, base, parts):
+            if parts and not _exists(store, cache, base, parts):
                 found.append(Finding("gap", repo.rel(file), f"link to {target} does not resolve"))
     return found

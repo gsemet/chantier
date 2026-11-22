@@ -9,7 +9,7 @@ from typing import NamedTuple
 
 from chantier.core.batch import Batch, find_cr_batch, read_batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.core.files import read_text
+from chantier.core.files import rel_in
 from chantier.core.git import git
 from chantier.core.heads import gate_passed, same_head
 from chantier.core.ids import normalize_cr
@@ -273,7 +273,10 @@ def fix_folder(b: Batch, rel: CrEntry, item: str) -> Path | None:
     already a prepared CR."""
     repo = b.repo
     source = repo.planning_path(item, "fix")
-    if not source.is_file() or cr_directory(repo, rel) not in source.parents:
+    if (
+        not repo.store.is_file(rel_in(repo.store.root, source))
+        or cr_directory(repo, rel) not in source.parents
+    ):
         return None
     return stage_layout(repo)["inbox"] / f"{rel.id.lower()}-{slugify(source.stem)}"
 
@@ -286,13 +289,17 @@ def filed_fix(b: Batch, rel: CrEntry, item: str) -> str:
     if target is None:
         return item
     source = repo.planning_path(item, "fix")
-    if short_heading(read_text(source, "replace")) is None:  # never an inbox CR validate refuses
+    store = repo.store
+    where = rel_in(store.root, source)
+    if (
+        short_heading(store.read_text(where, "replace")) is None
+    ):  # never an inbox CR validate refuses
         raise ChantierError(
             f'the fix {item} has no short "# Title" heading (at most {TITLE_MAX} characters) '
             "→ write one at its top",
             EXIT_USAGE,
         )
     repo.check_publish([target, target / "intake" / "request.md", target / "03-change-spec.md"])
-    folder = new_request(repo, target.name, source.read_bytes())
-    repo.store.write_bytes(repo.rel(folder / "03-change-spec.md"), source.read_bytes())
+    folder = new_request(repo, target.name, store.read_bytes(where))
+    repo.store.write_bytes(repo.rel(folder / "03-change-spec.md"), store.read_bytes(where))
     return str(folder)

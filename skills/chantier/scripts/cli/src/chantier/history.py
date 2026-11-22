@@ -131,11 +131,7 @@ def release_retro_line(repo: Repo, d: BatchRecord) -> str | None:
     """A release CR's own `work/retro.md`, linked where it is archived, never copied."""
     for c in d.crs:
         archive = archive_of(c)
-        if (
-            c.kind == "release"
-            and archive
-            and (repo.changes / archive / "work" / "retro.md").is_file()
-        ):
+        if c.kind == "release" and archive and repo.store.is_file(f"{archive}/work/retro.md"):
             return f"Release retro: {link_to(archive)}work/retro.md"
     return None
 

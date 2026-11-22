@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from chantier.core.files import heading_of, read_text, title_source
+from chantier.core.files import heading_of, rel_in, title_source
 from chantier.core.records import TITLE_MAX
 from chantier.core.repo import Repo
 from chantier.lifecycle.layout_check import Finding, Severity
@@ -45,7 +45,7 @@ def title_findings(repo: Repo, cr: Path, severity: Severity) -> list[Finding]:
                 f"title is {len(title)} characters: the limit is {TITLE_MAX} → {hint}",
             )
         )
-    request = cr / REQUEST
-    if request.is_file() and heading_of(read_text(request, "replace")) is None:
+    request = rel_in(repo.store.root, cr / REQUEST)
+    if repo.store.is_file(request) and heading_of(repo.store.read_text(request, "replace")) is None:
         found.append(Finding(severity, f"{path}/{REQUEST}", f'no "# " heading → {WRITE}'))
     return found

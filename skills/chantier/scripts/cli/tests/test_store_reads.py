@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 SRC = Path(__file__).resolve().parent.parent / "src" / "chantier"
-PACKAGES = ("board", "hub", "status", "commands/cost")
+PACKAGES = ("board", "hub", "status", "commands/cost", "lifecycle")
 MODULES = (
     "core/repo.py",
     "core/surface_batches.py",
@@ -22,6 +22,17 @@ MODULES = (
     "core/batch_records.py",
     "summaries/store.py",
     "summaries/view.py",
+    "core/batch.py",
+    "core/leases.py",
+    "gate_queue.py",
+    "gate_slots.py",
+    "rails.py",
+    "history.py",
+    "summaries/sources.py",
+    "summaries/gaps.py",
+    "summaries/origin.py",
+    "summaries/title.py",
+    "commands/crs.py",
 )
 READS = {
     "read_text",
@@ -58,6 +69,9 @@ EXEMPT: dict[tuple[str, str], str] = {
     ("core/repo.py", "Repo._external"): "the look made before a store exists (clone, project.md)",
     ("core/repo.py", "Repo.missing_clone"): "the clone and the project's project.md",
     ("status/views.py", "_documents"): "a project file of the code repository, a spec's link",
+    ("gate_slots.py", "lock_text"): "a held OS lock file, read past its locked byte (spec 5.3)",
+    ("rails.py", "worktree_print"): "a CR's worktree (is_dir, and its untracked files' bytes)",
+    ("commands/crs.py", "cr_worktree"): "a CR's worktree, a folder of the code repository",
 }
 
 
