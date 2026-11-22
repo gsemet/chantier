@@ -111,6 +111,25 @@ def fast_forward_route(c: str) -> bool:
         and all(flag in re.split(r"[;&|\n]", c[m.end():], maxsplit=1)[0]
                 for flag in ("--ff-only", "--no-overwrite-ignore"))
         for m in writes)
+ROUTE_PUSH = re.compile(  # the route form of a Driver's refused force push (J11), one command
+    rf"^\s*git(?:\s+-C\s+{ARG})?\s+push\s+--force-with-lease=(?P<branch>[^\s:]+):[0-9a-f]{{7,40}}"
+    r"\s+\S+\s+[0-9a-f]{7,40}:refs/heads/(?P=branch)\s*$")
+
+
+def route_pushes(commands: list[str]) -> list[str]:
+    """The route-form pushes of one steering transcript's commands whose branch an earlier note
+    command of the same transcript names, `push judged legitimate at <sha7> for <branch>` or, on
+    the user's go, `push on the user's go at <sha7> for <branch>` (J11, J22)."""
+    found = []
+    for i, c in enumerate(commands):
+        m = ROUTE_PUSH.match(c)
+        if m and any(re.search(r"\bnote\b.*\bpush (?:judged legitimate|on the user's go) at \S+ for "
+                               + re.escape(m["branch"]) + r"(?![\w/-])", n, re.S)
+                     for n in commands[:i]):
+            found.append(c)
+    return found
+
+
 GIT_ADD_ALL = re.compile(git("add") + r"\s+(?:-A|--all|\.)(?=[\s;&|)]|$)")
 GIT_WORKTREE_ADD = re.compile(git("worktree") + r"\s+add\b")
 GIT_WORKTREE_REMOVE = re.compile(git("worktree") + r"\s+remove\b")
@@ -615,12 +634,13 @@ def claude_checks(data: dict, loaded: tuple, check: Checks) -> None:
                         f"{': ' + no_epoch[0][:80] if no_epoch else ''}", "C9")
     steer_git = [c for c in sum((f.bash(f.since) for f in steering), []) if GIT_WRITES.search(c)
                  or GIT_WORKTREE_ADD.search(c)]
-    if direct:  # a force push it runs on a Driver's `push` line is the force-push route (J11)
-        pushed = [c for c in steer_git if re.search(GIT_PUSH.pattern + r".*--force-with-lease", c)]
-        if pushed:
-            print(f"The Chief of Staff ran {len(pushed)} force push(es) on a Driver's `push` line "
-                  "(the route of J11, not audited as a breach).\n")
-        steer_git = [c for c in steer_git if c not in pushed]
+    # a force push a steering session runs on a Driver's `push` line is the force-push route (J11):
+    # only the route form, after its `push judged legitimate` or `push on the user's go` note
+    pushed = [c for f in steering for c in route_pushes(f.bash(f.since)) if c in steer_git]
+    if pushed:
+        print(f"The steering session ran {len(pushed)} force push(es) on a Driver's `push` line "
+              "(the route of J11, not audited as a breach).\n")
+    steer_git = [c for c in steer_git if c not in pushed]
     forwarded = [c for c in steer_git if fast_forward_route(c)]
     if forwarded:  # the route of J26: not audited as a breach of J22
         print(f"The steering session ran {len(forwarded)} fast-forward(s) of the main checkout "

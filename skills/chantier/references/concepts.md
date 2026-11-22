@@ -726,7 +726,7 @@ stack driver's `conflict-resolver` escalates, the stack driver keeps the batch's
    <branch>` (or `git -C <worktree> push -u <remote> <branch>`); after a rewrite `git push
    --force-with-lease -u <remote> <branch>` (or the same with `git -C <worktree>`); the steering
    session's route `git push --force-with-lease=<branch>:<expected> <remote> <local
-   sha>:refs/heads/<branch>`. The user's uncommitted changes are never touched. The main checkout moves
+   sha>:refs/heads/<branch>` (or the same with `git -C <checkout>`). The user's uncommitted changes are never touched. The main checkout moves
    only by the steering session's `merge --ff-only --no-overwrite-ignore` after a merge it
    records, and only when clean: the user's uncommitted changes and untracked files are never
    touched. No `sleep`, no polling loop: a wait is the forge's own watch, in a background shell

@@ -52,7 +52,7 @@
     "qa-driver": ["driver.md#Means: the record and the workers", "driver.md#Means: context and your folder", "driver.md#Means: the worktree", "driver.md#Means: rebase and push", "driver.md#Means: the long gate", "driver.md#Means: CI", "driver.md#Means: commits, the PR's state and the evidence", "driver.md#Means: your end", "driver.md#QA driver"],
     "release-driver": ["driver.md#Means: the record and the workers", "driver.md#Means: context and your folder", "driver.md#Means: the worktree", "driver.md#Means: rebase and push", "driver.md#Means: the long gate", "driver.md#Means: CI", "driver.md#Means: commits, the PR's state and the evidence", "driver.md#Means: your end", "driver.md#Release driver"],
     "session-start": ["session-start.md", "hosts/claude-code.md", "hosts/copilot.md"],
-    "chief-of-staff": ["chief-of-staff.md", "session-start.md", "hosts/claude-code.md", "hosts/copilot.md"],
+    "chief-of-staff": ["chief-of-staff.md", "foreman.md#A Driver's refused force push", "session-start.md", "hosts/claude-code.md", "hosts/copilot.md"],
     "grill": ["griller.md"],
     "status": ["status-layout.md"],
     "batch": ["foreman.md", "concepts.md", "hosts/claude-code.md", "hosts/copilot.md"],

@@ -178,3 +178,39 @@ def test_the_claim_lost_causes_and_the_holding_section_name_the_live_hold() -> N
     chief = " ".join((cards / "chief-of-staff.md").read_text(encoding="utf-8").split())
     section = chief[chief.index("**Holding a CR:**") :][:600]
     assert "live CR" in section
+
+
+def test_the_cards_name_the_push_ladder() -> None:
+    cards = SKILL / "references"
+    raw = (cards / "foreman.md").read_text(encoding="utf-8")
+    assert "## A Driver's refused force push" in raw.splitlines()
+    text = {n: " ".join((cards / n).read_text(encoding="utf-8").split()) for n in CARDS}
+    text["concepts.md"] = " ".join((cards / "concepts.md").read_text(encoding="utf-8").split())
+    route = (
+        "git push --force-with-lease=<branch>:<expected> <remote> <local sha>:refs/heads/<branch>"
+    )
+    section = text["foreman.md"][text["foreman.md"].index("## A Driver's refused force push") :]
+    for words in (
+        route,
+        "push judged legitimate at",
+        "push not tried: route rule missing",
+        "[foreman→chief-of-staff] pushed <branch>",
+    ):
+        assert words in section, words
+    for card in ("chief-of-staff.md", "driver.md", "routing.md"):
+        assert "foreman.md#a-drivers-refused-force-push" in text[card], card
+    chief = text["chief-of-staff.md"]
+    assert "the local head holds the remote head's work rebased onto the CR's base" not in chief
+    for words in (
+        "push judged legitimate",
+        "both judgements",
+        "on the user's yes",
+        "push on the user's go at",
+    ):
+        assert words in chief, words
+    assert "the steering session does not send it" in text["driver.md"]
+    assert "the Chief of Staff does not send it" not in text["driver.md"]
+    rows = (cards / "routing.md").read_text(encoding="utf-8").splitlines()
+    row = next(r for r in rows if r.startswith("| Foreman → Chief of Staff |"))
+    assert "`pushed <branch>`" in row and "`push failed <branch> <text>`" in row
+    assert f"{route}` (or the same with `git -C <checkout>`)" in text["concepts.md"]

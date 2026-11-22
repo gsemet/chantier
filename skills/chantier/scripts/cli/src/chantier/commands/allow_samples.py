@@ -67,6 +67,13 @@ SAMPLES = (
     ),
     (
         "batch",
+        "any",
+        f"git -C {_TREE} push --force-with-lease={_BRANCH}:{_SHA} "
+        f"origin {_SHA}:refs/heads/{_BRANCH}",
+        "git -C * push --force-with-lease=chantier/* origin *chantier/*",
+    ),
+    (
+        "batch",
         "dev",
         f"{dev_launch(CHECKOUT)} status",
         dev_rule(CHECKOUT),

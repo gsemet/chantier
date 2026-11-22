@@ -262,6 +262,7 @@ def test_preflight_warns_on_missing_allow_rules_and_never_fails_on_them(
     line = p10({"allow": [f"{tool}({r})" for r in user for tool in ("Bash", "PowerShell")]})
     assert "add Bash(git push --force-with-lease -u origin" not in line  # equivalence is judged
     assert "add Bash(git -C * push --force-with-lease -u origin chantier/*)" in line
+    assert "add Bash(git -C * push --force-with-lease=chantier/* origin *chantier/*)" in line
     assert p10({"allow": ["Bash(*)", "PowerShell(*)"]}).startswith("P10 warn")
     line = p10(
         {

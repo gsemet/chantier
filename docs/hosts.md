@@ -38,7 +38,8 @@ hand-back. On Claude Code it reads the transcripts, the lease only shown beside 
 **Recommended on Claude Desktop:** turn on "Connect new sessions to Remote Control" in the app's
 settings, so the Foreman's session can be reached from your phone. A host classifier may refuse
 the Foreman an action (starting a Release driver, say) until you allow it in that session: type
-one line there saying so, from your phone if you are away, and it does that action once.
+one line there saying so, from your phone if you are away, and it does that action once, except a
+Driver's force push, which goes to the Chief of Staff, not to you.
 
 | Forge | CLI | Connector | Where |
 | --- | --- | --- | --- |

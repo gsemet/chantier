@@ -257,9 +257,12 @@ included.
 - **The classifier refused a chantier command** (a push, a `$CHANTIER` command, a PR): say yes
   when the Chief of Staff asks to add the allow rules of the "Configuration" section of the
   [host reference](../skills/chantier/references/hosts/claude-code.md) to your settings, or run
-  the one command line it gives you at your computer when the host refuses that edit.
+  the one command line it gives you at your computer when the host refuses that edit. A Driver's
+  force push the host refuses climbs on its own: the Foreman pushes it, then the Chief of Staff;
+  you are asked only when both are refused, or when a judgement finds it not legitimate.
 - **The Foreman was refused an action by a classifier.** It wants your word in that session: type
-  one line in the Foreman's session allowing that action, from your phone if you are away.
+  one line in the Foreman's session allowing that action, from your phone if you are away, except
+  a Driver's force push, which goes to the Chief of Staff, not to you.
 
 Next: [use cases](use-cases.md) for more ways to work with chantier, or
 [planning modes](planning-modes.md) to plan in a git repository of its own.

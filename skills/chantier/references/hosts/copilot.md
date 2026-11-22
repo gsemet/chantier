@@ -79,7 +79,13 @@ already does); while an `/every` still fires, its next wake clears the mark, whi
   logged in (P9). P9's forge side (rights and branch rules) runs on Copilot as on Claude Code: it
   is the card's check. P10 does not run on Copilot, and no host rule is recorded. A refusal of a
   force push on Copilot is reported like any refusal (rule 7), and the general rule of
-  [concepts](../concepts.md) holds: a CR's branches must be force-pushable at all times.
+  [concepts](../concepts.md) holds: a CR's branches must be force-pushable at all times. The
+  ladder of [foreman](../foreman.md#a-drivers-refused-force-push), "A Driver's refused force
+  push", holds. P10 does not run on Copilot and no allow rule is recorded for it, so the Foreman
+  skips the route-rule read (step 3) and tries the push, as a Driver already does there. The risk,
+  **unproved**: Copilot may stop the Foreman's unwatched session on a prompt instead of refusing
+  the push, which would halt the batch; the first Copilot batch that meets a refused push records
+  here what Copilot did, with the date.
 - No permission configuration is recorded for Copilot: **unproved**; nothing is recommended
   until a Copilot trial records one.
 - The capability table is the cards' commands, the same on both hosts: read it from

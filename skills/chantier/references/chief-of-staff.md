@@ -59,7 +59,9 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
   user asks, before any try, in the user's language, in three parts: what is refused; why the rule
   exists; what the user can do now, each alternative with its condition as "Offering options"
   says (only what they can do from where they are). A refusal already met is said the same way,
-  its exact text first (concepts rule 7 holds). Never try the refused action to see; never offer a
+  its exact text first (concepts rule 7 holds). Never try the refused action to see (the push
+  ladder is not that: each step is the same push, by the session the cards name, judged first,
+  with the lease, and each refusal goes up with its exact text); never offer a
   workaround the rules forbid ("No fallback" holds). The known refusals:
   [Refusals to say before they are met](#refusals-to-say-before-they-are-met).
 - **Preflight is all or nothing.** If one condition fails, start nothing and offer no other way.
@@ -118,7 +120,8 @@ commands" of your host's reference):
 - **On the yes.** Add exactly those rules to `permissions.allow`. Merge with what is there: never
   replace, never remove, add no duplicate. Create the file or the keys when absent, and keep the
   file valid JSON. Then run `$CHANTIER preflight` again and say what P10 says now. Say also that a Driver's force push was refused once with these rules set
-  (batch-23); a refused one comes to you, and you run it when it is legitimate. Add in one line
+  (batch-23); a refused one climbs: the Foreman judges and runs it, then you judge and run it; the
+  user is asked only when the host refuses you too. Add in one line
   that whether this running session picks up the change is unproved: a session or agent started
   afterwards reads it.
 - **Broad rules.** When P10 names a broad rule in a settings file (one that lets any command
@@ -130,8 +133,9 @@ commands" of your host's reference):
   it in the same question as the new rule, with its file, for the user to remove by hand: one
   question per update.
 - **On a no.** Say once, per capability, what will stop: for every batch, a Driver's force push
-  after a rebase goes Driver -> Foreman -> Chief of Staff, and an unattended batch waits at the
-  first one; for a release on its own, "the release will stop at the merge or the publication and
+  after a rebase goes Driver -> Foreman -> Chief of Staff: the Foreman does not try with the route
+  rule missing (`push not tried: route rule missing`), so the push comes to you, and an unattended
+  batch still waits at the first push that climbs to the user; for a release on its own, "the release will stop at the merge or the publication and
   wait for you"; for fixes on a grant, "the fix's merge will wait for you". Do not ask again in
   the session for that capability.
 - **The strong warning.** A P10 warn line or a refused trial is said first among the
@@ -1370,54 +1374,73 @@ CR-222 → CR-225 → CR-226 → CR-228."
   notes will name the change (the release CR, once started, goes back to `redo:` and updates its
   notes). The steps are the stack driver's ([driver](driver.md), "Stack driver").
 - **A refused force push:** on `[foreman→chief-of-staff] push <branch> <expected remote sha>
-  <local sha>` (in direct mode, the Driver's `push` line), the push is yours, the one exception
-  to "do no Driver's work". It is **not a question for the user**: you judge it and run it, with
-  no ask and no wait for a word. In order:
-  1. The check, a hard refusal: the branch is `chantier/<batch>/<cr>-<slug>`, so read the CR
-     from its name (`cr-115` is `CR-115`) and run `$CHANTIER handoff <cr>`; its `worktree: …
-     branch <branch>` line must give exactly the branch on the line, and never the default
-     branch. Else push nothing and answer `push refused <branch>: not a branch of this batch`.
-  2. The judgement, read-only (`git fetch <remote>`, then the main checkout or `git -C
-     <worktree>`), on what it looks at, not a fixed list: the local sha is the worktree's
-     committed head (`rev-parse HEAD`, a clean `git status`); the local head holds the remote
-     head's work rebased onto the CR's base (the `base` that `handoff` prints: the default
-     branch, or another CR's branch in a series or a stack): the base is an ancestor of the
-     local head and the remote head's commits are in it (`git range-diff`, or `git cherry`); a
-     patch changed by a resolved conflict is not by itself a doubt. The long gate passed at the
-     local head: the last `gate` invocation at the local full sha in the batch's `events.jsonl`
-     passed every command it was given (its events share a `run`), or the Driver's notes and last gate log in `handoff`; the stack
-     driver's restack follows its own card. No gate pass at the local head is the Driver's slip,
-     not a doubt: push nothing and answer `push refused <branch>: no long gate passed at <local
-     sha>` (the Driver runs the gate and sends the line again). When the `handoff` of step 1
-     prints the `ci: beside the long gate` line, a push with no gate pass at the local head is
-     the mode's order, not a slip: skip this gate check (`handback ready` still enforces the
-     gate at the PR's head). Likewise for a branch whose PR the record holds (`handoff` prints
-     it): a push after a rebase with no gate pass at the local head is the early-push rule's
-     order, not a slip ([driver](driver.md)): skip the gate check there too. Likewise when the
-     project's rules name a pipeline job as the long gate: skip this gate check (the steering
-     session checks that job at the PR's head; GitLab and Copilot: unproved). `push refused
-     <branch>: no long gate passed at <sha>` stays for a branch with no PR yet. A push that would drop work the
-     remote has and the local head does not, or that you cannot tie to the CR, is not
-     legitimate.
-  3. Legitimate: from the main checkout, without changing its branch or touching its files:
-     `git push --force-with-lease=<branch>:<expected> <remote> <local sha>:refs/heads/<branch>`,
-     one command per branch, never a loop or a script, even for a whole restack; answer `pushed
-     <branch>`. The user hears nothing at the time, even when the Driver's push was refused with the allow
-     rules set (batch-23): a legitimate push is never a question for the user: your next report has a line
-     for it (`status-layout.md`, "Progress").
-  4. Not legitimate: push nothing and tell the user at once, in the report's shape (the question
-     is the **For you:** line, no tip): the CR (number and slug), the branch, the expected and
-     local shas, and what the judgement found (for instance, the remote has 2 commits the local
-     head does not hold). The CR keeps waiting (its Driver has handed back). On the user's go, push as in 3; on their no,
-     answer `push refused <branch>: <the user's reason>`.
-  5. A failed lease is not retried (the remote moved; the Driver looks at why): answer `push
-     failed <branch> <git's text>` and tell the user at once, with git's text and what it means
-     (the remote branch moved since the Driver read it); nobody waits for a word.
-  6. If the host refuses your own push: show the user the exact text, as for any `refused`, with
-     the CR, the branch and the exact push command, so they can run it themselves or allow it;
-     answer `push refused <branch>: <exact text>`, and record it at once with `$CHANTIER note
-     <cr> "refused: <the exact command> -> <the host's exact text>"`; retry nothing, try no other
-     way, and never change the permission settings.
+  <local sha>` (in direct mode, the Driver's `push` line), the push climbs to you: the second step
+  of a ladder, the one exception to "do no Driver's work". It is still **not a question for the
+  user** in the normal case: you judge it and run it, with no ask and no wait for a word; the user
+  is asked last, only when the host refuses you too, and the push then runs once on the user's yes. The
+  check and the judgement are those of [foreman](foreman.md#a-drivers-refused-force-push), "A
+  Driver's refused force push", and the route form of that section is the push.
+  - **Who checks what:** in Foreman mode the gate check and its three skips are the Foreman's, run
+    inside its judgement; your own judgement on its `push` line runs them again. In direct mode
+    they are yours, once.
+  - **On `[foreman→chief-of-staff] push <branch> <expected> <local>`** (the Foreman judged it
+    legitimate, then the host refused the Foreman or the Foreman did not try): read in `handoff
+    <cr>` the Foreman's `push judged legitimate` note and its `refused:` or `push not tried: route
+    rule missing` note; then run the full check and judgement of `foreman.md` yourself, whatever
+    the Foreman's note says, at the shas of the line.
+    - Legitimate: `$CHANTIER note <cr> "push judged legitimate at <local sha7> for <branch>: <one
+      line>"` (your own note), then the route form, at once, no ask.
+    - A hard check that fails (not this batch's branch, or no long gate passed at the local head
+      outside the skips): push nothing; record `$CHANTIER note <cr> "push refused <branch>: <the
+      reason>"`; answer `push refused <branch>: <the reason>` to the Foreman; no user question
+      (the user's yes must not push such a branch, and the Driver already knows what to do with
+      each answer).
+    - Not legitimate (the checks pass, your judgement disagrees with the Foreman's): push nothing;
+      tell the user at once, in the report's shape (the **For you:** line, no tip), naming both
+      judgements: the Foreman's (its note) and yours (what you found); the CR (number and slug),
+      the branch, the expected and local shas. On the user's go, first `$CHANTIER note <cr> "push
+      on the user's go at <local sha7> for <branch>"`, then push in the route form; a host refusal
+      then: record it (`refused:` note), show the user the exact text and the command, answer
+      `push refused <branch>: <exact text>`, no second try. On their no, answer `push refused
+      <branch>: <the user's reason>`.
+  - **In direct mode** (the Driver's `push` line): you are the steering session; run the check and
+    judgement. Legitimate: record `push judged legitimate at <sha7> for <branch>: …`, then push, no
+    ask (the route rule's P10 read of `foreman.md` is not a step for you: you push and, refused,
+    ask). A hard check that fails: `foreman.md`'s refusal (push nothing, the take-back with `push
+    refused <branch>: <the reason>`). Not legitimate: push nothing and tell the user at once (the
+    **For you:** line, the CR, the branch, the expected and local shas, what the judgement found);
+    on the user's go, the `push on the user's go at <sha7> for <branch>` note, then the route form,
+    and a host refusal then as in the case above; on a no, `push refused <branch>: <the user's
+    reason>`.
+  - Accepted: answer `pushed <branch>` (in direct mode, the CR's `take` note); the report's line
+    (`status-layout.md`, "Notes"). The user hears nothing at the time: a legitimate push is never
+    a question for the user.
+  - A failed lease: answer `push failed <branch> <git's text>` and tell the user at once, with
+    git's text and what it means (the remote branch moved since the Driver read it); never
+    retried, nobody waits for a word.
+  - **The host refuses your push:** record it at once with `$CHANTIER note <cr> "refused: <the
+    exact command> -> <the host's exact text>"`, then ask the user **one question**, in the
+    report's shape (the **For you:** line, no tip), naming: the CR (number and slug), the branch,
+    the expected and local shas; both judges, with each one's `push judged legitimate` line (in
+    Foreman mode the Foreman and you; in direct mode you); each step's outcome quoted from the
+    notes as `handoff <cr>` prints them: the Driver's refusal (exact command, exact text), the
+    Foreman's refusal (exact command, exact text) or its `push not tried: route rule missing`
+    (refused and not tried told apart), your refusal (exact command, exact text); and the exact
+    command you will run on a yes. In direct mode record it with `$CHANTIER asks "<the question>"`
+    too, as any ask.
+  - **On the user's yes:** run that command once, unchanged. Accepted: `pushed <branch>`. Refused
+    again: record it (`refused:` note), show the user the exact text and the command so they can
+    run it themselves or allow it, answer `push refused <branch>: <exact text>`; never a second
+    try, never another form, never a change to the permission settings. A failed lease: as above.
+  - **On the user's no:** answer `push refused <branch>: <the user's reason>`.
+  - **The Foreman's ask that a push is not legitimate:** relay it to the user at once; on the
+    user's go, first `$CHANTIER note <cr> "push on the user's go at <local sha7> for <branch>"`,
+    then push in the route form (a host refusal then: record it, show the exact text and the
+    command, answer `push refused <branch>: <exact text>`, no second try); on a no, `push refused
+    <branch>: <the user's reason>`.
+  - The Foreman's `[foreman→chief-of-staff] pushed <branch>` (the Foreman ran the push) answers
+    nothing: it is the report's line (`status-layout.md`, "Notes"). Its `push failed <branch>
+    <text>` is told to the user at once.
 
   All answers go to the Foreman (`[chief-of-staff→foreman]`), never to the Driver.
 - **Asks:** `$CHANTIER asks` lists every ask still unread, sent or not; `asks --read A-<k>` or
@@ -1833,7 +1856,7 @@ these differences.
 - **Nothing is sent to yourself.** No `ready <batch>`, no `[foreman→chief-of-staff]` line. An
   ask is still recorded with `$CHANTIER asks "<text>"` (so a resume loses nothing) and told to the
   user at once, in the report's shape. A Driver's refused force push is judged and run by you, as
-  above, without asking the user; the CR goes back to a fresh Driver with the result as its `take`
+  above, without asking the user and asked to the user only when the host refuses you too; the CR goes back to a fresh Driver with the result as its `take`
   note (`push: <the result>`, as `foreman.md` says): `pushed <branch>`, `push failed <branch>
   <text>` or `push refused <branch>: <text>`.
 - **A CR added while the batch runs is queued.** `order add` queues it, with no pause needed, and
