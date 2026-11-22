@@ -2,6 +2,8 @@
 // du Kanban et son filtre de priorités, les chiffres de l'en-tête, la tuile En grill et les batches
 // précédents de Home, les batches précédents de Coûts. Fusionnés dans fr.js.
 export default {
+  'notice.key_field': 'La clé ou le lien entier',
+  'notice.key_open': 'Ouvrir',
   'kanban.inbox': 'Inbox',
   'kanban.backlog': 'Backlog',
   'kanban.grill': 'Grill',

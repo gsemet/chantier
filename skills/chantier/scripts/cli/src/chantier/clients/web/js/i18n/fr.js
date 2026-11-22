@@ -64,7 +64,8 @@ export default {
   'foot.upgraded': 'Board mis à jour : rechargez la page',
   'foot.unreachable': "Board injoignable : données d'il y a {age}",
   'foot.never': 'Aucune donnée pour le moment',
-  'notice.key': 'Ce board demande le lien avec sa clé : demande-le au Chief of Staff.',
+  'notice.key':
+    'Ce board demande le lien avec sa clé : colle-le ici, ou demande-le au Chief of Staff.',
   'view.empty': 'Cette vue est dessinée par un changement à venir.',
   'state.working': 'en cours',
   'state.queued': 'en file',

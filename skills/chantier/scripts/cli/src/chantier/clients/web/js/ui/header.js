@@ -61,7 +61,11 @@ export function stats(state) {
 export const title = (state) =>
   state.project === ALL && state.view === 'home' ? surfaceName(state) : t(entry(state.view).word);
 
-export const notice = (state) => (state.denied ? t('notice.key') : '');
+// The line, the field and the button of a refused key (`bindKeyNotice` makes them work).
+export const notice = (state) =>
+  state.denied
+    ? html`<span>${t('notice.key')}</span><input type="text" class="keyfield" data-key-field autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="${t('notice.key_field')}" placeholder="${t('notice.key_field')}"><button type="button" class="btn small" data-key-open>${t('notice.key_open')}</button>`
+    : '';
 
 const sepc = html`<span class="sepc" aria-hidden="true">/</span>`;
 

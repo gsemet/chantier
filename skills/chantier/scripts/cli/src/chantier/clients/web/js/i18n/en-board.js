@@ -2,6 +2,8 @@
 // columns and its priority filter, the header's figures, Home's In grill tile and earlier batches,
 // and Costs' earlier batches. Merged into en.js.
 export default {
+  'notice.key_field': 'The key or the whole link',
+  'notice.key_open': 'Open',
   'kanban.inbox': 'Inbox',
   'kanban.backlog': 'Backlog',
   'kanban.grill': 'Grill',

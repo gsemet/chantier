@@ -27,7 +27,11 @@ Chief of Staff gives the user) reads and acts. The **public read-only key** (`re
 `read-only:` link of the start lines) can be shared: it shows the board and acts on nothing. Either
 passes in the header, the cookie or `hello`. The page keeps the private key in `chantier_board_<id>`
 and the read key in `chantier_board_<id>_read`, so neither overwrites the other; a request carrying
-both is `write` (the private one wins).
+both is `write` (the private one wins). The cookies are `HttpOnly`, `Path=/`, kept 30 days,
+`SameSite=Lax`: Lax adds only the cookie on a cross-site top-level `GET` or `HEAD` (a link from
+another site or app, followed by the `?k=` exchange's `303`), and the board's `GET`s only read; the
+API counts a cookie from the server's own origin only, and a write is a `POST` that
+`Sec-Fetch-Site` and `Origin` guard, as before.
 
 Every `/api/v1/` answer carries `X-Chantier-Access: read|write` (exposed to other origins by
 `Access-Control-Expose-Headers: X-Chantier-Access`), and the `welcome` frame carries
@@ -40,7 +44,10 @@ acts on nothing: use the private link`, and runs nothing. `board.get` and the `b
 read key a link holding the read key. `--new-key` replaces both keys.
 
 No key, a wrong one, or a cookie from another origin: HTTP 401, and on a WebSocket the error
-`key` and the close code 4401. A body is `application/json` (415 otherwise).
+`key` and the close code 4401. A body is `application/json` (415 otherwise). A page load (`GET` or
+`HEAD`, outside `/api/`, with `Accept: text/html`) gets the HTML refusal page instead of the 401
+text: a field to paste the key or the whole link, sent to the `?k=` exchange (which reads a bare
+key, a link, `?k=...` or `k=...`); every other request gets the 401 text.
 
 Every answer allows any origin (`Access-Control-Allow-Origin: *`), never credentials, and
 `OPTIONS` passes before the key check, so a page served elsewhere can call the API with the key in

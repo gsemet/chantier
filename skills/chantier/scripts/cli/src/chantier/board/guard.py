@@ -3,9 +3,10 @@ something."""
 
 from __future__ import annotations
 
-from urllib.parse import quote, urlencode
+from urllib.parse import parse_qs, quote, unquote, urlencode, urlsplit
 
 from chantier.board import key as keys
+from chantier.board import key_page
 from chantier.board.context import Request
 from chantier.board.reply import Reply, text
 
@@ -15,15 +16,39 @@ WRITE = ("POST", "PUT")
 ALLOWED = (*READ, *WRITE)
 
 
+def refused_key(req: Request, wrong: bool = False) -> Reply:
+    """No good key: the page with its field for a browser loading a page, else the `401` text."""
+    if key_page.is_page_load(req):
+        return key_page.refusal(req, wrong)
+    return text(401, NEEDS_KEY)
+
+
+def pasted_key(raw: str) -> str:
+    """The key in what a user pasted: the key itself (blanks around), the whole link, `?k=...`,
+    `k=...`, or a URL-encoded link. A key has none of `/ ? : & = %`; a text holding no `k` gives
+    `""`. Never raises."""
+    found = raw.strip()
+    for _ in range(2):  # the link may be encoded once more
+        if "%" in found:
+            found = unquote(found).strip()
+    if "k=" not in found:
+        return "" if any(c in found for c in "/?:&=") else found
+    try:
+        query = urlsplit(found).query if "://" in found else found.split("?", 1)[-1]
+        return parse_qs(query.split("#", 1)[0]).get("k", [""])[0].strip()
+    except ValueError:
+        return ""
+
+
 def exchange(req: Request, key: str, cookie: str, read_key: str = "") -> Reply | None:
     """A request with `k`: a bad one is refused; a good one with a method the board does not
     know gets `405`; a good read gets the cookie of the key it held (the private key's, or the
     public one's own `_read` cookie: never the other's) and a `303` to the same address without
     it (a relative `Location`); a good `POST` carries on (it still needs the cookie or the
     header)."""
-    held = keys.access_of(req.query.get("k"), key, read_key)
+    held = keys.access_of(pasted_key(req.query.get("k") or ""), key, read_key)
     if held is None:
-        return text(401, NEEDS_KEY)
+        return refused_key(req, wrong=True)
     if req.method not in ALLOWED:
         return not_allowed()
     if req.method not in READ:

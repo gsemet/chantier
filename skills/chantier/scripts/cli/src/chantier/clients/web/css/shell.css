@@ -70,6 +70,25 @@
   border-radius: var(--radius-m);
   padding: var(--space-off-6) var(--space-off-10);
   font-size: var(--text-small);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.notice[hidden] {
+  display: none;
+}
+
+.keyfield {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: inherit;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  padding: var(--space-off-5) var(--space-2);
 }
 
 .view {
