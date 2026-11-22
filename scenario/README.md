@@ -456,7 +456,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
   test_board_running_lane.py::test_a_drop_that_marks_nothing);
 - the server's API, protocol 1 (CR-406), against the real `chantier board` process, its times
   shortened by `CHANTIER_API_TEST_TIMES` (`1:6:5:5`), through `websockets.sync.client` and `http.client`:
-  a WebSocket with the cookie from the board's own origin gets `welcome` (the 20 ops, the 6 topics,
+  a WebSocket with the cookie from the board's own origin gets `welcome` (the 21 ops, the 6 topics,
   the probe's PID); a `project` subscription gets its event, then `chantier file` run as a command in
   the same project makes an event with a new rev within the push loop's look plus 2 s;
   `backlog.move` over the socket moves the folder and writes one `board@1` line, which an `events`
