@@ -24,7 +24,8 @@ def register(sub: Subparsers) -> None:
         "ship",
         "chantier.commands.delivery:ship",
         "record the PR the Driver opened or updated, with its base and draft state read from the "
-        "forge; say what is off",
+        "forge; say what is off; in a stack or series batch, refused (nothing recorded) for a CR "
+        "whose branch does not hold the recorded head of the CR below it",
         BATCH,
     )
     s.add_argument("cr")
@@ -60,7 +61,8 @@ def _stack_arguments(s: argparse.ArgumentParser) -> None:
         "--out-of-draft",
         action="store_true",
         help="record the named CRs' PRs as out of draft on the forge (after turning them ready); "
-        "refused for a CR not handed back ready and for one with a draft under it",
+        "refused for a CR not handed back ready, for one with a draft under it and for one whose "
+        "recorded head does not hold the recorded head of the CR below it",
     )
     s.add_argument(
         "--draft",

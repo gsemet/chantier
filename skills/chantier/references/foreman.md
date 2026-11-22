@@ -391,7 +391,8 @@ running again, until the user's close.
   - **Each later take,** one for everything that happened while no stack driver ran: a CR got its
     first PR (`status` shows it; it joins), a working CR rebased onto its place (its `ship` reads
     the new base; it joins like a CR that got its first PR), a CR of the stack was handed back `ready` (it turns
-    ready to merge once the stack driver turns its PR out of draft), a merge was recorded (a restack). Events while a stack driver runs wait for its end,
+    ready to merge once the stack driver turns its PR out of draft), a CR the stack driver's hand-back named
+    `to come: <cr below> not shipped at <tip7>` (once `<cr below>`'s `ship` records a new head), a merge was recorded (a restack). Events while a stack driver runs wait for its end,
     except a merge (below). None when nothing of the stack remains open.
   - **A merge** recorded while a stack driver runs: send it `[foreman→stack] note merged: <cr>…`
     (all the CRs one message of the Chief of Staff recorded) instead of a new `take stack`; while

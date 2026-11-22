@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 
 from chantier.commands.carry import _ancestor, base_keys, head_base, ship_carry
+from chantier.commands.chain_check import check_chain, refuse_off_chain
 from chantier.commands.crs import (
     batch_cr,
     carry_at,
@@ -230,7 +231,9 @@ def _archive_seen(repo: Repo, c: CrEntry, wt: Path, head: str) -> tuple[bool | N
 def ship(args: argparse.Namespace) -> list[str]:
     """Record the PR the Driver pushed at the worktree's head and say what is off (uncommitted
     change, head not pushed, no long gate). Refuse, recording nothing, an out-of-draft PR on
-    the default branch whose head carries another CR's commits: draft it first, ship again."""
+    the default branch whose head carries another CR's commits: draft it first, ship again.
+    Refuse too a stacked or series CR (the release CR included) whose head does not hold the
+    recorded head of the CR below it (`commands/chain_check.py`). No flag skips either."""
     repo = Repo.find()
     batch, d, c = batch_cr(repo, args.cr, args.batch)
     leases.require(d, c.id, args.lease, f"ship {c.id}", ended_ok=True)
@@ -253,6 +256,7 @@ def ship(args: argparse.Namespace) -> list[str]:
     base, draft, shown = read_state(args.pr)  # the PR's base and draft on the forge, one read
     if base == repo.config["default_branch"] and draft is False:
         _refuse_foreign(_foreign_crs(repo, d, c, wt, head), c, args.pr, base, head)
+    refuse_off_chain(repo, d, c, wt, head)
     with RenderedBatch(repo, batch, actor="driver") as b:
         leases.claim(b, c.id, args.lease, what=f"ship {c.id}", required=True, ended_ok=True)
         b.touch(b.cr(c.id), pr=args.pr, pr_base=base, pr_draft=draft, head=head, archive_seen=seen)
@@ -313,7 +317,8 @@ def stack(args: argparse.Namespace) -> list[str]:
 def _record_drafts(repo: Repo, batch: str, args: argparse.Namespace) -> list[str]:
     """`stack --out-of-draft <cr>…` / `stack --draft <cr>…`: the PRs the stack driver turned
     ready or back to a draft on the forge, as the record holds them. A CR leaves draft only
-    when it was handed back ready and every CR under it in the stack is out of draft."""
+    when it was handed back ready and every CR under it in the stack is out of draft, and its
+    recorded head holds the recorded head of the CR below it (`_check_out_of_draft`)."""
     if args.out_of_draft and args.draft:
         raise ChantierError("stack takes --out-of-draft or --draft, not both", EXIT_USAGE)
     if not args.crs:
@@ -326,7 +331,7 @@ def _record_drafts(repo: Repo, batch: str, args: argparse.Namespace) -> list[str
         leases.claim(b, "stack", args.lease, what=f"stack {flag}", required=True, ended_ok=True)
         crs = [b.cr(x) for x in args.crs]
         if out:
-            _check_out_of_draft(b.record, crs)
+            _check_out_of_draft(b.record, crs, repo)
         for c in crs:
             b.touch(c, pr_draft=not out)
             b.log("pr-draft", c.id, draft=not out)
@@ -334,9 +339,11 @@ def _record_drafts(repo: Repo, batch: str, args: argparse.Namespace) -> list[str
     return [f"{c.id} {word}" for c in crs]
 
 
-def _check_out_of_draft(d: BatchRecord, crs: list[CrEntry]) -> None:
-    """Refuse (nothing written) a CR not handed back ready, and one with a draft under it: the
-    CRs named before it count as out of draft."""
+def _check_out_of_draft(d: BatchRecord, crs: list[CrEntry], repo: Repo) -> None:
+    """Refuse (nothing written) a CR not handed back ready, one with a draft under it (the CRs
+    named before it count as out of draft), and, after those, the first CR (bottom up) whose
+    recorded head does not hold its CR below's recorded head (`branch not based on`: put the
+    PRs back to draft, restack, ship, stack --out-of-draft again)."""
     named = {c.id for c in crs}
     place = chain(d)
     ids = [x.id for x in place]
@@ -356,6 +363,7 @@ def _check_out_of_draft(d: BatchRecord, crs: list[CrEntry]) -> None:
         drafts = [x.id for x in under if x.pr_draft is not False and x.id not in named]
         if drafts:
             raise ChantierError(f"{c.id}: under it is a draft: {drafts[-1]}", EXIT_PRECONDITION)
+    check_chain(repo, d, crs)
 
 
 def _check_place(place: dict[str, int], rest: list[str], cr: str, after: list[str]) -> None:

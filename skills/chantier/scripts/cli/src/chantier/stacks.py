@@ -322,26 +322,35 @@ def start_base(
     return default
 
 
-def stack_base(b_data: BatchRecord, c: CrEntry, repo: Repo, planned: bool = False) -> str:
+def stack_base(
+    b_data: BatchRecord,
+    c: CrEntry,
+    repo: Repo,
+    planned: bool = False,
+    *,
+    landed: frozenset[str] = frozenset(),
+) -> str:
     """The base its PR has. A CR placed by `stack` sits on the one below it in the chain (the
     first on the default branch), whatever its `after`. A CR not placed yet (and not a release or
     a fix) has `stack_start`'s base, for either value of `planned`. The release sits on the top
     CR; a fix CR keeps `start_base`'s result (`planned` only matters for that fix CR's place,
-    the default branch)."""
+    the default branch). `landed`: the CRs seen merged on the forge, read as ended (the stacked
+    rule skips them, `stack_start` and `start_base` take them as they are)."""
     default: str = repo.config["default_branch"]
     if c.kind == "release":  # the top of the stack: on the top CR's branch
-        return start_base(b_data, c, repo)
+        return start_base(b_data, c, repo, landed)
     if (outside := _outside_base(b_data, c, default)) is not None:
         return outside
     if not c.stacked:
         if c.kind != "fix":
-            return stack_start(b_data, c, repo)
+            return stack_start(b_data, c, repo, landed)
         if not planned:
-            return start_base(b_data, c, repo)
+            return start_base(b_data, c, repo, landed)
     order = chain(b_data)
     ids = [x.id for x in order]
     i = ids.index(c.id) if c.id in ids else 0
-    return order[i - 1].branch if i > 0 else default
+    below = next((x for x in reversed(order[:i]) if x.id not in landed), None)
+    return below.branch if below is not None else default
 
 
 def off_place(d: BatchRecord, c: CrEntry, repo: Repo) -> tuple[str, str] | None:

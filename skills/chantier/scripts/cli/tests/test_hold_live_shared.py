@@ -154,7 +154,7 @@ def test_series_a_third_started_on_the_held_second_keeps_it_and_waits_with_it() 
     assert merge is None or merge.id != "CR-3"  # not the next merge even once ready
     assert ready_word(d, third, REPO) == "PR in draft"
     with pytest.raises(ChantierError, match=r"CR-3 waits with held CR-2 \(order O-1\)"):
-        _check_out_of_draft(d, [third])  # the check `stack --out-of-draft` runs in a stack
+        _check_out_of_draft(d, [third], REPO)  # the check `stack --out-of-draft` runs in a stack
     assert start_base(d, third, REPO) == "b/cr-2"  # its base stays the held second's branch
     pred = series_predecessor(d.crs, fourth)
     assert pred is not None and pred.id == "CR-1"  # skips both the held CR and its dependent
