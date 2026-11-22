@@ -351,7 +351,26 @@ legend and the Stack / Series / Parallel switch sit in the title row, built by
   the cards (`svg.edges.top`, `z-index` 2, no pointer events), so an arrow that skips a level can
   be followed end to end.
 - No routing around cards, and no new colour, size or token.
+- Only the transitive reduction of the waits among the drawn CRs is drawn (`reducedEdges`); the
+  Gantt keeps every declared wait.
+- A hover still lights every declared wait's card, the implied ones included.
+- A node's wait count holds every declared wait, and names them in its `title`.
 - The Gantt keeps its own markers.
+
+## The Batch graph's layout
+
+- The levels share the central column (`flex: 1 1 0`, 180px to 300px, 30px apart); the box scrolls
+  sideways only when they do not fit.
+- The canvas is measured from zero at each draw, so it is as tall as the tallest drawn level.
+- Within a level, cards follow a three-pass barycentre order of the drawn arrows, ties in record
+  order, never a state or a time.
+- A card's place changes when a wait changes or, while folded, when a CR merges or is cancelled;
+  the rule that each CR keeps one place for its whole life no longer holds.
+- On a live batch the merged and cancelled CRs are folded behind the "N merged" toggle chip
+  (`.gbar`), unfolded back into today's levels; a closed record has no fold.
+- On a level narrower than 240px the state badge shows its icon only (`graph-level` container,
+  `chip.css`).
+- No new colour, size or token.
 
 ## Waits on a card
 
