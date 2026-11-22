@@ -94,7 +94,10 @@ Another project runs chantier from its checkout in plugin mode, a build uv cache
 changes at each version bump. The board server, its writer and the forge hub, started from
 another project's session, run that build and serve every project of the surface, chantier
 included, with no notice while the version is equal, until the next version bump or until
-stopped by hand and started again from a chantier session. (The dev mode runs only in chantier's
+stopped by hand and started again from a chantier session; but a chantier session in the dev
+mode is told, on `status`, the watcher's start line and `board`, when the board runs another
+build than its checkout's, even at the same version string (`server.json` records each entry's
+`source`). (The dev mode runs only in chantier's
 own checkout, when the session's project is chantier: the launch paragraph of the SKILL.md.) The
 watcher that is the hub (below) runs the same build.
 
@@ -107,7 +110,7 @@ watcher that is the hub (below) runs the same build.
   where the Costs page's "Copy as image" works (a browser allows an image copy on a secure origin
   only; the LAN link is plain http).
 - `board: no local network address found; on this machine only` (after the `board on` line, when `board.host: network` found no network address): the board is on this machine only; pass it on, and once the network is back the user stops it by the host's means, then it is started again.
-- `board already running at <URL>`: the same line (and the same second line, when it follows, then the `board: listens on the local network (...)` line when the board listens beyond this machine, which you pass on), if
+- `board already running at <URL>`: the same line (and the same second line, when it follows, then the `board: listens on the local network (...)` line when the board listens beyond this machine, which you pass on, and an added `board runs another build` line: say it once to the user as printed, never stop or restart the board), if
   not given yet in this session. One board
   serves a planning surface (or a repository), on whatever port: a second session's `board --seat
   <id>` registers its seat on it and prints this line.

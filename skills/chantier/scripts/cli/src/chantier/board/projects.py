@@ -26,7 +26,10 @@ class Project:
 class Projects:
     """The projects of the served folder, each read through its own `Repo`."""
 
-    def __init__(self, home: Repo, surface: Path | None, others: list[Project]) -> None:
+    def __init__(
+        self, home: Repo, surface: Path | None, others: list[Project], chosen: bool = True
+    ) -> None:
+        self.chosen = chosen  # False: `home` is only the first project, not the session's
         self.home = home  # the project the start URL opens on: `--project`, else the first
         self.surface = surface  # the surface's root; None in-project
         self._items = {p.id: p for p in [Project(project_name(home), home), *others]}
@@ -84,7 +87,9 @@ def open_projects() -> Projects:
     except SurfaceChoice as e:
         surface = _surface_root()
         first = _project(surface, e.names[0])
-        return Projects(first.repo, surface, [_project(surface, n) for n in e.names[1:]])
+        return Projects(
+            first.repo, surface, [_project(surface, n) for n in e.names[1:]], chosen=False
+        )
     if not home.external:
         return Projects(home, None, [])
     surface = home.surface_root

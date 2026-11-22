@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from chantier import __version__
 from chantier.board.projects import project_name
 from chantier.core.records import BatchRecord
 from chantier.core.repo import Repo
 from chantier.hub import autostart, journal, lock, state
+from chantier.launch import is_chantier_project
+from chantier.plugin_files import is_dev_checkout
 
 
 def watch_lines(repo: Repo, d: BatchRecord) -> list[str]:
@@ -32,12 +36,32 @@ def board_lines(repo: Repo) -> list[str]:
     """One line when the board that serves this surface is live and of another version."""
     found = autostart.board_clause(repo, __version__)
     if not found:
-        return []
+        return [c] if (c := foreign_build_clause(repo)) else []
     return [
         f"board: chantier {found} serves this surface, this is chantier {__version__}: it "
         "serves the watcher as that version; for the Chief of Staff: tell the user once to "
         "restart it"
     ]
+
+
+def foreign_build_clause(
+    repo: Repo, version: str = __version__, record: dict[str, Any] | None = None
+) -> str:
+    """In the dev mode only: what is said of the live `server` entry (or `record`) of this
+    version that runs another build than this checkout's, else nothing. No advice."""
+    if not (is_dev_checkout() and is_chantier_project(repo)):
+        return ""
+    if record is None:
+        record = state.live_entry(repo.git_dir, state.SERVER)
+    found = state.other_build(record, version, state.build_source())
+    if not found:
+        return ""
+    if found == state.UNKNOWN:
+        return (
+            f"board runs a build of chantier {version} older than this notice "
+            "(source unknown), not this checkout's"
+        )
+    return f"board runs another build of chantier {version} ({found}), not this checkout's"
 
 
 def hub_line(repo: Repo) -> str:

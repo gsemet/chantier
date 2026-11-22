@@ -36,6 +36,7 @@ from chantier.core.seat import read_seat
 from chantier.hub import autostart, journal, lock
 from chantier.hub import times as hub_times
 from chantier.hub.feed import Board, Feed, Got, board_argv, passed_on
+from chantier.hub.lines import foreign_build_clause
 from chantier.hub.watch_lines import (
     BAD_KEY,
     EVENTS_END,
@@ -230,6 +231,8 @@ class Watch:
             line += f"; started the board (PID {pid})"
         if other := autostart.board_clause(self.repo, self.version):
             line += OTHER_VERSION.format(version=other)
+        elif foreign := foreign_build_clause(self.repo, self.version):
+            line += f"; {foreign}"
         if self.note:
             line += f"; configuration: {self.note}"
         return [line, *passed_on(self.repo, self.entry)]

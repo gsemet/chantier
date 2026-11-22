@@ -1476,10 +1476,12 @@ CR-222 → CR-225 → CR-226 → CR-228."
     printed command as is: no flag added. A watcher that ends with `the seat of <project> is
     another session's now` is not started again: the seat moved. The `board:` line of `status`
     and the start line's `board is chantier <v>: restart it to run this version`: say it once to
-    the user with the restart; never stop or restart the board yourself. The watcher's other
-    lines (its `started the board (PID <n>)` clause, the board's lines it passes on, the lines of
-    a board that does not come up or of a seat it cannot start one for): as
-    [session-start](session-start.md), "The watcher", says.
+    the user with the restart; never stop or restart the board yourself. A `board runs another
+    build` or `board runs a build of chantier <v> older than this notice` line (on `status`, the
+    start line or `board`): say it once to the user as printed; never stop or restart the board.
+    The watcher's other lines (its `started the board (PID <n>)` clause, the board's lines it
+    passes on, the lines of a board that does not come up or of a seat it cannot start one for):
+    as [session-start](session-start.md), "The watcher", says.
   - *A watcher's end:* read its output. A `forge saw merged … order merged <cr>` line, on this
     path and at the next `status`, is checked on the forge first (`gh pr view <pr> --json
     state,baseRefName,mergedAt`, `glab mr view <iid>` on GitLab): merged, into the default

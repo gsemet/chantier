@@ -38,6 +38,7 @@ from chantier.core import clock
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_USAGE, ChantierError
 from chantier.declare.board import SHIPPED_UI
 from chantier.hub import state
+from chantier.hub.lines import foreign_build_clause
 from chantier.hub.loop import HubLoop, HubThread
 from chantier.playbook.layers import load_board
 from chantier.writer import lines as writer_lines
@@ -363,7 +364,14 @@ def board(args: argparse.Namespace) -> list[str]:
     if there:
         if args.seat and not register_seat(*there, key, projects.home_id, args.seat):
             raise _not_started("the board already running there did not take the seat")
-        return _running_lines(there, key, args.ui != SHIPPED_UI, run, args.forge_always)
+        lines = _running_lines(there, key, args.ui != SHIPPED_UI, run, args.forge_always)
+        if (
+            run
+            and projects.chosen
+            and (found := foreign_build_clause(projects.home, __version__, run))
+        ):
+            lines.append(found)
+        return lines
     _writing(lambda: state.check_writable(git_dir))  # a refused write: known before any bind
     from_config = args.port is None and "port" in load_board(projects.home)[0]
     sock = _bind(host, port, lambda: _held_by(host, port, key, from_config))
