@@ -7,6 +7,7 @@ stay direct are the table below, whose every entry must match an event. `exists`
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import shutil
@@ -38,15 +39,34 @@ EXEMPT: dict[tuple[str, str, str], str] = {
     ),
 }
 
-STDLIB = os.path.normcase(sysconfig.get_paths()["stdlib"])
+
+def real(path: str) -> str:
+    return os.path.normcase(os.path.realpath(path))
+
+
+# the standard library's folders, as the paths of the sysconfig, and where `os` itself was loaded
+# from, each resolved (a symlinked prefix, a venv's base, a 8.3 name must not hide a frame)
+STDLIB_ROOTS = {
+    real(root)
+    for root in (
+        sysconfig.get_paths()["stdlib"],
+        sysconfig.get_paths()["platstdlib"],
+        os.path.dirname(os.__file__),
+    )
+}
 Event = tuple[str, str, str, str, int]  # event, relative path, module file, function, line
 events: list[Event] = []
 armed: dict[str, Any] = {"on": False, "root": ""}
 
 
+@functools.cache
 def stdlib_frame(name: str) -> bool:
-    low = os.path.normcase(name)
-    return name.startswith("<") or (low.startswith(STDLIB) and "site-packages" not in low)
+    if name.startswith("<"):  # frozen modules, `<string>`
+        return True
+    low = real(name)
+    return "site-packages" not in low and any(
+        low == root or low.startswith(root + os.sep) for root in STDLIB_ROOTS
+    )
 
 
 def stack() -> tuple[bool, tuple[str, str, int]]:
