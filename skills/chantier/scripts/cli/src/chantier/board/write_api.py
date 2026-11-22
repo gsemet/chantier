@@ -150,9 +150,9 @@ def _to_running(
         words = f"{slug} → running batch {batch} (in 3-ready: order add)"
         return [f"{slug}: the Chief of Staff adds it to {batch}"], words
     else:
-        if running_batch.marked_for(folder) == batch:
+        if running_batch.marked_for(repo.store, folder) == batch:
             return [], ""
-        if not running_batch.grilled(folder):
+        if not running_batch.grilled(repo.store, folder):
             raise ChantierError(
                 f"{slug}: the grill is not finished: finish it, then drop it here again",
                 EXIT_PRECONDITION,
@@ -171,7 +171,7 @@ def _move_one(repo: Repo, slug: str, to: str, alone: bool) -> tuple[list[str], s
     batch = running_batch.open_batch_id(repo)
     if to == RUNNING:
         return _to_running(repo, slug, folder, batch, alone)
-    marked = batch is not None and running_batch.marked_for(folder) == batch
+    marked = batch is not None and running_batch.marked_for(repo.store, folder) == batch
     if before == to and not marked:  # a drop on the item's own column writes nothing
         return [], ""
     lines = backlog.move_item(repo, _rel(repo, folder), to)

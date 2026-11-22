@@ -70,10 +70,10 @@ class LongGateLock:
     def _ahead(self) -> list[str]:
         """The CRs of the live tickets before this gate's own, in queue order."""
         out = []
-        for p in ordered(self.queue, drop=True):
+        for p in ordered(self.repo.store, self.queue, drop=True):
             if p.name == self.ticket.name:
                 break
-            cr = ticket_cr(p, True)
+            cr = ticket_cr(self.repo.store, p, True)
             if cr is not None:
                 out.append(cr)
         return out
@@ -145,7 +145,7 @@ class LongGateLock:
         """A gate that died without cleaning up: its suite may run on, if it is still the process
         the lock named. Only the slot this gate took counts."""
         left = lock_text(self.slot.lock)
-        h, recorded = parse_holder(left), mtime(self.slot.lock)
+        h, recorded = parse_holder(left), mtime(self.repo.store, self.slot.lock)
         if h is None or h.pg is None or not procs.alive_since(h.pg, recorded, True):
             return
         self._wait_note(f"{left} (its command still runs)")

@@ -6,12 +6,13 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from pathlib import Path
 
 from chantier.core.clock import now
 from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.core.files import heading_of, inside, markdown_title, read_json, retry
+from chantier.core.files import heading_of, inside, markdown_title, rel_in
 from chantier.core.records import TITLE_MAX
 from chantier.core.repo import Repo
 from chantier.lifecycle.filing import new_request, shown, slugify
@@ -23,6 +24,7 @@ from chantier.lifecycle.stages import (
     stage_layout,
 )
 from chantier.status.write import write_dashboard
+from chantier.store import PlanStore
 from chantier.summaries.edit import one_line
 
 NEXT_BATCH = "next-batch.json"
@@ -94,7 +96,9 @@ def move_item(repo: Repo, item: str, to: str) -> list[str]:
     loses its mark and moves nowhere; an unmarked one keeps the refusal of `move_backlog_item`."""
     with changes_lock(repo):
         source = repo.planning_path(item, "CR folder")
-        if mark_path(source).is_file() and _holds(repo, source, to):
+        if repo.store.is_file(rel_in(repo.store.root, mark_path(source))) and _holds(
+            repo, source, to
+        ):
             clear_mark(repo, source)
             write_dashboard(repo, stage_layout(repo))
             return [f"triaged {shown(repo, source)}" + (f" ({to})" if to in PRIORITIES else "")]
@@ -122,7 +126,7 @@ def backlog_folder(repo: Repo, slug: str) -> Path:
     places = (paths["inbox"], *(paths["backlog"] / p for p in PRIORITIES), paths["ready"])
     if slug and slug == Path(slug).name and not slug.startswith("."):
         for place in places:
-            if (place / slug).is_dir():
+            if repo.store.is_dir(rel_in(repo.store.root, place / slug)):
                 return place / slug
     raise ChantierError(NOT_IN_BACKLOG.format(slug), EXIT_PRECONDITION)
 
@@ -131,7 +135,13 @@ def backlog_folders(repo: Repo) -> list[Path]:
     """Every CR folder of the inbox, the priorities and `3-ready`, each stage sorted by name."""
     paths = stage_layout(repo)
     places = (paths["inbox"], *(paths["backlog"] / p for p in PRIORITIES), paths["ready"])
-    return [d for place in places if place.is_dir() for d in sorted(place.iterdir()) if d.is_dir()]
+    store = repo.store
+    found: list[Path] = []
+    for place in places:
+        rel = rel_in(store.root, place)
+        if store.is_dir(rel):
+            found += [place / n for n in store.listdir(rel) if store.is_dir(f"{rel}/{n}")]
+    return found
 
 
 def column_of(repo: Repo, folder: Path) -> str:
@@ -142,7 +152,7 @@ def column_of(repo: Repo, folder: Path) -> str:
     return parent.name if parent.name in PRIORITIES else "inbox"
 
 
-def _editable(folder: Path, relpath: str) -> Path:
+def _editable(store: PlanStore, folder: Path, relpath: str) -> Path:
     """The Markdown file of the item that may be edited: relative, no `..`, `.md`, not
     `STATUS.md`, an existing file inside the item's folder."""
     parts = relpath.replace("\\", "/").split("/")
@@ -152,7 +162,7 @@ def _editable(folder: Path, relpath: str) -> Path:
     if name.casefold() == "status.md":
         raise ChantierError("STATUS.md is written by chantier: it is not edited", EXIT_USAGE)
     target = inside(folder.resolve(), relpath)
-    if target is None or not target.is_file():
+    if target is None or not store.is_file(rel_in(store.root, target)):
         raise ChantierError(f"{relpath} is not a file of {folder.name}", EXIT_USAGE)
     return target
 
@@ -170,12 +180,12 @@ def edit_markdown(repo: Repo, item: str, relpath: str, text: str, base_sha256: s
     """Replace a backlog item's Markdown file by `text`, when the file on disk still has the
     SHA-256 (of its raw bytes) the editor loaded."""
     folder = backlog_folder(repo, item)
-    target = _editable(folder, relpath)
+    target = _editable(repo.store, folder, relpath)
     if len(text.encode("utf-8")) > TEXT_LIMIT:
         raise ChantierError(f"the text is over {TEXT_LIMIT // 1_000_000} MB", EXIT_USAGE)
     repo.check_publish([target])
     with changes_lock(repo):
-        old = retry(target.read_bytes)
+        old = repo.store.read_bytes(rel_in(repo.store.root, target))
         if len(old) > TEXT_LIMIT:
             raise ChantierError(f"{item}/{relpath} is over 1 MB: edit it elsewhere", EXIT_USAGE)
         if sha256_of(old) != str(base_sha256).lower():
@@ -189,9 +199,9 @@ def edit_markdown(repo: Repo, item: str, relpath: str, text: str, base_sha256: s
 
 def next_batch(repo: Repo) -> dict[str, object] | None:
     """The marker the user wrote, or None when there is none (or it cannot be read)."""
-    path = repo.changes / NEXT_BATCH
+    store = repo.store
     try:
-        found = read_json(path) if path.is_file() else None
+        found = json.loads(store.read_text(NEXT_BATCH)) if store.is_file(NEXT_BATCH) else None
     except (OSError, ValueError):
         return None
     if not isinstance(found, dict) or not isinstance(found.get("crs"), list):
@@ -204,8 +214,13 @@ def declare_next_batch(repo: Repo) -> list[str]:
     read here and never taken from a page. It decides nothing."""
     repo.check_publish([repo.changes / NEXT_BATCH])
     with changes_lock(repo):
-        ready = stage_layout(repo)["ready"]
-        slugs = sorted(p.name for p in ready.iterdir() if p.is_dir()) if ready.is_dir() else []
+        store = repo.store
+        ready = rel_in(store.root, stage_layout(repo)["ready"])
+        slugs = (
+            [n for n in store.listdir(ready) if store.is_dir(f"{ready}/{n}")]
+            if store.is_dir(ready)
+            else []
+        )
         if not slugs:
             raise ChantierError("3-ready is empty: nothing to declare", EXIT_PRECONDITION)
         marker = next_batch(repo)

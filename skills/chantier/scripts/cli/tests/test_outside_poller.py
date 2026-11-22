@@ -123,7 +123,7 @@ def test_a_provider_that_fails_is_named_and_journal_add_then_writes_nothing(
     changes = plan(repo)
     said = "cannot read 01-intent.md"
 
-    def unreadable(folder: Path) -> str:
+    def unreadable(store: object, folder: Path) -> str:
         raise OSError(f"{said}\nmore")
 
     monkeypatch.setattr(issue_refs, "issue_url", unreadable)

@@ -26,8 +26,8 @@ class Issues:
         cannot read (`OSError`) is a failure of the provider."""
         found: list[Interest] = []
         changes = repo.changes.resolve()
-        for folder in cr_folders(stage_layout(repo)):
-            url = issue_url(folder)
+        for folder in cr_folders(repo.store, stage_layout(repo)):
+            url = issue_url(repo.store, folder)
             if url is None:
                 continue
             by = folder.relative_to(changes).as_posix()

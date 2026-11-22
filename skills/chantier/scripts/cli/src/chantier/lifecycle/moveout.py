@@ -10,6 +10,7 @@ from pathlib import Path
 from chantier.core import leases, waits
 from chantier.core.batch import RESTORED_NUMBER_FILE, Batch
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
+from chantier.core.files import rel_in
 from chantier.core.records import (
     TRASH,
     CrEntry,
@@ -39,7 +40,7 @@ def folder_taken(
         paths["ready"] / name,
         *(paths["backlog"] / p / name for p in PRIORITIES),
     ]
-    found = next((t for t in taken if t.exists()), None)
+    found = next((t for t in taken if repo.store.exists(rel_in(repo.store.root, t))), None)
     if found is not None:
         try:
             return found.relative_to(repo.session_root).as_posix()
@@ -56,9 +57,14 @@ def remember_cr(repo: Repo, target: Path, cr_id: str, batch_id: str) -> None:
             read_restored_number(repo.store, repo.changes / RESTORED_NUMBER_FILE), int(number[1])
         )
         repo.store.write_bytes(RESTORED_NUMBER_FILE, restored_bytes(last))
+    store = repo.store
     intent = target / "01-intent.md"
-    note = intent if intent.is_file() else target / "notes.md"
-    old = note.read_bytes() if note.is_file() else None
+    note = intent if store.is_file(rel_in(store.root, intent)) else target / "notes.md"
+    old = (
+        store.read_bytes(rel_in(store.root, note))
+        if store.is_file(rel_in(store.root, note))
+        else None
+    )
     line = f"formerly {cr_id} of {batch_id}\n"
     if old is not None:  # appended in the file's own line endings, after a blank line
         crlf = old.count(b"\r\n") * 2 > old.count(b"\n")

@@ -308,7 +308,7 @@ def _show(repo: Repo, args: argparse.Namespace) -> list[str]:
     paths = stage_layout(repo)
     from chantier.lifecycle.stages import cr_folders  # noqa: PLC0415
 
-    for folder in cr_folders(paths):
+    for folder in cr_folders(repo.store, paths):
         if cr_stage(paths, folder) in BACKLOG_STAGES and (line := _backlog_line(repo, folder)):
             out.append(line)
     return out or ["nothing waits"]

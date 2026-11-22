@@ -13,6 +13,7 @@ import pytest
 
 from chantier.commands.gate_lock import LongGateLock
 from chantier.gate_queue import MARK, QUEUE, ordered, ticket_cr
+from chantier.store import FolderStore
 
 # (label, batch mode, CRs as (id, order, status, kind), tickets by arrival, marked, expected)
 ONE, TWO, THREE = "CR-1", "CR-2", "CR-3"
@@ -102,7 +103,7 @@ def test_the_queue_runs_the_next_merge_then_the_moved_then_arrival(
     for cr in marked:
         ticket = next(p for p in sorted(queue.glob("[0-9]*")) if p.read_text().startswith(cr))
         (queue / f"{MARK}{ticket.name}").touch()
-    seen = [p.read_text().split()[0] for p in ordered(queue)]
+    seen = [p.read_text().split()[0] for p in ordered(FolderStore(tmp_path), queue)]
     assert seen == expected, label
 
 
@@ -112,7 +113,11 @@ def test_a_queue_with_no_batch_record_keeps_the_marked_then_arrival_order(tmp_pa
     for n, cr in enumerate([THREE, TWO, ONE]):
         (queue / f"{n:020d}-1").write_text(f"{cr} pid 1", encoding="utf-8")
     (queue / f"{MARK}{n:020d}-1").touch()
-    assert [p.read_text().split()[0] for p in ordered(queue)] == [ONE, THREE, TWO]
+    assert [p.read_text().split()[0] for p in ordered(FolderStore(tmp_path), queue)] == [
+        ONE,
+        THREE,
+        TWO,
+    ]
 
 
 def _refuse(real: Any, target: Path | None, times: int) -> Any:
@@ -141,14 +146,15 @@ def test_a_sharing_violation_on_a_ticket_or_a_mark_stops_no_gate(
         p.write_text(f"{cr} pid {os.getpid()}", encoding="utf-8")
     (queue / f"{MARK}{3:020d}-1").touch()  # an orphan mark
     with monkeypatch.context() as m:
-        m.setattr(Path, "read_text", _refuse(Path.read_text, a, -1))
+        m.setattr(Path, "read_bytes", _refuse(Path.read_bytes, a, -1))
         m.setattr(Path, "unlink", _refuse(Path.unlink, queue / f"{MARK}{3:020d}-1", -1))
-        assert ordered(queue, drop=True) == [a, b]
-        assert ticket_cr(a, True) is None
-        assert ticket_cr(b, True) == TWO
+        store = FolderStore(tmp_path)
+        assert ordered(store, queue, drop=True) == [a, b]
+        assert ticket_cr(store, a, True) is None
+        assert ticket_cr(store, b, True) == TWO
     assert a.exists()
     # Owner: the unlink fails a few times, then goes.
-    repo: Any = SimpleNamespace(changes=tmp_path / "owner")
+    repo: Any = SimpleNamespace(changes=tmp_path / "owner", store=FolderStore(tmp_path / "owner"))
     repo.changes.mkdir()
     log = tmp_path / "gate.log"
     with monkeypatch.context() as m:

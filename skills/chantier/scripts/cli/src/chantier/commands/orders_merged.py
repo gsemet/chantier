@@ -32,7 +32,7 @@ def stop_before_merge(repo: Repo, args: argparse.Namespace, actor: str) -> list[
     v = slot_of(repo, cr_id)
     if v is None or v.holder is None:
         return []
-    s = stop_and_wait(v.slot, v.holder, STOP_WAIT_S)
+    s = stop_and_wait(repo.store, v.slot, v.holder, STOP_WAIT_S)
     if s is None:
         return []
     return [stopped_line(cr_id, s.pg)]

@@ -22,6 +22,7 @@ from chantier.core.errors import (
 )
 from chantier.core.files import (
     LOCK_TIMEOUT_S,
+    rel_in,
     try_lock,
     unlock,
     write_file,
@@ -40,7 +41,7 @@ from chantier.core.repo import SETTINGS, Repo
 
 def move_directory(repo: Repo, source: Path, destination: Path) -> None:
     """A CR folder to another stage, through the store: its refusals and their exit codes."""
-    if not source.is_dir():
+    if not repo.store.is_dir(rel_in(repo.store.root, source)):
         raise ChantierError(f"CR folder not found: {source}", EXIT_USAGE)
     repo.check_publish([source, destination])
     repo.store.move(repo.rel(source), repo.rel(destination))
@@ -113,7 +114,7 @@ class Batch:
 
     def _load(self) -> None:
         path = self.dir / "batch.json"
-        if path.exists():
+        if self.repo.store.exists(rel_in(self.repo.store.root, path)):
             if self._create is not None:
                 raise ChantierError(f"batch {self.id} already exists")
             self.record = read_batch_json(self.repo.store, path)
@@ -148,7 +149,7 @@ class Batch:
 
     def _drop_consumed(self) -> None:
         for gone in self._consumed:
-            if gone.exists():
+            if self.repo.store.exists(rel_in(self.repo.store.root, gone)):
                 self.repo.store.remove(self.repo.rel(gone))
 
     def _append_events(self) -> None:
@@ -205,7 +206,10 @@ class Batch:
 
     def _rollback_moves(self) -> None:
         for source, destination in reversed(self._moves):
-            if not destination.exists() or source.exists():
+            store = self.repo.store
+            if not store.exists(rel_in(store.root, destination)) or store.exists(
+                rel_in(store.root, source)
+            ):
                 raise ChantierError(
                     f"cannot roll back CR move {destination} to {source}; "
                     "preserve both paths and resolve manually"
@@ -288,9 +292,14 @@ def next_cr_number(repo: Repo, roots: tuple[Path, ...] = ()) -> int:
     previous: int = repo.config["first_cr_number"] - 1
     # a number `restore` took off a folder: once given, a number is never given again
     previous = max(previous, read_restored_number(repo.store, repo.changes / RESTORED_NUMBER_FILE))
-    children = [c for root in roots if root.is_dir() for c in root.iterdir() if c.is_dir()]
+    store = repo.store
+    children: list[str] = []
+    for root in roots:
+        rel = rel_in(store.root, root)
+        if store.is_dir(rel):
+            children += [n for n in store.listdir(rel) if store.is_dir(f"{rel}/{n}")]
     for child in children:
-        name = re.sub(r"^(?:\d{6}-\d{4}-)+", "", child.name)  # the date is no number
+        name = re.sub(r"^(?:\d{6}-\d{4}-)+", "", child)  # the date is no number
         match = re.match(r"^(?:CR-)?(\d+)(?:-|$)", name, re.I)
         if match:
             previous = max(previous, int(match.group(1)))

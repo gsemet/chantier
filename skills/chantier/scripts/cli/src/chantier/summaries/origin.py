@@ -7,8 +7,9 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from chantier.core.errors import EXIT_USAGE, ChantierError
-from chantier.core.files import read_text
+from chantier.core.files import rel_in
 from chantier.core.records import Origin
+from chantier.store import PlanStore
 
 ISSUE_FILES = ("01-intent.md", "03-change-spec.md")
 ISSUE_LINE = re.compile(r"^issue:\s*(\S+)", re.MULTILINE)
@@ -16,13 +17,13 @@ JIRA_KEY = re.compile(r"/browse/([A-Za-z][A-Za-z0-9_]*-\d+)")
 NUMBER = re.compile(r"\d+")
 
 
-def issue_url(folder: Path) -> str | None:
+def issue_url(store: PlanStore, folder: Path) -> str | None:
     """The link of the CR's `issue:` line: the first one in the intent, else in the
     specification."""
     for name in ISSUE_FILES:
-        path = folder / name
-        if path.is_file():
-            found = ISSUE_LINE.search(read_text(path, errors="replace"))
+        rel = rel_in(store.root, folder / name)
+        if store.is_file(rel):
+            found = ISSUE_LINE.search(store.read_text(rel, errors="replace"))
             if found:
                 return found[1]
     return None

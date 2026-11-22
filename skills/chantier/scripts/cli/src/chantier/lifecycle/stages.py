@@ -11,9 +11,10 @@ from pathlib import Path
 from chantier.core.batch import Batch, move_directory
 from chantier.core.clock import now, stamp
 from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.core.files import markdown_title, read_text, subject
+from chantier.core.files import markdown_title, rel_in, subject
 from chantier.core.records import CrEntry, read_batch_json
 from chantier.core.repo import Repo
+from chantier.store import PlanStore
 
 PRIORITIES = ("P1", "P2", "P3", "P4")
 
@@ -58,13 +59,18 @@ def _stage_folders(paths: dict[str, Path], include_archives: bool) -> list[Path]
     return [*stages, paths["archives"]] if include_archives else stages
 
 
-def cr_folders(paths: dict[str, Path], include_archives: bool = False) -> list[Path]:
+def cr_folders(
+    store: PlanStore, paths: dict[str, Path], include_archives: bool = False
+) -> list[Path]:
     """Every CR folder of the planning folder, stage by stage in the lifecycle's order, each stage
     sorted by name. `6-trash` is left out; `5-archives` too unless asked."""
     found: list[Path] = []
     for stage in _stage_folders(paths, include_archives):
-        if stage.is_dir():
-            found.extend(sorted((p for p in stage.iterdir() if p.is_dir()), key=lambda p: p.name))
+        rel = rel_in(store.root, stage)
+        if store.is_dir(rel):
+            found.extend(
+                stage / name for name in store.listdir(rel) if store.is_dir(f"{rel}/{name}")
+            )
     return found
 
 
@@ -100,15 +106,16 @@ def prepared_cr(repo: Repo, item: str, paths: dict[str, Path]) -> PreparedCR:
             EXIT_USAGE,
         )
     supplied = repo.planning_path(item, "CR item")
-    if supplied.is_file():
+    store = repo.store
+    if store.is_file(rel_in(store.root, supplied)):
         directory, specification = supplied.parent, supplied
-    elif supplied.is_dir():
+    elif store.is_dir(rel_in(store.root, supplied)):
         directory, specification = supplied, supplied / "03-change-spec.md"
     else:
         raise ChantierError(f"prepared CR not found: {supplied}", EXIT_USAGE)
     in_ready = _check_place(directory, paths)
-    specification = _specification(specification, directory, supplied, in_ready)
-    text = _spec_text(specification)
+    specification = _specification(store, specification, directory, supplied, in_ready)
+    text = _spec_text(store, specification)
     title = subject(markdown_title(text)) or directory.name
     return PreparedCR(directory, specification, title)
 
@@ -130,29 +137,34 @@ def _check_place(directory: Path, paths: dict[str, Path]) -> bool:
     return in_ready
 
 
-def _specification(specification: Path, directory: Path, supplied: Path, in_ready: bool) -> Path:
-    if not specification.is_file() and directory.name.startswith("qa-"):
+def _specification(
+    store: PlanStore, specification: Path, directory: Path, supplied: Path, in_ready: bool
+) -> Path:
+    def is_file(path: Path) -> bool:
+        return store.is_file(rel_in(store.root, path))
+
+    if not is_file(specification) and directory.name.startswith("qa-"):
         raise ChantierError(
             f"{directory} is a QA report: an item to triage and split into CRs, not to open",
             EXIT_PRECONDITION,
         )
     if (
-        not specification.is_file()
+        not is_file(specification)
         and in_ready
-        and supplied.is_dir()
-        and (directory / "intake" / "request.md").is_file()
+        and store.is_dir(rel_in(store.root, supplied))
+        and is_file(directory / "intake" / "request.md")
     ):
         specification = directory / "intake" / "request.md"  # automatable: the request as received
-    if not specification.is_file():
+    if not is_file(specification):
         raise ChantierError(
             f"missing Change Specification: {specification}; grill the CR first", EXIT_PRECONDITION
         )
     return specification
 
 
-def _spec_text(specification: Path) -> str:
+def _spec_text(store: PlanStore, specification: Path) -> str:
     try:
-        text = read_text(specification)
+        text = store.read_text(rel_in(store.root, specification))
     except UnicodeDecodeError as e:
         raise ChantierError(
             f"{specification} is not UTF-8: save it as UTF-8 ({e})", EXIT_PRECONDITION
@@ -211,8 +223,9 @@ def done_cr(batch: Batch, cr: CrEntry) -> None:
     if moving:
         relocate(batch, cr, where)
     cr.merged_at = cr.merged_at or now()
-    if batch.repo.external and cr_directory(batch.repo, cr).is_dir():
-        _delivery(batch.repo, cr, cr_directory(batch.repo, cr))
+    folder = cr_directory(batch.repo, cr)
+    if batch.repo.external and batch.repo.store.is_dir(rel_in(batch.repo.store.root, folder)):
+        _delivery(batch.repo, cr, folder)
 
 
 def _delivery(repo: Repo, cr: CrEntry, folder: Path) -> None:
@@ -283,7 +296,7 @@ def move_backlog_item(repo: Repo, item: str, to: str, paths: dict[str, Path]) ->
             EXIT_USAGE,
         )
     target, where = _destination(paths, source, to)
-    if target.exists():
+    if repo.store.exists(rel_in(repo.store.root, target)):
         raise ChantierError(
             f"{where} already holds {source.name}: nothing moved", EXIT_PRECONDITION
         )
@@ -296,10 +309,10 @@ def specifying_markers(repo: Repo) -> list[str]:
     inbox, `2-backlog/P1`..`P4` and `3-ready`, in that order, each stage by folder name."""
     paths = stage_layout(repo)
     stages = [paths["inbox"], *(paths["backlog"] / p for p in PRIORITIES), paths["ready"]]
-    return [
-        folder.name
-        for stage in stages
-        if stage.is_dir()
-        for folder in sorted(stage.iterdir())
-        if (folder / "work" / "specifying").exists()
-    ]
+    store = repo.store
+    found: list[str] = []
+    for stage in stages:
+        rel = rel_in(store.root, stage)
+        if store.is_dir(rel):
+            found += [n for n in store.listdir(rel) if store.exists(f"{rel}/{n}/work/specifying")]
+    return found

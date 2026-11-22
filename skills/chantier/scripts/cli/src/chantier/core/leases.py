@@ -23,7 +23,7 @@ from chantier.core.errors import (
     EXIT_USAGE,
     ChantierError,
 )
-from chantier.core.files import read_json
+from chantier.core.files import rel_in
 from chantier.core.records import BatchRecord, Lease
 from chantier.core.repo import Repo
 
@@ -125,14 +125,19 @@ def hold_records(
     A record whose process is gone holds nothing and is removed here (unless `drop` is False:
     a read-only caller leaves it); one that cannot be read is left alone."""
     found = []
-    for p in sorted(repo.changes.glob(f"{HOLD}.*.run")):
-        m = _HOLD_NAME.fullmatch(p.name)
+    store = repo.store
+    for name in store.glob(".", f"{HOLD}.*.run"):
+        p = repo.changes / name
+        m = _HOLD_NAME.fullmatch(name)
         if not m or (unit is not None and m[1] != unit):
             continue
         try:
-            data = read_json(p)
+            data = json.loads(store.read_text(name))
             pid = int(data["pid"])
-            recorded = p.stat().st_mtime
+            stamp = store.stat(name)
+            if stamp is None:
+                raise FileNotFoundError(name)
+            recorded = stamp[1] / 1e9
         except (OSError, ValueError, KeyError, TypeError):
             continue
         if procs.alive_since(pid, recorded, False):
@@ -151,10 +156,12 @@ def gate_keeping(repo: Repo, unit: str) -> str | None:
     from chantier.gate_slots import holder_alive, slot_of  # noqa: PLC0415
 
     v = slot_of(repo, unit)
-    if v is not None and v.holder is not None and holder_alive(v.slot.lock, v.holder, True):
+    store = repo.store
+    if v is not None and v.holder is not None and holder_alive(store, v.slot.lock, v.holder, True):
         return "gate running"
     queue = repo.changes / QUEUE
-    if any(ticket_cr(p, False) == unit for p in sorted(queue.glob("[0-9]*"))):
+    tickets = [queue / n for n in store.glob(rel_in(store.root, queue), "[0-9]*")]
+    if any(ticket_cr(store, p, False) == unit for p in tickets):
         return "gate queued"
     return None
 
@@ -323,8 +330,8 @@ def write_hold(repo: Repo, unit: str, number: int, command: list[str]) -> Path:
     from chantier.core.files import write_file  # noqa: PLC0415
 
     taken = {
-        int(m[2]) for p in repo.changes.glob(f"{HOLD}.*.run")
-        if (m := _HOLD_NAME.fullmatch(p.name)) and m[1] == unit
+        int(m[2]) for name in repo.store.glob(".", f"{HOLD}.*.run")
+        if (m := _HOLD_NAME.fullmatch(name)) and m[1] == unit
     }  # fmt: skip
     k = next(i for i in range(1, len(taken) + 2) if i not in taken)
     path = repo.changes / f"{HOLD}.{unit}.{k}.run"
