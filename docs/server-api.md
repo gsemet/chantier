@@ -215,7 +215,7 @@ own with `--ui <folder>`, none with `--ui none`. The shipped client's folder
 
 ## A terminal client
 
-`chantier live` is the API's second client: a read-only terminal view of a running board (the
+`chantier live` is the API's second client: a read-only terminal view of one to four running boards (the
 counts, the projects and Drivers, the flow of events, the tasks with their lease time left). It
 sends `hello`, `sub`, `unsub` and the poll, and nothing else, over the WebSocket first and the
 HTTP long-poll when the WebSocket does not open. Its package,

@@ -14,6 +14,7 @@ import socket
 import threading
 import time
 from collections.abc import Iterator
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -48,15 +49,24 @@ WAIT_S = 10.0
 TUI = SKILL / "scripts" / "cli" / "src" / "chantier" / "clients" / "tui"
 ALLOWED = ("chantier.clients.tui", "chantier.core.errors")
 NEEDS_KEY = "this board needs the link with its key"
+BOARDS = 2
 LEASE = re.compile(r"lease \d\d:\d\d")
 
 
+@dataclass
 class Live:
-    def __init__(self, work: Path, port: int, key: str, cr: str) -> None:
-        self.work, self.port, self.key, self.cr = work, port, key, cr
+    work: Path
+    port: int
+    key: str
+    cr: str
+    port2: int  # a second board of the same repository
+    project: str
 
-    def url(self, key: str | None = None) -> str:
-        return f"http://127.0.0.1:{self.port}/?k={self.key if key is None else key}"
+    def url(self, key: str | None = None, port: int | None = None) -> str:
+        return f"http://127.0.0.1:{port or self.port}/?k={self.key if key is None else key}"
+
+    def base(self, port: int) -> str:
+        return f"http://127.0.0.1:{port}/"
 
 
 def _cli(*args: object) -> tuple[int, list[str], str]:
@@ -80,6 +90,48 @@ def _batch(work: Path, mp: pytest.MonkeyPatch) -> str:
     return cr
 
 
+def _serve(stack: contextlib.ExitStack, projects: Projects, found: Repo) -> tuple[int, Context]:
+    """One board of the repository on `127.0.0.1`, port 0, in a thread: its port and context. It
+    stops when the stack closes."""
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    host, port = sock.getsockname()[:2]
+    box: list[Any] = []
+    ctx = Context(
+        projects,
+        keys.KeyFile(keys.key_path(found)),
+        Seats(projects),
+        "t",
+        lambda: setattr(box[0], "should_exit", True),
+        None,
+        (host, port),
+    )
+    box.append(make_server(ctx))
+    ctx.push = PushLoop(ctx)
+    push = PushThread(ctx.push, ctx.stop)
+    push.start()
+    thread = threading.Thread(target=box[0].run, kwargs={"sockets": [sock]}, daemon=True)
+    thread.start()
+    while not box[0].started:
+        thread.join(0.01)
+
+    def stop() -> None:
+        box[0].should_exit = True
+        thread.join(WAIT_S)
+        push.stop()
+        sock.close()
+
+    stack.callback(stop)
+    return int(port), ctx
+
+
+def _settle(projects: Projects, *contexts: Context) -> None:
+    """The live reading of each board settles."""
+    for _ in range(3):
+        for each in contexts:
+            reads.state_of(each, projects.all()[0], ask=True)
+
+
 @pytest.fixture(scope="module")
 def live(repo_template: Path, tmp_path_factory: pytest.TempPathFactory) -> Iterator[Live]:
     work = tmp_path_factory.mktemp("live") / "proj"
@@ -95,35 +147,12 @@ def live(repo_template: Path, tmp_path_factory: pytest.TempPathFactory) -> Itera
         found = Repo.find(readonly=True)
         projects = Projects(found, None, [])
         secret = keys.load_or_create(found)
-        sock = socket.socket()
-        sock.bind(("127.0.0.1", 0))
-        host, port = sock.getsockname()[:2]
-        box: list[Any] = []
-        ctx = Context(
-            projects,
-            keys.KeyFile(keys.key_path(found)),
-            Seats(projects),
-            "t",
-            lambda: setattr(box[0], "should_exit", True),
-            None,
-            (host, port),
-        )
-        box.append(make_server(ctx))
-        ctx.push = PushLoop(ctx)
-        push = PushThread(ctx.push, ctx.stop)
-        push.start()
-        thread = threading.Thread(target=box[0].run, kwargs={"sockets": [sock]}, daemon=True)
-        thread.start()
-        while not box[0].started:
-            thread.join(0.01)
-        for _ in range(3):  # the live reading settles
-            reads.state_of(ctx, projects.all()[0], ask=True)
-        state.write_server(found.git_dir, host, port, __version__, str(work))
-        yield Live(work, port, secret, cr)
-        box[0].should_exit = True
-        thread.join(WAIT_S)
-        push.stop()
-        sock.close()
+        with contextlib.ExitStack() as stack:
+            port, ctx = _serve(stack, projects, found)
+            port2, ctx2 = _serve(stack, projects, found)  # a second board, the same repository
+            _settle(projects, ctx, ctx2)
+            state.write_server(found.git_dir, "127.0.0.1", port, __version__, str(work))
+            yield Live(work, port, secret, cr, port2, projects.all()[0].id)
 
 
 @pytest.mark.parametrize("transport", ["ws", "http"])
@@ -247,6 +276,58 @@ def test_the_watchers_feed_gives_a_journal_line_and_a_wrong_keys_refusal(live: L
         lambda got: any(isinstance(x, Refusal) for x in got),
     )
     assert [(x.kind, NEEDS_KEY in x.sentence) for x in refused] == [(KEY, True)]
+
+
+def test_two_boards_print_one_screen_with_a_label_each_and_no_key(
+    live: Live, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(live_command, "_width", lambda: 300)
+    code, out, err = _cli("live", "--once", "--url", live.url(), "--url", live.url(port=live.port2))
+    text = "\n".join(out)
+    assert code == 0 and "chantier live  2 boards" in text, err
+    for label, port in (("a", live.port), ("b", live.port2)):
+        assert f"{label}  {live.base(port)}" in text, text
+        assert f"{label}/{live.project}" in text and f"{label} {live.cr}" in text, text
+    assert text.count("ws live") == BOARDS, (
+        text
+    )  # the link state of each board, the width holding it
+    assert live.key not in text and "?k=" not in text
+
+
+@pytest.mark.parametrize("case", ["five", "twice", "only-two", "only-one", "wrong-key-second"])
+def test_the_refusals_of_several_boards(live: Live, case: str) -> None:
+    one, two = live.url(), live.url(port=live.port2)
+    base2 = live.base(live.port2)
+    args: dict[str, tuple[list[str], int, str]] = {
+        "five": (["--url", one] * 5, EXIT_USAGE, "--url: at most 4 boards in one screen"),
+        "twice": (
+            ["--url", one, "--url", one],
+            EXIT_USAGE,
+            f"--url {live.base(live.port)}: given twice",
+        ),
+        "only-two": (
+            ["--url", one, "--url", two, "--only", "nope"],
+            EXIT_USAGE,
+            f"--only nope: no board serves it; served: a/{live.project}, b/{live.project}",
+        ),
+        "only-one": (
+            ["--url", one, "--only", "nope"],
+            EXIT_USAGE,
+            f"--only nope: the board serves {live.project}",
+        ),
+        "wrong-key-second": (
+            ["--url", one, "--url", live.url("wrong", live.port2)],
+            EXIT_EXTERNAL,
+            f"{NEEDS_KEY}",
+        ),
+    }
+    flags, exit_code, sentence = args[case]
+    code, _, err = _cli("live", "--once", *flags)
+    assert code == exit_code and sentence in err, err
+    if case == "wrong-key-second":
+        assert f"(board {base2})" in err and "wrong" not in err, err
+    else:
+        assert "(board " not in err, err
 
 
 def _imports(path: Path) -> set[str]:

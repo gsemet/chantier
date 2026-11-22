@@ -3,7 +3,8 @@ Rich and no network in it.
 
 From `board`: the projects and the server's version and folder served. From `project`: the batch's
 CR rows, its `stack_lease` and slots, and the record's last 40 events. From `events`: the journal
-lines. The flow keeps the last 200 lines of every project shown, by time. "Now" is the server's:
+lines. The flow keeps the last 2000 lines of every project shown, by time (per board: with
+several boards the screen merges the boards' flows). "Now" is the server's:
 the `now` of the last frame plus the time elapsed since on the local monotonic clock, so a
 machine with a wrong clock shows the right time left."""
 
@@ -18,7 +19,7 @@ from typing import Any
 from chantier.clients.tui.link import Event, Idle, Linked, Refused, Wanted
 
 WATCHED = 15  # projects watched at most
-FLOW = 200  # lines the flow keeps
+FLOW = 2000  # lines the flow keeps, per board
 FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 SECONDS = 60
 EVENT_DETAILS = ("result", "round", "order_kind", "reason", "note")
@@ -74,6 +75,21 @@ class Line:
     project: str
     who: str
     text: str
+    cr: str = ""
+    board: str = ""  # the label of its board when several are watched, else empty
+
+    def holds(self, text: str) -> bool:
+        """Whether the text (any case) is in the board label, project, CR, who or text."""
+        if not text:
+            return True
+        label = f"{self.board}/{self.project}" if self.board else ""
+        found = (self.board, self.project, label, self.cr, self.who, self.text)
+        return any(text.casefold() in x.casefold() for x in found)
+
+
+def merged(models: list[Model]) -> list[Line]:
+    """The flows of the boards, by time (stable: lines of one time keep their order)."""
+    return sorted((line for m in models for line in m.flow), key=lambda x: x.t)
 
 
 def record_text(e: dict[str, Any]) -> str:
@@ -107,6 +123,8 @@ class Model:
     lost_at: str | None = None  # the server's time the link was lost, None while live
     server_now: str | None = None
     at: float = 0.0
+    label: str = ""  # `a`..`d` with several boards, else empty
+    base: str = ""  # the board's base address
 
     # the link's items
 
@@ -147,7 +165,8 @@ class Model:
             self.journals.add(project)
             for x in item.data.get("lines") or []:
                 text = x.get("text") or x.get("type") or ""
-                self._add(Line(str(x.get("t") or ""), project, str(x.get("source") or ""), text))
+                who, cr = str(x.get("source") or ""), str(x.get("cr") or "")
+                self._add(Line(str(x.get("t") or ""), project, who, text, cr, self.label))
 
     def _records(self, project: str, events: list[dict[str, Any]]) -> None:
         """The record events after the last one already shown (the whole object matched); at the
@@ -163,7 +182,8 @@ class Model:
         self.records[project] = events
         for e in new:
             who = str(e.get("actor") or "")
-            self._add(Line(str(e.get("t") or ""), project, who, record_text(e)))
+            cr = str(e.get("cr") or "")
+            self._add(Line(str(e.get("t") or ""), project, who, record_text(e), cr, self.label))
 
     def _add(self, line: Line) -> None:
         self.flow.append(line)
@@ -183,6 +203,10 @@ class Model:
             return []
         served = {p["id"] for p in self.projects()}
         return [x for x in self.only if x not in served]
+
+    def named(self, project: str) -> str:
+        """A project as the screen names it: `<label>/<project>` with several boards."""
+        return f"{self.label}/{project}" if self.label else project
 
     def watched(self) -> list[str]:
         ids = [p["id"] for p in self.projects() if p["id"] not in self.dropped]
