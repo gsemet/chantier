@@ -242,3 +242,12 @@ The failed audit checks, verbatim:
 The audit exited 1 on these FAILs. The batch's retro is kept in the workspace's archive
 (`5-archives/batches/batch-01.md`), where the critic dropped all 3 points. The sandbox is left as
 the run ended: 5 merged PRs, stack #23 merged, and `main` at `cce0a3e`.
+
+## Claims
+
+For `claims-v0.15.0.md` (`evals/results/claims-v0.15.0.md`), chantier v0.15.0. Run 4 exercised two claims, by rail id:
+
+- **C7**: a clean rebase in a stack carries a gate whatever branch the record names (CR-105's gate was carried over a clean rebase). Marked `seen, right`.
+- **J2**: one CR Driver per CR (5 CR Drivers for 5 CRs). Marked `seen, right`.
+
+Every other claim of the file is `scenario only` or `not exercised`. `full` and real-direct did not run before this release (the user's word, 2026-11-22: "Run 4 suffit").
