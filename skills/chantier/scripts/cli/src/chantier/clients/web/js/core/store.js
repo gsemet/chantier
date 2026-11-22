@@ -41,6 +41,10 @@ const data = {
   journalOpen: false, // Triage: the journal panel is open
   journal: null, // the board's journal since the last rescan: { count, entries }
   pending: [], // Triage: the slugs whose write runs (dimmed until the folder answers)
+  inboxMarks: {}, // Inbox: the device's hides, { id: { how, until } }
+  inboxKinds: ['question', 'approval', 'merge', 'blocked'], // Inbox: the kinds the filter shows (session only)
+  inboxTick: 0, // Inbox: a hide ended (device milliseconds), to redraw
+  inboxNotifyBlocked: false, // Inbox: this browser refused or failed a notification
 };
 const listeners = new Set();
 

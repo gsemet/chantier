@@ -16,6 +16,7 @@ from chantier.board.archived import recovered_after
 from chantier.board.backlog import backlog_items
 from chantier.board.forge_kind import forge_of
 from chantier.board.journal import since_rescan
+from chantier.board.needs import needs_you
 from chantier.core.batch import apply_batch_settings
 from chantier.core.errors import ChantierError
 from chantier.core.files import subject
@@ -263,4 +264,5 @@ def project_line(project_id: str, state: dict[str, Any]) -> dict[str, Any]:
         "heartbeat_stopped": batch["heartbeat_stopped"] if batch else None,
         "asks_unread": batch["asks_unread"] if batch else 0,
         "last_event_at": state["events"][-1]["t"] if state["events"] else None,
+        "needs_you": needs_you(state),
     }

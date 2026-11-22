@@ -229,6 +229,10 @@ def views(page: Page, url: str, size: str) -> None:
     shot(page, "home", size)
     goto(page, url, "home", "shop-api")
     shot(page, "project", size)
+    goto(page, url, "inbox", "shop-api")
+    page.wait_for_selector(".inbox")
+    settle(page)
+    shot(page, "inbox", size)
     goto(page, url, "batch", "shop-api")
     shot(page, "batch", size)
     for tab in ("gantt", "cards") if size == "pc" else ():  # on a phone the PR column comes first

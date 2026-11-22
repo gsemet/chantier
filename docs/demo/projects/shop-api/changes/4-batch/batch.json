@@ -144,6 +144,18 @@
       "branch": "chantier/batch-03/cr-144-webhook-backoff",
       "worktree": "/work/shop-api.worktrees/batch-03-CR-144",
       "notes": [],
+      "waits": [
+        {
+          "id": "w1",
+          "type": "approval",
+          "ref": "",
+          "link": "https://github.com/example/shop-api/pull/16",
+          "since": "2026-06-18T10:20:00Z",
+          "note": "Approve the retry back-off before the merge",
+          "cleared_at": null,
+          "cleared_by": null
+        }
+      ],
       "updated": "2026-06-18T10:27:50Z",
       "after": [],
       "blocked_reason": null,
@@ -166,6 +178,18 @@
       "branch": "chantier/batch-03/cr-145-delivery-dates",
       "worktree": "/work/shop-api.worktrees/batch-03-CR-145",
       "notes": [],
+      "waits": [
+        {
+          "id": "w1",
+          "type": "answer",
+          "ref": "Should the checkout show the delivery date or the delivery window?",
+          "link": null,
+          "since": "2026-06-18T10:22:00Z",
+          "note": "",
+          "cleared_at": null,
+          "cleared_by": null
+        }
+      ],
       "updated": "2026-06-18T10:26:15Z",
       "after": [
         "CR-143"

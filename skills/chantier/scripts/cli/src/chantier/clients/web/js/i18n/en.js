@@ -3,6 +3,7 @@ import batch from './en-batch.js';
 import board from './en-board.js';
 import costs from './en-costs.js';
 import dashboard from './en-dashboard.js';
+import inbox from './en-inbox.js';
 import mr from './en-mr.js';
 import prs from './en-prs.js';
 import write from './en-write.js';
@@ -13,6 +14,7 @@ export default {
   'nav.views': 'Views',
   'nav.sync': 'Sync',
   'nav.home': 'Home',
+  'nav.inbox': 'Inbox',
   'nav.kanban': 'Kanban',
   'nav.batch': 'Batch',
   'nav.costs': 'Costs',
@@ -245,6 +247,7 @@ export default {
   ...board,
   ...prs,
   ...mr,
+  ...inbox,
   ...costs,
   ...dashboard,
   'writer.title': 'Writer {state}',

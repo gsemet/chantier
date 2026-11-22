@@ -8,6 +8,8 @@ import { ALL, configure, go, listen, resolve } from './core/router.js';
 import { snapshot, subscribe, update } from './core/store.js';
 import { confirmLeave } from './edit/markdown-editor.js';
 import { openNew } from './edit/new-idea.js';
+import { inboxCount } from './inbox/count.js';
+import { watchInbox } from './inbox/watch.js';
 import { nextLanguage, pick, setLanguage, t } from './model/words.js';
 import { afterPanel, bindPanel, closePanel, panelMarkup, syncPanel } from './panel/panel.js';
 import { navigator } from './ui/batch-nav.js';
@@ -40,6 +42,14 @@ function drawFrame(state) {
   paint($('#bottom-nav'), bottomBar(state));
   paint($('#new'), t('new.button'));
   $('#new').hidden = state.project === ALL || !state.data;
+  paintTitle(state);
+}
+
+// The tab's title: "(3) chantier board" while something needs the user.
+function paintTitle(state) {
+  const n = inboxCount(state);
+  const text = n ? `(${n}) chantier board` : 'chantier board';
+  if (document.title !== text) document.title = text;
 }
 
 // The batch navigator, hidden where the page has none.
@@ -171,5 +181,6 @@ configure(ids(), overviewIds());
 listenToFrame();
 bindScroll($('.main'), $('#head'));
 subscribe(draw);
+watchInbox();
 draw(snapshot());
 boot();
