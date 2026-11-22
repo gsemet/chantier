@@ -166,7 +166,10 @@ does a unit that is not in `UNITS` and a test that does not exist.
   stack, series-deps, qa-driver) (test: test_stack_shape.py::test_the_guard_refuses_a_cr_that_is_not_alone);
 - a stack (`open --mode stack`) of independent CRs: all taken at once, each started on the
   default branch, then stacked afterwards by `stack` (`ship` records the default branch before,
-  the CR under it after, and refuses a CR whose branch does not hold the recorded head of the CR under it, recording nothing); a CR starting on the nearest earlier CR with a PR (a working one too; a branch with no PR, a
+  the CR under it after, and refuses a CR whose branch does not hold the recorded head of the CR under it, recording nothing); a CR starting on the nearest earlier CR with a PR (a ready one only; a working or blocked
+  one, or a lower ready one past it, gives the default branch, a CR with an `after` is on its
+  dependency's branch whatever ready CR sits above it, and a taken CR whose start CR has ended
+  prints the default branch; a branch with no PR, a
   cancelled or merged CR skipped, and a CR whose PR the forge shows merged: the hub's `merged@1` line
   of the journal, run on the fake forge, with `take` and `handoff` printing the default branch and a
   `base:` line, until `order merged`; with no journal line, a's branch as before; a fix, a release, a CR with an `after` and a parallel batch

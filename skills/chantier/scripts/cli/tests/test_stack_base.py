@@ -12,7 +12,7 @@ import pytest
 from batch_helpers import open_batch, record, write_record
 from conftest import Chantier
 
-from chantier.commands.facts import stack_lines
+from chantier.commands.facts import _landed_line, stack_lines
 from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
 from chantier.hub import journal
@@ -48,13 +48,36 @@ STACKED = [placed(1), placed(2), placed(3), placed(4)]
 BELOW = [cr(5), noPr(6, status="queued"), noPr(7, status="queued")]
 CASES = [
     # (id, crs, the CR asked, expected base)
-    ("A", [*STACKED, cr(5, after=["CR-3", "CR-2", "CR-1"], pr_base="b-1")], 5, "b-4"),
+    ("A", [*STACKED, cr(5, after=["CR-3", "CR-2", "CR-1"], pr_base="b-1")], 5, "b-3"),
     ("B", [noPr(1), noPr(2), noPr(3), noPr(4, status="queued", after=["CR-3", "CR-1"])], 4, "b-3"),
-    ("B2", [noPr(1), cr(2), noPr(3), noPr(4, status="queued", after=["CR-1"])], 4, "b-2"),
+    ("B2", [noPr(1), cr(2), noPr(3), noPr(4, status="queued", after=["CR-1"])], 4, "b-1"),
+    (
+        "B3",
+        [noPr(1), cr(2, status="ready"), noPr(3), noPr(4, status="queued", after=["CR-1"])],
+        4,
+        "b-1",
+    ),
     ("C", [*BELOW, cr(8, after=[], start_on="b-5", pr_base="b-5")], 8, "b-5"),
-    ("D", [cr(5), noPr(6, status="queued"), noPr(7), cr(8, after=[], pr_base="b-5")], 8, "b-5"),
+    ("D", [cr(5), noPr(6, status="queued"), noPr(7), cr(8, after=[], pr_base="b-5")], 8, "main"),
     ("D2", [noPr(1), noPr(2), noPr(3, status="queued")], 3, "main"),
     ("F", [cr(1), noPr(2, status="queued", after=["CR-3"]), noPr(3, status="queued")], 2, "b-3"),
+    ("working", [cr(1), noPr(2, status="queued")], 2, "main"),
+    ("ready", [cr(1, status="ready"), noPr(2, status="queued")], 2, "b-1"),
+    ("blocked", [cr(1, status="blocked"), noPr(2, status="queued")], 2, "main"),
+    ("Q3", [cr(1, status="ready"), cr(2), noPr(3, status="queued")], 3, "main"),
+    ("Q2", [cr(1, status="ready"), cr(2, pr_base="main")], 2, "main"),
+    (
+        "Q4-merged",
+        [cr(1, status="ready"), cr(2, status="merged"), cr(3, start_on="b-2")],
+        3,
+        "main",
+    ),
+    (
+        "Q4-cancelled",
+        [cr(1, status="ready"), cr(2, status="cancelled"), cr(3, start_on="b-2")],
+        3,
+        "main",
+    ),
 ]
 
 
@@ -71,15 +94,19 @@ def test_one_function_names_the_base_of_an_unplaced_cr(
     open_deps = {x.branch for x in crs if x.id in c.after}
     owner = by_branch.get(want)
     assert want == "main" or want in open_deps or (owner is not None and owner.pr)
+    if c.status == "queued" and not c.after:
+        assert start_on_for(d, c) == (None if want == "main" else want)
+    if c.id == "CR-2" and want == "main" and not c.after and c.status != "queued":
+        assert off_place(d, c, REPO) is None  # the Q2 row: taken on the default branch
 
 
-def test_a_cr_off_its_place_is_to_stack_on_the_cr_below_that_has_a_pr() -> None:
+def test_a_cr_off_its_place_is_to_stack_on_its_highest_open_dependency() -> None:
     crs = [*STACKED, cr(5, after=["CR-3", "CR-2", "CR-1"], pr_base="b-1")]
     d = BatchRecord(id="batch-01", mode="stack", crs=crs)
-    assert off_place(d, crs[4], REPO) == ("b-1", "CR-4")
+    assert off_place(d, crs[4], REPO) == ("b-1", "CR-3")
     row = stack_lines(REPO, "batch-01", d)[-1]
-    assert row.startswith("CR-5 ") and row.endswith("(note rebase: stacked on CR-4)")
-    crs[4].pr_base = "b-4"
+    assert row.startswith("CR-5 ") and row.endswith("(note rebase: stacked on CR-3)")
+    crs[4].pr_base = "b-3"
     assert off_place(d, crs[4], REPO) is None
 
 
@@ -128,11 +155,25 @@ def test_take_prints_the_base_the_stack_row_shows(
 
 LANDED = [
     # (id, crs, the CR asked, landed, without the set, with it)
-    ("below", [cr(1), cr(2), noPr(3, status="queued")], 3, {"CR-2"}, "b-2", "b-1"),
-    ("below-all", [cr(1), cr(2), noPr(3, status="queued")], 3, {"CR-1", "CR-2"}, "b-2", "main"),
+    (
+        "below",
+        [cr(1, status="ready"), cr(2, status="ready"), noPr(3, status="queued")],
+        3,
+        {"CR-2"},
+        "b-2",
+        "b-1",
+    ),
+    (
+        "below-all",
+        [cr(1, status="ready"), cr(2, status="ready"), noPr(3, status="queued")],
+        3,
+        {"CR-1", "CR-2"},
+        "b-2",
+        "main",
+    ),
     (
         "live-start-on",
-        [cr(1), cr(2), noPr(3, status="queued", start_on="b-2")],
+        [cr(1, status="ready"), cr(2, status="ready"), noPr(3, status="queued", start_on="b-2")],
         3,
         {"CR-2"},
         "b-2",
@@ -146,7 +187,22 @@ LANDED = [
         "b-2",
         "main",
     ),
-    ("empty-set", [cr(1), cr(2), noPr(3, status="queued")], 3, set(), "b-2", "b-2"),
+    (
+        "Q4-landed",
+        [cr(1, status="ready"), cr(2, status="ready"), noPr(3, start_on="b-2")],
+        3,
+        {"CR-2"},
+        "b-2",
+        "main",
+    ),
+    (
+        "empty-set",
+        [cr(1, status="ready"), cr(2, status="ready"), noPr(3, status="queued")],
+        3,
+        set(),
+        "b-2",
+        "b-2",
+    ),
 ]
 
 
@@ -271,3 +327,74 @@ def test_seen_merged_counts_a_listed_line_of_this_batch_cr_and_pr(tmp_path: Path
     assert seen({**mine, "cr": "CR-13"}) == frozenset()
     assert seen({**mine, "v": journal.VERSION + 1}) == frozenset()
     assert seen({**mine, "merged_at": 5}) == frozenset()
+
+
+def _release() -> CrEntry:
+    return cr(9, pr=None, kind="release")
+
+
+LINES = [
+    # (id, crs, the CR asked, landed, the CR the line names or None)
+    ("dependency", [noPr(1), cr(2), noPr(3, after=["CR-2"])], 3, {"CR-2"}, "CR-2"),
+    (
+        "release",
+        [cr(1, status="ready"), cr(2), _release()],
+        9,
+        {"CR-2"},
+        "CR-2",
+    ),
+    (
+        "start-on-between",
+        [
+            cr(1, status="ready"),
+            cr(2, status="ready"),
+            cr(3, status="ready"),
+            noPr(4, start_on="b-2"),
+        ],
+        4,
+        {"CR-2"},
+        "CR-2",
+    ),
+    (
+        "start-on-chosen-past",
+        [cr(1, status="ready"), cr(2, status="ready"), noPr(3, start_on="b-1")],
+        3,
+        {"CR-2"},
+        "CR-2",
+    ),
+    (
+        "unaffected",
+        [cr(1, status="ready"), cr(2, status="ready"), noPr(3, status="queued")],
+        3,
+        {"CR-1"},
+        None,
+    ),
+    (
+        "start-on-ended-merged",
+        [cr(1, status="ready"), cr(2, status="merged"), noPr(3, start_on="b-2")],
+        3,
+        {"CR-1"},
+        None,
+    ),
+    (
+        "start-on-ended-cancelled",
+        [cr(1, status="ready"), cr(2, status="cancelled"), noPr(3, start_on="b-2")],
+        3,
+        {"CR-1"},
+        None,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("crs", "n", "landed", "names"), [c[1:] for c in LINES], ids=[c[0] for c in LINES]
+)
+def test_the_base_line_names_the_merged_cr_the_record_alone_would_start_on(
+    crs: list[CrEntry], n: int, landed: set[str], names: str | None
+) -> None:
+    d = BatchRecord(id="batch-01", mode="stack", crs=crs)
+    c = next(x for x in crs if x.id == f"CR-{n}")
+    lines = _landed_line(d, c, REPO, frozenset(landed))
+    assert (names is None and not lines) or (
+        names is not None and f"not {names}'s branch" in lines[0]
+    )

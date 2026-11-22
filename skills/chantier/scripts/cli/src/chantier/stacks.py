@@ -217,6 +217,15 @@ def _below_with_pr(
     )
 
 
+def _start_candidate(
+    b_data: BatchRecord, c: CrEntry, landed: frozenset[str] = frozenset()
+) -> tuple[int, CrEntry] | None:
+    """`_below_with_pr`'s pair when that CR is handed back `ready`, else None: the walk never
+    goes further down."""
+    below = _below_with_pr(b_data, c, landed)
+    return below if below is not None and below[1].status == "ready" else None
+
+
 def _nearest_open(
     b_data: BatchRecord, c: CrEntry, landed: frozenset[str] = frozenset()
 ) -> tuple[int, CrEntry] | None:
@@ -232,7 +241,8 @@ def start_on_for(
 ) -> str | None:
     """The branch a CR taken from `queued` is to start on, to record on it: in a stack batch, for
     a CR that is neither a release nor a fix and has no open dependency, the branch of the nearest
-    CR below it in `chain` that has a PR (`stack_start`'s rule 2), else None (the default branch);
+    CR below it in `chain` that has a PR, when that CR is handed back `ready` (`_start_candidate`),
+    else None (the default branch);
     in a series batch, the branch of an open `series_predecessor` (the one `start_base`'s series
     rule gives). None in a parallel batch and for any other CR; a stack CR with an open
     dependency gets none, its base follows its dependencies' places. A CR of `landed` (its PR seen
@@ -242,8 +252,8 @@ def start_on_for(
         return pred.branch if pred and pred.status != "merged" and pred.id not in landed else None
     if b_data.mode != "stack" or not _alone(c) or _open_after(b_data, c, landed):
         return None
-    below = _below_with_pr(b_data, c, landed)
-    return below[1].branch if below else None
+    cand = _start_candidate(b_data, c, landed)
+    return cand[1].branch if cand else None
 
 
 def _live_start(b_data: BatchRecord, c: CrEntry, landed: frozenset[str] = frozenset()) -> bool:
@@ -278,17 +288,29 @@ def stack_start(
 ) -> str:
     """The branch a CR of a stack batch starts on, and the place the record gives it until
     `stack` places it (a CR that is neither a release nor a fix). First match wins:
-    1. its `start_on`, recorded at its take, while the CR that owns that branch is not ended;
-    2. the branch of the nearest CR below it in `chain` that has a PR, unless one of its open
-       dependencies sits higher in `chain`: then the nearest such dependency's branch;
-    3. with no CR below that has a PR, the nearest open dependency's branch (highest in `chain`,
-       a dependency outside the chain ranking lowest), else the default branch.
-    A CR of `landed` (its PR seen merged on the forge) reads as ended in all three."""
+    1. its `start_on`, recorded at its take, while the CR that owns that branch is open;
+    2. a CR taken, not placed, with no open dependency: the default branch (it started there, or
+       its `start_on` owner has ended);
+    3. a CR not placed: a. queued, no open dependency: the start candidate's branch (the nearest
+       CR below it in `chain` with a PR, when that CR is `ready`), else the default branch;
+       b. with an open dependency, queued or taken: its highest open dependency's branch
+       (`_nearest_open`), no start candidate;
+    4. a placed CR whose `start_on` owner has ended: the nearest CR below it in `chain` that has
+       a PR (whatever its status), unless an open dependency sits higher (its branch), with none
+       below the nearest open dependency's branch, else the default branch.
+    A CR of `landed` (its PR seen merged on the forge) reads as ended in every rule."""
     default: str = repo.config["default_branch"]
     if _live_start(b_data, c, landed):
         return str(c.start_on)
-    below = _below_with_pr(b_data, c, landed)
     dep = _nearest_open(b_data, c, landed)
+    if not c.stacked:
+        if dep is not None:
+            return dep[1].branch
+        if c.status != "queued":
+            return default
+        cand = _start_candidate(b_data, c, landed)
+        return cand[1].branch if cand else default
+    below = _below_with_pr(b_data, c, landed)
     if below is not None:
         return dep[1].branch if dep is not None and dep[0] > below[0] else below[1].branch
     return dep[1].branch if dep is not None else default

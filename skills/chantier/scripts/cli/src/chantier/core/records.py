@@ -127,8 +127,11 @@ class CrEntry(Record):
     attempts: int = 0
     stacked: bool = False
     # the branch a CR started on at its first `take`, fixed there: in a stack batch the nearest
-    # earlier CR with a PR not seen merged on the forge, in a series batch the open series
-    # predecessor's (see `start_on_for`; the series clause of `rails.out_of_order` reads it)
+    # earlier CR with a PR, not seen merged on the forge, when that CR was handed back ready at
+    # the first take (none for a CR with an open dependency); a taken stack CR with no live
+    # `start_on` is on its highest open dependency's branch, else on the default branch, until
+    # the stack driver places it; in a series batch the open series predecessor's (see
+    # `start_on_for`; the series clause of `rails.out_of_order` reads it)
     start_on: str | None = None
     # the id of the `order hold` that holds this CR out of the order and the slots (a live CR in
     # any batch, a ready CR in a stack); None when not held

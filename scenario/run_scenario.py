@@ -7035,10 +7035,11 @@ def stack_batch(w: World) -> None:
           and any(f"base {w.cr(three)['branch']}" in ln for ln in w.chantier("handoff", four)[1]),
           str(out))
     w.chantier("order", "after", four, "--note", two)
-    chained = any(f"base {w.cr(three)['branch']}" in ln for ln in w.chantier("handoff", four)[1])
+    chained = any(f"base {w.cr(two)['branch']}" in ln for ln in w.chantier("handoff", four)[1])
     w.chantier("order", "after", four, "--note", "-")
-    check("`order after` on a CR lower in the stack than the top CR with a PR leaves the base on that "
-          "CR; `--note -` clears the `after` and the base is unchanged",
+    check("`order after` on a CR lower in the stack than the top CR with a PR puts the base on the "
+          "dependency's branch, whatever ready CR sits above it; `--note -` clears the `after` and "
+          "the base is back on the nearest earlier CR handed back ready with a PR",
           chained and w.cr(four)["status"] == "queued" and "after" not in w.cr(four)
           and any(f"base {w.cr(three)['branch']}" in ln for ln in w.chantier("handoff", four)[1]))
     # a stacked CR with an `after` takes its place in the stack as base, not its dependency's branch
@@ -7053,8 +7054,8 @@ def stack_batch(w: World) -> None:
     w.chantier("stack", one, two, three, four)
     w.chantier("order", "after", four, "--note", "-")
     fm.turn()
-    check("a CR taken once two are ready with a PR starts on the nearest earlier CR with a PR "
-          "(here the top of the ready part), recorded at its first take: its `handoff` prints "
+    check("a CR taken once two are ready with a PR starts on the nearest earlier CR handed "
+          "back ready with a PR (here the top of the ready part), recorded at its first take: its `handoff` prints "
           "that branch",
           w.cr(four).get("start_on") == w.cr(three)["branch"]
           and any(f"base {w.cr(three)['branch']}" in ln for ln in w.chantier("handoff", four)[1]),
@@ -7204,8 +7205,9 @@ def stack_batch(w: World) -> None:
 
 
 def stack_start_base(w: World) -> None:
-    """The start base of a CR taken in a stack batch: the nearest earlier CR with a PR."""
-    note("\n## 13-bis. A stack CR starts on the nearest earlier CR with a PR")
+    """The start base of a CR taken in a stack batch: the nearest earlier CR with a PR, once that CR
+    is handed back ready, else the default branch."""
+    note("\n## 13-bis. A stack CR starts on the nearest earlier CR with a PR once it is ready")
     w.reset()
     items = [prepare_cr(w, f"Start base {x}")[1] for x in "abcdefg"]
     w.start(*map(str, items), "--mode", "stack", "--slots", 6, *FROM_AGENTS_MD)
@@ -7236,20 +7238,25 @@ def stack_start_base(w: World) -> None:
           "start_on" not in w.cr(a) and based(a, None), str(w.cr(a)))
     edit(a, pr=link(a))  # a is working, a draft: its PR is open
     w.chantier("take", b, "--epoch", 1)
-    check("a CR taken while an earlier CR is working with a PR, no two being ready, starts on "
-          "that CR's branch (the old rule gave the default branch)",
-          w.cr(b).get("start_on") == w.cr(a)["branch"] and based(b, w.cr(a)["branch"]), str(w.cr(b)))
+    check("2. a CR taken while the nearest earlier CR with a PR is working (a draft) starts on "
+          "the default branch, no `start_on` recorded, and `handoff` prints `base origin/main`",
+          "start_on" not in w.cr(b) and based(b, None), str(w.cr(b)))
+    edit(a, status="ready")  # a is handed back ready, its PR kept
+    check("6. the CR taken on the default branch still prints `base origin/main` once the CR "
+          "below it is ready with a PR (it stays there until the stack driver places it)",
+          "start_on" not in w.cr(b) and based(b, None), str(w.cr(b)))
     w.chantier("take", c, "--epoch", 1)
-    check("a CR taken while the CR right before it has no PR and an earlier one has starts on "
-          "the earlier one with the PR",
+    check("3. a CR taken while the CR right before it has no PR and an earlier one is ready "
+          "with a PR starts on the earlier one with the PR",
           w.cr(c).get("start_on") == w.cr(a)["branch"] and based(c, w.cr(a)["branch"]), str(w.cr(c)))
     edit(b, pr=link(b))
     edit(c, pr=link(c), status="cancelled")
     edit(a, status="merged")
+    edit(b, status="ready")
     edit(d, pr=None)
     w.chantier("take", d, "--epoch", 1)
-    check("an earlier CR with a PR that is cancelled or merged is skipped: the nearest one left "
-          "with a PR is the base",
+    check("9. an earlier CR with a PR that is cancelled or merged is skipped: the nearest one left "
+          "with a PR, handed back ready, is the base",
           w.cr(d).get("start_on") == w.cr(b)["branch"] and based(d, w.cr(b)["branch"]), str(w.cr(d)))
     w.chantier("take", e, "--epoch", 1)
     check("a fix CR starts on the default branch; a release starts on the top CR's branch",
@@ -7257,9 +7264,10 @@ def stack_start_base(w: World) -> None:
           str(w.cr(e)))
     edit(b, status="ready")
     w.chantier("take", f, "--epoch", 1)
-    check("a CR with an open `after` still starts on its dependency's branch, no `start_on` "
+    check("9. a CR with an open `after` still starts on its dependency's branch, no `start_on` "
           "recorded",
           "start_on" not in w.cr(f) and based(f, w.cr(b)["branch"]), str(w.cr(f)))
+    start_base_layouts(w)
     w.reset()
     x_item, y_item = (prepare_cr(w, t)[1] for t in ("Parallel start x", "Parallel start y"))
     w.start(str(x_item), str(y_item), *FROM_AGENTS_MD)
@@ -7274,6 +7282,57 @@ def stack_start_base(w: World) -> None:
           and based(y, None), str(w.cr(y)))
     w.reset()
     w.env.pop("CHANTIER_BATCH", None)
+
+
+def start_base_layouts(w: World) -> None:
+    """13-bis, the layouts of a second stack batch: a start CR that ended (Q4), a dependency with
+    a ready CR above it (Q5), a working or blocked CR with a PR under the CR taken (Q3 with a ready
+    one below it)."""
+    w.reset()
+    items = [prepare_cr(w, f"Start layout {x}")[1] for x in "pqrstuvwxy"]
+    w.start(*map(str, items), "--mode", "stack", "--slots", 6, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman13", "--epoch", 1)
+    p, q, r, s, t, u, v, w_, x, y = (k["id"] for k in w.batch()["crs"])
+
+    def edit(cr: str, **fields: object) -> None:
+        data = w.batch()
+        next(k for k in data["crs"] if k["id"] == cr).update(fields)
+        (w.folder() / "batch.json").write_text(json.dumps(data, indent=2))
+
+    def based(cr: str, branch: str | None) -> bool:
+        want = f"base {branch or 'origin/main'}"
+        return any(want in ln for ln in w.chantier("handoff", cr)[1])
+
+    def link(cr: str) -> str:
+        return PR_LINK[ARGS.forge] + str(300 + int(cr.removeprefix("CR-")))
+
+    for cr in (p, q):
+        edit(cr, pr=link(cr), status="ready")
+    w.chantier("take", r, "--epoch", 1)
+    edit(s, after=[p])
+    w.chantier("take", s, "--epoch", 1)
+    check("8. a CR with an open `after` still starts on its dependency's branch, no `start_on`, "
+          "with a ready CR with a PR above the dependency (below the CR)",
+          "start_on" not in w.cr(s) and based(s, w.cr(p)["branch"])
+          and w.cr(r).get("start_on") == w.cr(q)["branch"], str((w.cr(r), w.cr(s))))
+    w.chantier("take", t, "--epoch", 1)
+    edit(q, status="cancelled")
+    cancelled = based(r, None) and based(t, None)
+    edit(q, status="merged")
+    check("7. a CR taken on a ready CR's branch prints `base origin/main` once that CR is "
+          "cancelled or merged, even with a ready CR with a PR below it",
+          cancelled and based(r, None) and based(t, None), str((w.cr(r), w.cr(t))))
+    edit(u, pr=link(u), status="ready")
+    edit(v, pr=link(v), status="working")
+    w.chantier("take", w_, "--epoch", 1)
+    check("4. the nearest earlier CR with a PR is working and a CR below it is ready with a PR: "
+          "the CR taken starts on the default branch (the walk stops at the first PR)",
+          "start_on" not in w.cr(w_) and based(w_, None), str(w.cr(w_)))
+    edit(x, pr=link(x), status="blocked")
+    w.chantier("take", y, "--epoch", 1)
+    check("5. the nearest earlier CR with a PR is blocked: the CR taken starts on the default "
+          "branch", "start_on" not in w.cr(y) and based(y, None), str(w.cr(y)))
 
 
 def hub_cycle(w: World) -> None:
@@ -7314,7 +7373,7 @@ def start_base_forge(w: World) -> None:
         return any(ln.startswith("worktree: ") and f" base {ref}" in ln for ln in out)
 
     w.chantier("take", a, "--epoch", 1)
-    edit(a, pr=link(a))  # a is working with an open PR
+    edit(a, pr=link(a), status="ready")  # a is handed back ready, its PR open
     forge_pr(w, link(a), state="MERGED", mergedAt="2026-11-16T10:00:00Z")  # merged on the forge
     _, out = w.chantier("take", b, "--epoch", 1)
     check("4. with no journal line (the PR merged on the forge, no hub cycle yet) `take` prints "
@@ -7334,12 +7393,16 @@ def start_base_forge(w: World) -> None:
     check("5. `status` and `stack` still show the record's plan: a is listed, not merged",
           any(ln.startswith(a + " ") for ln in status + rows) and w.cr(a)["status"] != "merged",
           str((status, rows)))
-    edit(z, pr=link(z))  # an earlier CR with an open PR, below a
+    edit(z, pr=link(z), status="ready")  # an earlier CR, ready with an open PR, below a
     _, out = w.chantier("take", d, "--epoch", 1)
     check("2. with an earlier CR z that has an open PR below a, `take` records z's branch and "
           "prints it as the base, the `base:` line still naming a",
           w.cr(d).get("start_on") == w.cr(z)["branch"] and on_base(out, w.cr(z)["branch"])
           and says in out, str(out))
+    _, out = w.chantier("handoff", b)
+    check("4. with z ready with a PR below, `handoff b` (taken on a) prints the default branch "
+          "as the base and the `base:` line naming a, once the hub saw a merged (Q4)",
+          on_base(out, "origin/main") and says in out, str(out))
     edit(a, status="ready")
     w.chantier("order", "merged", a, "--epoch", 1)
     _, out = w.chantier("handoff", d)
