@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
+import threading
+import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from batch_helpers import FROM_AGENTS_MD, changes, host, prepared
 from conftest import Chantier
 
-from chantier.core.errors import EXIT_PRECONDITION
+from chantier.core import files as core_files
+from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION
 
 SPEC = "03-change-spec.md"
 
@@ -51,3 +57,153 @@ def test_triage_moves_between_the_folders_and_refuses_what_is_not_a_move(
     assert code == EXIT_PRECONDITION and backlog_bare.is_dir()
     assert not (tree / "4-batch" / "batch.json").exists()
     assert chantier("abandon", str(backlog_bare))[0] == 0
+
+
+HOLDS = 3
+SHIPPED_WAIT_S = 10.0
+LONGEST_PAUSE_S = 0.5
+REFERENCES = Path(__file__).resolve().parents[3] / "references"
+CLAUSE = (
+    "No shell call changes its folder (`cd`, `Set-Location`, `pushd`, alone or chained before a "
+    "command) into a CR folder (any stage)"
+)
+
+
+@pytest.fixture
+def world(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
+    """A fake clock for the helper (no real wait), its Windows check forced on, and a folder
+    rename that raises `w.error` for the first `w.fails` calls (every call when None)."""
+    w = SimpleNamespace(now=0.0, pauses=[], attempts=0, fails=None, windows=True)
+    w.error = PermissionError(13, "The process cannot access the file", None, 32)
+    real = Path.rename
+
+    def sleep(seconds: float) -> None:
+        w.pauses.append(seconds)
+        w.now += seconds
+
+    def rename(self: Path, target: Path) -> Path:
+        w.attempts += 1
+        if w.fails is None or w.attempts <= w.fails:
+            raise w.error
+        return real(self, target)
+
+    monkeypatch.setattr(core_files, "time", SimpleNamespace(monotonic=lambda: w.now, sleep=sleep))
+    monkeypatch.setattr(core_files, "on_windows", lambda: w.windows)
+    monkeypatch.setattr(Path, "rename", rename)
+    return w
+
+
+def test_a_brief_hold_is_waited_out(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, world: SimpleNamespace
+) -> None:
+    host(monkeypatch)
+    item = prepared(repo, chantier, "Brief hold")
+    world.fails = HOLDS
+    code, _, err = chantier("triage", str(item), "--ready")
+    assert code == 0, err
+    assert world.attempts == HOLDS + 1 and len(world.pauses) == HOLDS  # three holds, then it moved
+    assert not item.exists() and (changes(repo) / "3-ready" / item.name).is_dir()
+
+
+@pytest.mark.parametrize("command", ["triage", "abandon"])
+def test_a_lasting_hold_is_refused_with_its_cause(
+    repo: Path,
+    chantier: Chantier,
+    monkeypatch: pytest.MonkeyPatch,
+    world: SimpleNamespace,
+    command: str,
+) -> None:
+    host(monkeypatch)
+    assert core_files.HELD_WAIT_S == SHIPPED_WAIT_S  # board-lock-Q1
+    item = prepared(repo, chantier, "Lasting hold")
+    before = (item / SPEC).read_text("utf-8")
+    code, _, err = chantier(command, str(item), *(["--ready"] if command == "triage" else []))
+    assert code == EXIT_EXTERNAL
+    wait = f"{core_files.HELD_WAIT_S:.3f}".rstrip("0").rstrip(".")
+    assert f"refused for {wait} s, the folder is likely held; nothing moved" in err
+    assert "the board need not stop" in err and "32" in err  # the OS error stays at the end
+    assert world.now >= core_files.HELD_WAIT_S and max(world.pauses) <= LONGEST_PAUSE_S
+    assert (item / SPEC).read_text("utf-8") == before and item.parent.name == "1-inbox"
+    ready = changes(repo) / "3-ready"
+    assert not ready.exists() or not any(ready.iterdir())
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        (FileNotFoundError(2, "No such file"), True),
+        (PermissionError(13, "Permission denied"), False),
+    ],
+)
+def test_any_other_error_is_one_attempt_with_todays_text(
+    repo: Path,
+    chantier: Chantier,
+    monkeypatch: pytest.MonkeyPatch,
+    world: SimpleNamespace,
+    error: tuple[OSError, bool],
+) -> None:
+    host(monkeypatch)
+    item = prepared(repo, chantier, "Other error")
+    world.error, world.windows = error
+    code, _, err = chantier("triage", str(item), "--ready")
+    assert code == EXIT_EXTERNAL and world.attempts == 1 and not world.pauses
+    assert "cannot move CR folder" in err and "refused for" not in err
+    assert item.is_dir()
+
+
+def test_every_role_is_told_to_keep_its_shell_out_of_cr_folders() -> None:
+    def flat(name: str) -> str:
+        return " ".join((REFERENCES / name).read_text("utf-8").split())
+
+    core, concepts = flat("startup-core.md"), flat("concepts.md")
+    assert CLAUSE in core and CLAUSE in concepts
+    assert "whatever your role: name the target with absolute paths." in core
+    assert "(WinError 32), so the CR's next move fails." in core
+    assert "Every role holds this rule: [startup core](startup-core.md)." in concepts
+
+
+windows_only = pytest.mark.skipif(
+    sys.platform != "win32", reason="a folder is held by a handle only on Windows"
+)
+
+
+@windows_only
+def test_w1_a_file_open_for_a_moment_is_waited_out(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    host(monkeypatch)
+    monkeypatch.setattr(core_files, "HELD_WAIT_S", 1.0)
+    item = prepared(repo, chantier, "Open file")
+    opened = threading.Event()
+
+    def hold() -> None:
+        with open(item / SPEC, encoding="utf-8"):
+            opened.set()
+            time.sleep(0.3)
+
+    thread = threading.Thread(target=hold)
+    thread.start()
+    assert opened.wait(5)
+    code, _, err = chantier("triage", str(item), "--ready")
+    thread.join()
+    assert code == 0, err
+    assert not item.exists() and (changes(repo) / "3-ready" / item.name).is_dir()
+
+
+@windows_only
+def test_w2_a_shell_inside_the_folder_refuses_then_lets_go(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    host(monkeypatch)
+    monkeypatch.setattr(core_files, "HELD_WAIT_S", 1.0)
+    item = prepared(repo, chantier, "Held by a process")
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"], cwd=item)
+    try:
+        code, _, err = chantier("triage", str(item), "--ready")
+        assert code == EXIT_EXTERNAL and "refused for 1 s, the folder is likely held" in err
+        assert item.is_dir() and not (changes(repo) / "3-ready" / item.name).exists()
+    finally:
+        child.kill()
+        child.wait()
+    code, _, err = chantier("triage", str(item), "--ready")
+    assert code == 0, err

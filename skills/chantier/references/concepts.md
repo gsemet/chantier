@@ -737,9 +737,9 @@ stack driver's `conflict-resolver` escalates, the stack driver keeps the batch's
    background task is a background shell or a host monitor (a tool that streams a command's output
    to its owner). A task that waits on a file or on another task's output (`until grep …; do sleep
    …; done`) is a polling loop. No shell call changes its folder (`cd`, `Set-Location`, `pushd`,
-   alone or chained before a command) into a CR folder (any stage). The steering session's never
-   changes it into a worktree either. A Driver's shells run from the folder it starts in (its
-   worktree on Claude Code). Name the target instead: `git -C <worktree>`, absolute paths,
+   alone or chained before a command) into a CR folder (any stage). Every role holds this rule:
+   [startup core](startup-core.md). The steering session's never changes it into a worktree
+   either. A Driver's shells run from the folder it starts in (its worktree on Claude Code). Name the target instead: `git -C <worktree>`, absolute paths,
    `gh … --repo <owner>/<name>`, `glab … -R <owner>/<name>`. Whoever starts a background task
    stops it by its id, with the host's stop of a background task, once its result is read or no
    longer counts (the board and the Chief of Staff's watcher, `$CHANTIER watch`, keep
