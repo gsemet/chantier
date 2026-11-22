@@ -23,7 +23,6 @@ from chantier.board.address import (
     settings,
     url,
 )
-from chantier.board.api import times
 from chantier.board.api.push import PushLoop, PushThread
 from chantier.board.app import make_server
 from chantier.board.binding import bind as _bind
@@ -31,12 +30,12 @@ from chantier.board.binding import not_started as _not_started
 from chantier.board.context import Context
 from chantier.board.griller import Registry
 from chantier.board.idle import IdleStop, IdleThread
-from chantier.board.key import KeyFile, load_or_create
+from chantier.board.key import KeyFile, load_or_create, public_key
+from chantier.board.options import extra_of, options_of
 from chantier.board.projects import Projects, check_planning, open_projects
 from chantier.board.seats import Seats
 from chantier.board.watch_files import NOTIFY, FileWatchThread
-from chantier.core import clock
-from chantier.core.errors import EXIT_USAGE, ChantierError
+from chantier.core.errors import ChantierError
 from chantier.declare.serve import SHIPPED_UI
 from chantier.hub import state
 from chantier.hub.lines import foreign_build_clause
@@ -51,9 +50,11 @@ NOT_APPLIED = (
     "--ui not applied: a board already serves this surface; stop it to change what it serves"
 )
 BEYOND = (
-    "board: listens on the local network ({host}); the link holds its key: give it to the user "
+    "board: listens on the local network ({host}); the private link acts: give it to the user "
     "only, plain HTTP"
 )
+READ_ONLY = "read-only: {link} (it shows the board and acts on nothing; it can be shared)"
+LOCAL_READ_ONLY = "on this machine, read-only: {link}"
 NO_NETWORK = "board: no local network address found; on this machine only"
 WATCHES = "board: watches the planning files"
 CHECKS = "board: no file notifications here; checks every 5 s"
@@ -62,10 +63,17 @@ FORGE_WHEN_OBSERVED = (
     "board: the running board reads the forge only while a client is subscribed (a watcher "
     "started it); the pull path gets no forge event until one is"
 )
-BOTH_FLAGS = (
-    "--stop-idle and --forge-always do not go together: a board the pull path relies on for the "
-    "forge must not stop by itself; pass one"
-)
+
+
+def read_only_lines(host: str, port: int, read_key: str) -> list[str]:
+    """The public read-only link, and its 127.0.0.1 form when it differs; none for a file with
+    no read-only key."""
+    if not read_key:
+        return []
+    lines = [READ_ONLY.format(link=url(host, port, read_key))]
+    if local := local_url(host, port, read_key):
+        lines.append(LOCAL_READ_ONLY.format(link=local))
+    return lines
 
 
 def files_line(mode: object) -> str | None:
@@ -180,7 +188,11 @@ def _run(
     hub = HubThread(HubLoop(projects.home), stop, observed)
     hub.start()
     git_dir = projects.home.git_dir
-    push = PushThread(loop, stop, lambda: state.reassert_server(git_dir, ctx.key.current()))
+    push = PushThread(
+        loop,
+        stop,
+        lambda: state.reassert_server(git_dir, ctx.key.current(), ctx.key.read_current()),
+    )
     push.start()
     idle = IdleThread(IdleStop(loop.observed, stop, time.monotonic())) if args.stop_idle else None
     if idle is not None:
@@ -256,24 +268,29 @@ def _writing(write: Callable[[], T]) -> T:
         raise _not_started(e) from e
 
 
-def _announce(host: str, bound: int, key: str, served: str, after: list[str]) -> None:
-    """The start lines: the link, this machine's link, the exposure, then `after` (the
-    `NO_NETWORK` line, the file watch's)."""
+def _announce(  # noqa: PLR0913, PLR0917 - the address, the link's keys, then what to print
+    host: str, bound: int, key: str, served: str, after: list[str], read_key: str = ""
+) -> None:
+    """The start lines: the private link, this machine's link, the read-only link(s), the
+    exposure, then `after` (the `NO_NETWORK` line, the file watch's)."""
     print(f"board on {url(host, bound, key)} over {served}", flush=True)
     if local := local_url(host, bound, key):
         print(f"on this machine: {local}", flush=True)
+    for line in read_only_lines(host, bound, read_key):
+        print(line, flush=True)
     if not is_loopback(host):
         print(BEYOND.format(host=host), flush=True)
     for line in after:
         print(line, flush=True)
 
 
-def _running_lines(
+def _running_lines(  # noqa: PLR0913, PLR0917 - the address, the keys and the running entry
     there: tuple[str, int],
     key: str,
     ui_given: bool,
     entry: dict[str, Any] | None = None,
     forge_always: bool = False,
+    read_key: str = "",
 ) -> list[str]:
     """The lines of a board already running: its link, its exposure, its file watch (from its
     `server` entry), what this start could not apply, and last its idle stop."""
@@ -281,6 +298,7 @@ def _running_lines(
     lines = [f"board already running at {url(*there, key)}"]
     if local := local_url(*there, key):
         lines.append(f"on this machine: {local}")
+    lines.extend(read_only_lines(*there, read_key))
     if not is_loopback(there[0]):
         lines.append(BEYOND.format(host=there[0]))
     if found := files_line(entry.get("files")):
@@ -292,44 +310,6 @@ def _running_lines(
     if entry.get("stop_idle"):
         lines.append(STOPS_IDLE)
     return lines
-
-
-def _ui(arg: Path | str) -> Path | None:
-    """The folder to serve: `None` for `none`, else a folder holding an `index.html`."""
-    if arg == "none":
-        return None
-    folder = Path(arg).resolve()
-    if not (folder / "index.html").is_file():
-        raise ChantierError(
-            f"--ui {arg}: not a folder with an index.html: give a folder of static files, or none",
-            EXIT_USAGE,
-        )
-    return folder
-
-
-def _extra(args: argparse.Namespace, files: FileWatchThread) -> dict[str, Any]:
-    """The `server` entry's fields beyond the address: the file watch's mode, the idle stop, the
-    forge always."""
-    extra: dict[str, Any] = {"files": files.mode}
-    if args.stop_idle:
-        extra["stop_idle"] = int(times.IDLE_STOP_S)
-    if args.forge_always:
-        extra["forge"] = "always"
-    return extra
-
-
-def _options(args: argparse.Namespace) -> None:
-    """The options checked before anything is read: the two flags that do not go together, the
-    clock."""
-    if args.stop_idle and args.forge_always:
-        raise ChantierError(BOTH_FLAGS, EXIT_USAGE)
-    if args.clock:
-        try:
-            clock.fix(args.clock)
-        except ValueError as e:
-            raise ChantierError(
-                f"--clock {args.clock!r}: use YYYY-MM-DDTHH:MM:SSZ", EXIT_USAGE
-            ) from e
 
 
 def _listen(
@@ -345,8 +325,7 @@ def _listen(
 
 
 def board(args: argparse.Namespace) -> list[str]:
-    _options(args)
-    ui = _ui(args.ui)
+    ui = options_of(args)
     projects = open_projects()
     try:
         check_planning(projects)
@@ -364,7 +343,8 @@ def board(args: argparse.Namespace) -> list[str]:
     if there:
         if args.seat and not register_seat(*there, key, projects.home_id, args.seat):
             raise _not_started("the board already running there did not take the seat")
-        lines = _running_lines(there, key, args.ui != SHIPPED_UI, run, args.forge_always)
+        ui_given, read = args.ui != SHIPPED_UI, public_key(projects.home)
+        lines = _running_lines(there, key, ui_given, run, args.forge_always, read)
         if (
             run
             and projects.chosen
@@ -377,15 +357,20 @@ def board(args: argparse.Namespace) -> list[str]:
     bound, served = sock.getsockname()[1], projects.served.as_posix()
     ctx = _context(projects, seats, sock, ui)
     files = _watch_files(ctx)  # the mode is known before the start line
-    extra = _extra(args, files)
     try:
+        extra = extra_of(args, files)
         _writing(lambda: state.write_server(git_dir, host, bound, __version__, served, **extra))
     except ChantierError:
         files.stop()
         sock.close()
         raise
     _announce(
-        host, bound, key, served, [NO_NETWORK] * no_network + [files_line(files.mode) or WATCHES]
+        host,
+        bound,
+        key,
+        served,
+        [NO_NETWORK] * no_network + [files_line(files.mode) or WATCHES],
+        public_key(projects.home),
     )
     _run(ctx, sock, files, args)
     return []

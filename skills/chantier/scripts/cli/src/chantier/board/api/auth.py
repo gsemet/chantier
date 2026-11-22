@@ -4,7 +4,7 @@ elsewhere. `GET /` and the static files keep `guard.authorised`, with no origin 
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, NamedTuple
 
 from chantier.board import guard
 from chantier.board import key as keys
@@ -13,7 +13,8 @@ from chantier.board.reply import Reply, text
 
 PREFIX = "/api/v1/"
 Source = Literal["header", "cookie"]
-CORS = {"Access-Control-Allow-Origin": "*"}
+ACCESS = "X-Chantier-Access"
+CORS = {"Access-Control-Allow-Origin": "*", "Access-Control-Expose-Headers": ACCESS}
 PREFLIGHT = {
     **CORS,
     "Access-Control-Allow-Methods": "GET, POST",
@@ -40,34 +41,55 @@ def own_origin(headers: dict[str, str]) -> bool:
     return origin.lower() in (f"http://{host}", f"https://{host}")
 
 
-def source_of(headers: dict[str, str], key: str, cookie: str) -> Source | None:
+class Grant(NamedTuple):
+    """What a good credential opens: where it came from, `read` or `write`, and the key itself."""
+
+    source: Source
+    access: keys.Access
+    credential: str
+
+
+def grant(headers: dict[str, str], key: str, cookie: str, read_key: str = "") -> Grant | None:
+    """The good credential of a request and what it opens: the header, and the cookies from the
+    server's own origin; the private key (`write`) wins when both are there, the header when
+    both are as good. None for none, a bad one, or a cookie from another origin."""
+    found: list[Grant] = []
+    header = headers.get(keys.HEADER)
+    if (opens := keys.access_of(header, key, read_key)) and header:
+        found.append(Grant("header", opens, header))
+    raw = headers.get("cookie")
+    if (opens := keys.cookie_access(raw, cookie, key, read_key)) and own_origin(headers):
+        name = cookie if opens == "write" else keys.read_name(cookie)
+        found.append(Grant("cookie", opens, keys.cookie_value(raw, name) or ""))
+    return max(found, key=lambda g: g.access == "write", default=None)
+
+
+def source_of(headers: dict[str, str], key: str, cookie: str, read_key: str = "") -> Source | None:
     """Where a good key came from: the header, else the cookie from the server's own origin;
     None for none, a bad one, or a cookie from another origin."""
-    if keys.is_good(headers.get(keys.HEADER), key):
-        return "header"
-    if keys.is_good(keys.cookie_value(headers.get("cookie"), cookie), key) and own_origin(headers):
-        return "cookie"
-    return None
+    found = grant(headers, key, cookie, read_key)
+    return found.source if found else None
 
 
-def upgrade(headers: dict[str, str], key: str, name: str) -> tuple[bool, str | None]:
+def upgrade(
+    headers: dict[str, str], key: str, name: str, read_key: str = ""
+) -> tuple[bool, Grant | None]:
     """The WebSocket upgrade, judged as a request: (may it open, the good credential it carries).
     No header and no cookie: it opens, and the key comes in `hello`. A credential that is bad, or
     a cookie from another origin, refuses it (401, no socket)."""
-    cookie = keys.cookie_value(headers.get("cookie"), name)
-    if keys.HEADER not in headers and cookie is None:
+    raw = headers.get("cookie")
+    named = (keys.cookie_value(raw, name), keys.cookie_value(raw, keys.read_name(name)))
+    if keys.HEADER not in headers and named == (None, None):
         return True, None
-    source = source_of(headers, key, name)
-    if source is None:
-        return False, None
-    return True, headers[keys.HEADER] if source == "header" else cookie
+    found = grant(headers, key, name, read_key)
+    return found is not None, found
 
 
-def judge(req: Request, key: str, cookie: str) -> Reply | None:
+def judge(req: Request, found: Grant | None) -> Reply | None:
     """The refusal of a request to `/api/v1/` (401 for no key, 415 for a body that is not
     JSON), None when it may go on. A cookie from the server's own page and a header key pass
     the same rule: the body is JSON."""
-    if source_of(req.headers, key, cookie) is None:
+    if found is None:
         return text(401, guard.NEEDS_KEY)
     if req.body and not req.headers.get("content-type", "").startswith("application/json"):
         return text(415, "refused: the body is application/json")
@@ -75,7 +97,8 @@ def judge(req: Request, key: str, cookie: str) -> Reply | None:
 
 
 def cors(reply: Reply) -> Reply:
-    """Every answer of `/api/v1/` allows any origin; credentials are never allowed."""
+    """Every answer of `/api/v1/` allows any origin and exposes `X-Chantier-Access`; credentials
+    are never allowed."""
     reply.headers.update(CORS)
     return reply
 

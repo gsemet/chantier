@@ -7,7 +7,7 @@ import os
 
 from chantier.board import guard, reads, static
 from chantier.board.api import http as api_http
-from chantier.board.api import protocol
+from chantier.board.api import ops, protocol
 from chantier.board.context import Context, Request
 from chantier.board.reply import Reply, as_json, text
 from chantier.core import clock
@@ -48,12 +48,15 @@ def _dispatch(ctx: Context, req: Request) -> Reply:
 def _frame(ctx: Context, req: Request, key: str) -> Reply:
     """The probe and the page's files: the cookie or the header, the method, the rule for
     writes, then the route."""
-    if not guard.authorised(req, key, ctx.cookie):
+    held = guard.access(req, key, ctx.cookie, ctx.key.read_current())
+    if held is None:
         return text(401, guard.NEEDS_KEY)
     if req.path.startswith("/api/") and req.path != PROBE:
         return _unknown()  # a route of an older version, whatever its method
     if req.method not in guard.ALLOWED:
         return guard.not_allowed()
+    if held == "read" and req.method in guard.WRITE:
+        return text(403, ops.READ_ONLY)  # a write needs the private key, whatever its route
     refused = guard.refusal(req) if req.method in guard.WRITE else None
     return refused or _dispatch(ctx, req)
 
@@ -61,7 +64,7 @@ def _frame(ctx: Context, req: Request, key: str) -> Reply:
 def _judged(ctx: Context, req: Request) -> Reply:
     key = ctx.key.current()
     if "k" in req.query:
-        done = guard.exchange(req, key, ctx.cookie)
+        done = guard.exchange(req, key, ctx.cookie, ctx.key.read_current())
         if done:
             return done
     try:

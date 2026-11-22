@@ -17,9 +17,17 @@ from chantier.core import clock
 UNREADABLE = "the record could not be read just now"
 
 
-def local_link(ctx: Context) -> str | None:
-    """The 127.0.0.1 link of a board that listens on every address (the key as it is now)."""
-    return local_url(*ctx.bound, ctx.key.current()) if ctx.bound else None
+def local_link(ctx: Context, read_only: bool = False) -> str | None:
+    """The 127.0.0.1 link of a board that listens on every address (the key as it is now); with
+    `read_only`, the public key's."""
+    key = ctx.key.read_current() if read_only else ctx.key.current()
+    return local_url(*ctx.bound, key) if ctx.bound else None
+
+
+def for_read_key(ctx: Context, data: dict[str, Any]) -> dict[str, Any]:
+    """The board's data as the public read-only key sees it: its `local_url` holds the public
+    key, never the private one."""
+    return {**data, "local_url": local_link(ctx, read_only=True)} if "local_url" in data else data
 
 
 def state_of(ctx: Context, project: Project, ask: bool) -> tuple[dict[str, Any], str]:

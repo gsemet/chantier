@@ -8,9 +8,9 @@ export default {
   'griller.notice':
     'This runs `{cli}` on {machine}, the machine the board runs on, with `{model}`, and spends the tokens of the account signed in there. Your first message is your yes.',
   'griller.shared':
-    "This conversation is shared: anyone holding the board's key sees it and may stop or end it.",
+    'This conversation is shared: anyone holding the private key sees it and may stop or end it.',
   'griller.http':
-    "The board speaks plain HTTP: on the network, the key (the link and its 30-day cookie) and every turn's text travel in clear. `{command} --new-key` revokes the key.",
+    "The board speaks plain HTTP: on the network, the key (the link and its 30-day cookie) and every turn's text travel in clear. `{command} --new-key` replaces both keys.",
   'griller.other': 'sent from another client',
   'griller.working': 'The Griller is working…',
   'griller.stopped': 'Stopped.',

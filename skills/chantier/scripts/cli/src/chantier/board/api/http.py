@@ -12,7 +12,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from chantier.board import files, guard, reads
-from chantier.board.api import auth, ops, protocol, times
+from chantier.board.api import auth, ops, protocol, times, topics
 from chantier.board.api.push import Want
 from chantier.board.context import Context, Request
 from chantier.board.reply import Reply, as_json, text
@@ -44,24 +44,31 @@ def _json(req: Request) -> Any:
         return BAD_JSON
 
 
-def _call(ctx: Context, req: Request, name: str) -> Reply:
+def _call(ctx: Context, req: Request, name: str, access: str) -> Reply:
+    refused = ops.deny(access, name, ops.READ_OPS)  # before the body is looked at
+    if refused is not None:
+        return _answer(refused)
     args = _json(req)
     if args == BAD_JSON:
         return _answer(ops.fail(400, BAD_JSON))
-    return _answer(ops.call(ctx, name, args))
+    return _answer(ops.call(ctx, name, args, access))
 
 
-def _poll(ctx: Context, req: Request) -> Reply:
+def _poll(ctx: Context, req: Request, access: str) -> Reply:
     body = _json(req)
     try:
         poll = protocol.Poll.model_validate(body)
     except ValidationError as e:
         return _answer(ops.fail(400, ops.problem(e) if isinstance(body, dict) else BAD_JSON))
+    for sub in poll.subs:
+        refused = ops.deny(access, sub.topic, topics.READ_TOPICS)
+        if refused is not None:
+            return _answer(refused)
     if len(poll.subs) > times.MAX_SUBS:
         return _answer(ops.fail(429, TOO_MANY))
     if ctx.push is None:
         return _answer(ops.fail(503, "the server's push is not running"))
-    wants = [Want(s.key, s.topic, s.args, s.rev) for s in poll.subs]
+    wants = [Want(s.key, s.topic, s.args, s.rev, access) for s in poll.subs]
     held = ctx.push.hold(wants)
     if isinstance(held, ops.Result):
         return _answer(held)
@@ -75,7 +82,7 @@ def _file(ctx: Context, req: Request, project_id: str) -> Reply:
     return files.read(project.repo.store, project.repo.changes.resolve(), req.query["path"])
 
 
-def _route(ctx: Context, req: Request) -> Reply:
+def _route(ctx: Context, req: Request, access: str) -> Reply:
     method = "GET" if req.method == "HEAD" else req.method
     path = req.path.removeprefix(auth.PREFIX)
     found = re.fullmatch(r"projects/([^/]+)/file", path)
@@ -84,7 +91,9 @@ def _route(ctx: Context, req: Request) -> Reply:
     if path == "poll" or path.startswith("call/"):
         if method != "POST":
             return _not_allowed("POST")
-        return _poll(ctx, req) if path == "poll" else _call(ctx, req, path.removeprefix("call/"))
+        if path == "poll":
+            return _poll(ctx, req, access)
+        return _call(ctx, req, path.removeprefix("call/"), access)
     return text(404, "not found")
 
 
@@ -98,11 +107,13 @@ def serve(ctx: Context, req: Request, key: str) -> Reply:
     """A request to `/api/v1/`: the preflight, the key, then the route."""
     if req.method == "OPTIONS":
         return auth.preflight()
-    denied = auth.judge(req, key, ctx.cookie)
-    if denied is not None:
-        return auth.cors(denied)
+    found = auth.grant(req.headers, key, ctx.cookie, ctx.key.read_current())
+    denied = auth.judge(req, found)
+    if denied is not None or found is None:
+        return auth.cors(denied or text(401, guard.NEEDS_KEY))
     try:
-        reply = _route(ctx, req)
+        reply = _route(ctx, req, found.access)
     except (OSError, ValueError, KeyError, ChantierError):
         reply = text(HTTPStatus.INTERNAL_SERVER_ERROR, reads.UNREADABLE)
+    reply.headers[auth.ACCESS] = found.access
     return auth.cors(reply)

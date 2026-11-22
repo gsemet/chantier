@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from chantier.board import key as keys
+from chantier.board import reads
 from chantier.board.api import ops, protocol, times, topics
 from chantier.board.context import Context
 from chantier.core import clock
@@ -37,6 +38,9 @@ class Subscription:
     args: Any  # the topic's checked arguments
     sink: Sink
     last: str | None  # the rev this watcher has
+    access: str = (
+        "write"  # `read`: the board topic's link carries the public key, never the private
+    )
 
 
 @dataclass
@@ -47,6 +51,7 @@ class Want:
     topic: str
     args: Any
     rev: str | None
+    access: str = "write"
 
 
 class PushLoop:
@@ -79,8 +84,14 @@ class PushLoop:
         with self._lock:
             return len(self._subs)
 
-    def subscribe(
-        self, name: str, args: Any, sink: Sink, last: str | None = None, sub_id: str = ""
+    def subscribe(  # noqa: PLR0913, PLR0917 - the topic, its watcher, and who is watching
+        self,
+        name: str,
+        args: Any,
+        sink: Sink,
+        last: str | None = None,
+        sub_id: str = "",
+        access: str = "write",
     ) -> Subscription | ops.Result:
         """Watch a topic: 404 for an unknown topic or project, 400 for bad arguments. The first
         event is sent at once when the value's rev is not `last` (always, for no `last`)."""
@@ -93,7 +104,7 @@ class PushLoop:
         reading = topics.read(self.ctx, name, checked, last)
         if reading is None:
             return ops.fail(404, ops.NOT_FOUND)
-        sub = Subscription(sub_id, name, checked, sink, reading[0])
+        sub = Subscription(sub_id, name, checked, sink, reading[0], access)
         if reading[1] is not None:
             sink(self._event(sub, reading[0], reading[1]))
         with self._lock:
@@ -104,8 +115,9 @@ class PushLoop:
         with self._lock:
             self._subs.discard(sub)
 
-    @staticmethod
-    def _event(sub: Subscription, rev: str, data: dict[str, Any]) -> dict[str, Any]:
+    def _event(self, sub: Subscription, rev: str, data: dict[str, Any]) -> dict[str, Any]:
+        if sub.topic == "board" and sub.access != "write":
+            data = reads.for_read_key(self.ctx, data)
         return {"sub": sub.id, "topic": sub.topic, "rev": rev, "data": data, "now": clock.now()}
 
     def due(self, now: float) -> bool:
@@ -127,10 +139,11 @@ class PushLoop:
             self._send(members)
 
     def _close_stale_keys(self) -> None:
-        """A WebSocket whose key is no longer the board's (`--new-key` while it runs) is closed
-        with 4401 at this pass."""
-        current = self.ctx.key.current()
+        """A WebSocket whose key is no longer the board's (`--new-key` while it runs, which
+        replaces both) is closed with 4401 at this pass."""
+        private, public = self.ctx.key.current(), self.ctx.key.read_current()
         for conn in list(self.ctx.sockets):
+            current = private if conn.access == "write" else public
             if conn.welcomed and not keys.is_good(conn.credential, current):
                 conn.drop(KEY_CLOSE)
 
@@ -179,7 +192,9 @@ class PushLoop:
         box = _Box()
         held: list[Subscription] = []
         for want in wants:
-            got = self.subscribe(want.topic, want.args, box.sink(want.key), want.rev)
+            got = self.subscribe(
+                want.topic, want.args, box.sink(want.key), want.rev, access=want.access
+            )
             if isinstance(got, ops.Result):
                 for sub in held:
                     self.unsubscribe(sub)

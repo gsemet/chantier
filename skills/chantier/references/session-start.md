@@ -108,7 +108,7 @@ watcher that is the hub (below) runs the same build.
   remotely. The link is theirs only. When the board prints a second line, `on this machine:
   http://127.0.0.1:<port>/?k=...`, give the user both links, the 127.0.0.1 one named as the one
   where the Costs page's "Copy as image" works (a browser allows an image copy on a secure origin
-  only; the LAN link is plain http).
+  only; the LAN link is plain http). The `read-only: <link>` line (and, when it differs, `on this machine, read-only: <link>`) is passed on with them: that link shows the board and acts on nothing, so it can be shared; the private link acts.
 - `board: no local network address found; on this machine only` (after the `board on` line, when `board.host: network` found no network address): the board is on this machine only; pass it on, and once the network is back the user stops it by the host's means, then it is started again.
 - `board already running at <URL>`: the same line (and the same second line, when it follows, then the `board: listens on the local network (...)` line when the board listens beyond this machine, which you pass on, and an added `board runs another build` line: say it once to the user as printed, never stop or restart the board), if
   not given yet in this session. One board

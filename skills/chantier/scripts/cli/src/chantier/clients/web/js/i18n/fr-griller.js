@@ -8,9 +8,9 @@ export default {
   'griller.notice':
     'Ceci lance `{cli}` sur {machine}, la machine où tourne le board, avec `{model}`, et dépense les jetons du compte connecté là. Votre premier message vaut accord.',
   'griller.shared':
-    "Cette conversation est partagée : toute personne qui détient la clé du board la voit et peut l'arrêter ou la terminer.",
+    "Cette conversation est partagée : toute personne qui détient la clé privée la voit et peut l'arrêter ou la terminer.",
   'griller.http':
-    'Le board parle en HTTP simple : sur le réseau, la clé (le lien et son cookie de 30 jours) et le texte de chaque tour circulent en clair. `{command} --new-key` révoque la clé.',
+    'Le board parle en HTTP simple : sur le réseau, la clé (le lien et son cookie de 30 jours) et le texte de chaque tour circulent en clair. `{command} --new-key` remplace les deux clés.',
   'griller.other': 'envoyé depuis un autre client',
   'griller.working': 'Le Griller travaille…',
   'griller.stopped': 'Arrêté.',

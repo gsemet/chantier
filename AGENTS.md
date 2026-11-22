@@ -21,7 +21,7 @@
   external planning surface), as plain JSON and Markdown, and the project's `chantier.yaml` in an
   external planning surface's project folder, from the board's Configuration page, and a CR's
   cleaned archive in its PR when the project asks for it, and fast-forwards a clean main checkout
-  after a merge it records, the surface server keeps its key, the host CLI that the board's Griller runs keeps its own
+  after a merge it records, the surface server keeps its two keys, the host CLI that the board's Griller runs keeps its own
   session files, as for any session of the user, and while it serves its PID, address
   and version, and the forge hub's PID, version and last reads, in the repository's git folder
   (`chantier/server.json`, with its write lock `chantier/server.json.lock`; the hub's lock is
@@ -52,8 +52,11 @@
   `order drop`) removes the batch's merged CRs' worktrees and branches whose Driver has ended
   (`git worktree remove`, `git branch -D`, from the main checkout or the project's clone, with no
   `--force`), then pauses the batch; it does nothing else in git. The surface server, `chantier serve`: the web board's server, for the user on this machine and the local
-  network, behind a key (in its URL for the web client, in a header or a WebSocket's first message
-  for any other client), through one published API over a WebSocket, and over HTTP as the same
+  network, behind two keys, a private one that reads and acts and a public one that reads only (either in its
+  URL for the web client, in a header or a WebSocket's first message for any other client): the
+  public key opens an allow-list of reads and subscriptions and acts on nothing; every other op, a
+  write of the backlog or the configuration included, needs the private key (the user's answer
+  remote-cli-Q9, 2026-11-22), through one published API over a WebSocket, and over HTTP as the same
   protocol for a network where a WebSocket does not pass, behind a proxy for instance (not a
   fallback): two surfaces' servers on one machine never clash: each keeps its key and record in its own git
   folder, and one that finds the default port held by another chantier board takes a free port
@@ -79,7 +82,7 @@
   `status` prints for the Chief of Staff to record at its next `status`; the
   board itself records nothing and messages no agent, but its writer's commits of the planning
   surface's published paths (below) and its journal lines (`sync-*@1`), and the board's Griller (the
-  fourth exception, which passes the words a holder of the key typed to a run the server started for
+  fourth exception, which passes the words a holder of the private key typed to a run the server started for
   the key's holder, and is not a message of the board to an agent); a third, from a configuration save (the web client's Configuration page, or any client's `config.put`): a save
   appends one `config@1` line to the same journal (`source: board`) for each key whose effective value it
   changes (the two limits, and each role's agent, model and escalation), which `status` and the
@@ -88,7 +91,7 @@
   a drop of a `3-ready` CR on the running batch writes no file in the CR's folder and appends
   only its journal lines (its `board@1` line, action `running-batch`, which the Chief of Staff
   turns into `order add`);
-  a fourth, the board's Griller: on the request of any client holding the board's key (this machine,
+  a fourth, the board's Griller: on the request of any client holding the private key (this machine,
   or the local network when `board.host: network`), and on an item of the inbox, the backlog
   (`2-backlog/P1`...`P4`) or `3-ready` only (never a CR of `4-batch/`, an archive or the trash), the
   server starts the headless CLI of the host it runs under (`claude -p`; `copilot -p` only once a
@@ -96,7 +99,7 @@
   one line), as the plugin's own `board-griller` agent only (any other agent set for that role
   refuses the Grill action with one line naming the setting) with the project's model for that role
   on that host, one run per message typed in the board, each run resuming the conversation of the run
-  before, one shared conversation per CR that every holder of the key reads and any holder may stop
+  before, one shared conversation per CR that every holder of the private key reads and any holder may stop
   or end, at most one run per planning surface (per project's planning folder in-project) at a time
   and at most 10 minutes per run, and no process between two runs; the first run's prompt is a fixed
   brief that names the Griller card, the CR's folder and the CLI, followed by the typed text, and each
@@ -114,7 +117,7 @@
   session moves the item during a run, the server stops the run and removes, at the old path, only
   the files that appeared there after the move; this is not the board messaging an agent: the
   server sends a run nothing of its own
-  but that fixed brief, only the words a holder of the key typed, to a run it started for the key's
+  but that fixed brief, only the words a holder of the private key typed, to a run it started for the key's
   holder, and it sends nothing to any session (no Chief of Staff, Foreman, Driver or Griller
   session) and records nothing in a batch; when a run has written in that CR's folder, the server
   appends one `board@1` line (action `grill`) to the project's `forge-journal.jsonl` through the one
@@ -122,7 +125,7 @@
   its memory only (the host CLI keeps its own session files, as for any session of the user),
   refuses with one line while the surface's writer is not running or stopped, and no agent starts
   it; the board speaks plain HTTP, so on the network the key and every turn's text travel in clear,
-  and `chantier serve --new-key` revokes the key; built on the user's direction of 2026-11-17 and
+  and `chantier serve --new-key` replaces both keys; built on the user's direction of 2026-11-17 and
   answers "Tout" (2026-11-21) and board-griller-Q4 B and Q20, with no measured cost; it takes its
   dependencies like the rest of the CLI and knows no role but the board's Griller. The same process is the
   forge hub while it runs (one per planning surface and machine, started by a session's watcher,

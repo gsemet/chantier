@@ -35,9 +35,9 @@ def test_the_server_command_is_named_in_one_place_and_the_warning_is_word_for_wo
     assert named == ["js/panel/griller-view.js"]
     assert "'chantier board'" in _read("js", "panel", "griller-view.js")
     words = _read("js", "i18n", "en-griller.js")
-    assert "`{command} --new-key` revokes the key." in words
+    assert "`{command} --new-key` replaces both keys." in words
     assert "Your first message is your yes." in words
-    assert "This conversation is shared: anyone holding the board" in words
+    assert "This conversation is shared: anyone holding the private key" in words
 
 
 @pytest.mark.parametrize(

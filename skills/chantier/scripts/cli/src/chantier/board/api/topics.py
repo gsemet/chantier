@@ -26,6 +26,10 @@ Reading = tuple[str, dict[str, Any] | None] | None
 Read = Callable[[Context, Any, str | None], Reading]
 
 
+# What the public read-only key may watch; any other topic needs the private key.
+READ_TOPICS = frozenset({"board", "project", "costs", "prs", "journal", "events"})
+
+
 def _hash(*parts: Any) -> str:
     text = json.dumps(parts, sort_keys=True, ensure_ascii=False, default=str)
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:32]
