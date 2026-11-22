@@ -230,11 +230,11 @@ improves the procedure, which stays written and maintained in the project.
 
 `chantier serve` serves the CR board as a web page, on this machine by default, and on the phone or
 any device of the local network once you open it to the network: the live batches, what waits
-for you, the backlog and the merged CRs, and, once opened, it lets you triage the backlog from your phone.
+for you, the backlog and the merged CRs, and, once opened, it lets you triage the backlog from your phone, and grill an item with the board's Griller. `chantier webui` prints its link and starts it when none runs; a second, read-only key can be shared and acts on nothing.
 
-![The web board: a batch in stack mode, its CRs by level, the PRs to review and the drafts](docs/web-board/batch-pc.png)
+![The web board: a batch in stack mode, its CRs in the Kanban tab by stage, the PRs to review and the drafts](docs/web-board/batch-pc.png)
 
-*The web board with a batch running, on a made-up project.* It updates live, and it is one client of the server's published API ([server API](docs/server-api.md)), which a script or another app can use too. On Claude Code, a read-only pane shows
+*The web board with a batch running, on a made-up project.* It updates live, and it is one client of the server's published API ([server API](docs/server-api.md)), which a script or another app can use too ([the server, drawn](docs/surface-server.svg)). On Claude Code, a read-only pane shows
 the same record beside it; open it with `/chantier-board`, or by loading the Chief of Staff. See
 [boards](docs/boards.md) for the pane and [the web board](docs/web-board.md) for every view, with
 pictures.
@@ -302,7 +302,7 @@ Talk to the Chief of Staff in plain language:
 | "it is grilled enough" | the spec-writer writes the Change Specification in the background; on an impactful CR the spec critic checks it after |
 | "run the P1s", "run these in series", "build a stack of these" | preflight, questions, the plan, then a Foreman starts on your go, or the Chief of Staff steers in direct mode, as the plan says (the surface, or your `foreman` / `direct`); a stack is one native stack on the forge, merged in one action from its top PR or one PR at a time from the bottom, as you choose; a PR ready to merge (out of draft) is mergeable at once, a PR in draft is not |
 | "status?" | one line per CR with its PR; a blocked CR comes back as a question; a CR that waits outside the batch is parked (its slot freed, its dependents waiting with it, back on top once its wait is cleared), and `close` and the release wait for it |
-| "drop CR-103", "I merged #42" | an order for the steering session (the Foreman, or the Chief of Staff in direct mode), never a direct action on a Driver |
+| "drop CR-103", "I merged #42" | an order for the steering session (the Foreman, or the Chief of Staff in direct mode), never a direct action on a Driver; a dropped CR goes where you say (the trash, the next batch or the backlog, never the inbox); "hold CR-103" keeps it out of the order without leaving the batch |
 | "close the batch" | the check and the final cost, then closing on your yes |
 | "release v1.4.0" | a release CR, run by your project's procedure; you approve each irreversible action |
 | "what did it cost?" | measured cost: the Foreman, each Driver type, each worker type, and why |

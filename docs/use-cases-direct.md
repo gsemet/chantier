@@ -43,8 +43,8 @@ Chief of Staff says this limit, its reason and the Griller way at once.
 To grill meanwhile, open a Griller (`/chantier:griller`, or a fork in remote: see
 [the how-to](use-cases.md#a-chief-of-staff-and-grillers-in-remote)). It grills, files and
 specifies your own ideas into the backlog, beside the batch. Those
-CRs join the batch through the steering session once it is paused (you say so there, and it adds
-them), or wait for the next batch.
+CRs, once specified, join the batch through the steering session (you say so there, and it adds
+them with `order add`; it is taken when a slot frees), or wait for the next batch (`3-ready`).
 
 ## Run a batch
 
@@ -60,7 +60,7 @@ the previous one's branch, and a stack driver makes one native stack afterwards,
 
 The orders of Foreman mode that act on the batch itself work the same: drop a CR, a note on a CR,
 "I merged #42", more rounds, slots or budget, and a hold ("Hold" sets the slots to 0, "Resume"
-gives a number back). `order qa` does not, as above.
+gives a number back), and holding one CR out of the order (`order hold`, then `order unhold`). `order qa` does not, as above.
 
 ## When the batch is paused, and when you close it
 

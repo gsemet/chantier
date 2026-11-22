@@ -30,7 +30,7 @@ claude plugin marketplace add gsemet/chantier
 claude plugin install chantier@chantier
 ```
 
-This installs four skills (the router `chantier`, `chief-of-staff`, `griller` and `status`) and twelve
+This installs four skills (the router `chantier`, `chief-of-staff`, `griller` and `status`) and fifteen
 agents (`chantier:cr-driver`, `chantier:coder`, …). Restart the Desktop app so it loads them. There is nothing else to install
 and nothing to configure.
 
@@ -155,7 +155,7 @@ While the team works, keep talking to the Chief of Staff:
 | You say | What happens |
 | --- | --- |
 | "status?" | one line per CR, with its PR link |
-| "drop CR-102" | the Foreman stops its Driver; the folder goes to `6-trash/` |
+| "drop CR-102" | the Foreman stops its Driver; the folder goes where you say: the trash (`6-trash/`), the next batch (`3-ready`) or the backlog (`P1` to `P4`), never back to the inbox; the Chief of Staff asks once when your word does not say |
 | "CR-103 first" | a note on the CR; the Foreman gives it the next free slot |
 | "for CR-101, also handle the remember-me checkbox" | a note on the CR; the Driver takes it into its next round |
 | "what did it cost?" | the measured cost so far: the Foreman, each Driver type, each worker type |

@@ -64,6 +64,8 @@ the file, and `order drop` writes a dropped CR's open waits back into one. The a
 has two places: the surface's `5-archives/` (with a `delivery.md`: the PR, the merge time) and,
 by the project's setting (default no), a cleaned copy in the CR's PR, in external mode.
 
+A CR that waits for something outside the batch carries typed **waits**: `chantier wait <cr> add <type>` records one (an `answer`, an `approval`, a `pipeline` with its PR or MR, or a `merge`; `--ref`, `--link` and `--note` say what and why) and `chantier wait <cr> clear <id>` clears it; `status` shows each open wait, and the forge hub appends a `wait-cleared@1` line when the forge shows a PR wait met. A Driver, the stack driver and a QA driver hold a short **lease** on their unit (`chantier lease <unit> renew`, or `hold` to keep it live for a bounded time while a long step runs): `take --reclaim` takes a CR again once the steering session checked that its Driver ended, and while the lease is live only on your word. `chantier access [write|claim|push] [<cr>]` changes nothing: it says why this session may or may not write the planning folder, claim a CR or push its branch.
+
 `STATUS.md` and `STATUS.json` exist at three levels (the planning folder, `4-batch/`, the CR), each
 linking to the others. The CLI rewrites them at every state change, from the state alone; a
 status cell reads like `🔴 blocked Question 1/3`.
@@ -139,7 +141,7 @@ checks an audience value's form, never what it names, and routes to no role, CR 
 | `checks-red@1` | the hub | yes |
 | `wait-cleared@1` | the hub | yes |
 | `config@1` | the board's Configuration page | yes |
-| `board@1` | the board's backlog writes | when `wakes`: true for `new`, `move`, `edit` and `running-batch` |
+| `board@1` | the board's backlog writes and its Griller's turns (action `grill`) | when `wakes`: true for `new`, `move`, `edit` and `running-batch` |
 | `issue@1` | an outside poller, through `chantier journal add`, only for an issue a CR's `issue:` line names | when `wakes` (default true) |
 | `sync-conflict@1` | the writer | yes |
 | `sync-blocked@1` | the writer | yes |

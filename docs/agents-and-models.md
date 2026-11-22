@@ -99,7 +99,7 @@ prints the result as `timing:` lines; a running batch keeps the timing it opened
 [web board](web-board.md)'s Configuration page has a Timing tab for it.
 
 The file's other keys are `prices`, `board` (where [the web board](web-board.md) listens: `host`
-and `port`), `ci` (`beside_gate: true`: a CR's CI runs while its local long gate runs; it spends CI
+and `port`), `specifying` (`parallel`: the most CRs specified at once on the project, 4 by default), `batch` (`slots`: the slots `open` gives a batch when no `--slots` is given, 4 by default), `events` (`wake_every`: a session's watcher ends no sooner than this after its start, 20 s by default), `ci` (`beside_gate: true`: a CR's CI runs while its local long gate runs; it spends CI
 minutes on every approved round, off by default) and `long_gate` (`parallel`: how many long gates may run at once; `commands`: the long gate's names and their commands, read only from the code repository's root `chantier.yaml`; [your gates](gates.md)). Only the `chantier` CLI reads these files: it refuses an unknown role, key or model, and an
 incomplete price entry, with the line, and turns a model name into an exact identifier
 (`chantier playbook` shows the result); the agents pass it as printed. On Copilot the names it
@@ -141,11 +141,12 @@ agent file's.
 | Verifier, Debugger, Conflict resolver | Sonnet 5.5 | GPT-6.1 Terra |
 | Spec-writer | Opus 5.5 | Claude Opus 5.5 |
 | Spec critic | Opus 5.5 (Fable on request) | Claude Opus 5.5 |
+| Retro critic | Opus 5.5 | Claude Opus 5.5 |
 | Board's Griller | Opus 5.5 | Claude Opus 5.5 |
 
 The board's Griller runs only the plugin's own agent: its model is yours to set, its agent is not (see [the web board](web-board.md#the-boards-griller)).
 
-By default every role but the Spec-writer, the Spec critic and the board's Griller runs Sonnet 5.5 on Claude Code. The roles that judge
+By default every role but the Spec-writer, the Spec critic, the Retro critic and the board's Griller runs Sonnet 5.5 on Claude Code. The roles that judge
 keep cards with goals and boundaries, not procedures. On a named trouble a coding task goes to a new
 agent on the role's `escalation` model (Opus 5.5 by default, set per role in the configuration),
 once per CR and then the user, and the report says so. On Copilot the agent files' models run when no

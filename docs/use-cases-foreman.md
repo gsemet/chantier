@@ -80,7 +80,8 @@ to date.
 | You say | What happens |
 | --- | --- |
 | "Add the rate-limit item to tonight's batch." | the CR (already specified) joins the queue |
-| "Drop CR-104 export-csv, we'll do it later." | its Driver stops; its folder goes to `6-trash/`, not back to the backlog, and `status` shows it as `cancelled`; a second drop of it is refused ("already dropped"); its branch and worktree stay until you close the batch and say yes |
+| "Drop CR-104 export-csv, we'll do it later." | its Driver stops; its folder goes where you say (`order drop --note`): the trash (`6-trash/`, `status` shows it as `cancelled`), the next batch (`3-ready`) or the backlog (`P1` to `P4`), never the inbox; the Chief of Staff asks once when your word does not say; the CR keeps its work, and its branch and worktree stay until you close the batch and say yes; a second drop of it is refused ("already dropped") |
+| "Hold CR-105 for now." · "Put CR-105 back." | `order hold` keeps a live CR (working, or ready in a stack) out of the order without leaving the batch, in every mode; its Driver stops, the CRs that wait with it wait too, and the batch stays open while one is held; `order unhold` puts it back on top (one held while working comes back `blocked`, to be taken again) |
 | "CR-103 goes first." | a note on the CR; the Foreman gives it the next free slot |
 | "For CR-102, keep the old API too." | a note on the CR; its Driver decides: next round, restart, or after the PR, and says which |
 | "Hold." · "Resume." | slots 0: no new CR starts (a hold); a number resumes |

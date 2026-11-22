@@ -35,9 +35,9 @@ The Inbox lists what waits for you, newest first, for the project chosen, or for
 
 ### Batch
 
-![The batch: levels, PRs to review and PRs in draft](web-board/batch-pc.png)
+![The batch: the Kanban tab, PRs to review and PRs in draft](web-board/batch-pc.png)
 
-The batch in four figures (the slots, the CRs working, the CRs handed back ready, what was spent), then the CRs as boxes in levels, "Level 1", "Level 2" and so on: a CR sits in the level below the CRs it waits for, and an arrow goes from a CR to the one that waits for it. A CR keeps its place while the batch's waits do not change; it moves when a wait changes, or when a CR merges or is cancelled while the merged CRs are folded. The merged and cancelled CRs are folded behind a chip, "N merged", above the graph; click it to show them in their levels. The state is a badge in the CR's top right corner, its icon and word in the state's colour: blocked, working, **ready to merge**, **PR in draft**, **ready locally** (done, no PR yet), waits, queued, merged; its legend is in the "States and arrows" tooltip. Hover a CR to see what it waits for and what waits for it; a click opens its folder. A CR that waits for several others takes all its arrows at one point of its left edge, under one arrowhead. Only the waits that no chain of arrows already implies are drawn: hover a CR to light every CR it waits for, and its wait count lists them all. When you hover or focus a CR, its arrows are drawn above the cards, so an arrow that skips a level can be followed from end to end.
+The batch in four figures (the slots, the CRs working, the CRs handed back ready, what was spent), then four tabs on the CRs (below; the picture above is the Kanban, the default). The **Graph** tab draws the CRs as boxes in levels, "Level 1", "Level 2" and so on: a CR sits in the level below the CRs it waits for, and an arrow goes from a CR to the one that waits for it. A CR keeps its place while the batch's waits do not change; it moves when a wait changes, or when a CR merges or is cancelled while the merged CRs are folded. The merged and cancelled CRs are folded behind a chip, "N merged", above the graph; click it to show them in their levels. The state is a badge in the CR's top right corner, its icon and word in the state's colour: blocked, working, **ready to merge**, **PR in draft**, **ready locally** (done, no PR yet), waits, queued, merged; its legend is in the "States and arrows" tooltip. Hover a CR to see what it waits for and what waits for it; a click opens its folder. A CR that waits for several others takes all its arrows at one point of its left edge, under one arrowhead. Only the waits that no chain of arrows already implies are drawn: hover a CR to light every CR it waits for, and its wait count lists them all. When you hover or focus a CR, its arrows are drawn above the cards, so an arrow that skips a level can be followed from end to end.
 
 ![The batch's graph: levels and the arrows between CRs](web-board/batch-graph-pc.png)
 
@@ -149,6 +149,12 @@ The Griller writes only in the CR's folder (`02-answers.md`, the summary) and ru
 
 The board speaks plain HTTP: on the network, the key (the link and its 30-day cookie) and every turn's text travel in clear. `chantier serve --new-key` replaces both keys.
 
+## Help
+
+![The Help page](web-board/help-pc.png)
+
+The bar's **Help** opens the board's own help, in English or French like the rest of the page. It has two kinds of card: **concept cards** (the planning folder, a CR and its stages, the batch and its modes, the planning modes, the ways the record is shown) and **role cards** (the Chief of Staff, the Foreman, the Driver, the Griller and the other roles). A click on a card opens its detail, and each detail ends with a "read more" link to the page of these docs that holds the whole story. On a phone the cards stack in one column.
+
 ## A new idea
 
 ![The New dialog](web-board/new-pc.png)
@@ -161,6 +167,8 @@ The board speaks plain HTTP: on the network, the key (the link and its 30-day co
 
 On a planning surface, the bottom of the left bar shows a pill with the state of the surface's writer, the part of the board that commits and pushes the plan ([planning-modes](planning-modes.md#the-surfaces-writer)): **synced** (green, with the time of the last push), **pending** and **syncing** (blue), **offline** (grey, the origin is out of reach), **conflict** and **blocked** (red, the Chief of Staff must integrate or fix it) or **off** (grey: no writer runs). A click opens a panel: the state and since when, the last push, the paths to commit, the commits to push, the conflict's files or the blocked reason with its way out, and one button, **Sync now**, that asks the writer for a cycle at once. There is no Start, Stop or Approve: the writer lives as long as the board does. A board on a project's own folder has no pill.
 
+The writer, the forge hub and the board are one process, the surface server; [the diagram](surface-server.svg) shows what it reads, what it edits and what it never does.
+
 ## On a phone
 
 Each view fits a phone: the bar is at the bottom, the project picker and **+ New** at the top, the writer pill is a dot beside the picker, and the tables and boards become lists and stacked cards.
@@ -169,7 +177,7 @@ Each view fits a phone: the bar is at the bottom, the project picker and **+ New
 | --- | --- | --- | --- | --- |
 | ![The batch on a phone](web-board/batch-phone.png) | ![Triage on a phone](web-board/triage-phone.png) | ![Triage with two post-its selected and the bottom bar](web-board/triage-selection-phone.png) | ![The project picker on a phone](web-board/picker-phone.png) | ![The writer on a phone](web-board/writer-phone.png) |
 
-The Inbox on a phone is `web-board/inbox-phone.png`. The other views, each at both sizes, are in [`docs/web-board/`](web-board/): `<view>-pc.png` and `<view>-phone.png`.
+The Inbox on a phone is `web-board/inbox-phone.png`, and Help is `web-board/help-phone.png`. The other views, each at both sizes, are in [`docs/web-board/`](web-board/): `<view>-pc.png` and `<view>-phone.png`.
 
 ## Language
 
@@ -205,7 +213,10 @@ files, and declare the next batch ready (`next-batch.json`, the time and the CRs
   app's built-in browser, a cleared jar) shows a field: paste the key or the whole link there.
   Several boards, of one surface or of several, work side by side in one browser, each with its own
   cookie. The link is yours
-  only; whoever has it reads the planning folder. `chantier serve --new-key` replaces the key
+  only; whoever has it reads the planning folder and acts on it. A second, **public read-only key** has its own
+  link, the `read-only:` line of the start lines: it shows the board and acts on nothing (no write,
+  no Grill, no configuration save, no command run through `cli.run`), so it can be shared; the page
+  shows a read-only mark and hides what it cannot do. See [the server's key](server-api.md#the-key). `chantier serve --new-key` replaces the key
   while the board runs: the old link, the cookies and the open pages stop working at once. The key lives in the repository's git folder
   (`chantier/server.json`), so it survives restarts and is never pushed. While the board runs,
   the same file holds its record next to the key (`server`: PID, address, port, version): one
@@ -263,12 +274,13 @@ board:
   port: 8765        # default 8765
 ```
 
+- **The link on demand.** `chantier webui` prints the board's link with its key (and the read-only one) and starts the server, detached, when none runs; typing it is the yes. A server it starts holds no seat and stops by itself 30 minutes after its last client.
 - **By hand.** `chantier serve --host <address> --port <n>`. With no plugin and no agent, on a
   machine where only `uv` is installed, start it from a planning surface with
   `uvx --from git+https://github.com/gsemet/chantier@v<version> chantier --project <folder> serve`
   (`<version>` is the release the surface's planners use). In chantier's own checkout, when the
   session's project is chantier, start it with `uv run --no-sync --project <checkout> chantier
-  board` after a `uv sync --locked --project <checkout>`; never `uvx --from <checkout>` for the
+  serve` after a `uv sync --locked --project <checkout>`; never `uvx --from <checkout>` for the
   chantier project; another project's session runs it in plugin mode
   (`uvx --from "<plugin root>" chantier --skill "<skill folder>" serve`). From the surface's root, with no `--project`, the
   board serves every project of the surface; it runs until you stop it, so a scheduled task or a

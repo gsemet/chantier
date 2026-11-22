@@ -233,6 +233,10 @@ def views(page: Page, url: str, size: str) -> None:
     page.wait_for_selector(".inbox")
     settle(page)
     shot(page, "inbox", size)
+    goto(page, url, "help", "shop-api")
+    page.wait_for_selector(".help")
+    settle(page)
+    shot(page, "help", size)
     goto(page, url, "batch", "shop-api")
     shot(page, "batch", size)
     # on a phone the PR column comes first
