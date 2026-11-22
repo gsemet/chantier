@@ -154,6 +154,11 @@ class PrsArgs(_Model):
     batch: str | None = None
 
 
+class DashboardArgs(_Model):
+    project: str
+    range: Literal["10", "20", "all"] = "10"
+
+
 class SeatArgs(_Model):
     session: str
     project: str | None = None
@@ -218,6 +223,7 @@ OP_ARGS: dict[str, type[BaseModel]] = {
     "costs.get": ProjectArgs,
     "costs.recompute": ProjectArgs,
     "prs.get": PrsArgs,
+    "dashboard.get": DashboardArgs,
     "seats.register": SeatArgs,
     "backlog.new": NewArgs,
     "backlog.move": MoveArgs,

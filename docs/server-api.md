@@ -81,6 +81,7 @@ refused (400).
 | `costs.get` | `project` | `recorded`, `live`, `now` |
 | `costs.recompute` | `project` | `202`: the recorded costs are being recomputed |
 | `prs.get` | `project`, `batch`? | the batch's PRs as the forge says they are now (`all_done`, `closed`, the rows, `now`) |
+| `dashboard.get` | `project`, `range`? | the Dashboard's figures over the project's closed batch records (range "10", "20" or "all", default "10"): points, productivity, spending, closed_total, now; read-only, computed from the records the server already reads |
 | `seats.register` | `session`, `project`? | the seat of a session is recorded for the board |
 | `backlog.new` | `project`, `text`, `slug`?, `title`? | the item filed in the inbox |
 | `backlog.move` | `project`, `to`, `items`?, `group`? | the items moved to `to` (the inbox, a priority, `3-ready`), or `running-batch`: marked for the open batch, or, from `3-ready`, a journal line only; with no open batch, moved to `3-ready` |

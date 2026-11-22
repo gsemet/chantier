@@ -244,6 +244,7 @@ One row per custom property of `css/tokens.css`, in its order. Kind: `colour`, `
 | `--nav-height`         | `36px`                                                                                                                                                                  | size   | a frame's size                                                  |
 | `--gap-main`           | `32px`                                                                                                                                                                  | space  | the gap between a page's main regions                           |
 | `--phone-max`          | `760px`                                                                                                                                                                 | size   | a frame's size                                                  |
+| `--chart-height`       | `160px`                                                                                                                                                                 | size   | a chart's plot height                                           |
 
 ### Off-scale values, kept as they were
 
@@ -297,6 +298,7 @@ The classes in backticks; a trailing `-*` is a prefix.
 | card      | `css/components/card.css`   | `js/ui/card.js`   | `card`, `card-*`                |
 | column    | `css/components/column.css` | `js/ui/column.js` | `column`, `column-*`            |
 | chip      | `css/components/chip.css`   | `js/ui/parts.js`  | `tag`, `lbl`, `lab`, `si`, `sb` |
+| chart     | `css/components/chart.css`  | `js/ui/chart.js`  | `chart`, `chart-*`              |
 
 ## Protected features
 
@@ -327,3 +329,22 @@ one more words-only span in its card's meta line, `waits: <types>` (`card.waits`
 built by `js/ui/item-card.js`'s `waitsMeta` for the Kanban's CR card and the shared item card
 (Triage and Kanban backlog). It is plain text: no new colour, size, icon or class, and no span
 with no open wait. The board only shows a wait; the steering session clears it.
+
+## Dashboard
+
+A read-only view whose figures come from the server's `dashboard.get` op (`board/dashboard_page.py`),
+computed from the closed batch records and apart from the drawing: the views compute no figure.
+
+- One point per closed batch, never per day. A figure a record lacks is no point (a cut line, an
+  empty bar slot), never a zero, and each tile says how many batches it covers.
+- Charts are drawn by the `chart` component as inline SVG (lines, and stacked bars for the stacked
+  tiles), no chart library, no `style` attribute (colours reach the sheet as `data-vars`).
+- Colours are existing tokens: the Costs card's part shades, `--m1` to `--m8` by the project's
+  all-time model cost order (`--m8` is also "other models" when there are more than eight),
+  `--queued-bar` for "not split", `--accent-light` dashed and `--state-merged` for held and merged.
+- Never a series by colour alone: its word in the legend, a dash for a line, the stack's order, and
+  every value in the readout. A value is read on hover, on focus and on a tap.
+- The tile is the figure card; the range selector reuses `.seg` of `css/views/costs-models.css`
+  unchanged (not a component; moving it is a separate CR). Every word is an i18n key of
+  `en-dashboard.js` and `fr-dashboard.js`.
+- No protected feature is added; the Costs page and its protected features are untouched.

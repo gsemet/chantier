@@ -1,0 +1,151 @@
+/* The chart component (DESIGN.md), built by js/ui/chart.js: a readout line, a plot at a fixed height
+   (--chart-height) drawn as one stretched SVG (lines and marks keep their thickness through
+   vector-effect), a transparent column over each point to read it, the batch numbers under it and
+   a legend. A colour reaches it as --c and the number of points as --n (data-vars); tokens only. */
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+}
+
+.chart-read {
+  margin: 0;
+  min-height: calc(2.8 * var(--text-small));
+  color: var(--ink2);
+  font-size: var(--text-small);
+}
+
+.chart-body {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: var(--space-2);
+  row-gap: var(--space-1);
+}
+
+.chart-y {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: var(--ink3);
+  font-size: var(--text-small);
+  text-align: right;
+}
+
+.chart-plot {
+  position: relative;
+  height: var(--chart-height);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.chart-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.chart-line,
+.chart-mark {
+  fill: none;
+  stroke: var(--c);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.chart-line {
+  stroke-width: 2;
+}
+
+.chart-dash {
+  stroke-dasharray: 5 4;
+}
+
+.chart-mark {
+  stroke-width: 6;
+}
+
+.chart-bar {
+  fill: var(--c);
+  stroke: var(--panel);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.chart-cols {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--n), 1fr);
+}
+
+.chart-col {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
+
+.chart-col:hover,
+.chart-col:focus {
+  background: var(--accent-tint);
+}
+
+.chart-col:focus-visible {
+  outline: 1px solid var(--accent);
+}
+
+.chart-x {
+  display: grid;
+  grid-column: 2;
+  grid-template-columns: repeat(var(--n), 1fr);
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+.chart-x span {
+  display: flex;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.chart-axis {
+  grid-column: 2;
+  color: var(--ink3);
+  font-size: var(--text-small);
+  text-align: center;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: 0;
+  color: var(--ink2);
+  font-size: var(--text-small);
+  list-style: none;
+}
+
+.chart-legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.chart-swatch {
+  width: var(--space-4);
+  height: var(--space-2);
+}
+
+.chart-sq {
+  width: var(--space-2);
+  height: var(--space-2);
+  background: var(--c);
+}
