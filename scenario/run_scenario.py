@@ -2701,6 +2701,7 @@ def serve_and_webui(w: World) -> None:
     for each in (sw, sw2):
         each.root.mkdir()
         each.build()
+        each.chantier("init")
     procs: list[BoardProc] = []
     try:
         first = BoardProc(sw, "--project", "demo", "serve", "--host", "127.0.0.1", "--port",
