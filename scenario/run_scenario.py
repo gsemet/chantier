@@ -314,6 +314,7 @@ class World:
         self.name = ""  # the running batch's id, `batch-<n>`: the CLI numbers it
         self.leases: dict[str, int] = {}  # the number `take` printed, by unit (upper case)
         self.gate_cmds = {GATE_NAME: GATE}  # the workspace's chantier.yaml: name -> command
+        self.yaml_text: str | None = None  # what the harness last wrote into that file
 
     def gate_named(self, command: str) -> str:
         """The name the workspace's `chantier.yaml` gives a long gate's command (it is written
@@ -345,10 +346,13 @@ class World:
         new = "\n".join([*keep, *block]) + "\n"
         if new != text:
             yaml.write_text(new, encoding="utf-8")
+        self.yaml_text = new
 
     def named_args(self, args: tuple) -> tuple:
         """A `gate` call as the Driver types it: each command word of the harness becomes the
         name `chantier.yaml` gives it (the options and the CR stay)."""
+        head = args[:2] if str(args[0]) == "--project" else ()  # SurfaceWorld's global option
+        args = args[len(head):]
         out, i, seen_cr = [], 0, False
         while i < len(args):
             a = str(args[i])
@@ -365,7 +369,15 @@ class World:
             else:
                 out.append(self.gate_named(a))
             i += 1
-        return tuple(out)
+        return (*head, *out)
+
+    def untracked_but_own(self, lines: list[str]) -> list[str]:
+        """`git status` lines without the harness's own `chantier.yaml` (the named long gates it
+        wrote, as the user would), while the file still holds exactly that text."""
+        yaml = self.work / "chantier.yaml"
+        own = (self.yaml_text is not None and yaml.exists()
+               and yaml.read_text(encoding="utf-8") == self.yaml_text)
+        return [ln for ln in lines if not (own and ln == "?? chantier.yaml")]
 
     def gate_argv(self, cr: str, *commands: str) -> list[str]:
         """A background `chantier gate` of the named commands, for `subprocess.Popen`."""
@@ -442,7 +454,7 @@ class World:
     def chantier(self, *args, env=None, expect=0, cwd=None, lease=True, stdin=None, named=True):
         """`lease=False` runs a Driver's command without the number `take` printed (a missing
         lease case); `named=False` passes a `gate` call's words as they are (a free command)."""
-        if named and args and args[0] == "gate":
+        if named and self.words(args)[:1] == ["gate"]:
             args = self.named_args(args)
         unit = self.lease_unit(args) if lease else None
         if unit and self.leases.get(unit):
@@ -10692,7 +10704,8 @@ def external_surface(tmp: Path) -> None:
           and not any("/work/" in f for f in tree), str(tree))
     surface_publishes(w, "after the PR")
     check("the project's clone stays clean: its worktrees hold the Driver's commits",
-          w.sh("git", "status", "--porcelain", cwd=w.work) == "", w.sh("git", "status", "--porcelain", cwd=w.work))
+          not w.untracked_but_own(w.sh("git", "status", "--porcelain", cwd=w.work).splitlines()),
+          w.sh("git", "status", "--porcelain", cwd=w.work))
     w.ready(cr, w.cr(cr)["pr"])
     fm.turn()
     merge_pr(w, w.cr(cr)["pr"])
@@ -11109,7 +11122,7 @@ def remove_tree(path: Path) -> str:
 def write_scope(w: World) -> None:
     """The end of every unit: git sees nothing outside the planning folder."""
     lines = w.sh("git", "status", "--porcelain", "-uall").splitlines()
-    outside = [ln for ln in lines if not ln[3:].startswith(".agents/changes/")]
+    outside = [ln for ln in w.untracked_but_own(lines) if not ln[3:].startswith(".agents/changes/")]
     check(
         "chantier wrote nothing outside the planning folder (`git status` shows only "
         ".agents/changes/)",
