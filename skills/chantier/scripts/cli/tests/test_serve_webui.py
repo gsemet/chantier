@@ -182,7 +182,13 @@ def test_webui_prints_the_link_and_starts_a_server_when_none_runs(
 ) -> None:
     fake = FakeBoard(*WEBUI_STATES[case])
     monkeypatch.setattr(webui, "Board", lambda: fake)
+    keys.load_or_create(open_projects().home)
+    read = command.READ_ONLY.format(
+        link=f"http://127.0.0.1:4321/?k={keys.public_key(open_projects().home)}"
+    )
     code, out, err = chantier("webui")
+    if case in ("running", "starts"):
+        assert read in out and out.index(read) == 1  # after the private link's line
     if case == "running":
         assert code == 0 and out[0] == "board already running at http://127.0.0.1:4321/?k=k9"
         assert not fake.spawned

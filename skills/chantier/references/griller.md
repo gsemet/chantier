@@ -95,7 +95,7 @@ you do not understand: `$CHANTIER access` before you ask.
 ## Started from the board
 
 You are started by the surface server, headless, one run per message typed in the web board,
-resumed from the run before. The conversation is shared by every holder of the board's key, so the
+resumed from the run before. The conversation is shared by every holder of the private key, so the
 words may come from more than one person. You take no seat (skip `session-start.md`'s seat reading
 and title), start no watcher, server or hub, and never open, pause, order or steer anything
 ("Never" holds).

@@ -9,7 +9,8 @@ from typing import Any
 
 from chantier.board import running
 from chantier.board.address import is_loopback, local_url, url
-from chantier.board.command import BEYOND, _running_lines
+from chantier.board.command import BEYOND, _running_lines, read_only_lines
+from chantier.board.key import public_key
 from chantier.board.projects import open_projects
 from chantier.core.errors import EXIT_EXTERNAL, ChantierError
 from chantier.hub.feed import Board
@@ -35,7 +36,9 @@ def webui(args: argparse.Namespace, board: Board | None = None) -> list[str]:
         if not _answering(board, found):
             raise ChantierError(f"webui: {running.silent_text(found[0])}", EXIT_EXTERNAL)
         entry, key = found
-        return _running_lines((entry["host"], entry["port"]), key, False, entry)
+        return _running_lines(
+            (entry["host"], entry["port"]), key, False, entry, read_key=public_key(repo)
+        )
     cli = cli_command(repo)
     board.spawn([*shlex.split(cli), "serve", "--stop-idle"], projects.surface or repo.root)
     deadline = board.clock() + START_S
@@ -52,6 +55,7 @@ def webui(args: argparse.Namespace, board: Board | None = None) -> list[str]:
     lines = [f"board on {url(host, port, key)} over {entry.get('served')}"]
     if local := local_url(host, port, key):
         lines.append(f"on this machine: {local}")
+    lines.extend(read_only_lines(host, port, public_key(repo)))
     if not is_loopback(host):
         lines.append(BEYOND.format(host=host))
     lines.append(STOPS_IDLE)

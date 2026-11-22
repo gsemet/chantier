@@ -70,6 +70,7 @@ class Welcome(_Model):
     server: ServerInfo
     ops: list[str]
     topics: list[str]
+    access: Literal["read", "write"]
     now: str
 
 

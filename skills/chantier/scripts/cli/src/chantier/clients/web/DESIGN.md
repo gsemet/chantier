@@ -477,7 +477,7 @@ A discussion with a Griller, in the file panel, for an item of the inbox, the ba
   with the server's command (`BOARD_COMMAND` of `js/panel/griller-view.js`, the one place that names
   it). The last two stay under the conversation once it has started.
 - **Turns.** One turn at a time: while one runs, a working mark in words, the text box and Send
-  disabled, and Stop for every holder of the key; End after one confirmation, with no turn running.
+  disabled, and Stop for every holder of the private key; End after one confirmation, with no turn running.
   No streaming: the answer shows at the turn's end. The typed text is plain text, the answer goes
   through the panel's Markdown renderer. A turn sent from another client says so in words (the page's
   client id lives in `sessionStorage`). A turn that stopped, timed out or failed shows its one line,

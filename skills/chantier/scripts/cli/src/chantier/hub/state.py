@@ -1,5 +1,5 @@
 """The surface server's state file: `<git common dir>/chantier/server.json`, never in a working
-tree, never pushed, mode 0600 because it holds the board's key.
+tree, never pushed, mode 0600 because it holds the board's two keys (private, and public read-only).
 
 It holds the `key` and `created` (kept across starts), the `server` entry (the process that runs
 `chantier serve`: `pid`, `host`, `port`, `version`, `source`, `served`, `started`, and its `files`,
@@ -164,11 +164,25 @@ def check_writable(git_dir: Path) -> None:
     modify(git_dir, lambda _data: None)
 
 
-def set_key(git_dir: Path, key: str) -> None:
-    """Record a new key and when it was made; the entries stay."""
+def set_key(git_dir: Path, key: str, read_key: str | None = None) -> None:
+    """Record a new private key and when it was made, and with it the public read-only key when
+    one is given (both in one write); the entries stay."""
 
     def put(data: dict[str, Any]) -> None:
         data["key"], data["created"] = key, clock.now()
+        if read_key:
+            data["read_key"] = read_key
+
+    modify(git_dir, put)
+
+
+def set_read_key(git_dir: Path, read_key: str) -> None:
+    """Record the public read-only key when the file holds none (under the lock of `set_key`:
+    a key made by another process meanwhile stays)."""
+
+    def put(data: dict[str, Any]) -> None:
+        if not data.get("read_key"):
+            data["read_key"] = read_key
 
     modify(git_dir, put)
 
@@ -225,19 +239,26 @@ def write_server(
     _asserted[git_dir] = entry
 
 
-def reassert_server(git_dir: Path, key: str) -> None:
-    """From the server's tick: put back this process's `server` entry and the `key` if the file
-    lost them (a write that began from a bad read). One cheap read when they are there."""
+def reassert_server(git_dir: Path, key: str, read_key: str = "") -> None:
+    """From the server's tick: put back this process's `server` entry and the `key` and
+    `read_key` if the file lost them (a write that began from a bad read). One cheap read when
+    they are there."""
     entry = _asserted.get(git_dir)
     if entry is None or not key:
         return
     now = read(git_dir)
-    if now.get("key") and isinstance(now.get(SERVER), dict):
+    if (
+        now.get("key")
+        and (now.get("read_key") or not read_key)
+        and isinstance(now.get(SERVER), dict)
+    ):
         return
 
     def put(data: dict[str, Any]) -> None:
         if not data.get("key"):
             data["key"], data["created"] = key, clock.now()
+        if read_key and not data.get("read_key"):
+            data["read_key"] = read_key
         if not isinstance(data.get(SERVER), dict):  # never over another process's entry
             data[SERVER] = entry
 

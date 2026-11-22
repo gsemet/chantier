@@ -23,7 +23,7 @@ from websockets.sync.client import ClientConnection, connect  # noqa: TID253
 
 from chantier.board import key as keys
 from chantier.board import reads
-from chantier.board.api import protocol, times
+from chantier.board.api import ops, protocol, times, topics
 from chantier.board.api.push import PushLoop, PushThread
 from chantier.board.app import make_server
 from chantier.board.context import Context
@@ -32,7 +32,16 @@ from chantier.board.seats import Seats
 from chantier.core.repo import Repo
 from chantier.hub import state
 
-OK, MISSING, NO_KEY, BUSY, TOO_LARGE, TOO_MANY, SERVER_FAULT = 200, 404, 401, 503, 413, 429, 500
+OK, FORBIDDEN, MISSING, NO_KEY, BUSY, TOO_LARGE, TOO_MANY, SERVER_FAULT = (
+    200,
+    403,
+    404,
+    401,
+    503,
+    413,
+    429,
+    500,
+)
 TRY_AGAIN = 1013
 GOING_AWAY, KEY_REPLACED, TIMED_OUT, OTHER_PROTOCOL, BAD_FRAME = 1001, 4401, 4408, 4426, 4400
 LIMIT = 32
@@ -55,11 +64,28 @@ class Served:
         )
         return ws
 
+    @property
+    def read_key(self) -> str:
+        return self.ctx.key.read_current()
+
     def welcomed(self, how: str = "header") -> ClientConnection:
         ws = self.open(additional_headers={keys.HEADER: self.key} if how == "header" else None)
         ws.send(json.dumps(HELLO if how == "header" else {**HELLO, "key": self.key}))
         assert next_of(ws, "welcome")["protocol"] == 1
         return ws
+
+    def welcomed_with(self, how: str, secret: str) -> tuple[ClientConnection, dict[str, Any]]:
+        """A socket let in with this key by its `how` (header, cookie of the own origin, hello)."""
+        name = self.ctx.cookie + ("_read" if secret == self.read_key else "")
+        extra: dict[str, Any] = {}
+        if how == "header":
+            extra["additional_headers"] = {keys.HEADER: secret}
+        elif how == "cookie":
+            extra["additional_headers"] = {"Cookie": f"{name}={secret}"}
+            extra["origin"] = f"http://127.0.0.1:{self.port}"
+        ws = self.open(**extra)
+        ws.send(json.dumps({**HELLO, "key": secret} if how == "hello" else HELLO))
+        return ws, next_of(ws, "welcome")
 
 
 def next_of(
@@ -157,6 +183,45 @@ def test_the_welcome_names_the_ops_and_topics_and_hello_carries_the_key_when_no_
     assert welcome["server"]["pid"] > 0
     assert next_of(ws, "tick")["now"]
     ws.close()
+
+
+@pytest.mark.parametrize("how", ["header", "cookie", "hello"])
+@pytest.mark.parametrize("which", ["write", "read"])
+def test_either_key_opens_a_socket_and_the_welcome_says_which(
+    served: Served, how: str, which: str
+) -> None:
+    secret = served.key if which == "write" else served.read_key
+    ws, welcome = served.welcomed_with(how, secret)
+    assert welcome["access"] == which
+    ws.close()
+
+
+def test_a_read_socket_reads_and_is_refused_every_other_op_and_topic(served: Served) -> None:
+    ws, _ = served.welcomed_with("header", served.read_key)
+    project = served.ctx.projects.home_id
+    for n, op in enumerate(sorted(protocol.OP_ARGS)):
+        args = {"project": project} if "project" in protocol.OP_ARGS[op].model_fields else {}
+        ws.send(json.dumps({"t": "call", "id": f"c{n}", "op": op, "args": args}))
+        got = next_of(ws, "result", lambda f, n=n: f["id"] == f"c{n}")  # type: ignore[misc]
+        if op in ops.READ_OPS:
+            assert got["status"] != FORBIDDEN, op
+        else:
+            assert (got["ok"], got["status"], got["error"]) == (False, FORBIDDEN, ops.READ_ONLY)
+    for n, topic in enumerate(protocol.TOPICS):
+        args = {"project": project} if "project" in protocol.TOPIC_ARGS[topic].model_fields else {}
+        ws.send(json.dumps({"t": "sub", "id": f"s{n}", "topic": topic, "args": args}))
+        got = next_of(ws, "result", lambda f, n=n: f["id"] == f"s{n}")  # type: ignore[misc]
+        if topic in topics.READ_TOPICS:
+            assert got["status"] == OK, topic
+        else:
+            assert (got["status"], got["error"]) == (FORBIDDEN, ops.READ_ONLY), topic
+    ws.close()
+    private, _ = served.welcomed_with("header", served.key)
+    private.send(json.dumps({"t": "call", "id": "w", "op": "backlog.move", "args": {}}))
+    assert (
+        next_of(private, "result")["status"] != FORBIDDEN
+    )  # refused for its arguments, not its key
+    private.close()
 
 
 @pytest.mark.parametrize(

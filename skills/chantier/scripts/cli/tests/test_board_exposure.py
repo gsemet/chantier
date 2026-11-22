@@ -23,6 +23,7 @@ from chantier.playbook.board_check import HOST_NOT_NETWORK
 
 LAN, OTHER_LAN = "192.168.1.20", "10.0.0.7"
 SEE_OTHER = 303
+LAN_LINES = ("link", "local", "read-only", "local read-only", "beyond", "files")
 NETWORK = "board:\n  host: network\n"
 
 
@@ -98,15 +99,22 @@ def test_start_lines_with_network_and_the_default(
     monkeypatch.setattr(command, "probe", lambda *_a, **_k: None)
     monkeypatch.setattr(command, "_run", _served)
     out = _start(chantier, repo, NETWORK)
-    lines_with_network = ("link", "local", "beyond", "files")
     if route == LAN:
         assert out[0].startswith(f"board on http://{LAN}:") and " over " in out[0]
         assert out[1].startswith("on this machine: http://127.0.0.1:")
-        assert out[2].startswith("board: listens on the local network (0.0.0.0)")
-        assert len(out) == len(lines_with_network) and out[-1] == command.WATCHES
+        assert out[2].startswith(f"read-only: http://{LAN}:") and "acts on nothing" in out[2]
+        assert out[3].startswith("on this machine, read-only: http://127.0.0.1:")
+        assert out[4].startswith("board: listens on the local network (0.0.0.0)")
+        assert "the private link acts: give it to the user only" in out[4]
+        assert len(out) == len(LAN_LINES) and out[-1] == command.WATCHES
     else:
         assert out[0].startswith("board on http://127.0.0.1:")
-        assert out[1:] == [command.NO_NETWORK, command.WATCHES]
+        assert out[1].startswith("read-only: http://127.0.0.1:")
+        assert out[2:] == [command.NO_NETWORK, command.WATCHES]
+    assert (
+        out[0].split("?k=")[1].split(" ")[0]
+        != out[-4 if route == LAN else 1].split("?k=")[1].split(" ")[0]
+    )
 
 
 def test_the_default_start_prints_one_line(
@@ -115,7 +123,8 @@ def test_the_default_start_prints_one_line(
     monkeypatch.setattr(command, "probe", lambda *_a, **_k: None)
     monkeypatch.setattr(command, "_run", _served)
     out = _start(chantier, repo, None)
-    assert out[0].startswith("board on http://127.0.0.1:") and out[1:] == [command.WATCHES]
+    assert out[0].startswith("board on http://127.0.0.1:") and out[2:] == [command.WATCHES]
+    assert out[1] == command.READ_ONLY.format(link=out[1].split(" ")[1]) and "?k=" in out[1]
 
 
 def test_the_cookie_lasts_30_days_and_the_exchange_sets_it() -> None:
@@ -129,9 +138,9 @@ def test_the_cookie_lasts_30_days_and_the_exchange_sets_it() -> None:
 @pytest.mark.parametrize(
     ("host", "lines"),
     [
-        ("0.0.0.0", ("already", "on this", "listens")),
-        (LAN, ("already", "listens")),
-        ("127.0.0.1", ("already",)),
+        ("0.0.0.0", ("already", "on this", "read", "read local", "listens")),
+        (LAN, ("already", "read", "listens")),
+        ("127.0.0.1", ("already", "read")),
     ],
 )
 def test_a_second_start_says_when_the_running_board_is_open(
@@ -158,6 +167,8 @@ def test_a_second_start_says_when_the_running_board_is_open(
     marks = {
         "already": "board already running at http://",
         "on this": "on this machine: http://127.0.0.1:",
+        "read": "read-only: http://",
+        "read local": "on this machine, read-only: http://127.0.0.1:",
         "listens": f"board: listens on the local network ({host})",
     }
     assert [line[: len(marks[m])] for line, m in zip(out, lines, strict=True)] == [

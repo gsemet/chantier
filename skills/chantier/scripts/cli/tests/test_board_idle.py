@@ -20,7 +20,7 @@ from test_board_running import _answer, _prepare_board
 from test_file_watch import _ctx
 
 from chantier import __version__
-from chantier.board import command, idle
+from chantier.board import command, idle, options
 from chantier.board import key as keys
 from chantier.board.api import ops, times
 from chantier.board.api.push import PushLoop
@@ -212,7 +212,7 @@ def test_a_second_board_with_the_forge_always_registers_its_seat_and_says_the_fo
 
 def test_the_two_flags_together_are_a_usage_error(repo: Path, chantier: Chantier) -> None:
     code, _, err = chantier("serve", "--stop-idle", "--forge-always")
-    assert code == EXIT_USAGE and command.BOTH_FLAGS in "".join(err)
+    assert code == EXIT_USAGE and options.BOTH_FLAGS in "".join(err)
 
 
 @pytest.mark.parametrize(("mode", "line"), [(NOTIFY, command.WATCHES), (CHECK, command.CHECKS)])

@@ -58,7 +58,8 @@ def _switches(s: argparse.ArgumentParser) -> None:
     s.add_argument(
         "--new-key",
         action="store_true",
-        help="replace the board's key: the old link stops working",
+        help="replace both board keys (the private one and the public read-only one): the old "
+        "links stop working",
     )
     s.add_argument(
         "--stop-idle",

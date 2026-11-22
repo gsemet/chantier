@@ -15,7 +15,7 @@ from pydantic import ValidationError
 
 from chantier.board import guard
 from chantier.board import key as keys
-from chantier.board.api import auth, ops, protocol, times
+from chantier.board.api import auth, ops, protocol, times, topics
 from chantier.board.api.push import Subscription
 from chantier.board.context import Context
 from chantier.core import clock
@@ -70,6 +70,7 @@ class Connection:
         self.loop = asyncio.get_running_loop()
         self.welcomed = False
         self.credential: str | None = None  # the key this socket was let in with
+        self.access: str = "read"  # what that key opens: `read` or `write`, for the connection
         self.out: asyncio.Queue[Frame | None] = asyncio.Queue()
         self.subs: dict[str, Subscription | None] = {}  # None: reserved, being made
         self.tasks: set[asyncio.Task[None]] = set()
@@ -121,7 +122,7 @@ def _result(frame_id: str, found: ops.Result) -> Frame:
     return out
 
 
-def _welcome(ctx: Context) -> Frame:
+def _welcome(ctx: Context, access: str) -> Frame:
     info = protocol.ServerInfo(
         version=ctx.version,
         pid=os.getpid(),
@@ -134,24 +135,25 @@ def _welcome(ctx: Context) -> Frame:
         server=info,
         ops=list(protocol.OPS),
         topics=list(protocol.TOPICS),
+        access=access,
         now=clock.now(),
     ).model_dump()
 
 
 def _refusal(
-    ctx: Context, hello: protocol.Hello, source: str | None
+    ctx: Context, hello: protocol.Hello, access: str | None
 ) -> tuple[str, str, int] | None:
     """Why this hello is refused, as (code, text, close code); None when it is let in."""
     if hello.protocol != protocol.PROTOCOL:
         return "protocol", other_protocol(ctx.version, hello.protocol), OTHER_PROTOCOL
-    if source is None and not keys.is_good(hello.key, ctx.key.current()):
+    if access is None:
         return "key", guard.NEEDS_KEY, BAD_KEY
     if sum(1 for c in ctx.sockets if c.welcomed) >= times.MAX_CLIENTS:
         return "busy", TOO_MANY_CLIENTS, TRY_AGAIN
     return None
 
 
-async def _hello(conn: Connection, source: str | None) -> bool:
+async def _hello(conn: Connection, found: auth.Grant | None) -> bool:
     """The handshake: True once `welcome` is sent; else the socket has been answered and closed."""
     ctx = conn.ctx
     try:
@@ -166,18 +168,24 @@ async def _hello(conn: Connection, source: str | None) -> bool:
     except ValidationError:
         await conn.fault("frame", HELLO_REFUSED, BAD_FRAME)
         return False
-    refused = _refusal(ctx, hello, source)
-    if refused is not None:
-        await conn.fault(*refused)
+    access = (
+        found.access
+        if found is not None
+        else keys.access_of(hello.key, ctx.key.current(), ctx.key.read_current())
+    )
+    refused = _refusal(ctx, hello, access)
+    if refused is not None or access is None:
+        await conn.fault(*(refused or ("key", guard.NEEDS_KEY, BAD_KEY)))
         return False
-    conn.credential = source if source is not None else hello.key
+    conn.credential = found.credential if found is not None else hello.key
+    conn.access = access
     conn.welcomed = True
-    conn.post(_welcome(ctx))
+    conn.post(_welcome(ctx, access))
     return True
 
 
-def _run(ctx: Context, name: str, args: Any) -> ops.Result:
-    found = ops.call(ctx, name, args)
+def _run(ctx: Context, name: str, args: Any, access: str) -> ops.Result:
+    found = ops.call(ctx, name, args, access)
     if ctx.seats.gone():  # as every request of the routes: a board whose seats left stops
         ctx.stop()
     return found
@@ -197,7 +205,7 @@ def _checked(model: Any, data: Frame, conn: Connection) -> Any:
 
 async def _call(conn: Connection, frame: protocol.Call, run: Any) -> None:
     try:
-        found = await run(_run, conn.ctx, frame.op, frame.args)
+        found = await run(_run, conn.ctx, frame.op, frame.args, conn.access)
     except Exception:  # a handler's bug is that call's 500, never the connection's end
         found = ops.fail(500, "the call failed")
     conn.post(_result(frame.id, found))
@@ -207,10 +215,12 @@ async def _sub(conn: Connection, frame: protocol.Sub, run: Any) -> None:
     gate = Gate(conn.post)
     push = conn.ctx.push
     try:
-        got = (
+        got = ops.deny(conn.access, frame.topic, topics.READ_TOPICS) or (
             ops.fail(503, "the server's push is not running")
             if push is None
-            else await run(push.subscribe, frame.topic, frame.args, gate.sink, None, frame.id)
+            else await run(
+                push.subscribe, frame.topic, frame.args, gate.sink, None, frame.id, conn.access
+            )
         )
     except Exception:  # the first reading failed (record unreadable): that sub's 500, slot freed
         got = ops.fail(500, "the subscription failed")
@@ -297,7 +307,7 @@ async def _tick(conn: Connection) -> None:
 
 async def _open(ctx: Context, ws: Any, run: Any, response: Any) -> None:
     headers = {name.lower(): value for name, value in ws.headers.items()}
-    allowed, credential = auth.upgrade(headers, ctx.key.current(), ctx.cookie)
+    allowed, found = auth.upgrade(headers, ctx.key.current(), ctx.cookie, ctx.key.read_current())
     if not allowed:
         await ws.send_denial_response(response(guard.NEEDS_KEY + "\n", 401))
         return
@@ -305,12 +315,13 @@ async def _open(ctx: Context, ws: Any, run: Any, response: Any) -> None:
         await ws.send_denial_response(response(TOO_MANY_CLIENTS + "\n", 503))
         return
     conn = Connection(ctx, ws)
-    conn.credential = credential
+    if found is not None:
+        conn.credential, conn.access = found.credential, found.access
     ctx.sockets.append(conn)  # before the first await: the cap counts it
     workers: list[asyncio.Task[None]] = []
     try:
         await ws.accept()
-        if not await _hello(conn, credential):
+        if not await _hello(conn, found):
             return
         workers = [asyncio.ensure_future(_send(conn)), asyncio.ensure_future(_tick(conn))]
         await _frames(conn, run)

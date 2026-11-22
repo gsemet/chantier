@@ -34,6 +34,22 @@ from chantier.playbook import edit
 
 NOT_FOUND = "not found"
 BINARY = "binary: read it over HTTP"
+READ_ONLY = "refused: the read-only key acts on nothing: use the private link"
+# What the public read-only key may call: every other op, today's and any added later, needs the
+# private key.
+READ_OPS = frozenset(
+    {
+        "board.get",
+        "project.state",
+        "project.tree",
+        "project.file",
+        "costs.get",
+        "prs.get",
+        "dashboard.get",
+        "journal.get",
+        "config.get",
+    }
+)
 
 
 @dataclass
@@ -235,9 +251,18 @@ def checked(model: type[BaseModel], args: Any) -> BaseModel | str:
         return problem(e)
 
 
-def call(ctx: Context, name: str, args: Any) -> Result:
-    """One op: 404 for an unknown one, 400 naming the argument that is missing, extra or
-    mistyped, 500 when the record could not be read."""
+def deny(access: str, name: str, allowed: frozenset[str]) -> Result | None:
+    """The 403 of the read-only key for a name (an op, a topic) outside its allow-list."""
+    return fail(403, READ_ONLY) if access != "write" and name not in allowed else None
+
+
+def call(ctx: Context, name: str, args: Any, access: str = "write") -> Result:
+    """One op: 403 for the read-only key outside `READ_OPS` (before anything else is looked at),
+    404 for an unknown one, 400 naming the argument that is missing, extra or mistyped, 500 when
+    the record could not be read."""
+    refused = deny(access, name, READ_OPS)
+    if refused is not None:
+        return refused
     model, handler = protocol.OP_ARGS.get(name), HANDLERS.get(name)
     if model is None or handler is None:
         return fail(404, f"unknown op {name!r}")
@@ -245,6 +270,9 @@ def call(ctx: Context, name: str, args: Any) -> Result:
     if isinstance(a, str):
         return fail(400, a)
     try:
-        return handler(ctx, a)
+        found = handler(ctx, a)
     except (OSError, ValueError, KeyError, ChantierError):
         return fail(500, reads.UNREADABLE)
+    if access != "write" and name == "board.get" and found.data is not None:
+        found.data = reads.for_read_key(ctx, found.data)  # never the private key in a link
+    return found

@@ -57,7 +57,7 @@ IMPORT = "<import>"
 EXEMPT: dict[tuple[str, str], str] = {
     ("board/state.py", "origin_of"): "the code repository's folder, not the planning folder",
     ("board/static.py", "*"): "the web client's files",
-    ("board/command.py", "*"): "the web client's files",
+    ("board/options.py", "*"): "the web client's files",
     ("board/griller.py", "*"): "a CR's folder, read as the board's Griller turn starts and ends",
     ("board/griller_files.py", "*"): "a CR's folder and the stages, read to see what a turn wrote",
     (

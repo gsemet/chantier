@@ -299,6 +299,14 @@
     },
     "additionalProperties": false,
     "properties": {
+      "access": {
+        "enum": [
+          "read",
+          "write"
+        ],
+        "title": "Access",
+        "type": "string"
+      },
       "now": {
         "title": "Now",
         "type": "string"
@@ -337,6 +345,7 @@
       "server",
       "ops",
       "topics",
+      "access",
       "now"
     ],
     "title": "Welcome",

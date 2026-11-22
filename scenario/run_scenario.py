@@ -41,6 +41,7 @@ import threading
 import time
 import traceback
 import urllib.parse
+import types
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
@@ -1599,6 +1600,9 @@ def scenario(w: World) -> None:
     section_end()
 
 
+READ_ONLY_LINE = re.compile(r"^(on this machine, )?read-only: ")
+
+
 class BoardProc:
     """A `chantier serve` run in the background: its printed lines are read as they come."""
 
@@ -1607,11 +1611,13 @@ class BoardProc:
                                   cwd=cwd or w.work, env={**w.env, **(env or {})}, stdout=subprocess.PIPE,
                                   stderr=subprocess.PIPE, text=True, encoding="utf-8")
         self.lines: "queue.Queue[str]" = queue.Queue()
+        self.read_only: "queue.Queue[str]" = queue.Queue()  # the `read-only:` lines (CR-457)
         threading.Thread(target=self._read, daemon=True).start()
 
     def _read(self) -> None:
         for line in self.p.stdout:
-            self.lines.put(line.rstrip("\r\n"))
+            line = line.rstrip("\r\n")
+            (self.read_only if READ_ONLY_LINE.match(line) else self.lines).put(line)
 
     def line(self, timeout: float = 20) -> str | None:
         try:
@@ -1644,7 +1650,7 @@ def already_running(out: str, link: str) -> bool:
     file-watch line (CR-429), and nothing else."""
     from chantier.board.command import CHECKS, WATCHES
 
-    lines = out.strip().splitlines()
+    lines = [x for x in out.strip().splitlines() if not READ_ONLY_LINE.match(x)]
     return lines[:1] == [f"board already running at {link}"] and lines[1:] in ([WATCHES], [CHECKS])
 
 
@@ -2690,6 +2696,50 @@ def forge_hub(w: World) -> None:
             proc.stop()
 
 
+def two_keys(sw: World, link: Link, line: str | None) -> None:
+    """CR-457: the start lines carry a `read-only:` link; with it the board shows itself and acts on
+    nothing (a refused write changes no file); the private link writes as before."""
+    found = re.match(r"^read-only: http://(?P<host>[^/]+):(?P<port>\d+)/\?k=(?P<key>\S+) \(it shows the "
+                     r"board and acts on nothing; it can be shared\)$", line or "")
+    check("the start lines hold a `read-only:` link, with a key of its own, after the private link",
+          found is not None and int(found["port"]) == link.port and found["key"] != link.key, str(line))
+    if found is None:
+        return
+    from chantier.board.key import HEADER, cookie_name
+    read = {HEADER: found["key"]}
+    anon = types.SimpleNamespace(cookie={})  # no private cookie: the private key would win
+    project = op(link.port, link, "board.get")[2]["projects"][0]["id"]
+    code, head, got = op(link.port, anon, "board.get", headers=read)
+    check("with the read-only key `board.get` answers, says `X-Chantier-Access: read`, and holds no "
+          "private key in its data",
+          code == 200 and head.get("x-chantier-access") == "read" and link.key not in json.dumps(got),
+          f"{code} {head.get('x-chantier-access')}")
+    code, _, polled = fetch(link.port, "/api/v1/poll", "POST",
+                            {**read, "Content-Type": "application/json"},
+                            json.dumps({"subs": [{"key": "p", "topic": "project",
+                                                  "args": {"project": project}}]}).encode("utf-8"))
+    events = json.loads(polled.decode("utf-8")).get("events", []) if code == 200 else []
+    check("with the read-only key a `project` subscription answers its first event",
+          code == 200 and events and events[0]["topic"] == "project", f"{code} {polled[:200]!r}")
+    before = folder_state(sw.surface / "projects")
+    refused = [op(link.port, anon, name, {"project": project, **args}, read)
+               for name, args in (("backlog.move", {"items": ["x"], "to": "P1"}),
+                                  ("config.put", {"changes": {}}))]
+    check("with the read-only key `backlog.move` and `config.put` answer 403 and change no file",
+          all(c == 403 and "acts on nothing" in b.get("error", "") for c, _, b in refused)
+          and folder_state(sw.surface / "projects") == before, str(refused))
+    read_link = f"http://127.0.0.1:{found['port']}/?k={found['key']}"
+    code, out = sw.chantier("live", "--once", "--url", read_link, expect=None)
+    check("`live --once --url <the read-only link>` prints the screen", code == 0 and bool(out),
+          f"{code} {sw.last_stderr}")
+    mine = f"{cookie_name(link.over)}_read={found['key']}"
+    code = fetch(link.port, "/api/board", headers={"Cookie": mine})[0]
+    check("the read-only cookie (`<cookie>_read`) opens the page's API", code == 200, str(code))
+    code, _, body = op(link.port, link, "backlog.new", {"project": project, "text": "# Two keys idea\n\nbody\n"})
+    check("the private link still writes: `backlog.new` files an idea in 1-inbox",
+          code == 200 and (sw.state / "1-inbox" / "two-keys-idea").is_dir(), f"{code} {body}")
+
+
 def serve_and_webui(w: World) -> None:
     """CR-456: `serve` is the surface server's command and `webui` prints its link, starting it
     (no seat, `--stop-idle`) when none runs; a second surface's server on the same machine takes a
@@ -2754,6 +2804,7 @@ def serve_and_webui(w: World) -> None:
               and "serve" in argv and "--stop-idle" in argv and "--seat" not in argv, f"{out} {argv}")
         check("the server `webui` started answers `board.get`",
               fetch(link3.port, "/api/board", headers=link3.cookie)[0] == 200)
+        two_keys(sw, link3, next((x for x in out if x.startswith("read-only:")), None))
     finally:
         surface_kill(sw)
         for proc in reversed(procs):

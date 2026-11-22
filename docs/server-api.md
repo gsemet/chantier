@@ -22,6 +22,23 @@ The server's key is in the link the Chief of Staff gives you (`?k=<key>`). The A
   another site is refused, so such a page cannot ride on your browser's cookie;
 - for a WebSocket, the `key` field of the first frame, `hello`.
 
+The server has two keys, both in `chantier/server.json`. The **private key** (`key`, the link the
+Chief of Staff gives the user) reads and acts. The **public read-only key** (`read_key`, the
+`read-only:` link of the start lines) can be shared: it shows the board and acts on nothing. Either
+passes in the header, the cookie or `hello`. The page keeps the private key in `chantier_board_<id>`
+and the read key in `chantier_board_<id>_read`, so neither overwrites the other; a request carrying
+both is `write` (the private one wins).
+
+Every `/api/v1/` answer carries `X-Chantier-Access: read|write` (exposed to other origins by
+`Access-Control-Expose-Headers: X-Chantier-Access`), and the `welcome` frame carries
+`access: "read" | "write"`, kept for the connection. Under the read key, only these ops answer:
+`board.get`, `project.state`, `project.tree`, `project.file`, `costs.get`, `prs.get`,
+`dashboard.get`, `journal.get`, `config.get`; and only the topics `board`, `project`, `costs`,
+`prs`, `journal`, `events`. Any other op or topic, present or added later, and any write route,
+answers HTTP 403 (over a WebSocket, a `result` or `error` frame) with `refused: the read-only key
+acts on nothing: use the private link`, and runs nothing. `board.get` and the `board` topic give the
+read key a link holding the read key. `--new-key` replaces both keys.
+
 No key, a wrong one, or a cookie from another origin: HTTP 401, and on a WebSocket the error
 `key` and the close code 4401. A body is `application/json` (415 otherwise).
 

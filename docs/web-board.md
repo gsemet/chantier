@@ -147,7 +147,7 @@ The conversation is shared by every page that has the item open, and kept while 
 
 The Griller writes only in the CR's folder (`02-answers.md`, the summary) and runs only the four `chantier` commands its card names. Each turn that wrote appends a line to the project's journal, which the Chief of Staff's watcher shows as `board wrote (grill)`: it tells the user and acts on nothing.
 
-The board speaks plain HTTP: on the network, the key (the link and its 30-day cookie) and every turn's text travel in clear. `chantier serve --new-key` revokes the key.
+The board speaks plain HTTP: on the network, the key (the link and its 30-day cookie) and every turn's text travel in clear. `chantier serve --new-key` replaces both keys.
 
 ## A new idea
 
