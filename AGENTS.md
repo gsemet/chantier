@@ -254,3 +254,4 @@
 ## chantier
 
 - planning: https://github.com/gsemet/gsemet-foss-planning-surface, projects/chantier
+- release: [CONTRIBUTING.md](CONTRIBUTING.md), "Release", and [docs/release-process.md](docs/release-process.md); the claims before a release: [evals/README.md](evals/README.md), "Before a release: the claims"
