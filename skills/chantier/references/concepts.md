@@ -247,14 +247,19 @@ At startup, identify the role, batch, project and parent session.
   then moved by its Driver on a rebase note (`rebase: mode <mode>`), the Foreman and the stack
   driver acting as their cards say; a merged CR never changes (its record, PR, branch and folder).
   **Stack**: parallel, with a stack driver: every CR with no open
-  dependency starts at once, on the nearest earlier CR of the batch (by order) that already has a
-  PR and whose PR the forge does not show merged (a `forge saw merged` line of the journal), else on
-  the default branch, recorded at its first `take` (a branch with no PR is never a
-  base), so its PR is already on the stack; a CR with a dependency starts only once that
-  dependency is `ready` (`take` refuses it until then), on the branch of its last dependency still
-  open, else on the default branch (see **Dependencies**), and the stack driver puts the PRs each on the
+  dependency starts at once, on the nearest earlier CR of the batch (by order) that has a
+  PR, when that CR is handed back `ready` and the forge does not show its PR merged (a `forge saw
+  merged` line of the journal); when that CR is still working or blocked, or there is none, on
+  the default branch; recorded at its first `take` (a branch with no PR is never a
+  base); a CR with a dependency starts only once that
+  dependency is `ready` (`take` refuses it until then), on the branch of its highest dependency still
+  open (by order), else on the default branch (see **Dependencies**), and the stack driver puts the PRs each on the
   previous one (`stack` marks the CRs it orders; `ship` records a stacked CR's place in the stack,
-  and the start base for any other). As soon as two PRs are handed back ready (the moment the stack
+  and the start base for any other). Until the stack driver places it, a taken CR with no open
+  dependency stays on that start base while its owner is open, else on the default branch; a CR
+  with an open dependency is on its highest open dependency's branch. A CR that needs the code of
+  a CR still working says so with `after`; otherwise CRs start side by side on the default branch
+  and the final-order take orders them. As soon as two PRs are handed back ready (the moment the stack
   can form) the stack driver makes the native stack on the forge, once (the `gh stack` extension, or `$CHANTIER forge-stack create` when the user
   declined the extension); each further CR joins on top as a draft when it has its PR
   (`$CHANTIER forge-stack rebuild`: unstack, then create); the PRs ready to merge come first in readiness
@@ -358,8 +363,8 @@ At startup, identify the role, batch, project and parent session.
   who drops the CR or changes it). A release's `after` is met by `ready` or `merged` in an
   ordered batch (stack, series), by `merged` in a parallel one; a cancelled CR never holds it
   back. The CR starts on the branch of its last dependency still open,
-  in the order of `after`, else, in a stack, on the nearest earlier CR of the batch that has a PR and whose PR the forge
-  does not show merged (a `forge saw merged` line of the journal), else on the default branch: a CR's start base and its place in the stack are two
+  in the order of `after` (in a stack, the one highest by order, whatever ready CR sits above it), else, in a stack, on the nearest earlier CR of the batch that has a PR, when that CR is handed back `ready` and the forge
+  does not show its PR merged (a `forge saw merged` line of the journal), else on the default branch: a CR's start base and its place in the stack are two
   things. A chain is an `after` with no real dependency, which the
   Foreman decided, or the plan proposed and the user's go approved, for a queued CR; it ends with `order after <cr> --note -` while the CR is
   queued. `stack` refuses an order that puts a CR below one of its

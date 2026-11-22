@@ -51,8 +51,8 @@ printed only while no CR of the batch was ever stacked).
 ## The stack grows
 
 - **The first take,** the moment the stack can form: as soon as two CRs are handed back `ready`
-  with a PR (and neither depends on an open CR not ready). `take` starts every new CR on the
-  nearest earlier CR with a PR (the CLI computes it; you choose nothing), recorded at its first take;
+  with a PR (and neither depends on an open CR not ready). `take` starts every new CR with no open
+  dependency on the nearest earlier CR with a PR once that CR is handed back `ready`, else on the default branch, and a CR with an open dependency on its highest open dependency's branch (the CLI computes it; you choose nothing), recorded at its first take;
   it leaves out a CR the journal shows merged (`forge saw merged`, not recorded yet) and prints a
   `base:` line naming it: pass that base unchanged, never correct a base by a take note; the `order merged` the
   line names stays the Chief of Staff's. While it is due, `status` prints `stack: take stack now: <crs> ...`; that line

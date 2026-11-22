@@ -37,6 +37,7 @@ from chantier.plugin_files import (
     skill_dir,
     worker_prompt_lines,
 )
+from chantier.rails import ENDED
 from chantier.stack_apart import parked_lines
 from chantier.stack_words import state_word
 from chantier.stacks import (
@@ -70,14 +71,24 @@ def _base_of(d: BatchRecord, c: CrEntry, repo: Repo, landed: frozenset[str]) -> 
     return f"base {_ref(repo, start_base(d, c, repo, landed))}"
 
 
+def _record_alone(d: BatchRecord, c: CrEntry, landed: frozenset[str]) -> CrEntry:
+    """The CR the record alone gives its start base from: a placed CR, or one taken (not placed)
+    whose `start_on` owner is in `landed` or ended in the record, as it is; any other CR as a
+    take gives it from the record, a queued copy with no `start_on`."""
+    owner = next((x for x in d.crs if x.branch == c.start_on), None) if c.start_on else None
+    gone = owner is not None and (owner.id in landed or owner.status in ENDED)
+    if c.stacked or (c.status != "queued" and gone):
+        return c
+    return c.model_copy(update={"status": "queued", "start_on": None})
+
+
 def _landed_line(d: BatchRecord, c: CrEntry, repo: Repo, landed: frozenset[str]) -> list[str]:
     """The `base:` line, only when the CRs the forge shows merged changed the CR's start base: the
     branch the record alone gives is no base, its PR is merged, not recorded yet."""
     if not landed or stacked_read(d, c) is not None:
         return []
     # the record alone: a start base `take` fixed from the record is looked at again too
-    first = c if c.stacked else c.model_copy(update={"start_on": None})
-    plain = start_base(d, first, repo)
+    plain = start_base(d, _record_alone(d, c, landed), repo)
     if plain == start_base(d, c, repo, landed):
         return []
     owner = next((x for x in d.crs if x.branch == plain), None)
