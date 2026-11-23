@@ -81,7 +81,8 @@ does a unit that is not in `UNITS` and a test that does not exist.
 
 - preflight refusing Claude in VS Code and passing on Desktop with no setup and nothing written;
   its P10 warning (one line per capability the batch uses) on the recommended allow rules missing
-  from the settings (it still passes), and `P10 ok` once they are in a temporary home's
+  from the settings, the rebase rules (`git -C * rebase chantier/*` and the others) among them (it
+  still passes), and `P10 ok` once they are in a temporary home's
   `.claude/settings.json`, and the release rules named by `preflight --autonomous-releases 1`
   (it still passes); P10 (GitHub run, `--mode stack`) naming `gh stack view` only when the fake
   `gh extension list` names `github/gh-stack` (a `gh-stack` folder no longer counts) (unit:

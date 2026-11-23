@@ -163,14 +163,14 @@ workers" when it starts a worker.
 ## Means: rebase and push
 
 - Rebase first, so the long gate passes on the head you push: `git -C <worktree> fetch`, `git -C
-  <worktree> rebase <base>`; a conflict is a `conflict-resolver`. Rebase only (rule 8). A conflict-free rebase that
-  leaves the CR's patch unchanged needs no new long gate or `verifier`: pass and
-  verdict carry over it ("Means: the long gate"). When the PR exists and the rebase needs a long
-  gate (a conflict was resolved), push early, by the "Early push" rule below. Never `git stash`
-  (shared): set work aside with a commit. Never stop a process by name or pattern (`pkill`,
-  `killall`); stop only one you started, by its id (a running long gate: `gate <cr> --stop`, never
-  by ending the `gate` command, which leaves its suite running). A command the host may refuse runs
-  alone.
+  <worktree> rebase <base>`; a conflict is a `conflict-resolver`. Rebase only (rule 8). A
+  conflict-free rebase that leaves the CR's patch unchanged needs no new long gate or `verifier`:
+  pass and verdict carry over ("Means: the long gate"). When the PR exists and a resolved conflict
+  needs a long gate, push early ("Early push", below). Never `git stash` (shared): commit work
+  aside. Never stop a process by name or pattern (`pkill`, `killall`); stop only yours, by id (a
+  long gate: `gate <cr> --stop`, never by ending `gate`, which leaves its suite running). A
+  command the host may refuse runs alone. Outside your prompt's `Rewrites:` line, a rebase or push
+  is not yours.
 - **Before the first push:** run the project's fast gate again, in the worktree, at the rebased
   committed head you are about to push, with any extra pre-push check the project's rules name
   (`$CHANTIER rules`) for the kind of change the CR is. The rebase may have changed what the Coder's
@@ -389,7 +389,8 @@ You never escalate yourself.
 
 ## Means: a force push the host refuses
 
-- A force push the host refuses (any Driver that pushes): it climbs the ladder of
+- A force push the host refuses (any Driver that pushes; a rebase: "Means: a rebase the host
+  refuses", below) climbs the ladder of
   [foreman](foreman.md#a-drivers-refused-force-push), "A Driver's refused force push" (the
   steering session judges it and runs it; if the host refuses it there, the Chief of Staff judges
   it again and runs it; if the host refuses the Chief of Staff, the user is asked once), without
@@ -421,13 +422,30 @@ You never escalate yourself.
   again as above (with the `ci: beside the long gate` line, and for a branch whose PR is
   recorded (the early push), the steering session does not send it; one you get anyway goes to the
   steering session as printed). Any other `push refused` (the
-  branch is not this batch's, the push was judged not legitimate and the user said no, or the host
-  refused it at every step, the user's yes included): `handback blocked
+  branch is not this batch's or not a chantier branch, the push was judged not legitimate and the
+  user said no, or the host refused it at every step, the user's yes included) and a push the
+  forge rejects as protected (`push failed`): `handback blocked
   refused <exact text>` at once; it goes to the user. Any other refused action stays `blocked
   refused` as above. The stack driver, which restacks several branches in one take, sends one
   push line per refused branch and waits for each result as a note (the result may now come from
   the Foreman's own push), no other push, no other way. The Release driver is covered by the same
   section, with no text of its own.
+
+## Means: a rebase the host refuses
+
+The ladder of [foreman](foreman.md#a-drivers-refused-rebase), "A Driver's refused rebase", as for
+a push: the steering session runs it, then the Chief of Staff, then the user. Work committed:
+
+1. `$CHANTIER note <cr> "refused: <the exact command> -> <the host's exact text>"`, as for a push.
+2. `$CHANTIER note <cr> "next after rebase: <the steps left, in order>"`, as for a push.
+3. `$CHANTIER handback <cr> blocked waits: rebase <branch> <base>` (`base` as `take` printed it).
+4. Send `[driver <cr>→foreman] rebase <branch> <base>` and end.
+
+The fresh Driver reads the answer in its `take` note: `rebased <branch> onto <base> at <sha7>`:
+push (`--force-with-lease`) and go on; `rebase conflict <branch> onto <base>`: the rebase is
+stopped at the conflict in the worktree, start a `conflict-resolver` on it; `rebase refused
+<branch>: <text>`: `handback blocked refused <text>`. The stack driver, which restacks several branches in one take,
+sends one rebase line per refused branch, as for its pushes, and waits for each result as a note.
 
 ## Means: the archive in the PR
 

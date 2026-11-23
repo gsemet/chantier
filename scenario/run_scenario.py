@@ -278,6 +278,23 @@ def check_driver_skeleton(w, target: str, out: list[str]) -> None:
         ),
         str(block),
     )
+    branch = next(
+        (ln.split(" branch ")[1].split(" base ")[0] for ln in out if ln.startswith("worktree: ")),
+        "",
+    )
+    rewrites = [ln for ln in block if ln.startswith("  Rewrites: ")]
+    check(
+        f"`take {target}` prints the CR Driver's `Rewrites:` line with the CR's branch, between "
+        "`writes:` and `Steering:`",
+        bool(branch)
+        and len(rewrites) == 1
+        and f"({branch})" in rewrites[0]
+        and "--force-with-lease" in rewrites[0]
+        and bool(writes)
+        and block.index(writes[0]) + 1 == block.index(rewrites[0])
+        and block[block.index(rewrites[0]) + 1].startswith("  Steering: "),
+        str(block),
+    )
 
 
 def unit_name(word: str) -> str:
@@ -1076,7 +1093,8 @@ def scenario(w: World) -> None:
     p10 = next((ln for ln in out if ln.startswith("P10")), "")
     check("preflight warns (P10) on the allow rules missing from the settings, names one, and "
           "still passes", p10.startswith("P10 warn")
-          and "git push --force-with-lease -u origin chantier/*" in p10, p10)
+          and "git push --force-with-lease -u origin chantier/*" in p10
+          and "git -C * rebase chantier/*" in p10, p10)
     check("the P10 warning names no `release create` rule (a publication stays asked by the host)",
           "release create" not in p10, p10)
     sys.path.insert(0, str(SKILL / "scripts" / "cli" / "src"))
