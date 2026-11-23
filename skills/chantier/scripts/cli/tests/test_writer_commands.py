@@ -117,6 +117,17 @@ def test_seat_carries_the_writer_line_in_a_surface_only(
     assert chantier("seat")[1] == ["seat none"]
 
 
+def test_seat_take_tells_an_untold_arrival_once_and_does_not_wait_on_the_lock(
+    surface: Surface, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CHANTIER_HOST", "claude")
+    assert chantier("file", "Arrives before the seat")[0] == 0  # no seat: an `arrived@1` line
+    code, out, _ = chantier("seat", "take", "s1")
+    assert code == 0
+    assert any("another session wrote" in x for x in out)
+    assert not any("another session wrote" in x for x in chantier("seat", "get")[1])
+
+
 def test_status_has_the_writer_line_and_tells_an_episode_only_while_it_lasts(
     surface: Surface, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
 ) -> None:
