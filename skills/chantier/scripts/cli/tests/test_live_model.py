@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import re
 import signal
 import sys
 import threading
@@ -13,67 +14,26 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
+from live_world import CAP, HIGH, NARROW, NOW, WIDE, drawn, fed, lease, project, record
 
 from chantier.clients.tui import screen
 from chantier.clients.tui.link import Event, Idle, Linked
-from chantier.clients.tui.model import FLOW, Line, Model, lease_left, merged
+from chantier.clients.tui.model import FLOW, Line, Model, merged
+from chantier.clients.tui.times import lease_left
 from chantier.clients.tui.view import HELP, View
 from chantier.commands import live as live_command
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_USAGE, ChantierError
 
-CAP = 2000
-
-NOW = "2030-01-01T00:00:00Z"
-WIDE, NARROW, HIGH = 140, 90, 20
-
-
-def _lease(**over: Any) -> dict[str, Any]:
-    facts = {"n": 1, "renewed": NOW, "expires": "2030-01-01T00:04:30Z", "ended": None}
-    return {**facts, "gate": None, **over}
-
-
-def _crs() -> list[dict[str, Any]]:
-    row = {"phase": None, "round": 0, "round_limit": 3, "lease": None, "blocked": None}
-    return [
-        {**row, "cr": "CR-1", "title": "Working one", "state": "working", "phase": "coding",
-         "round": 1, "lease": _lease()},
-        {**row, "cr": "CR-2", "title": "Ready one", "state": "handed_back", "to_review": True,
-         "handed_back_at": "2029-12-31T23:48:00Z"},
-        {**row, "cr": "CR-3", "title": "Held one", "state": "blocked",
-         "blocked": "waits for the user's answer"},
-        {**row, "cr": "CR-4", "title": "Done one", "state": "merged"},
-    ]  # fmt: skip
-
-
-def _record(kind: str, t: str, **more: Any) -> dict[str, Any]:
-    return {"t": t, "actor": "Foreman", "kind": kind, **more}
-
-
-def _project(events: list[dict[str, Any]]) -> dict[str, Any]:
-    batch = {"id": "batch-01", "state": "running", "mode": "batch", "crs": _crs()}
-    return {**{"batch": {**batch, "stack_lease": None}}, "events": events}
-
-
-def _fed(clock: list[float]) -> Model:
-    m = Model(clock=lambda: clock[0])
-    m.feed(Linked("ws", NOW))
-    board = {"version": "0.15.0", "served": "/work/p", "projects": [{"id": "p", "inbox": 2}]}
-    m.feed(Event("board", "board", board, NOW))
-    first = [_record("took", "2029-12-31T23:50:00Z", cr="CR-1")]
-    m.feed(Event("project:p", "project", _project(first), NOW))
-    m.feed(Event("events:p", "events", {"lines": []}, NOW))
-    return m
-
 
 def test_the_model_counts_and_keeps_each_new_line_once() -> None:
     clock = [100.0]
-    m = _fed(clock)
+    m = fed(clock)
     assert m.counts() == {"working": 1, "ready": 1, "held": 1, "done": 1}
     assert m.missing() == [] and m.agents() == [("p", "Driver CR-1 coding")]
-    earlier = [_record("took", "2029-12-31T23:50:00Z", cr="CR-1")]
-    later = [*earlier, _record("handed_back", "2029-12-31T23:59:00Z", cr="CR-2", result="ok")]
-    m.feed(Event("project:p", "project", _project(later), NOW))
-    m.feed(Event("project:p", "project", _project(later), NOW))  # the same again: nothing new
+    earlier = [record("took", "2029-12-31T23:50:00Z", cr="CR-1")]
+    later = [*earlier, record("handed_back", "2029-12-31T23:59:00Z", cr="CR-2", result="ok")]
+    m.feed(Event("project:p", "project", project(later), NOW))
+    m.feed(Event("project:p", "project", project(later), NOW))  # the same again: nothing new
     lines = [
         {"seq": 1, "t": "2029-12-31T23:59:30Z", "type": "board@1", "source": "board",
          "text": "board wrote (new): an idea"},
@@ -104,28 +64,28 @@ def test_the_time_left_of_a_lease_comes_from_its_facts_and_the_servers_now(
 ) -> None:
     m = Model(clock=lambda: 0.0)
     m.feed(Linked("http", NOW))  # this machine's clock is not asked
-    assert lease_left(_lease(**over), m.now()) == left
+    assert lease_left(lease(**over), m.now()) == left
     assert lease_left(None, m.now()) is None
 
 
-def _drawn(m: Model, width: int) -> str:
-    out = io.StringIO()
-    screen.plain(m, width, HIGH, out)
-    return out.getvalue()
-
-
 def test_the_screen_shows_the_counts_the_tasks_and_the_flow_and_drops_the_left_column() -> None:
-    m = _fed([0.0])
-    wide = _drawn(m, WIDE)
+    m = fed([0.0])
+    wide = drawn(m, WIDE)
     assert "working 1  ready 1  held 1  done 1" in wide and "v0.15.0" in wide
     assert "lease 04:30" in wide and "round 1/3" in wide  # the working CR
-    assert "12m  Ready one" in wide  # to review, with its age
+    assert re.search(r"12m +Ready one", wide)  # to review, with its age, in Ready
     assert "waits for the user's answer" in wide  # blocked, with its reason
-    assert "23:50:00" in wide and "took CR-1" in wide  # a flow line
-    assert "Projects" in wide and "Driver CR-1 coding" in wide
+    assert "01-01 00:50:00" in wide and "took CR-1" in wide  # a flow line, in the local zone
+    assert "2030-01-01 01:00:00 UTC+01:00" in wide
+    assert "Driver CR-1 coding" in wide and "to review" not in wide
+    for title in ("Projects", "Agents", "Flow", "Ready", "Tasks"):
+        assert f" {title} " in wide
+    for head in ("Time", "PR", "State", "Age"):
+        assert head in wide
     assert all(len(x) <= WIDE for x in wide.splitlines()) and "\x1b" not in wide
-    narrow = _drawn(m, NARROW)
-    assert "Projects" not in narrow and "lease 04:30" in narrow
+    narrow = drawn(m, NARROW)
+    assert "Projects" not in narrow and "Agents" not in narrow and "lease 04:30" in narrow
+    assert "Ready" in narrow and "\x1b" not in narrow
 
 
 # keys, scroll, filter, several boards
@@ -169,7 +129,11 @@ def _keyed(m: Model, view: View) -> str:
         (["/", "x", "backspace", "enter"], 0, ["took CR-1", "Working one"], ["filter:"]),
         (["/", "c", "r", "enter", "esc"], 0, ["took CR-1", "Working one"], ["filter:"]),
         (["/", "z", "enter"], 0, ["no task matches z", "working 1"], ["took CR-1"]),
-        (["/", "c"], 0, ["? keys  / filter  q quit  /c"], ["filter:"]),
+        (["/", "c"], 0, ["? keys  / filter  t time  q quit  /c"], ["filter:"]),
+        (["t"], 0, ["Ago", "10 min"], ["Time"]),
+        (["t", "t"], 0, ["Time", "took CR-1"], ["Ago"]),
+        (["/", "t", "enter"], 0, ["filter: t", "Time"], ["Ago"]),
+        (["?", "t"], 0, ["took CR-1", "Time"], ["any key closes", "Ago"]),
         (["?"], 0, [*(k for k, _ in HELP), "any key closes"], ["took CR-1"]),
         (["?", "x"], 0, ["took CR-1", "Working one"], ["any key closes"]),
     ],
@@ -177,7 +141,7 @@ def _keyed(m: Model, view: View) -> str:
 def test_keys_scroll_pause_filter_and_help_change_what_the_screen_prints(
     keys: list[str], arrive: int, shown: list[str], hidden: list[str]
 ) -> None:
-    m = _fed([0.0])
+    m = fed([0.0])
     note = {"seq": 90, "t": "2029-12-31T23:31:00Z", "source": "hub", "text": "cr-2 note"}
     _journal(m, [*_lines(1, 30), note])  # 31 lines with the record's one
     view, wanted = View(), m.wanted()
@@ -272,11 +236,11 @@ def test_a_blessed_keystroke_maps_to_the_views_key_name(
 
 
 def test_the_footer_says_which_keys_there_are() -> None:
-    m = _fed([0.0])
+    m = fed([0.0])
     assert screen.footer(m).plain == "Ctrl-C to quit"
     keyed = View()
     keyed.keys = True
-    assert screen.footer(m, keyed).plain == "? keys  / filter  q quit"
+    assert screen.footer(m, keyed).plain == "? keys  / filter  t time  q quit"
 
 
 class Term:
@@ -372,3 +336,6 @@ def test_once_refuses_an_unserved_only_before_the_reader_keeps_its_error(
         stubs: list[Any] = [Stub(), Stub()]
         live_command.once(stubs, models)
     assert e.value.code == EXIT_USAGE
+
+
+# the zone, `since`, Agents, Ready

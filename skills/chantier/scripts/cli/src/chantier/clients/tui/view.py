@@ -16,6 +16,7 @@ HELP = (
     ("PgUp / PgDn", "the Flow one page older / newer"),
     ("Home", "the oldest kept line of the Flow"),
     ("End", "back to the live end (follows again)"),
+    ("t", "the Flow's time: date and time / time since the event"),
     ("/", "type a filter (Enter applies it, Esc cancels)"),
     ("?", "show these keys"),
     ("Esc", "clear the filter; leave this help"),
@@ -32,6 +33,7 @@ class View:
         self.text = ""  # the filter applied
         self.typing: str | None = None  # the filter being typed, None when not typing
         self.help = False
+        self.ago = False  # the Flow's time column: the time since each event, not the clock
         self.new = 0  # lines arrived since the Flow left the live end
         self.anchor: Any = None  # the newest line shown while scrolled back, None at the live end
         self.gap = 0  # lines newer than the anchor when it was set
@@ -51,6 +53,8 @@ class View:
             self.typing = ""
         elif name == "?":
             self.help = True
+        elif name == "t":
+            self.ago = not self.ago
         elif name == "esc":
             self._filter("")
         elif name in MOVES:
