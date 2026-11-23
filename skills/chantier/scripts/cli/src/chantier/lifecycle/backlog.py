@@ -74,6 +74,23 @@ def titled_request(
     return idea_slug(text, slug), raw
 
 
+def file_idea_at(
+    repo: Repo,
+    text: str,
+    slug: str | None = None,
+    raw: bytes | None = None,
+    title: str | None = None,
+) -> tuple[Path, list[str]]:
+    """File a request in the inbox, kept as received (`raw`, else `text` in UTF-8) under a short
+    title: its heading, its single line or `title` (see `titled_request`). The new folder, and the
+    lines."""
+    slug, body = titled_request(text, text.encode("utf-8") if raw is None else raw, title, slug)
+    with changes_lock(repo):
+        folder = new_request(repo, slug, body)
+        write_dashboard(repo, stage_layout(repo))
+    return folder, [f"filed {shown(repo, folder)}; write the intent and grill the CR here"]
+
+
 def file_idea(
     repo: Repo,
     text: str,
@@ -81,13 +98,8 @@ def file_idea(
     raw: bytes | None = None,
     title: str | None = None,
 ) -> list[str]:
-    """File a request in the inbox, kept as received (`raw`, else `text` in UTF-8) under a short
-    title: its heading, its single line or `title` (see `titled_request`)."""
-    slug, body = titled_request(text, text.encode("utf-8") if raw is None else raw, title, slug)
-    with changes_lock(repo):
-        folder = new_request(repo, slug, body)
-        write_dashboard(repo, stage_layout(repo))
-    return [f"filed {shown(repo, folder)}; write the intent and grill the CR here"]
+    """`file_idea_at`, the lines only."""
+    return file_idea_at(repo, text, slug, raw, title)[1]
 
 
 def move_item(repo: Repo, item: str, to: str) -> list[str]:

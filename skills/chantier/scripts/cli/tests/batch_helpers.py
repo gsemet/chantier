@@ -25,8 +25,16 @@ def host(monkeypatch: pytest.MonkeyPatch, name: str = "claude") -> None:
 
 
 def prepared(repo: Path, chantier: Chantier, title: str) -> Path:
-    """File a CR in the inbox and give it a spec; returns its folder."""
+    """File a CR in the inbox and give it a spec; returns its folder. The helper stands for the
+    Chief of Staff's own session: the `arrived@1` line another session's run leaves is dropped."""
+    journal = changes(repo) / "forge-journal.jsonl"
+    size = journal.stat().st_size if journal.is_file() else None
     _, out, _ = chantier("file", title)
+    if size is None and journal.is_file():
+        journal.unlink()
+    elif size is not None:
+        with journal.open("r+b") as kept:
+            kept.truncate(size)
     folder = repo / out[0].removeprefix("filed ").split(";")[0]
     (folder / "03-change-spec.md").write_text(f"# {title}\n\nDo it.\n", encoding="utf-8")
     return folder

@@ -81,7 +81,7 @@
   `forge-journal.jsonl` (planning folder, never published), which
   `status` prints for the Chief of Staff to record at its next `status`; the
   board itself records nothing and messages no agent, but its writer's commits of the planning
-  surface's published paths (below) and its journal lines (`sync-*@1`), and the commands its `cli.run` runs for a client, which record what they record when run locally, and the board's Griller (the
+  surface's published paths (below) and its journal lines (`sync-*@1`, `arrived@1`), and the commands its `cli.run` runs for a client, which record what they record when run locally, and the board's Griller (the
   fourth exception, which passes the words a holder of the private key typed to a run the server started for
   the key's holder, and is not a message of the board to an agent); a third, from a configuration save (the web client's Configuration page, or any client's `config.put`): a save
   appends one `config@1` line to the same journal (`source: board`) for each key whose effective value it
@@ -204,10 +204,11 @@
   surface's branch, within 5 minutes of a change, with the user's own git identity and hooks, and
   needs the network for its fetch and push; its git commands are the next bullet's, it records its
   state in the `writer` entry of `chantier/server.json` and appends `sync-*@1` lines to the
-  journal, and it never edits a batch or messages an agent.
+  journal, and one `arrived@1` line for each CR a pull brought into the inbox or the backlog
+  (read from git's trees with the two reads the next bullet names), and it never edits a batch or messages an agent.
 - The CLI has named git exceptions: the surface server's writer, which runs `git add`,
-  `commit`, `fetch`, `merge --ff-only --autostash`, `rebase --autostash`, `rebase --abort` and
-  `push` (never forced, never `--no-verify`), in the planning surface's checkout only, while the
+  `commit`, `fetch`, `merge --ff-only --autostash`, `rebase --autostash`, `rebase --abort`, `push` and, read-only, `merge-base` and `ls-tree` (to tell the
+  arrivals) (never forced, never `--no-verify`), in the planning surface's checkout only, while the
   server runs, and the batch's end cleanup (above). The rest of the CLI keeps no git write.
 - Never edit a version by hand: `just version X.Y.Z` or `just bump-version [minor|major]`.
 - The CLI is one Python package declared in the root `pyproject.toml`, its dependencies listed

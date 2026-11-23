@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from chantier.commands.arrival_line import arrival_lines
 from chantier.commands.writer_line import writer_lines
 from chantier.core.batch import check_epoch, read_batch, require_epoch, resolve_batch
 from chantier.core.clock import now
@@ -95,13 +96,14 @@ def _own_watch_line(repo: Repo, transcript: str | None) -> list[str]:
 def _get(repo: Repo) -> list[str]:
     held = read_seat(repo)
     if not held:
-        return ["seat none", *writer_lines(repo)]
+        return ["seat none", *writer_lines(repo), *arrival_lines(repo)]
     return [
         f"seat {held.session} env {held.env or 'unknown'} "
         f'title "{held.title or ""}" link {held.link or "unknown"}',
         f"transcript {held.transcript or 'unknown'}",
         *_own_watch_line(repo, held.transcript),
         *writer_lines(repo),
+        *arrival_lines(repo),
     ]
 
 
@@ -158,6 +160,7 @@ def _take(repo: Repo, path: Path, args: argparse.Namespace) -> list[str]:
         *(_record_transcript(repo, transcript) if transcript else []),
         *_own_watch_line(repo, transcript),
         *writer_lines(repo),
+        *arrival_lines(repo),
     ]
 
 

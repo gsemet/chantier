@@ -25,3 +25,14 @@ class SyncLate1(Payload):
 
 class SyncResumed1(Payload):
     after: str
+
+
+class Arrived1(Payload):
+    """`arrived@1`, told by the writer and by `file` and `triage` (see `schemas.py`)."""
+
+    project: str
+    folder: str
+    stage: str
+    before: str | None
+    via: str
+    upstream: Sha | None

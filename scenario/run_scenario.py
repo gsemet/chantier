@@ -10820,12 +10820,23 @@ def surface_writer(tmp: Path) -> None:
         for key, value in (("user.name", "second"), ("user.email", "second@example.com")):
             w.sh("git", "config", key, value, cwd=clone)
         (clone / "projects" / "other" / "from-clone.md").write_text("from the second clone\n")
+        arrival = clone / "projects" / "demo" / "changes" / "1-inbox" / "from-clone-cr"
+        arrival.mkdir(parents=True)
+        (arrival / "01-intent.md").write_text("from the second clone\n")
         w.sh("git", "add", "-A", cwd=clone)
         w.sh("git", "commit", "--quiet", "-m", "from the second clone", cwd=clone)
         w.sh("git", "push", "--quiet", "origin", "main", cwd=clone)
         check("a commit pushed from a second clone of the surface is integrated",
               until(lambda: (w.surface / "projects" / "other" / "from-clone.md").is_file()),
               w.sh("git", "log", "--oneline", "-3", cwd=w.surface))
+
+        def arrived() -> list[tuple[str, str]]:
+            lines = journal.read_text(encoding="utf-8").splitlines() if journal.is_file() else []
+            return [(x["folder"], x["via"]) for x in map(json.loads, lines)
+                    if x["type"] == "arrived@1"]
+
+        check("the CR that commit brought into `1-inbox` is told once, as `arrived@1` via `pull`",
+              until(lambda: arrived() == [("1-inbox/from-clone-cr", "pull")]), str(arrived()))
         # a conflicting change on both sides: the conflict line, the journal, the resolution
         target = Path(item) / "01-intent.md"
         rel = target.relative_to(w.surface).as_posix()

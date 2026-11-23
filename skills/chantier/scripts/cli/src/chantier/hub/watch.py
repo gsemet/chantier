@@ -17,6 +17,7 @@ and takes no lock, reaches no server and starts nothing."""
 from __future__ import annotations
 
 import argparse
+import contextlib
 import re
 import sys
 import time
@@ -33,7 +34,7 @@ from chantier.core.files import rel_in
 from chantier.core.records import read_batch_json
 from chantier.core.repo import Repo
 from chantier.core.seat import read_seat
-from chantier.hub import autostart, journal, lock
+from chantier.hub import arrival_mark, autostart, journal, lock
 from chantier.hub import times as hub_times
 from chantier.hub.feed import Board, Feed, Got, passed_on, serve_argv
 from chantier.hub.lines import foreign_build_clause
@@ -305,6 +306,8 @@ class Watch:
 
     def lines(self, reason: str) -> list[str]:
         out = [told(e) for e in self.events]
+        with contextlib.suppress(OSError, ChantierError):
+            arrival_mark.tell_arrivals(self.repo, self.events)
         if reason == END and self.end is not None:
             return [*out, self.end.line]
         if reason == SEAT:
@@ -337,8 +340,10 @@ def once(repo: Repo, after: int, audiences: list[str] | tuple[str, ...] = ()) ->
         (e for e in entries if type(e.get("seq")) is int and e["seq"] > after),
         key=lambda e: e["seq"],
     )
+    mine = [e for e in new if journal.for_subscription(e, subscribed)]
+    arrival_mark.tell_arrivals(repo, mine)
     return [
-        *(journal.event_text(e) for e in new if journal.for_subscription(e, subscribed)),
+        *(journal.event_text(e) for e in mine),
         f"watch: cursor {last}; next, at the user's next message: "
         f"{autostart.pull_command(repo, last)}",
     ]

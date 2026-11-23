@@ -220,6 +220,7 @@ IGNORED = (
     "board-journal.jsonl",
     "board-seen.jsonl",
     "forge-journal.jsonl",
+    "arrivals-told.json",
     "/4-batch/batch.json",
     "/4-batch/events.jsonl",
     "/4-batch/brief.md",

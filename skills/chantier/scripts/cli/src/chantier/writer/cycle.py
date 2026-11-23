@@ -23,6 +23,7 @@ from chantier.writer import times
 from chantier.writer.blocking import Look, blocking, foreign_autosync
 from chantier.writer.git_ops import Failed, Git, network_failure, refused, too_long_path
 from chantier.writer.late import Late
+from chantier.writer.pulled import Pulled
 
 PUSH_TRIES = 3
 NAMED = 3  # paths named in a blocked text
@@ -33,7 +34,7 @@ PATH_SHOWN = 150
 CYCLES_TO_BLOCK = 2
 
 
-class Writer(Late):
+class Writer(Late, Pulled):
     """What the process that holds `writer.lock` does: its cycle and its `writer` entry."""
 
     def __init__(self, repo: Repo, version: str = __version__) -> None:
@@ -107,6 +108,7 @@ class Writer(Late):
                 if not self._conflict_over():
                     self._late()
                     return
+                self._conflict_arrivals(r["conflict"] or {})
                 r["conflict"] = None
                 self._tell({"type": "sync-resumed@1", "after": "conflict"})
             self.step = 2
@@ -283,6 +285,7 @@ class Writer(Late):
             self._commit(look)
         self._syncing()
         local, theirs = g.sha("HEAD"), g.sha(upstream)
+        base = g.merge_base(local, theirs)
         self._ahead(look)
         before = len(g.stashes())
         conflict: list[str] | None = None
@@ -302,6 +305,7 @@ class Writer(Late):
         if conflict is not None:
             self._conflict(local, theirs, conflict)
             return True
+        self._arrived(base, theirs, theirs)
         stashes = g.stashes()
         if len(stashes) > before:
             self.stash_text = stashes[0]

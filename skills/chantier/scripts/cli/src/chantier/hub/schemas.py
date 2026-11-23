@@ -2,6 +2,10 @@
 `name@N`, holding its model (the payload of a version 2 line, after `v`, `seq`, `t`, `type`,
 `source` and `audience`), its wake rule, its text, its duplicate key and one valid example.
 
+The writer's types are the `sync-*@1` lines and `arrived@1` (a CR that an integration of the
+upstream brought into a project's inbox or backlog, `via: pull`; the `file` and `triage` commands
+of another session write it too, `via: session`).
+
 A published `name@N` never changes (its fields, their JSON types, which are required, its
 patterns); a change is a new `name@N+1`, published beside it. The shipped `schemas.json` is the
 record of each type's JSON Schema: `just journal-schemas` adds the entries it lacks and never
@@ -23,10 +27,22 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, StringConstraints, ValidationError
 
-from chantier.core import clock
 from chantier.hub.board_text import board_text
 from chantier.hub.schemas_base import Payload, Sha
-from chantier.hub.schemas_sync import SyncBlocked1, SyncConflict1, SyncLate1, SyncResumed1
+from chantier.hub.schemas_sync import (
+    Arrived1,
+    SyncBlocked1,
+    SyncConflict1,
+    SyncLate1,
+    SyncResumed1,
+)
+from chantier.hub.sync_text import (
+    arrived_text,
+    sync_blocked_text,
+    sync_conflict_text,
+    sync_late_text,
+    sync_resumed_text,
+)
 
 LIMITS = ("batch.slots", "specifying.parallel")
 SHA_SHOWN = 7
@@ -87,60 +103,6 @@ class WaitCleared1(Payload):
     wait_type: str
     ref: str
     seen_at: str
-
-
-# What the Chief of Staff does about each reason the writer is blocked for (the spec's C.6).
-WAY_OUT = {
-    "not-a-branch": "check out the default branch",
-    "no-upstream": "set it (`git branch -u <remote>/<branch>`)",
-    "git-busy": "finish or abort it",
-    "nested-repo": (
-        "move it out of the surface, or, when it is the project's code clone or worktrees "
-        "folder, name it in the project's `checkout.yml`"
-    ),
-    "staged": "commit or unstage them by hand",
-    "foreign-autosync": "stop the tool (`uv run scripts/ai-autosync-git.py stop .`)",
-    "path-too-long": (
-        "move it, or the folder that holds it, under its CR's `work/scratch/` (downloaded CI "
-        "artifacts go there, never published), or shorten it; the next cycle that completes "
-        "its git steps ends it (`sync now` runs one at once)"
-    ),
-    "git-error": (
-        "read the text and repair it (a stash: tell the user where the edits are, "
-        "`git stash list`); the next cycle that completes its git steps ends it "
-        "(`sync now` runs one at once)"
-    ),
-}
-
-
-def files_shown(files: list[str], at_most: int = 3) -> str:
-    """The files a conflict names: at most three, then `and <k> more`."""
-    shown = ", ".join(files[:at_most])
-    return f"{shown} and {len(files) - at_most} more" if len(files) > at_most else shown
-
-
-def sync_conflict_text(e: dict[str, Any]) -> str:
-    return (
-        f"writer saw a conflict with the remote on {files_shown(list(e.get('files') or []))}; "
-        "for the Chief of Staff: integrate by rebase, resolve to your best guess or ask the user"
-    )
-
-
-def sync_blocked_text(e: dict[str, Any]) -> str:
-    way = WAY_OUT.get(str(e.get("reason")), "read the text")
-    return f"writer blocked ({e.get('reason')}): {e.get('text')}; for the Chief of Staff: {way}"
-
-
-def sync_late_text(e: dict[str, Any]) -> str:
-    return (
-        f"writer late: {e.get('paths')} paths and {e.get('ahead')} commits not pushed since "
-        f"{clock.local_hhmm(e.get('since'))}; for the Chief of Staff: read sync, tell the user "
-        "if it lasts"
-    )
-
-
-def sync_resumed_text(e: dict[str, Any]) -> str:
-    return f"writer resumed after {e.get('after')}"
 
 
 def merged_text(e: dict[str, Any]) -> str:
@@ -283,6 +245,21 @@ PUBLISHED: dict[str, Entry] = {
             "text": "a comment asks to keep the old column order",
             "wakes": True,
             "folders": ["2-backlog/P2/export-columns"],
+        },
+    ),
+    # an `arrived@1` line is its own event, as a `sync-*@1` line is
+    "arrived@1": Entry(
+        Arrived1,
+        True,
+        arrived_text,
+        None,
+        {
+            "project": "demo",
+            "folder": "1-inbox/an-idea",
+            "stage": "1-inbox",
+            "before": None,
+            "via": "pull",
+            "upstream": "d" * 40,
         },
     ),
     # a `sync-*@1` line is its own event: two conflicts with the same shas in two episodes are told

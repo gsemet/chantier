@@ -15,8 +15,10 @@ readable `seq` plus one), `t`, `type`, `source`, `audience` (a list of `project`
 payload of its type. The type is `name@N`: the name and the published version of the payload. The
 published types and their payloads are `hub/schemas.py`'s `PUBLISHED` (`merged@1`,
 `checks-red@1`, `wait-cleared@1`, `config@1`, `board@1`, `issue@1`, and the writer's
-`sync-conflict@1`, `sync-blocked@1`, `sync-late@1`, `sync-resumed@1`), each with its model, wake
-rule, text, duplicate key and example. A published `name@N` never changes; a change is a new
+`sync-conflict@1`, `sync-blocked@1`, `sync-late@1`, `sync-resumed@1`, and `arrived@1`, a CR that
+reached the inbox or the backlog: `via: pull` by the writer, `via: session` by `file` and `triage`),
+each with its model, wake rule, text, duplicate key and example. A published `name@N` never
+changes; a change is a new
 `name@N+1`, published beside it. Its JSON Schema is in `hub/schemas.json`, written by
 `just journal-schemas`.
 
@@ -26,8 +28,9 @@ version 1 line has `kind` where version 2 has `type`: `read` gives each its effe
 version 2 line of a type not in `PUBLISHED` (a newer chantier wrote it) counts for `seq`, wakes no
 one and is named with its type by `read`; one whose payload its model refuses counts for `seq`,
 wakes no one and is listed as unreadable. A line of a newer version counts for `seq` and wakes no
-one. A `board@1`, `config@1` or `sync-*@1` line is never a duplicate: two identical moves, two saves
-of the same value, or two conflicts with the same shas in two episodes, are two lines.
+one. A `board@1`, `config@1`, `arrived@1` or `sync-*@1` line is never a duplicate: two identical
+moves, two saves of the same value, or two conflicts with the same shas in two episodes, are
+two lines.
 
 Every append runs under the project's lifecycle lock, reads the file, assigns `seq` and skips a
 line already there, whoever wrote the first. An unreadable line is skipped, never rewritten."""
@@ -157,7 +160,7 @@ def _key(e: dict[str, Any]) -> tuple[Any, ...]:
     return entry.key(e)
 
 
-def _listed(e: dict[str, Any]) -> bool:
+def listed(e: dict[str, Any]) -> bool:
     """Whether a line is of a known version and a published type, with a payload its model
     accepts: the lines `status` may tell."""
     return not newer(e) and e.get("type") in PUBLISHED and bool(e.get("audience", [PROJECT]))
@@ -195,7 +198,7 @@ def seen_merged(entries: list[dict[str, Any]], d: BatchRecord) -> frozenset[str]
     return frozenset(
         str(e["cr"])
         for e in entries
-        if _listed(e)
+        if listed(e)
         and e.get("type") == "merged@1"
         and e.get("batch") == d.id
         and isinstance(e.get("cr"), str)
@@ -318,7 +321,7 @@ def _slots_line(entries: list[dict[str, Any]], batch: str, orders: list[Any]) ->
     found = [
         e
         for e in entries
-        if _listed(e) and e.get("type") == "config@1" and e.get("key") == "batch.slots"
+        if listed(e) and e.get("type") == "config@1" and e.get("key") == "batch.slots"
     ]
     if not found:
         return []
@@ -347,7 +350,7 @@ def lines(
     for e in entries:
         cr = e.get("cr")
         if (
-            not _listed(e)
+            not listed(e)
             or e.get("type") != "merged@1"
             or e.get("batch") != batch
             or cr not in open_crs
@@ -358,7 +361,7 @@ def lines(
     cleared = [
         wait_cleared_text(e)
         for e in entries
-        if _listed(e)
+        if listed(e)
         and e.get("type") == "wait-cleared@1"
         and e.get("batch") == batch
         and (e.get("cr"), e.get("wait")) in open_waits
@@ -385,7 +388,7 @@ def writer_lines(entries: list[dict[str, Any]], writer: dict[str, Any]) -> list[
     for kind, states in _EPISODES.items():
         if writer.get("state") not in states:
             continue
-        mine = [e for e in entries if _listed(e) and e.get("type") == kind]
+        mine = [e for e in entries if listed(e) and e.get("type") == kind]
         if mine:
             found.append(max(mine, key=lambda e: (e.get("t") or "", e.get("seq") or 0)))
     return [event_text(e) for e in found]

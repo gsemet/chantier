@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from test_writer_arrivals import CH, arrived, other_commit  # the writer tests' helpers
 
 from chantier.board import command, context, fingerprint
 from chantier.board import key as keys
@@ -207,3 +208,35 @@ def test_with_no_notification_the_checks_every_five_seconds_see_a_write(
         assert STOPPED.format(reason="the queue overflowed") in err and moved == [CHECK]
     else:
         assert err == "" and moved == []
+
+
+def test_a_cr_the_writers_pull_brought_settles_the_project_and_the_project_topic_lists_it(
+    rig: Callable[[], Any],
+) -> None:
+    r = rig()
+    r.seat()
+    r.settle()
+    ctx = Context(
+        Projects(r.repo, None, []),
+        keys.KeyFile(keys.key_path(r.repo)),
+        Seats(Projects(r.repo, None, [])),
+        "t",
+        lambda: None,
+        None,
+    )
+    project = ctx.projects.all()[0]
+    ctx.settle(project)
+    loop = ctx.push = PushLoop(ctx)
+    seen: list[dict[str, Any]] = []
+    args = {"project": ctx.projects.home_id}
+    assert not isinstance(loop.subscribe("project", args, seen.append), ops.Result)
+    other_commit(r, "arrives", (None, "1-inbox/arrived-cr"))
+    r.tick()
+    assert [x["folder"] for x in arrived(r)] == ["1-inbox/arrived-cr"]
+    written = [str(r.root / CH / "1-inbox" / "arrived-cr" / "01-intent.md")]
+    watch = FileWatchThread(ctx)
+    watch.feed(written, 500.0)
+    assert watch.tick(500.0 + QUIET_S) == [project.id]
+    sent = len(seen)
+    loop.poll(600.0)
+    assert "arrived-cr" in str(seen[sent:])
