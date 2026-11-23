@@ -4043,7 +4043,8 @@ def live_once(w: World, working: str) -> None:
         code, out = w.chantier("live", "--once", *extra, expect=None)
         shown = "\n".join(out)
         cells = [x.split("│") for x in out]  # the Tasks panel is the last one on its rows
-        tasks = [c[-2] for c in cells if len(c) > 2 and c[-2].strip().startswith(f"{working} ")]
+        # a Tasks row starts with its State word, then the CR id ("working CR-101  Board working")
+        tasks = [c[-2] for c in cells if len(c) > 2 and c[-2].strip().startswith(f"working {working} ")]
         check(f"`{' '.join(('live', '--once', *extra))}` exits 0 and shows the working CR in "
               "Tasks and `working 1` in the header",
               code == 0 and "working 1" in shown and bool(tasks), shown + w.last_stderr)
