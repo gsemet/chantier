@@ -107,7 +107,8 @@ does a unit that is not in `UNITS` and a test that does not exist.
   (test: test_playbook_config.py::test_a_valid_file_is_resolved_recorded_and_kept_by_the_running_batch)
   (test: test_gate_refusals.py::test_a_bad_long_gate_key_is_refused_with_its_line_by_gate_playbook_and_preflight);
 - hand-backs as state writes (refused before a PR is recorded), `ship` reporting what is off
-  (uncommitted changes, a head not pushed, no long gate at it), a QA ordered during the batch,
+  (uncommitted changes, a head not pushed, no long gate at it) and refusing, with nothing recorded, a
+  branch that holds a merge commit among the CR's own commits, a QA ordered during the batch,
   with its folder in the inbox, that holds no CR back and keeps the batch from pausing until done;
   its refusals (no request, a spent budget, its folder not opened) in pytest (unit: parallel,
   gates, qa-driver) (test:

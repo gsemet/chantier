@@ -88,6 +88,7 @@ def _ship_once(
         "crs"
     ][0]
     sh("git", "worktree", "add", "-q", "-b", cr["branch"], cr["worktree"], "HEAD", cwd=repo)
+    sh("git", "update-ref", "refs/remotes/origin/main", "HEAD", cwd=repo)  # the base `ship` reads
     (Path(cr["worktree"]) / "f.txt").write_text("f\n")
     sh("git", "add", "f.txt", cwd=Path(cr["worktree"]))
     sh(
