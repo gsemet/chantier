@@ -128,8 +128,8 @@ def test_the_four_skills_hold_one_launch_paragraph() -> None:
         "rule holds",
     ):
         assert phrase in paragraphs[0], phrase
-    start = (SKILL / "references" / "session-start.md").read_text(encoding="utf-8")
-    assert 'uv sync --locked --project "<plugin root>"' in start
+    sync = (SKILL / "references" / "sync-checkout.md").read_text(encoding="utf-8")
+    assert 'uv sync --locked --project "<plugin root>"' in sync
     core = (SKILL / "references" / "startup-core.md").read_text(encoding="utf-8")
     assert "never in a shell variable" in " ".join(core.split())
 
@@ -154,12 +154,12 @@ def test_the_shipped_docs_state_the_dev_mode_rule_and_the_stale_build() -> None:
         "CONTRIBUTING.md": PLUGIN_ROOT / "CONTRIBUTING.md",
         "concepts.md": refs / "concepts.md",
         "claude-code.md": refs / "hosts" / "claude-code.md",
-        "session-start.md": refs / "session-start.md",
+        "session-start-chief-of-staff.md": refs / "session-start-chief-of-staff.md",
     }
     for name, path in docs.items():
         text = " ".join(path.read_text(encoding="utf-8").split())
         assert "when the session's project is chantier" in text, name
-        if name in ("AGENTS.md", "CONTRIBUTING.md", "session-start.md"):
+        if name in ("AGENTS.md", "CONTRIBUTING.md", "session-start-chief-of-staff.md"):
             assert text.count(STALE_BUILD) == 1, name
 
 
@@ -175,7 +175,7 @@ SYNC_PARAGRAPH_PHRASES = (
     "sync pending: held by",
     "3 minutes",
     "but a reload",
-    '"6. Sync the checkout"',
+    "`sync-checkout.md`",
     "Any failure of the sync or of `$CHANTIER`, in either mode, at any call, follows "
     "`startup-core.md`, except a sync held as above (`sync pending`).",
 )
@@ -203,10 +203,9 @@ def test_the_four_skills_hold_the_checked_sync_that_waits_and_never_kills() -> N
         for phrase in SYNC_PARAGRAPH_PHRASES:
             assert phrase in paragraph, f"{name}/SKILL.md lacks: {phrase}"
         assert "once, before the first" not in paragraph, name
-    start = _flat(SKILL / "references" / "session-start.md")
-    section = start[start.index("## 6. Sync the checkout") :]
+    section = _flat(SKILL / "references" / "sync-checkout.md")
     for phrase in SYNC_SECTION_PHRASES:
-        assert phrase in section, f"session-start.md section 6 lacks: {phrase}"
+        assert phrase in section, f"sync-checkout.md lacks: {phrase}"
 
 
 def test_the_cards_and_hosts_state_the_exception_the_row_and_the_for_you_item() -> None:
@@ -247,7 +246,7 @@ def test_the_cards_and_hosts_state_the_exception_the_row_and_the_for_you_item() 
             "printed; never stop or restart the board.",
         ),
         (
-            "session-start.md",
+            "session-start-chief-of-staff.md",
             "and an added `board runs another build` line: say it once to the user as printed, "
             "never stop or restart the board",
         ),

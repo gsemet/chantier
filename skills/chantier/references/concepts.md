@@ -391,7 +391,7 @@ At startup, identify the role, batch, project and parent session.
   names the repository's Chief of Staff session: its session id, its transcript id, the
   environment, the title and the link. It records no date: no activity date is ever taken as
   proof of life. The host says whether the seat's session is alive.
-- **Session title:** `[<code>] 💬 Project · <role>` for a session the user talks to, `[<code>] ⚙️ Project · Foreman (Batch <nn>)` for the Foreman ([session-start](session-start.md), "Titles").
+- **Session title:** `[<code>] 💬 Project · <role>` for a session the user talks to, `[<code>] ⚙️ Project · Foreman (Batch <nn>)` for the Foreman ([titles](titles.md)).
 - **Steering session:** the session that runs the batch from its state: a Foreman, or, in direct
   mode (`open --direct`), the Chief of Staff itself, the session the seat names. Both claim an epoch the same way. The batch
   records which steers it. A later epoch claimed by a transcript other than the recorded Chief of
@@ -749,10 +749,10 @@ stack driver's `conflict-resolver` escalates, the stack driver keeps the batch's
    `gh … --repo <owner>/<name>`, `glab … -R <owner>/<name>`. Whoever starts a background task
    stops it by its id, with the host's stop of a background task, once its result is read or no
    longer counts (the board and the Chief of Staff's watcher, `$CHANTIER watch`, keep
-   `session-start.md`'s and `chief-of-staff.md`'s start and stop rules: the watcher is started on
+   `session-start-chief-of-staff.md`'s and `chief-of-staff.md`'s start and stop rules: the watcher is started on
    the user's yes, started again after each end, and stops itself (at its end, 2 h after its start with no event, or when the seat is another session's); the board a watcher starts is a detached process, no background task
    of the session: it stops itself when its seat leaves or 30 minutes after its last client, and
-   by hand only with the stop command `session-start.md` names; only the current-folder rule
+   by hand only with the stop command `session-start-chief-of-staff.md` names; only the current-folder rule
    applies to them). The shell that runs `$CHANTIER gate` is the gate itself: it
    ends when the gate ends and records its result, and it is stopped only with `gate <cr> --stop`.
    The reasons: on Windows a process whose current folder is inside a folder keeps that folder from

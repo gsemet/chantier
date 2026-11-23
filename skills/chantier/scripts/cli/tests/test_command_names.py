@@ -52,7 +52,7 @@ def test_the_tree_names_the_old_command_nowhere() -> None:
 
 
 def test_the_blocked_sync_steps_name_the_serve_holder_and_its_stop() -> None:
-    text = (ROOT / "skills/chantier/references/session-start.md").read_text(encoding="utf-8")
+    text = (ROOT / "skills/chantier/references/sync-checkout.md").read_text(encoding="utf-8")
     step4 = next(s for s in text.splitlines() if s.startswith("4. With any holder"))
     step5 = next(s for s in text.splitlines() if s.startswith("5. Still pending"))
     assert "PID <n> serve <project> (started by webui)" in step4
