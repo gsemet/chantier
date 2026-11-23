@@ -163,6 +163,8 @@ def test_live_once_prints_the_working_cr_and_its_lease_and_a_journal_line_comes_
     out = capsys.readouterr().out
     assert "working 1" in out and live.cr in out and LEASE.search(out), out
     assert "\x1b" not in out  # plain text
+    assert " Agents " in out and " Ready " in out  # the two boxes
+    assert re.search(r"\d{2}-\d{2} \d{2}:\d{2}:\d{2}", out), out  # a Flow line's time
     _a_line_comes_once(live, transport)
 
 

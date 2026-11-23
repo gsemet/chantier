@@ -3,68 +3,29 @@ Rich and no network in it.
 
 From `board`: the projects and the server's version and folder served. From `project`: the batch's
 CR rows, its `stack_lease` and slots, and the record's last 40 events. From `events`: the journal
-lines. The flow keeps the last 2000 lines of every project shown, by time (per board: with
-several boards the screen merges the boards' flows). "Now" is the server's:
-the `now` of the last frame plus the time elapsed since on the local monotonic clock, so a
-machine with a wrong clock shows the right time left."""
+lines. From `prs`: the batch's PRs as the forge says them. The flow keeps the last 2000 lines of
+every project shown, by time (per board: with several boards the screen merges the boards' flows).
+"Now" is the server's: the `now` of the last frame plus the time elapsed since on the local
+monotonic clock, so a machine with a wrong clock shows the right time left. Every clock time the
+screen draws is in the local zone (`zone`, the system's when None)."""
 
 from __future__ import annotations
 
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, tzinfo
 from typing import Any
 
 from chantier.clients.tui.link import Event, Idle, Linked, Refused, Wanted
+from chantier.clients.tui.times import FORMAT, NO_TIME, SECONDS, offset_text, parse
 
 WATCHED = 15  # projects watched at most
 FLOW = 2000  # lines the flow keeps, per board
-FORMAT = "%Y-%m-%dT%H:%M:%SZ"
-SECONDS = 60
+SEAT = "Chief of Staff (seat)"
+LATE = "  late"
+BEAT_LATE_MARGIN = 5  # minutes past the steering wake before the heartbeat is late
 EVENT_DETAILS = ("result", "round", "order_kind", "reason", "note")
-
-
-def parse(ts: Any) -> datetime | None:
-    try:
-        return datetime.strptime(str(ts), FORMAT).replace(tzinfo=UTC)
-    except ValueError:
-        return None
-
-
-def hms(ts: Any) -> str:
-    """`HH:MM:SS` of a chantier time (UTC), as every chantier text shows it."""
-    text = str(ts or "")
-    return text[11:19] if len(text) >= 19 else "--:--:--"  # noqa: PLR2004 - ISO 8601 slots
-
-
-def lease_left(lease: dict[str, Any] | None, now: datetime) -> str | None:
-    """The time left of a lease from its facts: none when it ended (or never was); `mm:ss`
-    while it expires after now; else its gate's word, else
-    `not confirmed <n> min`, the words of the CLI's leases."""
-    if not lease or lease.get("ended"):
-        return None
-    expires = parse(lease.get("expires"))
-    if expires is None:
-        return None
-    left = (expires - now).total_seconds()
-    if left > 0:
-        whole = int(left)
-        return f"{whole // SECONDS:02d}:{whole % SECONDS:02d}"
-    if lease.get("gate"):
-        return str(lease["gate"])
-    return f"not confirmed {int(-left // SECONDS)} min"
-
-
-def age(since: Any, now: datetime) -> str:
-    """How long ago: `<m>m`, or `<h>h<mm>m` past an hour."""
-    at = parse(since)
-    if at is None:
-        return ""
-    minutes = max(0, int((now - at).total_seconds() // SECONDS))
-    if minutes < SECONDS:
-        return f"{minutes}m"
-    return f"{minutes // SECONDS}h{minutes % SECONDS:02d}m"
 
 
 @dataclass(frozen=True)
@@ -125,6 +86,8 @@ class Model:
     at: float = 0.0
     label: str = ""  # `a`..`d` with several boards, else empty
     base: str = ""  # the board's base address
+    zone: tzinfo | None = None  # the zone times are drawn in; None: the system's local zone
+    prs: dict[str, dict[str, Any]] = field(default_factory=dict)  # `prs` answers, by project
 
     # the link's items
 
@@ -147,9 +110,16 @@ class Model:
         elif self.lost_at is None:
             self.lost_at = self.now().strftime(FORMAT)
 
+    @staticmethod
+    def _prs_project(rest: str) -> str:
+        """The project of a `prs:<project>:<batch>` key: between the first and the last `:`."""
+        return rest.rpartition(":")[0]
+
     def _refused(self, key: str) -> None:
         topic, _, project = key.partition(":")
-        if topic in ("project", "events") and project:
+        if topic == "prs":
+            self.prs.pop(self._prs_project(project), None)
+        elif topic in ("project", "events") and project:
             self.dropped.add(project)
             self.states.pop(project, None)
             self.journals.discard(project)
@@ -161,6 +131,8 @@ class Model:
         elif topic == "project" and project:
             self.states[project] = item.data
             self._records(project, list(item.data.get("events") or []))
+        elif topic == "prs" and self._prs_project(project):
+            self.prs[self._prs_project(project)] = item.data
         elif topic == "events" and project:
             self.journals.add(project)
             for x in item.data.get("lines") or []:
@@ -220,19 +192,35 @@ class Model:
         return [p["id"] for p in self.projects() if p["id"] not in self.dropped][WATCHED:]
 
     def wanted(self) -> list[Wanted]:
-        """`board`, then `project` and `events` of each project watched."""
+        """`board`, then `project` and `events` of each project watched, and `prs` of each one
+        whose state holds a batch in `4-batch/` (its key names the batch, so a new batch is a new
+        subscription)."""
         out: list[Wanted] = [("board", "board", {})]
         for p in self.watched():
             out.append((f"project:{p}", "project", {"project": p}))
             out.append((f"events:{p}", "events", {"project": p}))
+            batch = self.batch_id(p)
+            if batch:
+                out.append((f"prs:{p}:{batch}", "prs", {"project": p, "batch": batch}))
         return out
 
     def missing(self) -> list[str]:
-        """The first answers not received yet: `board`, `project <id>`, `events <id>`."""
+        """The first answers not received yet: `board`, `project <id>`, `events <id>` (never the
+        `prs` ones: see `pending_prs`)."""
         if self.board is None:
             return ["board"]
         out = [f"project {p}" for p in self.watched() if p not in self.states]
         return out + [f"events {p}" for p in self.watched() if p not in self.journals]
+
+    def pending_prs(self) -> list[str]:
+        """The `prs` subscriptions not answered yet, as `prs <id>`."""
+        out = []
+        for p in self.watched():
+            batch = self.batch_id(p)
+            answer = self.prs.get(p)
+            if batch and (answer is None or answer.get("batch") not in (None, batch)):
+                out.append(f"prs {p}")
+        return out
 
     # what is drawn
 
@@ -243,9 +231,28 @@ class Model:
             return datetime.now(UTC)
         return at + timedelta(seconds=max(0.0, self.clock() - self.at))
 
+    def local(self, at: datetime) -> datetime:
+        """An instant in the zone the screen draws in."""
+        return at.astimezone(self.zone)
+
+    def stamp(self, ts: Any) -> str:
+        """`MM-DD HH:MM:SS` of a chantier time in the local zone; `----- --:--:--` when it does
+        not parse."""
+        at = parse(ts)
+        return self.local(at).strftime("%m-%d %H:%M:%S") if at else NO_TIME
+
+    def clock_text(self) -> str:
+        """The server's now in the local zone: `2026-11-23 12:26:25 UTC+01:00`."""
+        at = self.local(self.now())
+        return f"{at.strftime('%Y-%m-%d %H:%M:%S')} {offset_text(at)}"
+
     def batch(self, project: str) -> dict[str, Any] | None:
         found = (self.states.get(project) or {}).get("batch")
         return found if isinstance(found, dict) else None
+
+    def batch_id(self, project: str) -> str:
+        b = self.batch(project)
+        return str(b["id"]) if b and isinstance(b.get("id"), str) else ""
 
     def rows(self) -> list[tuple[str, dict[str, Any]]]:
         """The CR rows of the running batches of the projects watched, with their project."""
@@ -266,13 +273,20 @@ class Model:
         }
 
     def agents(self) -> list[tuple[str, str]]:
-        """One line per unit held: `Driver <cr> <phase>` per working CR, `Stack driver` while the
-        stack's lease has not ended."""
+        """The sessions of each project watched: `Chief of Staff (seat)  <title>`, `Foreman` with
+        its heartbeat, a `Driver <cr> <phase>` per working CR, `Stack driver` while the stack's
+        lease has not ended. The seat line says who holds the seat, not that it runs."""
         out = []
         for p in self.watched():
+            seat = (self.states.get(p) or {}).get("seat")
+            if isinstance(seat, dict):
+                title = str(seat.get("title") or "")
+                out.append((p, f"{SEAT}  {title}" if title else SEAT))
             b = self.batch(p)
             if not b or b.get("state") != "running":
                 continue
+            if b.get("steering") == "foreman":
+                out.append((p, self._foreman(b)))
             for r in b.get("crs") or []:
                 if r.get("state") == "working":
                     out.append((p, f"Driver {r.get('cr')} {r.get('phase') or ''}".rstrip()))
@@ -281,11 +295,60 @@ class Model:
                 out.append((p, "Stack driver"))
         return out
 
+    def _foreman(self, b: dict[str, Any]) -> str:
+        if b.get("heartbeat_stopped"):
+            return "Foreman  heartbeat stopped"
+        beat = parse(b.get("heartbeat"))
+        if beat is None:
+            return "Foreman"
+        minutes = max(0, round((self.now() - beat).total_seconds() / SECONDS))
+        text = f"Foreman  beat {minutes} min ago"
+        wake = b.get("steering_wake_min")
+        if isinstance(wake, int) and minutes > wake + BEAT_LATE_MARGIN:
+            text += LATE
+        return text
+
+    # Ready
+
+    def review(self) -> list[tuple[str, dict[str, Any]]]:
+        """The CRs to review of the running and paused batches watched, with their project, in
+        the batch's merge order (the others after, as listed)."""
+        out = []
+        for p in self.watched():
+            b = self.batch(p)
+            if not b or b.get("state") not in ("running", "paused"):
+                continue
+            rows = [r for r in b.get("crs") or [] if isinstance(r, dict) and r.get("to_review")]
+            order = [str(x) for x in b.get("merge_order") or []]
+            rows.sort(key=lambda r: order.index(r["cr"]) if r.get("cr") in order else len(order))
+            out += [(p, r) for r in rows]
+        return out
+
+    def has_batch(self) -> bool:
+        return any(self.batch_id(p) for p in self.watched())
+
+    def pr_of(self, project: str, cr: str) -> dict[str, Any] | None:
+        """The forge's row of a CR's PR from the project's `prs` answer, None when it has none."""
+        answer = self.prs.get(project) or {}
+        if answer.get("batch") not in (None, self.batch_id(project)):
+            return None
+        return next((x for x in answer.get("rows") or [] if x.get("cr") == cr), None)
+
+    def prs_error(self) -> str:
+        """The forge error of the first project that has one, on one line."""
+        for p in self.watched():
+            error = (self.prs.get(p) or {}).get("error")
+            if error:
+                return " ".join(str(error).split())
+        return ""
+
     def ready_count(self, project: str) -> int | None:
         found = ((self.states.get(project) or {}).get("backlog") or {}).get("3-ready")
         return len(found) if isinstance(found, list) else None
 
     def link_word(self) -> str:
         if self.lost_at is not None:
-            return f"reconnecting since {hms(self.lost_at)}"
+            at = parse(self.lost_at)
+            time_ = self.local(at).strftime("%H:%M:%S") if at else "--:--:--"
+            return f"reconnecting since {time_}"
         return "live" if self.transport else "connecting"

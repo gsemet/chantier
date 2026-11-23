@@ -293,9 +293,14 @@ own with `--ui <folder>`, none with `--ui none`. The shipped client's folder
 ## A terminal client
 
 `chantier live` is the API's second client: a read-only terminal view of one to four running boards (the
-counts, the projects and Drivers, the flow of events, the tasks with their lease time left). It
-sends `hello`, `sub`, `unsub` and the poll, and nothing else, over the WebSocket first and the
-HTTP long-poll when the WebSocket does not open. Its package,
+counts, the projects, the agents, the flow of events, the PRs ready to review or to merge, the
+tasks with their lease time left). It sends `hello`, `sub`, `unsub` and the poll, and nothing else,
+over the WebSocket first and the HTTP long-poll when the WebSocket does not open. Besides `board`,
+`project` and `events`, it watches `prs` for each project with a batch in `4-batch/` (the key
+names the batch); the server's read of the forge for it is the one it makes for the web page, at
+most once every 10 s per project and batch while a client asks, and it may append the same
+`merged@1` line to the project's `forge-journal.jsonl` when it finds a merge the record does not
+hold (the server's write, never the client's). Its package,
 [`clients/tui/`](../skills/chantier/scripts/cli/src/chantier/clients/tui/), is the example of a
 client in Python: it imports nothing of chantier but itself, the version and the error type, so
 everything it shows comes through this API. See [boards.md](boards.md#the-live-terminal-view).

@@ -2,10 +2,11 @@
 renderable, and the loop that redraws it once a second, so the lease times count down between
 events, and reads the keys. Rich and `blessed` load here, when `live` runs.
 
-A header (the board or boards, the transport, the link's state, the server's time and the four
-counts), a left column (projects, agents; not drawn under 100 columns), the flow in the centre
-(newest at the bottom) and the tasks on the right. Text is only cut with `…`, never wrapped; no
-colour carries a meaning alone (each state has its word)."""
+A header (the board or boards, the transport, the link's state, the server's time with its UTC
+offset and the four counts), a left column (projects, agents; not drawn under 100 columns), the
+flow in the centre (newest at the bottom) and, on the right, Ready (the PRs to review or to merge)
+above the tasks. Boxes are rounded; the Flow, Ready and Tasks are tables with a header row. Text is
+only cut with `…`, never wrapped; no colour carries a meaning alone (each state has its word)."""
 
 from __future__ import annotations
 
@@ -16,15 +17,35 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from chantier.clients.tui.model import Model, age, hms, lease_left, merged
+from chantier.clients.tui.model import (
+    LATE,
+    Model,
+    merged,
+)
+from chantier.clients.tui.parts import (
+    COUNT_COLOURS,
+    LEFT_W,
+    RIGHT_W,
+    STATE_COLOURS,
+    coloured,
+    cr_cell,
+    dim,
+    grid,
+    models_of,
+    panel,
+    table,
+    watched,
+)
+from chantier.clients.tui.ready import ready, ready_rows
+from chantier.clients.tui.times import lease_left, since
 from chantier.clients.tui.view import HELP, View
 
 NARROW = 100  # under this many columns, no left column
-LEFT_W, RIGHT_W = 28, 44
 PROJECT_W, WHO_W, CR_W = 10, 10, 9
-FOOTER_H, BORDERS = 1, 2
+TIME_W, STATE_W = 14, 7
+FOOTER_H, BORDERS, HEADER_ROW = 1, 2, 1
 REDRAW_S = 1.0
-KEYS_FOOTER = "? keys  / filter  q quit"
+KEYS_FOOTER = "? keys  / filter  t time  q quit"
 NO_KEYS_FOOTER = "Ctrl-C to quit"
 KEY_NAMES = {
     "KEY_UP": "up",
@@ -39,41 +60,19 @@ KEY_NAMES = {
 }
 
 
-def _grid(*widths: int | None) -> Any:
-    """A table of text columns, each cut with `…`; a None width takes the rest."""
-    from rich.table import Table
-
-    t = Table.grid(padding=(0, 1), expand=True)
-    for w in widths:
-        if w is None:
-            t.add_column(ratio=1, no_wrap=True, overflow="ellipsis")
-        else:
-            t.add_column(width=w, no_wrap=True, overflow="ellipsis")
-    return t
-
-
-def _panel(body: Any, title: str) -> Any:
-    from rich import box
-    from rich.panel import Panel
-
-    return Panel(body, box.SQUARE, title=title, title_align="left", padding=(0, 1))
-
-
-def _models(models: Model | list[Model]) -> list[Model]:
-    return [models] if isinstance(models, Model) else models
-
-
 def header_height(models: list[Model]) -> int:
     """2 lines with one board, `2 + n` with `n` boards (one line each)."""
     return 2 if len(models) == 1 else 2 + len(models)
 
 
+def body_height(models: list[Model], height: int) -> int:
+    """The body's height, the boxes' borders included."""
+    return max(height - header_height(models) - FOOTER_H, 0)
+
+
 def body_rows(models: list[Model], height: int) -> int:
-    return max(height - header_height(models) - FOOTER_H - BORDERS, 0)
-
-
-def _watched(models: list[Model]) -> list[tuple[Model, str]]:
-    return [(m, p) for m in models for p in m.watched()]
+    """The lines of the Flow's table under its header row."""
+    return max(body_height(models, height) - BORDERS - HEADER_ROW, 0)
 
 
 def counts(models: list[Model]) -> dict[str, int]:
@@ -88,8 +87,8 @@ def counts(models: list[Model]) -> dict[str, int]:
 def header(models: Model | list[Model]) -> Any:
     from rich.text import Text
 
-    models = _models(models)
-    clock = f"{models[0].now().strftime('%H:%M:%S')} UTC"
+    models = models_of(models)
+    clock = models[0].clock_text()
     lines = []
     if len(models) == 1:
         m = models[0]
@@ -111,15 +110,22 @@ def header(models: Model | list[Model]) -> Any:
                 f"v{version}" if version else "",
             ]
             lines.append("  ".join(x for x in [*line, state] if x))
-    second = "  ".join(f"{k} {v}" for k, v in counts(models).items())
     text = Text("\n".join(lines), no_wrap=True, overflow="ellipsis")
-    text.append("\n" + second, style="bold")
+    text.append("\n")
+    for i, (k, v) in enumerate(counts(models).items()):
+        if i:
+            text.append("  ")
+        text.append(f"{k} {v}", style=f"bold {STATE_COLOURS[COUNT_COLOURS[k]]}")
     return text
 
 
+def _project_lines(models: list[Model]) -> int:
+    return 2 * len(watched(models))
+
+
 def projects_table(models: list[Model]) -> Any:
-    t = _grid(None)
-    for m, p in _watched(models):
+    t = grid(None)
+    for m, p in watched(models):
         line = (m.states.get(p) or {}).get("batch")
         b = line if isinstance(line, dict) else None
         board_line = next((x for x in m.projects() if x["id"] == p), {})
@@ -133,45 +139,53 @@ def projects_table(models: list[Model]) -> Any:
     return t
 
 
-def agents_table(models: list[Model]) -> Any:
-    t = _grid(None)
-    several = len(_watched(models)) > 1
+def agent_lines(models: list[Model]) -> list[str]:
+    """The Agents box's lines: each project's sessions (with its name when several are watched)."""
+    several = len(watched(models)) > 1
     found = [(m.named(project), text) for m in models for project, text in m.agents()]
-    for project, text in found:
-        t.add_row(f"{project} {text}" if several else text)
-    if not found:
+    return [f"{project} {text}" if several else text for project, text in found]
+
+
+def agents_table(models: list[Model]) -> Any:
+    from rich.text import Text
+
+    t = grid(None)
+    lines = agent_lines(models)
+    for line in lines:
+        late = line.endswith(LATE)
+        text = Text(line[: -len(LATE)] if late else line, no_wrap=True, overflow="ellipsis")
+        if late:
+            text.append(LATE, style=f"bold {STATE_COLOURS['blocked']}")
+        t.add_row(text)
+    if not lines:
         t.add_row("none")
     return t
 
 
-def left(models: list[Model]) -> Any:
-    from rich.console import Group
-    from rich.text import Text
-
-    return _panel(
-        Group(projects_table(models), Text(""), Text("Agents", style="bold"), agents_table(models)),
-        "Projects",
-    )
-
-
 def flow(models: Model | list[Model], rows: int, view: View | None = None) -> Any:
     """The window of the lines the view gives (the last lines that fit while it follows live,
-    newest at the bottom): time, project (when several), who, text."""
-    models, view = _models(models), view or View()
-    several = len(_watched(models)) > 1
+    newest at the bottom): time (or time since), project (when several), who, text."""
+    models, view = models_of(models), view or View()
+    several = len(watched(models)) > 1
     project_w = PROJECT_W + (2 if len(models) > 1 else 0)
-    t = _grid(8, project_w, WHO_W, None) if several else _grid(8, WHO_W, None)
+    time_head = ("Ago" if view.ago else "Time", TIME_W)
+    if several:
+        t = table(time_head, ("Project", project_w), ("Who", WHO_W), ("Event", None))
+    else:
+        t = table(time_head, ("Who", WHO_W), ("Event", None))
     kept = [x for x in merged(models) if x.holds(view.text)]
     shown, title = view.window(kept, rows)
+    first = models[0]
     for line in shown:
         project = f"{line.board}/{line.project}" if line.board else line.project
-        cells = [hms(line.t), project, line.who, line.text]
+        when = since(line.t, first.now()) if view.ago else first.stamp(line.t)
+        cells = [dim(when), project, dim(line.who), line.text]
         t.add_row(*(cells if several else [cells[0], *cells[2:]]))
-    return _panel(t, title)
+    return panel(t, title)
 
 
 def _working(t: Any, cr: str, r: dict[str, Any], now: Any) -> None:
-    t.add_row(cr, str(r.get("title") or ""))
+    t.add_row(coloured("working", "working"), f"{cr}  {r.get('title') or ''}")
     left_ = lease_left(r.get("lease"), now)  # first: a cut never hides it
     detail = [f"lease {left_}" if left_ else ""]
     detail += [f"round {r.get('round')}/{r.get('round_limit')}", str(r.get("phase") or "")]
@@ -185,45 +199,47 @@ def _row_holds(text: str, m: Model, project: str, r: dict[str, Any]) -> bool:
     return any(text.casefold() in str(x or "").casefold() for x in found)
 
 
-def tasks(models: Model | list[Model], view: View | None = None) -> Any:
-    """The working CRs with their lease time left, then the CRs to review with their age, then
-    the blocked ones with their reason; only those the filter keeps."""
-    from rich.text import Text
+def tasks_height(models: list[Model]) -> int:
+    """The lines Tasks' table needs under its header row, no filter."""
+    rows = [r for m in models for _, r in m.rows()]
+    working = sum(1 for r in rows if r.get("state") == "working")
+    blocked = sum(1 for r in rows if r.get("state") == "blocked")
+    return 2 * working + blocked or 1
 
-    models, view = _models(models), view or View()
-    t = _grid(CR_W + (2 if len(models) > 1 else 0), None)
+
+def tasks(models: Model | list[Model], view: View | None = None) -> Any:
+    """The working CRs with their lease time left, then the blocked ones with their reason; only
+    those the filter keeps. The CRs to review are in Ready."""
+    models, view = models_of(models), view or View()
+    t = table(("State", STATE_W), ("Task", None))
     every = [(m, p, r) for m in models for p, r in m.rows()]
     rows = [(m, p, r) for m, p, r in every if _row_holds(view.text, m, p, r)]
-
-    def cell(m: Model, r: dict[str, Any]) -> str:
-        return f"{m.label} {r.get('cr')}" if m.label else str(r.get("cr"))
-
     drawn = 0
     for m, _, r in rows:
         if r.get("state") == "working":
-            _working(t, cell(m, r), r, m.now())
+            _working(t, cr_cell(m, r), r, m.now())
             drawn += 1
-    review = [(m, r) for m, _, r in rows if r.get("to_review")]
-    if review:
-        t.add_row(Text("to review", style="bold"), "")
-    for m, r in review:
-        t.add_row(cell(m, r), f"{age(r.get('handed_back_at'), m.now())}  {r.get('title') or ''}")
     blocked = [(m, r) for m, _, r in rows if r.get("state") == "blocked"]
-    if blocked:
-        t.add_row(Text("blocked", style="bold"), "")
     for m, r in blocked:
-        t.add_row(cell(m, r), str(r.get("blocked") or "blocked"))
+        t.add_row(
+            coloured("blocked", "blocked"),
+            f"{cr_cell(m, r)}  {r.get('title') or ''}",
+        )
+        t.add_row("", str(r.get("blocked") or "blocked"))
     if not every:
         t.add_row("", "no running batch")
-    elif view.text and not (drawn or review or blocked):
+    elif view.text and not (drawn or blocked):
         t.add_row("", f"no task matches {view.text}")
-    return _panel(t, "Tasks")
+    return panel(t, "Tasks")
+
+
+# Ready
 
 
 def footer(models: Model | list[Model], view: View | None = None) -> Any:
     from rich.text import Text
 
-    models, view = _models(models), view or View()
+    models, view = models_of(models), view or View()
     text = KEYS_FOOTER if view.keys else NO_KEYS_FOOTER
     if view.typing is not None:
         text += f"  /{view.typing}"
@@ -236,12 +252,17 @@ def footer(models: Model | list[Model], view: View | None = None) -> Any:
 
 
 def _help_panel() -> Any:
-    t = _grid(14, None)
+    t = grid(14, None)
     for key, effect in HELP:
         t.add_row(key, effect)
     t.add_row("", "")
     t.add_row("", "any key closes this help")
-    return _panel(t, "Keys")
+    return panel(t, "Keys")
+
+
+def _boxed(lines: int) -> int:
+    """A box's height for this many lines under its borders."""
+    return lines + BORDERS
 
 
 def render(
@@ -253,7 +274,7 @@ def render(
     """The whole screen at this size."""
     from rich.layout import Layout
 
-    models, view = _models(models), view or View()
+    models, view = models_of(models), view or View()
     root = Layout()
     root.split_column(
         Layout(header(models), size=header_height(models)),
@@ -263,10 +284,28 @@ def render(
     if view.help:
         root["body"].update(_help_panel())
         return root
+    total = body_height(models, height)
+    half = total // 2
     rows = body_rows(models, height)
-    columns = [Layout(flow(models, rows, view)), Layout(tasks(models, view), size=RIGHT_W)]
+    right = Layout(size=RIGHT_W)
+    right.split_column(
+        Layout(
+            ready(models, view),
+            size=min(_boxed(HEADER_ROW + max(len(ready_rows(models, view)), 1)), half),
+        ),
+        Layout(tasks(models, view)),
+    )
+    columns = [Layout(flow(models, rows, view)), right]
     if width >= NARROW:
-        columns.insert(0, Layout(left(models), size=LEFT_W))
+        column = Layout(size=LEFT_W)
+        column.split_column(
+            Layout(
+                panel(projects_table(models), "Projects"),
+                size=min(_boxed(_project_lines(models)), half),
+            ),
+            Layout(panel(agents_table(models), "Agents")),
+        )
+        columns.insert(0, column)
     root["body"].split_row(*columns)
     return root
 
@@ -278,7 +317,8 @@ def plain(
     file: Any,
     view: View | None = None,
 ) -> None:
-    """The screen printed once as plain text (no control code), for `--once`."""
+    """The screen printed once as plain text (no colour, no link, no control code), for
+    `--once`."""
     from rich.console import Console
 
     console = Console(

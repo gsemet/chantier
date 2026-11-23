@@ -21,6 +21,7 @@ from chantier.clients.remote import profile_for
 from chantier.clients.tui import screen
 from chantier.clients.tui.link import Link
 from chantier.clients.tui.model import Model, merged
+from chantier.clients.tui.ready import ready_height
 from chantier.clients.tui.view import View
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_USAGE, ChantierError
 from chantier.hub import state
@@ -85,17 +86,18 @@ def _width() -> int:
 
 
 def height_for(models: Model | list[Model]) -> int:
-    """`--once`'s height: what the longest column needs."""
+    """`--once`'s height: what the tallest of the three columns needs, each box with its header
+    row and borders. Projects and Ready are at most half the body, so the body is at least twice
+    each of them."""
     models = [models] if isinstance(models, Model) else models
-    rows = [r for m in models for _, r in m.rows()]
-    working = sum(1 for r in rows if r.get("state") == "working")
-    review = sum(1 for r in rows if r.get("to_review"))
-    blocked = sum(1 for r in rows if r.get("state") == "blocked")
-    tasks = 2 * working + review + bool(review) + blocked + bool(blocked) or 1
-    left = 2 * sum(len(m.watched()) for m in models) + 2
-    left += max(sum(len(m.agents()) for m in models), 1)
-    body = max(min(len(merged(models)), FLOW_SHOWN), tasks, left, 3)
-    return screen.header_height(models) + screen.FOOTER_H + screen.BORDERS + body
+    box, head = screen.BORDERS, screen.HEADER_ROW
+    projects = box + 2 * sum(len(m.watched()) for m in models)
+    agents = box + max(len(screen.agent_lines(models)), 1)
+    ready = box + head + ready_height(models)
+    tasks = box + head + screen.tasks_height(models)
+    flow = box + head + min(len(merged(models)), FLOW_SHOWN)
+    body = max(projects + agents, ready + tasks, flow, 2 * projects, 2 * ready, 3 + box)
+    return screen.header_height(models) + screen.FOOTER_H + body
 
 
 def _read(
@@ -147,9 +149,15 @@ def _missing(models: list[Model]) -> list[str]:
     return [f"{m.label} {x}" for m in models for x in m.missing()]
 
 
+def _pending(models: list[Model]) -> list[str]:
+    return [x for m in models for x in m.pending_prs()]
+
+
 def once(links: list[Link], models: list[Model]) -> None:
     """One printed screen once every subscription of every board has answered; exit 4 with what
-    is missing after `ONCE_S`, on either transport (a poll is never held past the deadline)."""
+    is missing after `ONCE_S`, on either transport (a poll is never held past the deadline). A
+    `prs` answer the forge has not given by then is no reason to fail: the screen prints and
+    Ready reads `not read`."""
     deadline = time.monotonic() + ONCE_S
     for link in links:
         link.deadline = deadline
@@ -158,10 +166,10 @@ def once(links: list[Link], models: list[Model]) -> None:
     try:
         while True:
             with lock:
-                missing = _missing(models)
+                missing, pending = _missing(models), _pending(models)
             if failed:
                 raise failed[0]
-            if not missing:
+            if not missing and (not pending or time.monotonic() > deadline):
                 break
             if time.monotonic() > deadline:
                 what = ", ".join(missing)
