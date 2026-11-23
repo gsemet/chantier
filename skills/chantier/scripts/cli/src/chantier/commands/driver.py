@@ -24,6 +24,7 @@ from chantier.commands.driver_checks import (
 from chantier.commands.endpause import end_of_batch
 from chantier.commands.facts import cr_facts, stack_lines
 from chantier.commands.park import unpark
+from chantier.commands.permissions import project_remote
 from chantier.commands.take_checks import check_take_all
 from chantier.commands.waits import add_to_cr
 from chantier.core import leases
@@ -93,6 +94,7 @@ def _take_stack(
         [head, *rows],
         team=team_lines(d.playbook),
         note=note,
+        remote=project_remote(repo),
         lease=(
             f"lease: stack {lease.n} (pass --lease {lease.n} on stack <crs>, --out-of-draft, "
             f"--draft and forge-stack create|rebuild|unstack; renew at each wake: lease stack "
@@ -112,7 +114,9 @@ def _cr_driver_block(repo: Repo, batch: str, c: CrEntry, facts: list[str]) -> Dr
         writes += f"; {Path(c.worktree, archive).as_posix()}/"
     title = shown_title(repo.store, c.title, cr_directory(repo, c))
     fill = {"<cr>": c.id, "<title>": title, "<batch>": batch, "<root>": repo.root.as_posix()}
-    return DriverBlock(fill, facts[1].removeprefix("cli: "), facts[2:], writes)
+    return DriverBlock(
+        fill, facts[1].removeprefix("cli: "), facts[2:], writes, remote=project_remote(repo)
+    )
 
 
 def _start_work(repo: Repo, b: Batch, c: CrEntry) -> None:

@@ -31,6 +31,8 @@ def test_the_drivers_prompt_table_names_each_driver_card_and_start_once(host: st
         assert (SKILL / "references" / cells[2].strip("`")).is_file()
         assert cells[3].strip("`") == "none" or role == "cr-driver"
         assert cells[4] in {"yes", "none"}
+        assert (cells[5] == "none") == (role == "qa-driver")
+        assert cells[5] in {"own branch", "batch branches", "none"}
         head = _front(agent_file(role, host))[0]["description"]
         assert "Started by the steering session" in head
         assert f"Prompt starts with: `chantier {role} for " in head
@@ -71,6 +73,30 @@ def _card_line(block: list[str]) -> bool:
     )
 
 
+def _check_rewrites(out: list[str], block: list[str], which: str) -> None:
+    """The `Rewrites:` line: none for qa, else once between `writes:` (or the CLI line) and
+    `Steering:`, naming the branch the `worktree:` line printed (change, release)."""
+    rewrites = [i for i, ln in enumerate(block) if ln.startswith("  Rewrites: ")]
+    if which == "qa":
+        assert not rewrites
+    else:
+        assert len(rewrites) == 1 and block[rewrites[0] + 1].startswith("  Steering: ")
+        line = block[rewrites[0]]
+        assert "--force-with-lease" in line and "pre-authorized by the playbook" in line
+        assert "never the default branch" in line and "rebase --exec" in line
+        assert (block[rewrites[0] - 1].startswith("  writes:")) == (which == "change")
+        if which != "stack":
+            worktree = next(ln for ln in out if ln.startswith("worktree: "))
+            path, rest = worktree.removeprefix("worktree: ").split(" branch ")
+            branch, base = rest.split(" base ")
+            base = base.split(";")[0]
+            assert f"git -C {path} rebase {base}, then" in line
+            assert f"push --force-with-lease -u origin {branch}, one command each" in line
+            assert f"({branch})" in line
+        else:
+            assert "each CR branch of the stack listed above (chantier/*)" in line
+
+
 @pytest.mark.parametrize("which", ["change", "release", "stack", "qa"])
 def test_the_commands_print_each_drivers_prompt_skeleton_without_a_writes_line_for_most(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, which: str
@@ -93,13 +119,13 @@ def test_the_commands_print_each_drivers_prompt_skeleton_without_a_writes_line_f
     role = {"change": "cr-driver", "release": "release-driver"}.get(which, f"{which}-driver")
     block = _skeleton(out, role)
     writes = [ln for ln in block if ln.startswith("  writes:")]
-    teams = [ln for ln in block if ln.startswith("  Team:")]
     start = "(copy it whole" if which == "change" else "(no writes: line"
     assert block[0].startswith(f"{role} prompt {start}")
     assert block[2].startswith("  Read ") and _card_line(block)
     assert "  CLI ($CHANTIER): " in block[5]
     assert any(ln.startswith("  Steering: the Foreman ") for ln in block)
-    assert len(teams) == (1 if which in {"change", "stack"} else 0)
+    assert sum(ln.startswith("  Team:") for ln in block) == int(which in {"change", "stack"})
+    _check_rewrites(out, block, which)
     folder = out[1].removeprefix("QA folder: ").split(";")[0]
     target = {
         "change": f'for CR-101 "One" of batch {batch}',

@@ -200,11 +200,12 @@ running again, until the user's close.
   lists them, `status` shows `| waits:`): on the user's answer, or on a `wait-cleared@1` line, run
   `wait <cr> clear <id> --epoch <n>`, then take the CR back as above (`take <cr> --epoch <n> --note
   "<why>"`).
-- **Your own chat obeys only "stop", "hold" (no new Driver: the batch still runs), and the user's line allowing a refused action (not for your push of a Driver's refused force push: that goes to the Chief of Staff, [A Driver's refused force push](#a-drivers-refused-force-push)).**
+- **Your own chat obeys only "stop", "hold" (no new Driver: the batch still runs), and the user's line allowing a refused action (not for your push of a Driver's refused force push or your rebase of a Driver's refused rebase: those go to the Chief of Staff, [A Driver's refused force push](#a-drivers-refused-force-push), [A Driver's refused rebase](#a-drivers-refused-rebase)).**
   Anything else: "I run batch <batch> for chantier. Please give orders to the Chief of Staff."
 - **Never code, review, commit, rebase, push or edit a PR, never create a worktree.** Two named
-  exceptions (and a third, the push of a Driver's refused force push, by [A Driver's refused force
-  push](#a-drivers-refused-force-push)): a drop order whose line ends `close its PR <link>` (a trash drop outside a stack;
+  exceptions (and a third, the push of a Driver's refused force push and the rebase of a Driver's
+  refused rebase, by [A Driver's refused force push](#a-drivers-refused-force-push) and [A
+  Driver's refused rebase](#a-drivers-refused-rebase)): a drop order whose line ends `close its PR <link>` (a trash drop outside a stack;
   after `cancel` for a live CR) is closed by you (`gh pr close <n>`, `glab mr close <n>`, no
   `--delete-branch`, no comment) before its `order done`; and a drop order whose line ends
   `turn its PR to draft <link>` (a drop to the backlog or `3-ready` outside a stack, the PR out of
@@ -826,10 +827,13 @@ whole restack.
    <local sha>` line; the Chief of Staff on yours ([chief-of-staff](chief-of-staff.md), "A refused
    force push") and, in direct mode, as the steering session. This is the one place of the check
    and the judgement.
-2. **The check and the judgement.** The check, a hard refusal: the branch is
-   `chantier/<batch>/<cr>-<slug>`, so read the CR from its name (`cr-115` is `CR-115`) and run
-   `$CHANTIER handoff <cr>`; its `worktree: … branch <branch>` line must give exactly the branch on
-   the line, and never the default branch. Else push nothing. The judgement, read-only (`git fetch
+2. **The check and the judgement.** The check, a hard refusal: the branch is covered (it matches
+   `chantier/*`, it is not the project's default branch, and the push is `--force-with-lease`,
+   never a plain `--force`: a CR carried from an earlier batch keeps its branch and is covered),
+   so read the CR from the branch's last segment (`cr-115-…` is `CR-115`) and run `$CHANTIER
+   handoff <cr>`; its `worktree: … branch <branch>` line must give exactly the branch on the
+   line. Else push nothing. A branch that is not `chantier/*`, or the default branch, is never
+   pushed, at any step: see "Not a chantier branch" below. The judgement, read-only (`git fetch
    <remote>`, then the main checkout or `git -C <worktree>`), on what it looks at, not a fixed
    list: the local sha is the worktree's committed head (`rev-parse HEAD`, a clean `git status`);
    the local head holds the remote head's work rebased onto the CR's base (the `base` that
@@ -849,11 +853,26 @@ whole restack.
    skip this gate check (the steering session checks that job at the PR's head; GitLab and
    Copilot: unproved). A branch with no PR yet keeps the gate check. A push that would drop work
    the remote has and the local head does not, or that you cannot tie to the CR, is not
-   legitimate. The two refusals, a branch that is not this batch's and no long gate passed at the
-   local head (outside the skips): push nothing and take the CR back with `take <cr> --note "push:
-   push refused <branch>: <the reason>"` (`not a branch of this batch`, or `no long gate passed
-   at <local sha>`) by the restart path's steps, as for any answer (step 8), with no hop to the
-   Chief of Staff (in direct mode the Chief of Staff does the same).
+   legitimate. The two refusals, a covered branch that `handoff` ties to no CR of this batch and no
+   long gate passed at the local head (outside the skips): push nothing and take the CR back with
+   `take <cr> --note "push: push refused <branch>: <the reason>"` (`not a branch of this batch`,
+   or `no long gate passed at <local sha>`) by the restart path's steps, as for any answer (step
+   8), with no hop to the Chief of Staff and no question to the user (in direct mode the Chief of
+   Staff does the same).
+
+   **Not a chantier branch:** a branch that is not `chantier/*`, or the default branch: push
+   nothing, ever, at any step; take the CR back with `push: push refused <branch>: not a chantier
+   branch` (step 8), and send `[foreman→chief-of-staff] push refused <branch>: not a chantier
+   branch (<cr>)`, which the Chief of Staff tells the user as information (the report's shape: the
+   branch asked and the CR that asked it, no question, no tip, nothing to answer). In direct mode
+   the Chief of Staff does both. A user's yes does not push it.
+
+   **A protected branch:** no session reads the forge's branch protection (no `gh api` or `glab
+   api` rule). A push the forge rejects as protected (git's remote rejection: on GitHub
+   `protected branch hook declined`; on GitLab `You are not allowed to force push code to a
+   protected branch`, **unproved**) is not a failed lease: the session that ran it records
+   `$CHANTIER note <cr> "push rejected by the forge <branch>: <git's text>"` and never retries it
+   (step 7).
 3. **Legitimate: the route rule first** (Claude Code; on Copilot, where P10 does not run, skip
    this step and go to step 4). Run `$CHANTIER preflight` and read its P10 line for "every batch"
    (the one whose text starts `every batch:`), as `commands/permissions.py` (`_gap`) and
@@ -893,10 +912,11 @@ whole restack.
    or not tried (your notes say which). Retry nothing, try no other form, change no permission
    setting. Wait for the Chief of Staff's answer (`pushed <branch>`, `push failed <branch>
    <text>`, `push refused <branch>: <text>`) and take the CR back with it.
-7. **A failed lease** (git rejects the lease: the remote moved): never retried, at any step. Take
-   the CR back with `push: push failed <branch> <git's text>` (the Driver looks at why) and send
-   `[foreman→chief-of-staff] push failed <branch> <git's text>`; the Chief of Staff tells the user
-   at once, and nobody waits for a word.
+7. **A failed lease** (git rejects the lease: the remote moved) **or a push the forge rejects as
+   protected** (above): never retried, at any step. Take the CR back with `push: push failed
+   <branch> <git's text>` (the Driver looks at why) and send `[foreman→chief-of-staff] push failed
+   <branch> <git's text>`; the Chief of Staff tells the user at once, with git's text (and, for a
+   protected branch, that the branch is protected on the forge), and nobody waits for a word.
 8. **The answer's way back.**
    - The answer does not go to a live Driver as a note: the Driver handed back `blocked waits: push
      <branch> …` and ended. When the CR is `blocked` with that `waits:`, take it back at once with
@@ -913,3 +933,37 @@ whole restack.
 9. **Record each refusal once, whoever sees it:** the Driver's (before its push line,
    [driver](driver.md)), yours (step 6, or the `push not tried` note of step 3), the Chief of
    Staff's; each before the next step's line.
+
+## A Driver's refused rebase
+
+A Driver's rebase the host refuses climbs the same ladder as its force push: the Foreman checks it
+and runs it, then, if the host refuses the Foreman (or the rule is missing), the Chief of Staff
+([chief-of-staff](chief-of-staff.md), "A refused rebase"); the user is asked only if the host
+refuses the Chief of Staff too, one question, and the command runs once on the user's yes. In
+direct mode the ladder is Driver, Chief of Staff, the user. This is a named exception to "no `git
+rebase`" (the early-conflict check, "Your means"): only this command, only in a Driver's worktree,
+only on such a line. The steering session resolves nothing.
+
+1. **The check, a hard refusal.** On `[driver <cr>→foreman] rebase <branch> <base>`: the branch is
+   covered (as in the push's step 2: `chantier/*`, not the default branch), the CR is read from
+   its last segment, `$CHANTIER handoff <cr>`'s `worktree: … branch <branch>` line gives exactly
+   it, and the line's `<base>` is the `base` that `handoff` prints. Else rebase nothing: take the
+   CR back with `take <cr> --note "rebase: rebase refused <branch>: <the reason>"`.
+2. **The rule first** (Claude Code; Copilot skips it), as step 3 of the push: the P10 `every
+   batch:` line names in an `(add …)` part, or under `denied:`, the rebase rule of the form you
+   will run (`git -C * rebase origin/*`, `git -C * rebase chantier/*`, `git -C * rebase --onto
+   …`, with the project's remote filled in): rebase nothing, record `$CHANTIER note <cr> "rebase
+   not tried: rule missing"` and send the line of step 4 at once.
+3. **Run, one command:** `git -C <worktree> rebase <base>` in the Driver's worktree, the worktree
+   clean (a clean `git status`), after `git -C <worktree> fetch <remote>`. A clean rebase: note
+   `rebased <branch> onto <base> at <sha7>` and take the CR back with `rebase: rebased <branch>
+   onto <base> at <sha7>`. A conflict: leave the rebase stopped (no `--abort`, no resolution),
+   take the CR back with `rebase: rebase conflict <branch> onto <base>`. Never `--exec` or `-x`.
+4. **The host refuses you:** `$CHANTIER note <cr> "refused: <the exact command> -> <the host's
+   exact text>"`, then send `[foreman→chief-of-staff] rebase <branch> <base>`, not through
+   `asks`; wait for the answer (`rebased <branch> onto <base> at <sha7>`, `rebase conflict
+   <branch> onto <base>`, `rebase refused <branch>: <text>`); retry nothing, try no other form,
+   change no permission setting.
+5. **The answer's way back** is the push's step 8, with the note `rebase: <the answer, as it
+   came>`; the Driver's hand-back was `blocked waits: rebase <branch> <base>`. Record each refusal
+   once, whoever sees it.

@@ -32,6 +32,7 @@ class DriverRow:
     card: str
     writes: bool
     team: bool
+    rewrites: str  # `own branch`, `batch branches` or `none`
     first: str
     text: str
 
@@ -49,6 +50,7 @@ class DriverBlock:
     team: list[str] | None = None
     note: str = ""
     lease: str | None = None  # the `lease:` line, when the command started one
+    remote: str = "origin"  # the project's remote, as P10 fills it
 
 
 def driver_table() -> list[list[str]]:
@@ -91,6 +93,7 @@ def driver_row(host: str, started: str, kind: str | None = None) -> DriverRow:
                     cells[2].strip("`"),
                     cells[3].strip("`").lower() != "none",
                     cells[4].strip("`").lower() != "none",
+                    cells[5].strip("`").lower(),
                     m[1],
                     text,
                 )
@@ -105,6 +108,37 @@ def _needs_line(resolved: dict[str, Any] | None, role: str) -> list[str]:
     rec = ((resolved or {}).get("roles") or {}).get(role) or {}
     parts = [f"{k} {', '.join(rec[k])}" for k in ("skills", "tools") if rec.get(k)]
     return [f"  Needs: {'; '.join(parts)}"] if parts else []
+
+
+_WORKTREE_LINE = re.compile(r"^worktree: (.+) branch (\S+) base ([^\s;]+)")
+
+
+def _rewrites_line(row: DriverRow, block: DriverBlock) -> list[str]:
+    """The `Rewrites:` line the table's column asks for: the rebase and the push of a CR branch
+    that the Driver may run, and their scope; the path, branch and base from the `worktree:` line
+    the command printed, `<…>` when it printed none."""
+    if row.rewrites == "none":
+        return []
+    tree, branch, base = "<worktree>", "<branch>", "<base>"
+    for line in block.middle:
+        if m := _WORKTREE_LINE.match(line):
+            tree, branch = m[1], m[2]
+            base = m[3] if m[3] != "?" else base  # `base ?`: the read of the forge failed
+    flow = (
+        "chantier's normal flow, pre-authorized by the playbook; never the default branch, "
+        "a protected branch, another branch, a plain --force or a rebase --exec."
+    )
+    if row.rewrites == "batch branches":
+        return [
+            f"  Rewrites: for each CR branch of the stack listed above (chantier/*), "
+            f"git -C <worktree> rebase <base>, then git -C <worktree> push --force-with-lease "
+            f"-u {block.remote} <branch>, one command per branch, on that branch only: {flow}"
+        ]
+    return [
+        f"  Rewrites: git -C {tree} rebase {base}, then git -C {tree} push --force-with-lease "
+        f"-u {block.remote} {branch}, one command each, on your own CR branch only "
+        f"({branch}): {flow}"
+    ]
 
 
 def driver_prompt_lines(row: DriverRow, d: BatchRecord, block: DriverBlock) -> list[str]:
@@ -146,6 +180,7 @@ def driver_prompt_lines(row: DriverRow, d: BatchRecord, block: DriverBlock) -> l
         *(f"  {line}" for line in block.middle),
         *([f"  {block.lease}"] if block.lease else []),
         *([f"  writes: {block.writes}"] if row.writes and block.writes else []),
+        *_rewrites_line(row, block),
         f"  Steering: {who} <the host's means, from its reference's row \"A Driver messages its "
         'steering session">',
         *(team if row.team else []),

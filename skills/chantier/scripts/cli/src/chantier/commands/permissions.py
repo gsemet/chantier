@@ -114,6 +114,22 @@ def _readable(repo: Repo | None) -> bool:
     return repo is None or Path(repo.root).is_dir()
 
 
+def project_remote(repo: Repo | None) -> str:
+    """The project's remote as P10 fills the rules: the configured one, else `origin`; when the
+    repository names remotes and that one is not among them, `origin` if present, else the
+    first. The one function P10 and a Driver's prompt use."""
+    remote = "origin"
+    if repo:
+        with contextlib.suppress(Exception):
+            remote = repo.config.get("remote") or remote
+    remotes = []
+    if _readable(repo):
+        remotes = git("remote", cwd=repo.root if repo else None, check=False).split()
+    if remote not in remotes and remotes:
+        remote = "origin" if "origin" in remotes else remotes[0]
+    return remote
+
+
 def _forges(remote: str, repo: Repo | None) -> set[str]:
     """The forges that apply: the remote's forge, the `gh stack` extension when
     `gh extension list` names it; and the mode's rows, `dev` or `plugin`."""
@@ -183,6 +199,11 @@ class Gap(NamedTuple):
     advice: str = ""  # the broad and stale chantier rules found, as the P10 line ends with them
 
 
+def _remote_filled(text: str, remote: str) -> str:
+    """A sample's or a rule's ` origin ` and ` origin/` filled with the project's remote."""
+    return text.replace(" origin ", f" {remote} ").replace(" origin/", f" {remote}/")
+
+
 def _gap(
     rows: list[tuple[str, str, str, str]], remote: str, rules: dict[str, Any], send: bool
 ) -> Gap:
@@ -192,8 +213,8 @@ def _gap(
     blocked: list[str] = []
     missing = 0
     for _, _, raw_command, raw_rule in rows:
-        command = raw_command.replace(" origin ", f" {remote} ")
-        rule = raw_rule.replace(" origin ", f" {remote} ")
+        command = _remote_filled(raw_command, remote)
+        rule = _remote_filled(raw_rule, remote)
         short = command if len(command) < SHORT_CHARS else command[: SHORT_CHARS - 3] + "..."
         lacking, held = [], []
         for tool in tools:
@@ -302,15 +323,7 @@ def commands_not_allowed(
     what a deny or ask rule catches); and the unreadable settings files. The chantier rows are
     filled with this install's real paths; the base capability's gap also carries the broad and
     stale chantier rules the settings hold."""
-    remote = "origin"
-    if repo:
-        with contextlib.suppress(Exception):
-            remote = repo.config.get("remote") or remote
-    remotes = []
-    if _readable(repo):
-        remotes = git("remote", cwd=repo.root if repo else None, check=False).split()
-    if remote not in remotes and remotes:
-        remote = "origin" if "origin" in remotes else remotes[0]
+    remote = project_remote(repo)
     rules, unreadable, origins = _settings_rules(repo)
     forges = _forges(remote, repo)
     gaps = {

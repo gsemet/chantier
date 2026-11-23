@@ -524,6 +524,7 @@ CLI ($CHANTIER): <the `cli:` line of `take`, `round` or `handoff`>
 <the other lines `take`, `round` or `handoff` printed: the specification, the folder, the worktree
 and its base, the PR, the rounds, the grant, the notes>
 writes: <worktree>; <CR folder>
+Rewrites: <the scope>                   (a Driver's prompt, where "A Driver's prompt" says so: the rebase and the push it may run)
 Steering: <who steers> <how to reach it>   (a Driver's prompt only: CR, stack, release and QA driver)
 Team: <the `team:` lines, as printed, then the review steps>   (a Driver's prompt, where "A Driver's prompt" says so: who runs which worker)
 Needs: skills <…>; tools <…>            (only when the playbook gives the role some, as printed)
@@ -632,16 +633,26 @@ session starts it.
 This table is the only source of which template lines each Driver's prompt holds. The CLI reads
 it, and [foreman](foreman.md) and [chief-of-staff](chief-of-staff.md) point to it.
 
-| Driver | Started after | Card | `writes:` | `Team:` |
-| --- | --- | --- | --- | --- |
-| `cr-driver` | `take <cr>`, a CR of kind `change` or `fix` | `driver.md` | the CR folder, then the absolute archive path when `take` prints one | yes |
-| `release-driver` | `take <cr>`, a CR of kind `release` | `driver.md` | none | none |
-| `stack-driver` | `take stack` | `driver.md` | none | yes |
-| `qa-driver` | `order qa` | `driver.md` | none | none |
+| Driver | Started after | Card | `writes:` | `Team:` | `Rewrites:` |
+| --- | --- | --- | --- | --- | --- |
+| `cr-driver` | `take <cr>`, a CR of kind `change` or `fix` | `driver.md` | the CR folder, then the absolute archive path when `take` prints one | yes | own branch |
+| `release-driver` | `take <cr>`, a CR of kind `release` | `driver.md` | none | none | own branch |
+| `stack-driver` | `take stack` | `driver.md` | none | yes | batch branches |
+| `qa-driver` | `order qa` | `driver.md` | none | none | none |
 
 - Every Driver's prompt holds the opening lines, `CLI ($CHANTIER):`, the lines its command printed
   for it, `Steering:`, `Needs:` when the playbook gives the role some, and `Note:`. It holds
-  `writes:` and `Team:` only where the table says so.
+  `writes:`, `Team:` and `Rewrites:` only where the table says so.
+- `Rewrites:` is printed where its column is not `none`, between `writes:` and `Steering:`, and
+  names the rebase and the push the Driver may run and their scope (the CLI fills the worktree,
+  the branch, the base and the project's remote from the `worktree:` line it printed, `<…>` when
+  it printed none). The two texts the CLI copies:
+  - `own branch`: `Rewrites: git -C <worktree> rebase <base>, then git -C <worktree> push
+    --force-with-lease -u <remote> <branch>, one command each, on your own CR branch only
+    (<branch>): chantier's normal flow, pre-authorized by the playbook; never the default branch,
+    a protected branch, another branch, a plain --force or a rebase --exec.`
+  - `batch branches`: the same for `each CR branch of the stack listed above (chantier/*), one
+    command per branch`.
 - `writes: none` means the prompt has **no** `writes:` line: the guard would refuse the Driver's
   worktree writes ([host's reference](hosts/claude-code.md)).
 - Every path on a `writes:` line is absolute and bare (nothing after it): the CR folder as `folder:` prints it, and the archive
@@ -735,12 +746,16 @@ stack driver's `conflict-resolver` escalates, the stack driver keeps the batch's
    --force-with-lease -u <remote> <branch>` (or the same with `git -C <worktree>`); the steering
    session's route `git push --force-with-lease=<branch>:<expected> <remote> <local
    sha>:refs/heads/<branch>` (or the same with `git -C <checkout>`). **A CR's branch is updated by
-   rebase only**: a local `git rebase <base>`, never with `--rebase-merges`, then the rewrite push
-   above. The forge's rebase action is allowed and unproved ([driver](driver.md), "Means: rebase and push");
-   this rule names no command for it. Never a merge into the branch: no `git merge`, no `git pull`
-   without `--rebase`, never the forge's "Update branch" merge button; in a stack the same holds
-   for the CR below. The PRs chantier delivers hold no merge commit: `ship` refuses one, and the
-   branch's Driver removes it by a rebase. The user's uncommitted changes are never touched. The main checkout moves
+   rebase only**: a local `git rebase <base>`, never with `--rebase-merges`, `--exec` or `-x`, then
+   the rewrite push above. Rebasing a CR's own branch and pushing it with `--force-with-lease`
+   (any `chantier/*` branch, never the default branch, never a protected one, never a plain
+   `--force`) is chantier's normal flow, pre-authorized by the playbook; a refused one climbs the
+   steering ladder; a push of another branch is never run. The forge's rebase action is allowed and
+   unproved ([driver](driver.md), "Means: rebase and push"); this rule names no command for it.
+   Never a merge into the branch: no `git merge`, no `git pull` without `--rebase`, never the
+   forge's "Update branch" merge button; in a stack the same holds for the CR below. The PRs
+   chantier delivers hold no merge commit: `ship` refuses one, and the branch's Driver removes it
+   by a rebase. The user's uncommitted changes are never touched. The main checkout moves
    only by the steering session's `merge --ff-only --no-overwrite-ignore` after a merge it
    records, and only when clean: the user's uncommitted changes and untracked files are never
    touched. No `sleep`, no polling loop: a wait is the forge's own watch, in a background shell

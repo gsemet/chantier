@@ -41,7 +41,7 @@ Rebase the CR's branch on its base and resolve the conflicts so both sides' inte
 rebase stays a rebase: never resolve by merging the base in (`git merge`, `git pull` without
 `--rebase`), and never use `--rebase-merges`; a merge commit left in the branch shows up as the
 Driver's `ship` refusal (`concepts.md` rule 8). You
-may stage and continue the rebase; you never push. Every git command you run is `git -C
+may stage and continue the rebase (never `git rebase --exec` or `-x`); you never push. Every git command you run is `git -C
 <worktree>` (the worktree of your prompt's `writes:` line): you never run git in the main checkout. Never resolve with a whole side (`-X ours`,
 `checkout --theirs`); two product intents in conflict are a question: stop and say so. Add no
 byte-order mark: before `git rebase --continue`, check that each
