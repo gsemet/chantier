@@ -108,10 +108,18 @@ def _dev_mode(repo: Repo | None) -> bool:
     return is_dev_mode(repo)
 
 
+def _readable(repo: Repo | None) -> bool:
+    """A git read may run: no repo (the process's folder), or a repo whose folder exists (a
+    missing clone is P8's to report, not a traceback here)."""
+    return repo is None or Path(repo.root).is_dir()
+
+
 def _forges(remote: str, repo: Repo | None) -> set[str]:
     """The forges that apply: the remote's forge, the `gh stack` extension when
     `gh extension list` names it; and the mode's rows, `dev` or `plugin`."""
-    url = git("remote", "get-url", remote, cwd=repo.root if repo else None, check=False).lower()
+    url = ""
+    if _readable(repo):
+        url = git("remote", "get-url", remote, cwd=repo.root if repo else None, check=False).lower()
     host = re.sub(r"^.*?(?:://|@)", "", url).split("/")[0].split(":")[0]
     forges = {"any", "dev" if _dev_mode(repo) else "plugin"}
     if "gitlab" in host:
@@ -298,7 +306,9 @@ def commands_not_allowed(
     if repo:
         with contextlib.suppress(Exception):
             remote = repo.config.get("remote") or remote
-    remotes = git("remote", cwd=repo.root if repo else None, check=False).split()
+    remotes = []
+    if _readable(repo):
+        remotes = git("remote", cwd=repo.root if repo else None, check=False).split()
     if remote not in remotes and remotes:
         remote = "origin" if "origin" in remotes else remotes[0]
     rules, unreadable, origins = _settings_rules(repo)
