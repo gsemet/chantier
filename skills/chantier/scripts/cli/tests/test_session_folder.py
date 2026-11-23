@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from conftest import Chantier, Surface, sh
+from test_open_no_clone import remove
 
 from chantier.commands.allow_samples import filled_allow
 from chantier.core.errors import EXIT_PRECONDITION
@@ -187,3 +188,14 @@ def test_init_from_the_clone_is_not_refused_but_from_its_worktree_is(
         f"session folder {wt} is a linked worktree of the project's clone {surface.clone}: {BOTH}"
         in err
     )
+
+
+def test_preflight_with_the_clone_missing_fails_p8_without_a_traceback(
+    surface: Surface, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(surface.root)
+    remove(surface.clone)
+    code, p = _lines(chantier, surface, "preflight")
+    assert code == EXIT_PRECONDITION
+    assert p["P8"].startswith("P8 FAIL")
+    assert surface.clone.as_posix() in p["P8"]
