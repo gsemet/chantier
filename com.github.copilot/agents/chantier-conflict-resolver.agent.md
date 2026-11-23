@@ -1,6 +1,6 @@
 ---
 name: chantier-conflict-resolver
-description: 'Rebases one chantier CR branch and resolves its conflicts, keeping both intents. Started by a Driver. Prompt starts with: `chantier conflict-resolver for <cr> "<title>" of batch <batch>, in the project <root>.`'
+description: 'Rebases one chantier CR branch (never a merge) and resolves its conflicts, keeping both intents. Started by a Driver. Prompt starts with: `chantier conflict-resolver for <cr> "<title>" of batch <batch>, in the project <root>.`'
 model: [GPT-6.1 Terra, gpt-6.1-terra]
 model-policy: required
 tools: ["execute", "read", "edit", "search"]

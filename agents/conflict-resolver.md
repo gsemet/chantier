@@ -1,6 +1,6 @@
 ---
 name: conflict-resolver
-description: 'Rebases one chantier CR branch and resolves its conflicts, keeping both intents. Started by a Driver. Prompt starts with: `chantier conflict-resolver for <cr> "<title>" of batch <batch>, in the project <root>.`'
+description: 'Rebases one chantier CR branch (never a merge) and resolves its conflicts, keeping both intents. Started by a Driver. Prompt starts with: `chantier conflict-resolver for <cr> "<title>" of batch <batch>, in the project <root>.`'
 model: claude-sonnet-5-5
 autoCompactWindow: 200000
 tools: Bash, PowerShell, Read, Edit, Write, Grep, Glob

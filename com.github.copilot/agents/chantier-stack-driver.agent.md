@@ -1,6 +1,6 @@
 ---
 name: chantier-stack-driver
-description: 'Orders, restacks and ships a chantier stack of pull requests, and makes one stack on the forge, merged in one go. Started by the steering session (the Foreman, or the Chief of Staff in direct mode). Prompt starts with: `chantier stack-driver for the stack of batch <batch>, in the project <root>.`'
+description: 'Orders, restacks by rebase only and ships a chantier stack of pull requests, and makes one stack on the forge, merged in one go. Started by the steering session (the Foreman, or the Chief of Staff in direct mode). Prompt starts with: `chantier stack-driver for the stack of batch <batch>, in the project <root>.`'
 model: [Claude Opus 5.5, claude-opus-5.5]
 model-policy: required
 tools: ["agent", "execute", "read", "edit", "search", "read_agent", "write_agent", "list_agents"]

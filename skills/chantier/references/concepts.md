@@ -430,7 +430,8 @@ At startup, identify the role, batch, project and parent session.
   the tree is dirty, the remote branch is not at that head, or there is no passed long gate or
   `VERIFIED` verdict at it; `gate` on a dirty tree is another; so are a `take` of a working CR
   without `--note`, a `take` of a CR whose agent id is still recorded, working or blocked, and a
-  steering command without `--epoch` (the cards list them)), 3 a stale Foreman (a later Foreman n° claimed the batch), 4 external
+  steering command without `--epoch` (the cards list them), and a `ship` of a branch that holds a
+  merge commit or whose merge commits git cannot check), 3 a stale Foreman (a later Foreman n° claimed the batch), 4 external
   (git, a gate; a gate whose head moved during the run), 5 the budget (`take`, `round`) or the
   round limit (`round`). A CR argument takes its bare number: `165`, `CR-165` and `cr-165` are
   one CR. Heads are the full 40-character SHA in the state and the events (7 characters only for
@@ -732,7 +733,13 @@ stack driver's `conflict-resolver` escalates, the stack driver keeps the batch's
    <branch>` (or `git -C <worktree> push -u <remote> <branch>`); after a rewrite `git push
    --force-with-lease -u <remote> <branch>` (or the same with `git -C <worktree>`); the steering
    session's route `git push --force-with-lease=<branch>:<expected> <remote> <local
-   sha>:refs/heads/<branch>` (or the same with `git -C <checkout>`). The user's uncommitted changes are never touched. The main checkout moves
+   sha>:refs/heads/<branch>` (or the same with `git -C <checkout>`). **A CR's branch is updated by
+   rebase only**: a local `git rebase <base>`, never with `--rebase-merges`, then the rewrite push
+   above. The forge's rebase action is allowed and unproved ([driver](driver.md), "Means: rebase and push");
+   this rule names no command for it. Never a merge into the branch: no `git merge`, no `git pull`
+   without `--rebase`, never the forge's "Update branch" merge button; in a stack the same holds
+   for the CR below. The PRs chantier delivers hold no merge commit: `ship` refuses one, and the
+   branch's Driver removes it by a rebase. The user's uncommitted changes are never touched. The main checkout moves
    only by the steering session's `merge --ff-only --no-overwrite-ignore` after a merge it
    records, and only when clean: the user's uncommitted changes and untracked files are never
    touched. No `sleep`, no polling loop: a wait is the forge's own watch, in a background shell

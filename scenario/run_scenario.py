@@ -1290,6 +1290,22 @@ def scenario(w: World) -> None:
     code, _ = w.chantier("ship", "CR-101", "not a link", expect=1)
     check("the PR link is the forge's", code == 1)
     pr101 = w.cr("CR-101")["pr"]
+    branch101, head101 = w.cr("CR-101")["branch"], w.cr("CR-101")["head"]
+    ships = lambda: sum(json.loads(ln)["kind"] == "ship" for ln in (w.folder() / "events.jsonl").read_text("utf-8").splitlines())
+    shipped = ships()
+    w.sh("git", "checkout", "--quiet", "-b", "side-101", cwd=wt)
+    commit(w, "CR-101", "side.py", "SIDE = 1\n")
+    w.sh("git", "checkout", "--quiet", branch101, cwd=wt)
+    commit(w, "CR-101", "other.py", "OTHER = 1\n")
+    w.sh("git", "merge", "--quiet", "--no-ff", "--no-edit", "side-101", cwd=wt)
+    code, _ = w.chantier("ship", "CR-101", pr101, expect=2)
+    check("`ship` of a branch that holds a merge commit exits 2 with the rebase line and records nothing",
+          code == 2 and "holds a merge commit" in w.last_stderr and "rebase" in w.last_stderr
+          and w.cr("CR-101")["head"] == head101 and ships() == shipped, w.last_stderr)
+    w.sh("git", "reset", "--hard", "--quiet", head101, cwd=wt)  # stands in for the Driver's rebase
+    w.chantier("ship", "CR-101", pr101)
+    check("with the merge commit gone, `ship` records the PR as before",
+          w.cr("CR-101")["head"] == head101 and ships() == shipped + 1)
     _, out = w.ready("CR-101", pr101)
     check("a hand-back writes the state and prints the line to send",
           out[0] == f"[driver CR-101→foreman] hand-back ready to merge {pr101}"

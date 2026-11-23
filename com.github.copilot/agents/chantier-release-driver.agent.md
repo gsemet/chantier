@@ -1,6 +1,6 @@
 ---
 name: chantier-release-driver
-description: 'Runs a chantier release CR by the project''s own release procedure; asks the user before each irreversible action. Started by the steering session (the Foreman, or the Chief of Staff in direct mode). Prompt starts with: `chantier release-driver for <cr> "<title>" of batch <batch>, in the project <root>.`'
+description: 'Runs a chantier release CR by the project''s own release procedure, updating its branch by rebase only; asks the user before each irreversible action. Started by the steering session (the Foreman, or the Chief of Staff in direct mode). Prompt starts with: `chantier release-driver for <cr> "<title>" of batch <batch>, in the project <root>.`'
 model: [Claude Opus 5.5, claude-opus-5.5]
 model-policy: required
 tools: ["execute", "read", "edit", "search", "read_agent", "write_agent", "list_agents"]

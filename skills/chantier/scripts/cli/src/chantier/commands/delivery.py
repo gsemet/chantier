@@ -20,6 +20,7 @@ from chantier.commands.crs import (
 from chantier.commands.driver import context_line
 from chantier.commands.facts import stack_lines
 from chantier.commands.forge_base import read_state
+from chantier.commands.merge_check import refuse_merge_commit
 from chantier.core import leases
 from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
@@ -232,8 +233,8 @@ def ship(args: argparse.Namespace) -> list[str]:
     """Record the PR the Driver pushed at the worktree's head and say what is off (uncommitted
     change, head not pushed, no long gate). Refuse, recording nothing, an out-of-draft PR on
     the default branch whose head carries another CR's commits: draft it first, ship again.
-    Refuse too a stacked or series CR (the release CR included) whose head does not hold the
-    recorded head of the CR below it (`commands/chain_check.py`). No flag skips either."""
+    Refuse too a CR whose head lacks the recorded head of the CR below it (`chain_check.py`) or
+    holds a merge commit of its own (`merge_check.py`). No flag skips any."""
     repo = Repo.find()
     batch, d, c = batch_cr(repo, args.cr, args.batch)
     leases.require(d, c.id, args.lease, f"ship {c.id}", ended_ok=True)
@@ -242,6 +243,7 @@ def ship(args: argparse.Namespace) -> list[str]:
         raise ChantierError("ship <cr> <pr link>", EXIT_USAGE)
     head = git("rev-parse", "HEAD", cwd=wt)
     off = _off_worktree(repo, c, wt, head)
+    refuse_merge_commit(repo, d, c, wt, head)
     short = short_head(head)  # display only: the CR and the event keep the full SHA
     seen, missing = _archive_seen(repo, c, wt, head)
     off += missing

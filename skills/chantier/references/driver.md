@@ -163,8 +163,8 @@ workers" when it starts a worker.
 ## Means: rebase and push
 
 - Rebase first, so the long gate passes on the head you push: `git -C <worktree> fetch`, `git -C
-  <worktree> rebase <base>`; a conflict is a `conflict-resolver`. A rebase with no conflict that
-  leaves the CR's patch unchanged needs no new long gate and no new `verifier`: the pass and the
+  <worktree> rebase <base>`; a conflict is a `conflict-resolver`. Rebase only (rule 8). A conflict-free rebase that
+  leaves the CR's patch unchanged needs no new long gate or `verifier`: pass and
   verdict carry over it ("Means: the long gate"). When the PR exists and the rebase needs a long
   gate (a conflict was resolved), push early, by the "Early push" rule below. Never `git stash`
   (shared): set work aside with a commit. Never stop a process by name or pattern (`pkill`,
@@ -492,6 +492,11 @@ You never escalate yourself.
 
 ## Means: carries, conflicts and the early push
 
+- A `ship` refused `holds a merge commit`: rebase onto its base, push `--force-with-lease`, `ship`;
+  gate and `verifier` run again. Refused `cannot check`: fetch, `ship`; again refused, `blocked`.
+- The forge's rebase action: allowed, unproved; trial: on one CR's PR, on GitHub and GitLab, no
+  merge commit is in `<base>..<head>` and `ship` records it with no refusal. The worktree then takes
+  that head by fetch and rebase, never a merge; `ship` follows.
 - Any change of a PR's base or draft state on the forge (`gh pr ready`, `gh pr ready --undo`,
   `glab mr update --ready`, `glab mr update --draft`, a retarget) is followed by `ship <cr>
   <link>`, so the record follows the forge (a `ship` refused `branch not based on` there: rebase
@@ -996,8 +1001,10 @@ stays a draft). A clean rebase and green CI start no new `coder` round and no ne
 
 A CR taken with the note `folded: <k> merged into its branch` (GitLab only: the user merged CR
 k's MR, which targeted this CR's branch, so k's change now rides in this CR's MR): bring the
-forge's branch into the worktree (`git -C <worktree> fetch`, then `git -C <worktree> merge --ff-only origin/<branch>`; one
-that cannot fast-forward is a `conflict-resolver`'s, never `git reset --hard`), add to
+forge's branch into the worktree (`git -C <worktree> fetch`, `git -C <worktree> rebase
+origin/<branch>`), then `git -C <worktree> rebase <base>` (the one `take` printed), which
+linearizes the fold (a conflict is a `conflict-resolver`'s; never `git reset --hard`), push with
+`--force-with-lease`, `ship`; add to
 `pr-body.md` one line naming the folded CR's change and its merged MR (Deliverables, and the
 Internal references), post the file, then treat it as a move that changed the CR's patch:
 `verifier` given the move, `inspector` on it (its `APPROVE` recorded first), the long gate and CI
@@ -1084,7 +1091,7 @@ and push each branch with the Push bullet's rewrite form (`git -C <worktree> pus
 `stack --out-of-draft`; then hand back as today. One linear native stack is its end.
 
 **Who moves a branch.** A CR with no live Driver (handed back `ready`, or `blocked`) is rebased and pushed by you,
-as below. A `working` CR's branch is its Driver's: you never rebase or push it. The Foreman sends
+as below, by rebase on the CR below, never a merge (`concepts.md` rule 8). A `working` CR's branch is its Driver's: you never rebase or push it. The Foreman sends
 its Driver `[foreman→driver <cr>] note rebase: stacked on <cr below>`; that Driver rebases once
 before its next push and `ship`s, or at once when its `ship` is refused `branch not based on`,
 without waiting for the note. A CR printed `not on its place` is to come until its Driver
@@ -1114,7 +1121,8 @@ prove nothing about the branches.
   again.
 
 Order the stack's CRs (`$CHANTIER stack <cr>…`, bottom first), rebase and push each PR on the one
-under it (each branch with the Push bullet's rewrite form, one command per branch, never a loop
+under it (rebased, never merged with it, `concepts.md` rule 8; a branch whose `ship` is refused
+`holds a merge commit` is rebased like any other move; each branch with the Push bullet's rewrite form, one command per branch, never a loop
 or a script), in the CRs' own worktrees (one that is gone: `git -C <main checkout> worktree add <path> <branch>`),
 `ship` each one you moved (bottom up: the CR below first), and keep the stack green with heavy CI once at the top (by default; a
 head the steering session names gets it too). You edit no project file yourself, through the shell

@@ -298,3 +298,100 @@ def test_a_real_change_is_refused_and_off_says_by_how_much(
     assert not carried and not events(repo, "carry")
     assert off and all("the rebase changed the patch " in ln for ln in off), off
     assert all(first in ln and second in ln for ln in off), off
+
+
+MERGE_CASES = [
+    "main merged in",
+    "the CR below merged in",
+    "a merge only below",
+    "fallback base",
+    "unreadable base",
+    "after a rebase",
+    "--conflict",
+]
+
+
+def _merge_in(wb: Path, other: str, *more: str) -> None:
+    git_at(wb, "merge", "--no-ff", "-q", "-m", "merge", *more, other)
+
+
+def _below(
+    repo: Path, chantier: Chantier, a: dict[str, Any], b: dict[str, Any], merged: bool
+) -> None:
+    """B above A: A holds a merge commit (`merged`), and B is rebased on it, else B merges A."""
+    wa, wb = Path(a["worktree"]), Path(b["worktree"])
+    main = sh("git", "rev-parse", "origin/main", cwd=repo)
+    git_at(wa, "branch", "side", main)
+    git_at(wa, "switch", "-q", "side")
+    commit(wa, "s.txt", "s\n", "side")
+    git_at(wa, "switch", "-q", a["branch"])
+    a_tip = commit(wa, "a.txt", "a\n", "A")
+    if merged:
+        _merge_in(wa, "side")
+        a_tip = sh("git", "rev-parse", "HEAD", cwd=wa)
+    remote(repo, a["branch"], a_tip)
+    commit(wb, "b.txt", "b\n", "B")
+    if merged:
+        assert chantier("stack", a["id"], b["id"])[0] == 0
+        git_at(wb, "rebase", "-q", a_tip)
+    else:
+        _merge_in(wb, a["branch"])
+
+
+def _main_merged(repo: Path, wb: Path, b: dict[str, Any], main: str) -> None:
+    """B merged a `main` that moved on: origin/main is the merged tip."""
+    git_at(wb, "branch", "side", main)
+    git_at(wb, "switch", "-q", "side")
+    side = commit(wb, "m.txt", "m\n", "main moved")
+    git_at(wb, "switch", "-q", b["branch"])
+    remote(repo, "main", side)
+    commit(wb, "b.txt", "b\n", "B")
+    _merge_in(wb, "side")
+
+
+def _unrelated(wb: Path) -> None:
+    """No candidate base is under the head: it merged an unrelated history."""
+    for name in ("one", "two"):
+        sh("git", "checkout", "-q", "--orphan", name, cwd=wb)
+        sh("git", "rm", "-rfq", ".", cwd=wb)
+        commit(wb, f"{name}.txt", f"{name}\n", name)
+    _merge_in(wb, "one", "--allow-unrelated-histories")
+
+
+@pytest.mark.parametrize("case", MERGE_CASES)
+def test_ship_refuses_a_branch_that_holds_a_merge_commit_and_records_nothing(
+    stack: tuple[Path, Chantier, list[dict[str, Any]]], case: str
+) -> None:
+    repo, chantier, (a, b) = stack
+    wb = Path(b["worktree"])
+    main = sh("git", "rev-parse", "HEAD", cwd=repo)
+    remote(repo, "main", main)
+    before = len(events(repo, "ship"))
+    refused, base = "holds a merge commit", "origin/main"
+    if case in ("main merged in", "after a rebase", "--conflict"):
+        _main_merged(repo, wb, b, main)
+    elif case in ("the CR below merged in", "a merge only below"):
+        base = f"origin/{a['branch']}"
+        _below(repo, chantier, a, b, case == "a merge only below")
+    else:
+        _unrelated(wb)
+        if case == "unreadable base":
+            sh("git", "update-ref", "-d", "refs/remotes/origin/main", cwd=repo)
+            refused = "cannot check"
+    if case == "after a rebase":
+        git_at(wb, "rebase", "-q", "origin/main")
+        assert not sh("git", "rev-list", "--merges", "origin/main..HEAD", cwd=wb)
+    flag = ("--conflict",) if case == "--conflict" else ()
+    code, _, err = chantier("ship", b["id"], PR, *flag)
+    if case in ("a merge only below", "after a rebase"):
+        assert code == 0, err  # the range starts at the CR below; or the merge is gone
+        assert len(events(repo, "ship")) == before + 1
+        return
+    assert code == EXIT_PRECONDITION, err
+    assert b["id"] in err and refused in err, err
+    if refused == "holds a merge commit":
+        assert f"above {base}" in err and "rebase" in err and "--force-with-lease" in err, err
+    else:
+        assert "fetch and ship again" in err, err
+    assert len(events(repo, "ship")) == before and not events(repo, "carry")
+    assert not record(repo)["crs"][1].get("pr") and not record(repo)["crs"][1].get("head")
