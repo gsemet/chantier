@@ -57,6 +57,14 @@ In a surface with several projects, the Chief of Staff first learns its project 
 or the only one), and `$CHANTIER` is the skill's command plus `--project <absolute folder>`; the
 seat is that project's.
 
+A session's CRs are its own project's (the one its `--project` names; for the Chief of Staff, the
+seat's). By default it does not grill, specify, triage, order or run a CR of another project of the
+surface. It may file (relay) an item into another project's inbox on the user's word, then says in
+one line that the CR waits for that project's own Chief of Staff or Griller, offers no grill,
+specification, batch or order for it, and writes nothing more there. Only the user's explicit word
+for that CR ("grill it here") lifts the default, for its grill, specification and triage, never for
+a launch ([chief-of-staff](chief-of-staff.md), "Backlog and grill").
+
 `$CHANTIER seat` prints the seat: the repository's Chief of Staff session (its id, environment,
 title, link). Then, by the skill invoked:
 
