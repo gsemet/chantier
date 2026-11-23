@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 import threading
@@ -218,3 +219,49 @@ def test_w2_a_shell_inside_the_folder_refuses_then_lets_go(
             child.stdout.close()
     code, _, err = chantier("triage", str(item), "--ready")
     assert code == 0, err
+
+
+def arrivals_told(repo: Path) -> list[dict[str, object]]:
+    file = changes(repo) / "forge-journal.jsonl"
+    lines = file.read_text(encoding="utf-8").splitlines() if file.is_file() else []
+    return [x for x in map(json.loads, lines) if x["type"] == "arrived@1"]
+
+
+@pytest.mark.parametrize(
+    ("session", "told"),
+    [
+        (
+            "uuid-other",
+            [
+                ("1-inbox/an-idea", None),
+                ("2-backlog/P2/an-idea", "1-inbox/an-idea"),
+                ("1-inbox/an-idea", "3-ready/an-idea"),
+            ],
+        ),
+        ("uuid-seat", []),
+    ],
+)
+def test_file_and_triage_tell_an_arrival_unless_the_run_is_the_seats_own_session(
+    repo: Path,
+    chantier: Chantier,
+    monkeypatch: pytest.MonkeyPatch,
+    session: str,
+    told: list[tuple[str, str | None]],
+) -> None:
+    host(monkeypatch)
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "uuid-seat")
+    assert chantier("seat", "take", "s1")[0] == 0
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", session)
+    tree = changes(repo)
+    idea = repo / chantier("file", "An idea")[1][0].removeprefix("filed ").split(";")[0]
+    p2 = moved(repo, chantier("triage", str(idea), "--priority", "P2")[1])
+    ready = moved(repo, chantier("triage", str(p2), "--ready")[1])  # no line: not an arrival
+    back = moved(repo, chantier("triage", str(ready), "--inbox")[1])  # back from 3-ready
+    trash = tree / "6-trash"
+    assert chantier("abandon", str(back))[0] == 0  # no line
+    (gone,) = trash.iterdir()
+    assert chantier("restore", str(gone))[0] == 0  # a restore: no line
+    found = arrivals_told(repo)
+    assert [(x["folder"], x["before"]) for x in found] == told
+    assert all(x["via"] == "session" and x["source"] == "cli" for x in found)
+    assert all(x["upstream"] is None for x in found)

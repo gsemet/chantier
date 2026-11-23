@@ -161,7 +161,8 @@ At startup, identify the role, batch, project and parent session.
   plan: it pushes every local commit of the branch, so nobody pulls or pushes the surface by hand
   while a writer runs. With no writer a write to the surface is refused (the Chief of Staff starts
   the server); a conflict with the remote, a block and a late push go to the Chief of Staff, as
-  the `writer:` line of `status`, `seat` and `sync` and the journal's `sync-*` lines say.
+  the `writer:` line of `status`, `seat` and `sync` and the journal's `sync-*` lines say; a CR a
+  pull brought into the inbox or the backlog is told once, as an `arrived@1` line.
   Several sessions may work one surface on one machine: each stages only its own project's folder,
   one board serves the surface, and `preflight` (P14) and `status` list the other batches.
   Full account:

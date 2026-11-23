@@ -1482,7 +1482,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   session, [session-start](session-start.md); the host's means, its reference, "Run the watcher").
   It prints the project's forge events (`forge saw merged`, `forge saw checks red`) and what the
   user does in the board (`board wrote`, `config changed on the board`) and the issue events an
-  outside poller writes (`tracker saw`), the events for it (the
+  outside poller writes (`tracker saw`; a CR a pull brought: `surface pull brought`), the events for it (the
   project's and this session's), which it reads from the board, subscribed (it starts the board,
   detached, when none runs and the seat is this session's), and ends 20 s after the last new one
   for it that wakes, and no sooner than `events.wake_every` after its start, or 2 h after its start
@@ -1545,12 +1545,16 @@ CR-222 → CR-225 → CR-226 → CR-228."
     line to the user that says it (a few words per event), no tool call, no action (but the
     destination write above). A `tracker saw
     ...` line (an outside poller's issue event): one line to the user that says it, no tool call,
-    record nothing.
+    record nothing. A `surface pull brought <folder> (...)` or `another session wrote <folder> (...)`
+    line (an `arrived@1` line: a CR that reached the inbox or the backlog from another
+    machine or session): one line to the user that names the folder and its stage, no tool call,
+    no action; the CR is not claimed, moved or grilled for it. `seat` and `status` list the arrivals
+    not yet told when no watcher runs, and a watcher's end or a `watch --once` moves the mark.
   - *The pull path:* when no watcher can wake this session (its host's reference, or the user's
     no), run the printed `watch --once` command (the `watch: not running` line's `after the
     user's no` clause, the `pull path` line of `status`, or the last `--once` output's `next`
     line) at the start of each turn the user's message opens: run it as is: no flag added. Tell
-    its `board wrote`, `tracker saw` and role `config@1` lines as above, and act on its merge and two-key
+    its `board wrote`, `tracker saw`, `surface pull brought` / `another session wrote` and role `config@1` lines as above, and act on its merge and two-key
     `config@1` lines as at a watcher's end. A `board wrote (...)` line that sets a CR's destination
     is handled as at a watcher's end: write the destination into the CR's `02-answers.md` (latest
     word wins), then, for a `running-batch` line, `order add --note <folder>` once the specification

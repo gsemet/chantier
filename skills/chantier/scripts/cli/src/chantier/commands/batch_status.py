@@ -7,6 +7,7 @@ from typing import Any
 
 from chantier.commands import wait_view
 from chantier.commands.activity import activity, stopped_agents, stopped_text
+from chantier.commands.arrival_line import closing_lines
 from chantier.commands.cost.breakdown import cost_groups, cost_summary
 from chantier.commands.cost.pricing import TO_DATE, sum_unpriced
 from chantier.commands.cost.sessions import chief_line, cost_rows, foreman_uuid
@@ -36,7 +37,6 @@ from chantier.core.repo import Repo
 from chantier.core.surface_batches import other_batches
 from chantier.history import last_closed_text
 from chantier.hub import journal
-from chantier.hub.autostart import not_running_line
 from chantier.hub.lines import watch_lines
 from chantier.lifecycle.running_batch import open_batch_id, running_batch_lines
 from chantier.lifecycle.session import RenderedBatch
@@ -369,7 +369,7 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
     unread = sum(1 for a in d.asks if not a.read)
     if unread:
         lines.append(f"{unread} asks unread: `chantier asks`")
-    return lines + extra + not_running_line(repo), code
+    return lines + extra + closing_lines(repo), code
 
 
 def asks(args: argparse.Namespace) -> list[str]:

@@ -1,4 +1,59 @@
 {
+  "arrived@1": {
+    "additionalProperties": false,
+    "description": "`arrived@1`, told by the writer and by `file` and `triage` (see `schemas.py`).",
+    "properties": {
+      "before": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Before"
+      },
+      "folder": {
+        "title": "Folder",
+        "type": "string"
+      },
+      "project": {
+        "title": "Project",
+        "type": "string"
+      },
+      "stage": {
+        "title": "Stage",
+        "type": "string"
+      },
+      "upstream": {
+        "anyOf": [
+          {
+            "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Upstream"
+      },
+      "via": {
+        "title": "Via",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project",
+      "folder",
+      "stage",
+      "before",
+      "via",
+      "upstream"
+    ],
+    "title": "Arrived1",
+    "type": "object"
+  },
   "board@1": {
     "additionalProperties": false,
     "properties": {

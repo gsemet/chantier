@@ -309,7 +309,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
   (test: test_external_archive.py::test_an_external_surface_gets_the_planning_folder_and_the_project_stays_clean);
 - the surface's writer: a real `serve --seat` on a surface with a bare origin prints its `writer:` line;
   a `file` then `triage` reach the origin within the shortened bound (`CHANTIER_WRITER_TEST_TIMES`);
-  `seat` prints `writer: synced`; a commit pushed from a second clone is integrated; a change on both
+  `seat` prints `writer: synced`; a commit pushed from a second clone is integrated, and the CR it brings into `1-inbox` is told once as `arrived@1` via `pull`; a change on both
   sides gives `writer: conflict` and `sync-conflict@1`, and the Chief of Staff's resolution is pushed
   with `sync-resumed@1`; `sync now` commits and pushes the configuration file a save left; with the
   board stopped `file` is refused with "the surface's writer is not running: nothing written" and

@@ -51,7 +51,7 @@ External layout, beside it:
 ```
 
 What is published and what stays local: the batch's own files (`batch.json`, `events.jsonl`,
-`brief.md`, the STATUS files, locks, `.batch-number`, `seat.json`, `forge-journal.jsonl`, which also holds the board's writes and the writer's lines) and the detailed logs
+`brief.md`, the STATUS files, locks, `.batch-number`, `seat.json`, `arrivals-told.json`, `forge-journal.jsonl`, which also holds the board's writes and the writer's lines) and the detailed logs
 (`work/gates/`, `*.log`), the scratch folder (`work/scratch/`) and downloaded CI artifacts (any
 `artifacts-*/` folder under a `work/` folder) are ignored by git, by a `.gitignore` the CLI keeps in the planning
 folder. A running CR's documents, reports and evidence are pushed with the surface, by the surface server's writer, within 5 minutes; with no writer running, a write to the surface is refused. A path too
@@ -124,7 +124,7 @@ object, written by one function (`hub/journal.py`, `append`), under the project'
 | `v` | the line's version, 2 (0 and 1 still read) |
 | `seq` | 1 for the first line, then the highest readable `seq` plus one; a watcher's cursor counts it |
 | `t` | the time of the append |
-| `type` | `name@N`, the published type (`merged@1`, `checks-red@1`, `wait-cleared@1`, `config@1`, `board@1`, `issue@1` or `sync-*@1`), then the fields of that type |
+| `type` | `name@N`, the published type (`merged@1`, `checks-red@1`, `wait-cleared@1`, `config@1`, `board@1`, `issue@1`, `arrived@1` or `sync-*@1`), then the fields of that type |
 | `source` | who wrote it: `hub` (the forge hub: the surface server), `board` (its PRs page, Configuration page and backlog writes), `writer` (the surface's writer), `cli` (room for a command), `poller` (an outside poller, through `chantier journal add`) |
 | `audience` | whom it is for: one or more of `project`, `role:<name>`, `cr:<id>`, `session:<key>`, `user` |
 
@@ -132,7 +132,7 @@ A published `name@N` never changes; a change is a new `name@N+1`, and every type
 ships in `hub/schemas.json`.
 
 Every line written today is for `["project"]`: `merged@1` and `checks-red@1` by the hub or the
-board's PRs page, `wait-cleared@1` by the hub, `config@1` by the Configuration page, `board@1` by the backlog writes, `issue@1` by an outside poller, `sync-*@1` by the writer. The CLI
+board's PRs page, `wait-cleared@1` by the hub, `config@1` by the Configuration page, `board@1` by the backlog writes, `issue@1` by an outside poller, `arrived@1` by the writer (a pull) and by `file` and `triage` (another session), `sync-*@1` by the writer. The CLI
 checks an audience value's form, never what it names, and routes to no role, CR or user yet.
 
 | Type | Written by | Wakes a watcher |
@@ -142,6 +142,7 @@ checks an audience value's form, never what it names, and routes to no role, CR 
 | `wait-cleared@1` | the hub | yes |
 | `config@1` | the board's Configuration page | yes |
 | `board@1` | the board's backlog writes and its Griller's turns (action `grill`) | when `wakes`: true for `new`, `move`, `edit` and `running-batch` |
+| `arrived@1` | the writer (a pull brought a CR into the inbox or the backlog), `file` and `triage` (run by a session that is not the Chief of Staff's) | yes |
 | `issue@1` | an outside poller, through `chantier journal add`, only for an issue a CR's `issue:` line names | when `wakes` (default true) |
 | `sync-conflict@1` | the writer | yes |
 | `sync-blocked@1` | the writer | yes |

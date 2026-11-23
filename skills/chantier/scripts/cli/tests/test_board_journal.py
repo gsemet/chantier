@@ -70,6 +70,8 @@ def test_each_backlog_write_adds_one_board_line_to_its_projects_forge_journal(
     moves = [e for e in _lines(demo) if e["action"] == "move"]
     assert (moves[1]["items"], moves[1]["text"]) == (moves[3]["items"], moves[3]["text"])
     assert moves[1]["seq"] != moves[3]["seq"]  # two identical moves are two lines
+    everything = forge_journal.read(demo.store, demo.changes)[0]
+    assert not [e for e in everything if e["type"] == "arrived@1"]  # the board is never told
 
 
 def test_a_refusal_a_rescan_and_another_project_leave_no_line_here(surface: Any) -> None:

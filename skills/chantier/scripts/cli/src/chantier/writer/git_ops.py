@@ -144,6 +144,24 @@ class Git:
             return False
         return True
 
+    def merge_base(self, a: str, b: str) -> str:
+        """The best common ancestor of two revisions, empty when there is none."""
+        return self.read("merge-base", a, b)
+
+    def subfolders(self, rev: str, folders: list[str]) -> dict[str, list[str]]:
+        """The folders directly inside each of these folders (paths relative to the surface) in
+        the tree of `rev`, never in the working tree: one `ls-tree` for all of them. A folder
+        that the tree does not hold, or a revision git does not know, gives nothing."""
+        out = self.read("ls-tree", "-z", rev, "--", *(f.rstrip("/") + "/" for f in folders))
+        found: dict[str, list[str]] = {f: [] for f in folders}
+        for entry in out.split("\0"):
+            info, _, path = entry.partition("\t")
+            if path and info.split(" ")[1:2] == ["tree"]:
+                parent, _, name = path.rpartition("/")
+                if parent in found:
+                    found[parent].append(name)
+        return found
+
     def status(self, spec: list[str]) -> str:
         return self.run(
             "status", "--porcelain=v1", "-z", "--untracked-files=all", "--", *spec, raw=True

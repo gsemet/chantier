@@ -58,7 +58,10 @@ or the only one), and `$CHANTIER` is the skill's command plus `--project <absolu
 seat is that project's.
 
 `$CHANTIER seat` prints the seat: the repository's Chief of Staff session (its id, environment,
-title, link). Then, by the skill invoked:
+title, link), then, when no watcher runs, the CRs that arrived in the planning folder from another
+session or a pull since the last time they were told (`surface pull brought <folder> (...)`, `another
+session wrote <folder> (...)`, at most ten, then the `watch --once` command for the rest): tell the user
+each in one line, with no action. Then, by the skill invoked:
 
 | Invoked | Seat | Role and message |
 | --- | --- | --- |

@@ -15,12 +15,14 @@ from forge_world import CYCLE, EXIT_USAGE, QUIET
 from watch_fakes import served
 
 from chantier import __version__, connectors
+from chantier.board.projects import project_name
 from chantier.board.seats import SEAT_CHECK_S
 from chantier.core.repo import Repo
-from chantier.hub import autostart, journal, lock
+from chantier.hub import autostart, journal, lock, watch_lines
 from chantier.hub import times as hub_times
 from chantier.hub.autostart import pull_command, watch_command
 from chantier.hub.watch import EVENTS, SEAT, Watch
+from chantier.plugin_files import cli_command
 
 
 def board_line(wakes: bool, action: str = "move") -> dict[str, Any]:
@@ -232,3 +234,99 @@ def test_an_issue_line_is_told_by_the_pull_path_and_status_holds_none(
     out = chantier("watch", "--once", "--after", "0")[1]
     assert out[:2] == [told, told]
     assert not any(" saw " in x for x in chantier("status")[1])
+
+
+def arrived_line(n: int = 0, via: str = "pull", before: str | None = None) -> dict[str, Any]:
+    return {
+        "type": "arrived@1",
+        "project": "demo",
+        "folder": f"1-inbox/idea-{n}",
+        "stage": "1-inbox",
+        "before": before,
+        "via": via,
+        "upstream": "d" * 40 if via == "pull" else None,
+    }
+
+
+ARRIVED_TEXTS = [
+    (arrived_line(), "surface pull brought 1-inbox/idea-0 (new in 1-inbox)"),
+    (
+        arrived_line(before="2-backlog/P2/idea-0"),
+        "surface pull brought 1-inbox/idea-0 (moved from 2-backlog/P2/idea-0)",
+    ),
+    (arrived_line(via="session"), "another session wrote 1-inbox/idea-0 (new in 1-inbox)"),
+    (
+        arrived_line(before="3-ready/idea-0"),
+        "surface pull brought 1-inbox/idea-0 (back from 3-ready)",
+    ),
+]
+
+
+@pytest.mark.parametrize(("line", "text"), ARRIVED_TEXTS)
+def test_an_arrived_line_is_told_in_one_sentence_and_wakes(
+    repo: Path, line: dict[str, Any], text: str
+) -> None:
+    found = Repo.find()
+    (written,) = journal.append(found, [line], "writer")
+    assert (
+        watch_lines.told(written)
+        == text + "; for the Chief of Staff: tell the user, act on nothing"
+    )
+    assert journal.waking(written)
+
+
+def told_mark(repo: Path) -> int:
+    file = repo / ".agents" / "changes" / "arrivals-told.json"
+    return int(json.loads(file.read_text(encoding="utf-8"))["seq"]) if file.is_file() else 0
+
+
+def test_the_pull_path_moves_the_told_mark_to_the_arrivals_it_prints(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    host(monkeypatch)
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "s-me")
+    found = Repo.find()
+    journal.append(found, [board_line(True), arrived_line(1), arrived_line(2)], "writer")
+    assert chantier("watch", "--once", "--after", "2")[0] == 0
+    assert told_mark(repo) == FEW
+    assert chantier("watch", "--once", "--after", "0")[0] == 0
+    assert told_mark(repo) == FEW  # never back
+
+
+FEW, MANY, LIMIT = 3, 11, 10  # arrivals filed, and the listing's bound
+
+
+@pytest.mark.parametrize("command", [("seat", "get"), ("status",)])
+@pytest.mark.parametrize(
+    ("count", "watcher"), [(FEW, False), (MANY, False), (FEW, True)], ids=["few", "many", "watched"]
+)
+def test_the_session_start_lists_the_arrivals_no_watcher_told_once(  # noqa: PLR0913, PLR0917
+    repo: Path,
+    chantier: Chantier,
+    monkeypatch: pytest.MonkeyPatch,
+    command: tuple[str, ...],
+    count: int,
+    watcher: bool,
+) -> None:
+    open_batch(repo, chantier, monkeypatch, "Alpha")
+    found = Repo.find()
+    before = told_mark(repo)
+    shown = 0 if watcher else min(count, LIMIT)
+    journal.append(found, [arrived_line(n) for n in range(count)], "writer")
+    held = lock.WatcherLock(found.git_dir, project_name(found), "someone")
+    if watcher:
+        assert held.acquire()
+    try:
+        out = chantier(*command)[1]
+        marked = told_mark(repo)
+        again = chantier(*command)[1]
+    finally:
+        held.release()
+    texts = [x for x in out if x.startswith("surface pull brought")]
+    assert len(texts) == shown
+    more = f"and 1 more arrivals: {cli_command(found)} watch --once --after {before + LIMIT}"
+    assert [x for x in out if x.startswith("and ")] == ([more] if count > LIMIT else [])
+    assert marked == before + shown
+    rest = [x for x in again if x.startswith("surface pull brought")]
+    assert len(rest) == (0 if watcher else count - shown)  # a second run lists what is left
+    assert not watcher or told_mark(repo) == before  # a running watcher's lines: none moved

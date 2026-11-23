@@ -6,6 +6,7 @@ import argparse
 import re
 from pathlib import Path
 
+from chantier.board.projects import project_name
 from chantier.core.batch import RESTORED_NUMBER_FILE, move_directory
 from chantier.core.clock import stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
@@ -14,7 +15,8 @@ from chantier.core.records import (
     read_batch_json,
 )
 from chantier.core.repo import Repo
-from chantier.lifecycle.backlog import file_idea, move_item
+from chantier.hub import arrivals, journal
+from chantier.lifecycle.backlog import file_idea_at, move_item
 from chantier.lifecycle.filing import shown
 from chantier.lifecycle.moveout import folder_taken, remember_cr
 from chantier.lifecycle.running_batch import clear_mark, mark_running_batch
@@ -67,7 +69,20 @@ def file_cr(args: argparse.Namespace) -> list[str]:
     else:
         text = args.item
         raw = text.encode("utf-8")
-    return file_idea(repo, text, args.slug, raw, args.title)
+    folder, lines = file_idea_at(repo, text, args.slug, raw, args.title)
+    _arrived(repo, folder.name, {}, arrivals.stage_of(repo, folder))
+    return lines
+
+
+def _arrived(repo: Repo, slug: str, before: dict[str, str], stage: str) -> None:
+    """One `arrived@1` line (`via: session`) when a CR reached the inbox or the backlog, unless
+    this run is chantier's own session (the seat's). The journal's append is not guarded: a
+    refusal of it surfaces as the command's error, after the filing or the move was made."""
+    found = arrivals.arrivals(before, {slug: stage})
+    if not found or arrivals.own_session(repo):
+        return
+    events = [arrivals.event(project_name(repo), a, "session") for a in found]
+    journal.append(repo, events, "cli")
 
 
 def triage(args: argparse.Namespace) -> list[str]:
@@ -85,7 +100,14 @@ def triage(args: argparse.Namespace) -> list[str]:
     repo = Repo.find()
     if marked:
         return mark_running_batch(repo, args.item)
-    return move_item(repo, args.item, next(c for c in chosen if c))
+    to = next(c for c in chosen if c)
+    source = repo.planning_path(args.item, "CR folder")
+    was = arrivals.stage_of(repo, source)
+    lines = move_item(repo, args.item, to)
+    after = "3-ready" if to == "3-ready" else "1-inbox" if to == "inbox" else f"2-backlog/{to}"
+    if not was.startswith(arrivals.ELSEWHERE_ROOTS):  # a restore is no arrival
+        _arrived(repo, source.name, {source.name: was}, after)
+    return lines
 
 
 def abandon(args: argparse.Namespace) -> list[str]:

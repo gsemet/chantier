@@ -48,6 +48,7 @@ MAX_LINES = 10
 FULL_OUTPUT = {
     "take",
     "round",
+    "seat",  # the arrivals no watcher told, listed once
     "wait",
     "handoff",
     "asks",

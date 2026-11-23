@@ -11,6 +11,7 @@ from chantier import __version__
 from chantier.board import running
 from chantier.core import clock
 from chantier.hub import state
+from chantier.hub.sync_text import WAY_OUT, files_shown
 
 START = (
     'start the watcher, which starts the surface server (the "watch: not running" line\'s '
@@ -98,8 +99,6 @@ def _offline(entry: dict[str, Any]) -> str:
 
 
 def _conflict(entry: dict[str, Any]) -> str:
-    from chantier.hub.schemas import files_shown  # noqa: PLC0415 - pydantic: not at start-up
-
     files = files_shown(list((entry.get("conflict") or {}).get("files") or []))
     return (
         f"writer: conflict with the remote on {files}: for the Chief of Staff: integrate by "
@@ -109,8 +108,6 @@ def _conflict(entry: dict[str, Any]) -> str:
 
 
 def _blocked(entry: dict[str, Any]) -> str:
-    from chantier.hub.schemas import WAY_OUT  # noqa: PLC0415 - pydantic: not at start-up
-
     reason = str(entry.get("reason") or "")
     way = WAY_OUT.get(reason, "read the text")
     return f"writer: blocked ({reason}): {entry.get('text')}; for the Chief of Staff: {way}"
