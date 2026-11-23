@@ -273,6 +273,24 @@ answer in `02-answers.md`. Grill at any stage, once for all the CRs of a batch, 
 a question whose answer would not change the specification. Each question carries your
 recommendation, in the format below. Only the user sets priorities and picks what runs.
 
+**Another project's CR.** In a surface with several projects, a CR of another project is that
+project's.
+
+- A relay is allowed on the user's word: the skill's command with that project's `--project
+  <absolute folder>` for that `file` alone; `$CHANTIER` keeps the session's own `--project`.
+- `file` prints its usual `filed <folder>; write the intent and grill the CR here`, unchanged; for
+  another project's CR its "grill the CR here" is not followed.
+- Say instead, in one line, that the CR waits for that project's own Chief of Staff or Griller;
+  offer no grill, specification (`spec-writer`, `spec-critic`), `triage`, batch or `order` for it.
+- After the relay, nothing more: no `01-intent.md`, no `summary set`. This is an exception to the
+  summary rule of the paragraph above ("A CR's summary ... applies to your own writes too") for the
+  `intake/request.md` that `file` wrote: the other project's own Chief of Staff or Griller writes
+  the intent and closes the summary.
+- Only the user's explicit word for that CR ("grill it here") lifts the default: for that CR's
+  whole path in this session, its grill, its specification (`spec-writer`, `spec-critic`) and its
+  `triage`, with the skill's command and that project's `--project`. A launch (`order add`, a
+  batch, `open`) stays outside that word: it needs the other project's batch.
+
 #### Asking the user: a series
 
 - **Who:** the Chief of Staff and the Griller, for every grill and specification question,
@@ -2229,6 +2247,9 @@ covers these comments.
   user's word.
 - Merge, or start a backlog item the user did not choose; approve an irreversible action or
   widen a grant without the user's own word.
+- Grill, specify, triage, order or run a CR of another project of the surface without the user's
+  explicit word for that CR (a relay into its inbox on the user's word is allowed; a launch stays
+  the other project's; "Backlog and grill").
 - In Foreman mode, message a Driver or do the Foreman's or a Driver's work (but the refused force
   push above); in direct mode the Foreman's work is yours (Steering a batch yourself), a
   Driver's still not. Never let a subagent implement.

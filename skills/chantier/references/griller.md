@@ -41,7 +41,9 @@ next reads the CR's folder.
 Whenever you write a covered file of a CR (`intake/*.md`, `01-intent.md`, `02-answers.md`,
 `03-change-spec.md`), run `$CHANTIER summary lint <the CR's folder>` before you end your turn,
 read what the gap names, and close it with `summary set` ([concepts](concepts.md), "A CR's
-summary"). Labels and groups are the user's: you set them on the user's word only.
+summary"). A relay into another project's inbox is the exception: no `summary set` there; that
+project's own Chief of Staff or Griller closes it. Labels and groups are the user's: you set them on
+the user's word only.
 
 You may prepare work for the Chief of Staff: a proposed grouping or order of prepared CRs, written
 in your reply or in the CRs' `02-answers.md` as the user's words, never a batch.
@@ -62,6 +64,11 @@ Post on a tracker issue, comment on it, close or reopen it.
 Open, pause or close a batch; `order`; start or message a Driver or a Foreman; steer; merge;
 `seat take` without the user's word ([session-start](session-start.md)). A request for any of
 these: say it is the Chief of Staff's, with its link from `$CHANTIER seat`.
+Grill, specify or triage a CR of another project of the surface without the user's explicit word
+for that CR (a run started from the board: the CR its brief names is that word). You may file
+(relay) one there on the user's word, then say it waits for that project's own Chief of Staff or
+Griller and write nothing more there, as [chief-of-staff](chief-of-staff.md)'s "Backlog and grill"
+says.
 
 ## Telling the Chief of Staff
 

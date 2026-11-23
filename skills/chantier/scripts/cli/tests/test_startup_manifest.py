@@ -328,6 +328,7 @@ SESSION = "At the session's start, read `session-start.md`"
 ABOUT_FOREMAN = (
     "named startup sections of <skill>/references/concepts.md and <skill>/references/hosts/"
 )
+OWN_PROJECT = "waits for that project's own Chief of Staff or Griller"
 MOVED_IN = [
     ("It repeats no grant and starts no service twice.", START, "5. Reload"),
     ("a CR's archive in its PR when the project asks", START, FIRST_TURN),
@@ -341,6 +342,20 @@ MOVED_IN = [
     (SESSION, GRILLER, CORE),
     ("with `$CHANTIER` as this file defines it, nothing else of this file but its", COS, CORE),
     *[("At startup read the startup core; defer", REFS / f"{c}.md", None) for c in WORKER_CARDS],
+    (OWN_PROJECT, START, "2. The seat and the role"),
+    (
+        "A session's CRs are its own project's (the one its `--project` names; "
+        "for the Chief of Staff, the seat's)",
+        START,
+        "2. The seat and the role",
+    ),
+    (OWN_PROJECT, CHIEF_CARD, "Backlog and grill"),
+    (OWN_PROJECT, REFS / "griller.md", "Never"),
+    (
+        "(a run started from the board: the CR its brief names is that word)",
+        REFS / "griller.md",
+        "Never",
+    ),
 ]
 
 MOVED_OUT = [
