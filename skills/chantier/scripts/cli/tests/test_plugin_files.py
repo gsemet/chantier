@@ -364,9 +364,8 @@ def test_each_host_has_its_reference_and_the_cards_hold_no_host_tool() -> None:
         "driver",
         *WORKERS,
         "review-step",
-        "concepts",
-        "griller",
-        "session-start",
+        *("concepts", "griller", "session-start", "session-start-chief-of-staff"),
+        *("session-start-griller", "titles", "sync-checkout"),
         "status-layout",
     ):
         text = (SKILL / "references" / f"{card}.md").read_text(encoding="utf-8")

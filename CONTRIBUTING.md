@@ -61,7 +61,7 @@ chantier is four things in one repository:
    [`skills/chief-of-staff/`](skills/chief-of-staff/), [`skills/griller/`](skills/griller/) and
    [`skills/status/`](skills/status/) are thin and load the same cards. [`references/`](skills/chantier/references/) holds one file per
    running context: `concepts.md` (read by the steering sessions and the Drivers), `session-start.md` (the start checks, the
-   seat, the session titles), `chief-of-staff.md`, `griller.md`, `status-layout.md`, `foreman.md`, `driver.md`, the worker cards (`investigator.md`, `coder.md`,
+   seat and the role change), `session-start-chief-of-staff.md` (the board and the watcher), `session-start-griller.md`, `titles.md` (the session titles), `sync-checkout.md` (the dev-mode sync), `forges/` (one reference per forge), `chief-of-staff.md`, `griller.md`, `status-layout.md`, `foreman.md`, `driver.md`, the worker cards (`investigator.md`, `coder.md`,
    `inspector.md`, `debugger.md`, `verifier.md`, `conflict-resolver.md`, `demo-explorer.md` and
    `review-step.md`, each read by its own role) and `routing.md`; `pr-template.md` is the default PR description a CR Driver writes and the
    Inspector audits; `release-template.md` is the default release notes and announcement thread the
@@ -206,7 +206,9 @@ skills/status/              ← `/chantier:status`, the progress report (thin: i
 skills/chantier/
 ├── SKILL.md                ← the router: asks which role this session takes
 ├── references/             ← one file per running context: concepts, session-start,
-│                             chief-of-staff, griller, report, foreman, driver, worker, routing,
+│                             session-start-chief-of-staff, session-start-griller, titles,
+│                             sync-checkout, forges/ (one reference per forge: GitHub,
+│                             GitLab), chief-of-staff, griller, report, foreman, driver, worker, routing,
 │                             spec-writer, spec-critic, retro-critic, init,
 │                             pr-template, release-template, and hosts/ (one
 │                             reference per host: Claude Code, Copilot)

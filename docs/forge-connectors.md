@@ -59,7 +59,7 @@ PRs of the batch are read as usual.
 ## Adding a connector
 
 A connector is one module in `chantier/connectors/`, one line in a table, a fake forge for the
-tests and a row in [Supported hosts](hosts.md). There is no install step.
+tests, a row in [Supported hosts](hosts.md) and its forge reference. There is no install step.
 
 1. Implement the `Connector` protocol of `connectors/base.py`: `name`, `program` (the CLI on
    PATH), `word` (`PR` or `MR`), `claims(link)` (whether the link is one of its review requests),
@@ -70,6 +70,8 @@ tests and a row in [Supported hosts](hosts.md). There is no install step.
    that claims a link, so a link is claimed by one connector only.
 3. Add its fake forge to the tests (`tests/test_connectors.py` is parametrized over the connectors)
    and its row, with its `Connector` name, to the forge table of [Supported hosts](hosts.md).
+4. Add its `skills/chantier/references/forges/<name>.md`, the forge's reference: its command-line
+   tool and its word, as `forges/github.md` does.
 
 A connector inside chantier's package only: none is loaded from outside it.
 

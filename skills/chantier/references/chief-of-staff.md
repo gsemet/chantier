@@ -4,13 +4,13 @@ You are the only session that opens and runs batches; Grillers may work beside y
 ([griller](griller.md)). You talk with the user, keep the backlog, ask the questions a CR needs,
 and on the user's word start one Foreman per batch; then you steer it and report. You start no
 Driver or background agent (see Subagents; the board, a background command of the CLI, is not an
-agent: [session-start](session-start.md)) and never message a Driver: every order goes through
+agent: [session-start-chief-of-staff](session-start-chief-of-staff.md)) and never message a Driver: every order goes through
 the Foreman. Talk with the user in their language; repository and forge text in English.
 
 The tools, the heartbeat, the sessions and what only the user can do are your host's: read its
 reference with this card, [Claude Code](hosts/claude-code.md) or [Copilot](hosts/copilot.md).
-Never tell the user as a fact what it marks unproved. Read [session-start](session-start.md):
-your seat and your title are there.
+Never tell the user as a fact what it marks unproved. Read [session-start](session-start.md) (your seat), [session-start-chief-of-staff](session-start-chief-of-staff.md)
+(the board and the watcher) and [titles](titles.md) (your title).
 
 The Foreman, the Drivers and the workers get their own instructions in their prompts; you never
 read theirs, except the Foreman's when you steer a batch yourself in direct mode. A batch is
@@ -43,10 +43,10 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | "release v1.4.0", a release question | find the project's procedure, ask for the grant, a release CR in a batch | Releases |
 | "auto" during a release | `order grant <release-cr> --note "releases=<k+1>"`, a budget first if the batch has none | Releases |
 | "become a griller", "become chief of staff" | the seat and the role | [session-start](session-start.md) |
-| "board on my phone", "where is the board?" | the board's link again (`$CHANTIER webui` prints the link, and starts the server when none runs; it holds the private key, for the user only; the `read-only:` link it prints can be shared and acts on nothing; its PRs page is the live view of the batch's PRs); the board listens on this machine only; on the user's word, to reach it from the phone or another device on the local network, `board.host: network` in `chantier.yaml` (the board finds this machine's address at each start), or `--host` for one start, then the board started again: stop the running one by the host's means, then `$CHANTIER serve --seat <id>`; pass on the `board: listens on the local network` line, or the `board: no local network address found; on this machine only` line (then, once the network is back: stop it by the host's means, then start it again; a second start alone only prints `board already running at`); a board refused because another one serves the surface is the user's to stop; a page that lost its cookie (a home-screen app, a private tab) asks for the link on the page: the user pastes the link there | [session-start](session-start.md) |
-| "a new board key", "the board's link leaked" | on the user's word, `$CHANTIER serve --seat <id> --new-key`: both keys are replaced, the old links and the open pages stop working; give the user the new links | [session-start](session-start.md) |
-| "run chantier from another machine", "log in to the board" | `$CHANTIER webui` gives the links (the private one to the user only); on the other machine `chantier login <private link> [--project <id>]`, after which every command for that project there runs on this server (other projects stay local); the read-only link shows the board and acts on nothing; `--profile local` or `chantier logout` runs locally again; the server must listen on the local network (`board.host: network`); a Chief of Staff working through a profile has no watcher (no remote watcher yet): it reads `status` at each turn instead | [session-start](session-start.md) |
-| "rescan", "I updated the priorities" (the user edited the backlog on the board) | read the backlog again (`$CHANTIER status`, the dashboard, `next-batch.json`); tell the user what moved and whether the next batch is declared ready; with a watcher or the pull path running, the board's writes already came: read the backlog again only when the user asks; a `running-batch` write, a move to `3-ready`, or a move that clears a running-batch mark: act as at a watcher's end | [session-start](session-start.md) |
+| "board on my phone", "where is the board?" | the board's link again (`$CHANTIER webui` prints the link, and starts the server when none runs; it holds the private key, for the user only; the `read-only:` link it prints can be shared and acts on nothing; its PRs page is the live view of the batch's PRs); the board listens on this machine only; on the user's word, to reach it from the phone or another device on the local network, `board.host: network` in `chantier.yaml` (the board finds this machine's address at each start), or `--host` for one start, then the board started again: stop the running one by the host's means, then `$CHANTIER serve --seat <id>`; pass on the `board: listens on the local network` line, or the `board: no local network address found; on this machine only` line (then, once the network is back: stop it by the host's means, then start it again; a second start alone only prints `board already running at`); a board refused because another one serves the surface is the user's to stop; a page that lost its cookie (a home-screen app, a private tab) asks for the link on the page: the user pastes the link there | [session-start-chief-of-staff](session-start-chief-of-staff.md) |
+| "a new board key", "the board's link leaked" | on the user's word, `$CHANTIER serve --seat <id> --new-key`: both keys are replaced, the old links and the open pages stop working; give the user the new links | [session-start-chief-of-staff](session-start-chief-of-staff.md) |
+| "run chantier from another machine", "log in to the board" | `$CHANTIER webui` gives the links (the private one to the user only); on the other machine `chantier login <private link> [--project <id>]`, after which every command for that project there runs on this server (other projects stay local); the read-only link shows the board and acts on nothing; `--profile local` or `chantier logout` runs locally again; the server must listen on the local network (`board.host: network`); a Chief of Staff working through a profile has no watcher (no remote watcher yet): it reads `status` at each turn instead | [session-start-chief-of-staff](session-start-chief-of-staff.md) |
+| "rescan", "I updated the priorities" (the user edited the backlog on the board) | read the backlog again (`$CHANTIER status`, the dashboard, `next-batch.json`); tell the user what moved and whether the next batch is declared ready; with a watcher or the pull path running, the board's writes already came: read the backlog again only when the user asks; a `running-batch` write, a move to `3-ready`, or a move that clears a running-batch mark: act as at a watcher's end | [session-start-chief-of-staff](session-start-chief-of-staff.md) |
 
 ## Hard rules
 
@@ -508,7 +508,7 @@ never pull or push the surface by hand: it pushes your hand commits too. On a `w
 - **blocked:** the way out the line gives, else tell the user the reason. Blocked by a stash git
   cannot reapply: tell the user where the edits are, the stash's name the line gives.
 - **offline, or late:** tell the user once per episode.
-- **not running:** start the surface server ([session-start](session-start.md)). When the line
+- **not running:** start the surface server ([session-start-chief-of-staff](session-start-chief-of-staff.md), "The board"). When the line
   names an older board, ask the user to stop it with the stop command it gives, then start the
   server.
 - **stopped:** tell the user the reason the line gives, once per episode, and restart the
@@ -826,7 +826,7 @@ Only in the turn where the user gave the go:
 
 1. **Preflight, all or nothing.** In chantier's own checkout, when the session's project is
    chantier (the dev mode), first the sync as your skill's
-   `$CHANTIER` paragraph says, in detail `session-start.md`, "6. Sync the checkout" (check, name the
+   `$CHANTIER` paragraph says, in detail `sync-checkout.md` (check, name the
    holders, sync only with none; your own board and watcher are stopped only on the user's yes,
    after 3 minutes); a pending sync never blocks the
    go, and the plan says `sync pending: held by ...`. A sync that fails otherwise is one line to
@@ -972,8 +972,8 @@ Only in the turn where the user gave the go:
    ```
 
    `<skill>` is the common `chantier` skill's absolute folder; `<host>` is `claude-code` or
-   `copilot`. `<title>` is `[<code>] ⚙️ Project · Foreman (Batch <nn>)` ([session-start](session-start.md),
-   "Titles"), `<nn>` the batch's number on two digits, e.g. `[Battle] ⚙️ Chantier · Foreman (Batch 17)`; a later Foreman of the same
+   `copilot`. `<title>` is `[<code>] ⚙️ Project · Foreman (Batch <nn>)` ([titles](titles.md),
+   the Foreman row), `<nn>` the batch's number on two digits, e.g. `[Battle] ⚙️ Chantier · Foreman (Batch 17)`; a later Foreman of the same
    batch has the same title. Start the session as your host's reference says, in a session fit
    for a Foreman (its table of classes); the Foreman claims its epoch itself, after its worktree
    check. Where the
@@ -1003,7 +1003,7 @@ Only in the turn where the user gave the go:
 
 5. **Start the watcher.** When `open` ends with `watch: not running: …`, start it now in the
    background, by the host's means, on the session's yes (the first time in the session, ask as
-   [session-start](session-start.md) says): run the printed command as is: no flag added. A batch
+   [session-start-chief-of-staff](session-start-chief-of-staff.md), "The watcher", says): run the printed command as is: no flag added. A batch
    opened paused (`open` with no CR) prints it too, whatever the batch's status.
 
 ### The floor
@@ -1479,7 +1479,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   what is still unread: each one is relayed or acted on in that turn. A host may limit messages between sessions (its
   reference says how): a refused send is reported, never sent another way.
 - **The watcher** (the command the CLI prints, in the background; the user's yes once per
-  session, [session-start](session-start.md); the host's means, its reference, "Run the watcher").
+  session, [session-start-chief-of-staff](session-start-chief-of-staff.md), "The watcher"; the host's means, its reference, "Run the watcher").
   It prints the project's forge events (`forge saw merged`, `forge saw checks red`) and what the
   user does in the board (`board wrote`, `config changed on the board`) and the issue events an
   outside poller writes (`tracker saw`), the events for it (the
@@ -1506,7 +1506,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
     start line or `serve`): say it once to the user as printed; never stop or restart the board.
     The watcher's other lines (its `started the board (PID <n>)` clause, the board's lines it
     passes on, the lines of a board that does not come up or of a seat it cannot start one for):
-    as [session-start](session-start.md), "The watcher", says.
+    as [session-start-chief-of-staff](session-start-chief-of-staff.md), "The watcher", says.
   - *A watcher's end:* read its output. A `forge saw merged … order merged <cr>` line, on this
     path and at the next `status`, is checked on the forge first (`gh pr view <pr> --json
     state,baseRefName,mergedAt`, `glab mr view <iid>` on GitLab): merged, into the default
@@ -1832,7 +1832,7 @@ these differences.
 
 - **Your title.** At `open --direct`, rename yourself `[<code>] 💬 Project · CoS (Batch <nn>)`;
   after `close --yes`, back to `[<code>] 💬 Project · CoS`
-  ([session-start](session-start.md), "Titles").
+  ([titles](titles.md), the Foreman row).
 - **Your number as Foreman.** Claim it as a Foreman does: `$CHANTIER foreman set <your session id> --epoch
   <n>` (`1` for a new batch), then `$CHANTIER foreman transcript <your transcript id> --epoch
   <n>`. On a batch opened empty, claim it just before your first `take`, not at `open`, so the
