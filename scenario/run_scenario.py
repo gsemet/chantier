@@ -1965,11 +1965,14 @@ def board_writes(w: World, port: int, link: Link, project: str) -> None:
     def journal_count() -> int:
         return op(port, link, "journal.get", {"project": project})[2].get("count", -1)
 
-    def forge_lines() -> list[dict]:
+    def forge_lines(raw: bool = False) -> list[dict]:
+        """The journal's lines, but the `arrived@1` lines of the filings unless `raw`."""
         path = w.state / "forge-journal.jsonl"
-        return ([json.loads(x) for x in path.read_text(encoding="utf-8").splitlines()]
-                if path.is_file() else [])
+        lines = ([json.loads(x) for x in path.read_text(encoding="utf-8").splitlines()]
+                 if path.is_file() else [])
+        return lines if raw else [e for e in lines if e["type"] != "arrived@1"]
 
+    prior = len(forge_lines(raw=True))  # the filings' `arrived@1` lines come first
     slug = "board-inbox-item"
     for to, where in (("P2", "2-backlog/P2"), ("3-ready", "3-ready"), ("inbox", "1-inbox")):
         code, body = call("POST", "backlog/move", {"items": [slug], "to": to})
@@ -1990,7 +1993,7 @@ def board_writes(w: World, port: int, link: Link, project: str) -> None:
           [(e["v"], e["source"], e["audience"], e["type"], e["action"], e["items"], e["wakes"])
            for e in seen]
           == [(2, "board", ["project"], "board@1", "move", [slug], True)] * 3
-          and [e["seq"] for e in seen] == [1, 2, 3]
+          and [e["seq"] for e in seen] == [prior + 1, prior + 2, prior + 3]
           and w.sh("git", "check-ignore", ".agents/changes/forge-journal.jsonl").strip() != "",
           str(seen))
     code, body = call("POST", "backlog/new", {"text": "# Board filed idea\r\n\r\nbody é\r\n"})
@@ -2353,14 +2356,15 @@ def forge_hub(w: World) -> None:
         next(c for c in d["crs"] if c["id"] == cr).update(fields)
         (folder(project) / "4-batch" / "batch.json").write_text(json.dumps(d, indent=2))
 
-    def journal(project: str = "demo") -> list[dict]:
+    def journal(project: str = "demo", raw: bool = False) -> list[dict]:
+        """The project's journal lines, but the `arrived@1` lines of the setup unless `raw`."""
         path = folder(project) / "forge-journal.jsonl"
         lines = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
         whole = []
         for x in lines:  # a line being appended is not a line yet
             with contextlib.suppress(ValueError):
                 whole.append(json.loads(x))
-        return whole
+        return whole if raw else [e for e in whole if e.get("type") != "arrived@1"]
 
     def record() -> dict:
         """The `hub` entry of `server.json`."""
@@ -2450,6 +2454,9 @@ def forge_hub(w: World) -> None:
     edit("demo", a[3], status="ready", pr_draft=False)  # the one CR the record holds ready to merge
     sw.chantier("seat", "take", "sess-a")  # A's seat is this session's; B's project has none
     board_port(sw)
+    sw.chantier("status", expect=None)  # tells the setup's arrivals: the told mark moves
+    base = len(journal(raw=True))  # the journal's length past the setup's `arrived@1` lines
+    base_b = len(journal("other", raw=True))
     before = {(p, f): (folder(p) / "4-batch" / f).read_bytes()
               for p in ("demo", "other") for f in ("batch.json", "events.jsonl")
               if (folder(p) / "4-batch" / f).is_file()}
@@ -2458,9 +2465,9 @@ def forge_hub(w: World) -> None:
     check("`status` of a running batch with no watcher names the hub (none yet) and ends with the "
           "`watch: not running` line and the command to run, no `watch: chantier watch` line",
           "forge hub: none running" in out and bool(out)
-          and out[-1] == no_watcher(0) and "--batch" not in out[-1]
+          and out[-1] == no_watcher(base) and "--batch" not in out[-1]
           and not any(x.startswith("watch: chantier watch") for x in out), str(out))
-    sw.chantier("watch", "--after", 5, expect=1)
+    sw.chantier("watch", "--after", base + 5, expect=1)
     check("`watch --after` past the journal's end exits 1", "past the journal's end" in sw.last_stderr,
           sw.last_stderr)
     try:
@@ -2472,7 +2479,7 @@ def forge_hub(w: World) -> None:
         board_pid = int(pid[1]) if pid else None
         check("with no board, A's watcher (its session holds A's seat) starts one, detached: its "
               "start line names the PID `server.json` names, then the board's file-watch line",
-              start.startswith("watch: demo from cursor 0 for project") and board_pid is not None
+              start.startswith(f"watch: demo from cursor {base} for project") and board_pid is not None
               and board_pid == surface_pid(sw) and files == WATCHES, f"{start} {files}")
         argv = psutil.Process(board_pid).cmdline() if board_pid else []
         check("the board a watcher starts runs `serve --seat <session> --stop-idle` (its command line)",
@@ -2480,7 +2487,7 @@ def forge_hub(w: World) -> None:
         wb = watcher("other")
         start_b = started(wb)
         check("B's watcher subscribes to the same board and starts none",
-              start_b.startswith("watch: other from cursor 0") and "started the board" not in start_b
+              start_b.startswith(f"watch: other from cursor {base_b}") and "started the board" not in start_b
               and board_pid == surface_pid(sw), start_b)
         began = time.monotonic()
         until(lambda: reads("demo") >= 3 and reads("other") >= 3)
@@ -2499,7 +2506,7 @@ def forge_hub(w: World) -> None:
         check("while the session's watchers run, `status` holds the `pull path` line and "
               "no `watch: not running` line",
               any(x.startswith("watch: this session's watcher runs; pull path: ") and
-                  x.endswith(" watch --once --after 0") for x in out)
+                  x.endswith(f" watch --once --after {base}") for x in out)
               and not any(x.startswith("watch: not running") for x in out), str(out))
         sets = [asked(c) for c in graphql()]
         check("each cycle makes one `api graphql` call per project with an open PR: every call names "
@@ -2511,17 +2518,17 @@ def forge_hub(w: World) -> None:
         merged(910, "2026-11-16T10:00:00Z")
         got = ended(wa)
         check("A's watcher ends with the `forge saw merged` line and its cursor",
-              got == [says(a[0], 910, "2026-11-16T10:00:00Z"), cursor(1)], str(got))
+              got == [says(a[0], 910, "2026-11-16T10:00:00Z"), cursor(base + 1)], str(got))
         entries = journal()
         check("the journal holds the merge once, written by the hub, and git ignores the file",
               [(e["v"], e["seq"], e["source"], e["audience"], e["type"], e["cr"]) for e in entries]
-              == [(2, 1, "hub", ["project"], "merged@1", a[0])]
+              == [(2, base + 1, "hub", ["project"], "merged@1", a[0])]
               and sw.sh("git", "check-ignore", "projects/demo/changes/forge-journal.jsonl",
                         cwd=sw.surface).strip() != "", str(entries))
         _, out = sw.chantier("status", expect=None)
         check("after A's watcher ended and before it is restarted, `status` ends with the "
               "`watch: not running` line and the journal's last seq",
-              bool(out) and out[-1] == no_watcher(1), str(out[-2:]))
+              bool(out) and out[-1] == no_watcher(base + 1), str(out[-2:]))
         reached = reads("other")
         check("B's watcher keeps running and the board keeps reading the forge, for B's PRs too",
               until(lambda: reads("other") > reached) and wb.p.poll() is None, str(graphql()[-2:]))
@@ -2529,15 +2536,15 @@ def forge_hub(w: World) -> None:
               all((folder(p) / "4-batch" / f).read_bytes() == v for (p, f), v in before.items()),
               "a record changed")
         # 3. restarted with --after: nothing replayed; two merges within the quiet: one end
-        wa = watcher("demo", "--after", 1)
-        wg = watcher("demo", "--after", 1, "--for", "role:griller")
+        wa = watcher("demo", "--after", base + 1)
+        wg = watcher("demo", "--after", base + 1, "--for", "role:griller")
         start_g = started(wg)
         check("a watcher started with `--for role:griller` lists its subscription",
-              start_g.startswith("watch: demo from cursor 1 for project")
+              start_g.startswith(f"watch: demo from cursor {base + 1} for project")
               and ", role:griller" in start_g, start_g)
         start = started(wa)
         check("a watcher restarted with `--after 1` subscribes, starts no board and replays nothing",
-              start.startswith("watch: demo from cursor 1") and "started the board" not in start
+              start.startswith(f"watch: demo from cursor {base + 1}") and "started the board" not in start
               and wa.line(2) is None, start)
         merged(911, "2026-11-16T10:01:00Z")
         until(lambda: len(journal()) == 2)
@@ -2545,18 +2552,18 @@ def forge_hub(w: World) -> None:
         got = ended(wa)
         check("two merges within the quiet give one end with both lines",
               got == [says(a[1], 911, "2026-11-16T10:01:00Z"), says(a[2], 912, "2026-11-16T10:01:30Z"),
-                      cursor(3)], str(got))
+                      cursor(base + 3)], str(got))
         check("the `--for role:griller` watcher, the merge being for the project, ends with the same lines",
               ended(wg) == got, str(got))
         # 4. a ready PR whose checks fail: a line for the watcher, none in `status`
         forge_pr(sw, url(913), checks="FAILURE", headRefOid="feedface0123456789012345678901234567890a")
-        wa = watcher("demo", "--after", 3)
+        wa = watcher("demo", "--after", base + 3)
         started(wa)
         got = ended(wa)
         red = (f"forge saw checks red: {a[3]} {url(913)} at feedfac, ready to merge in the record; "
                "for the Chief of Staff: tell the user, record nothing")
         check("a ready PR's failing checks end the watcher with the `forge saw checks red` line",
-              got == [red, cursor(4)], str(got))
+              got == [red, cursor(base + 4)], str(got))
         _, out = sw.chantier("status", expect=None)
         check("`status` does not print the checks-red line, and prints the three merges",
               not any("checks red" in x for x in out)
@@ -2582,20 +2589,20 @@ def forge_hub(w: World) -> None:
         link = surface_link(sw)
         code, _, _ = op(link.port, link, "prs.get", {"project": "demo"})
         check("the board's PRs page reads the merge first and writes its line",
-              code == 200 and [(e["seq"], e["source"], e["cr"]) for e in journal()][-1:] == [(5, "board", a[4])],
+              code == 200 and [(e["seq"], e["source"], e["cr"]) for e in journal()][-1:] == [(base + 5, "board", a[4])],
               str(journal()[-1:]))
         mark = len(graphql())
-        wa = watcher("demo", "--after", 4)
+        wa = watcher("demo", "--after", base + 4)
         started(wa)
         got = ended(wa)
         check("the watcher wakes on the board's line",
-              got == [says(a[4], 914, "2026-11-16T10:03:00Z"), cursor(5)], str(got))
+              got == [says(a[4], 914, "2026-11-16T10:03:00Z"), cursor(base + 5)], str(got))
         check("observed again, the hub read the forge at once, and its read of the same merge wrote "
               "no second line",
               len(graphql()) > mark
               and [e["source"] for e in journal()] == ["hub", "hub", "hub", "hub", "board"], str(journal()))
         # 8. the batch ends and pauses: A's watcher keeps running, and the board's writes wake it
-        wa = watcher("demo", "--after", 5)
+        wa = watcher("demo", "--after", base + 5)
         started(wa)
         for cr in (a[1], a[2], a[4]):
             sw.chantier("order", "merged", cr, "--epoch", 1, "--batch", a_batch)
@@ -2612,17 +2619,17 @@ def forge_hub(w: World) -> None:
         told = ("board wrote (new): " in (got or [""])[0] and "for the Chief of Staff: tell the user, "
                 "act on nothing" in got[0])
         check("A's watcher, its batch paused, ends on the board's line, with the restart of its batch",
-              len(got) == 2 and told and got[1] == cursor(6), str(got))
-        _, out = sw.chantier("watch", "--once", "--after", 5)
+              len(got) == 2 and told and got[1] == cursor(base + 6), str(got))
+        _, out = sw.chantier("watch", "--once", "--after", base + 5)
         check("`watch --once --after 5` prints the same line, then the cursor and the pull command, "
               "and takes no lock",
               len(out) == 2 and out[0] == got[0]
-              and out[1] == ("watch: cursor 6; next, at the user's next message: "
-                             f"{cli_form} watch --once --after 6"), str(out))
+              and out[1] == (f"watch: cursor {base + 6}; next, at the user's next message: "
+                             f"{cli_form} watch --once --after {base + 6}"), str(out))
         sw.chantier("watch", "--once", expect=1)
         check("`watch --once` with no `--after` exits 1 and says it needs one",
               "needs --after" in sw.last_stderr, sw.last_stderr)
-        wa = watcher("demo", "--after", 6)
+        wa = watcher("demo", "--after", base + 6)
         started(wa)
         check("a board write on the other project", write("other", "Rescan idea two") == 200)
         time.sleep(7)
@@ -2642,7 +2649,7 @@ def forge_hub(w: World) -> None:
         check("a watcher of a project with no seat and no board ends with the `no seat` line, exit 1, "
               "and starts no board",
               got == [NO_SEAT.format(project="other", cli=cli_of("other"),
-                                     watch=f"{cli_of('other')} watch --after 1")]
+                                     watch=f"{cli_of('other')} watch --after {base_b + 1}")]
               and wn.p.returncode == 1 and not surface_alive(sw), f"{got} {wn.p.returncode}")
         # 10. a board started by hand with `--forge-always` (a host that cannot run the watcher)
         board = BoardProc(sw, "serve", "--project", "other", "--host", "127.0.0.1", "--port", 0,
@@ -2764,7 +2771,12 @@ def serve_and_webui(w: World) -> None:
         link = Link(first.line())
         if not link.ok:
             note(f"    the default port {DEFAULT_PORT} is held by another program here: "
-                 "the second-surface step is skipped")
+                 "the second-surface step is skipped; the first server takes a free port")
+            first.stop()
+            first = BoardProc(sw, "--project", "demo", "serve", "--host", "127.0.0.1", "--port",
+                              free_port(), cwd=sw.surface)
+            procs.append(first)
+            link = Link(first.line())
         else:
             second = BoardProc(sw2, "--project", "demo", "serve", "--host", "127.0.0.1",
                                cwd=sw2.surface)
@@ -3003,6 +3015,7 @@ def remote_cli(w: World) -> None:
         code, out = sw.chantier("note", cr, "from afar", "--batch", batch)
         check("a remote `note <cr> \"from afar\"` shows in the record", code == 0 and "from afar" in notes(),
               str(notes()))
+        sw.chantier("status", "--batch", batch)  # tells the arrivals once: `status` moves the told mark
         code, remote = sw.chantier("status", "--batch", batch)
         _, local = sw.chantier("status", "--batch", batch, "--profile", "local")
         kept = [x for x in local if not x.startswith("watch:")]
@@ -3091,7 +3104,8 @@ def outside_poller(w: World) -> None:
         payload = json.dumps({"tracker": "jira", "ref": link, "event": "commented",
                               "at": "2026-11-20T09:14:00Z", "text": "keep the old column order"})
         folders_text = ", ".join(by)
-        written = f"journal: seq 1 issue@1 commented on {link} ({folders_text})"
+        base = len(journal.read_text(encoding="utf-8").splitlines())  # the filings' `arrived@1` lines
+        written = f"journal: seq {base + 1} issue@1 commented on {link} ({folders_text})"
         code, out = sw.chantier("journal", "add", "issue@1", "--json", "-", stdin=payload)
         check("`journal add issue@1 --json -` writes the event and names its folders",
               code == 0 and out == [written], str(out))
@@ -3111,7 +3125,7 @@ def outside_poller(w: World) -> None:
     before = journal.read_bytes()
     code, out = sw.chantier("journal", "add", "issue@1", "--json", "-", stdin=payload)
     check("the same add again says it is already there and the journal is unchanged",
-          code == 0 and out == ["journal: already there (seq 1)"] and journal.read_bytes() == before,
+          code == 0 and out == [f"journal: already there (seq {base + 1})"] and journal.read_bytes() == before,
           str(out))
     refused = [
         ("a ref no CR names", "issue@1", {"ref": link + "0"}, 2, "is no CR's issue"),
@@ -3311,10 +3325,12 @@ def surface_server(w: World) -> None:
             time.sleep(0.25)
         return bool(found)
 
-    def journal() -> list[dict]:
+    def journal(raw: bool = False) -> list[dict]:
+        """The journal's lines, but the setup's `arrived@1` lines unless `raw`."""
         path = sw.state / "forge-journal.jsonl"
-        return ([json.loads(x) for x in path.read_text(encoding="utf-8").splitlines()]
-                if path.is_file() else [])
+        found = ([json.loads(x) for x in path.read_text(encoding="utf-8").splitlines()]
+                 if path.is_file() else [])
+        return found if raw else [e for e in found if e["type"] != "arrived@1"]
 
     def graphql() -> list[list[str]]:
         return [c for c in forge_calls(sw) if c[:2] == ["api", "graphql"]]
@@ -3367,7 +3383,8 @@ def surface_server(w: World) -> None:
     cli_form = (f'uvx --from "{SKILL.parents[1].resolve().as_posix()}" chantier '
                 f'--skill "{SKILL.resolve().as_posix()}" '
                 f'--project "{sw.project.resolve().as_posix()}"')
-    sw.chantier("seat", "take", "sess-a")  # A's seat is this session's
+    sw.chantier("seat", "take", "sess-a")  # A's seat is this session's; tells the setup's arrivals
+    base = len(journal(raw=True))  # the journal's length past the setup's `arrived@1` lines
     board_port(sw)
     try:
         # 1. the board is the server and the hub; it watches the planning files
@@ -3431,7 +3448,7 @@ def surface_server(w: World) -> None:
         start = started(wa)
         check("a watcher of A started while the board runs subscribes, starts no board, and "
               "registers A's seat (the board's `seats` count grows)",
-              start.startswith("watch: demo from cursor 0") and "started the board" not in start
+              start.startswith(f"watch: demo from cursor {base}") and "started the board" not in start
               and until(lambda: seats() > held, 10), f"{start} {held} {seats()}")
         forge_pr(sw, url(930), state="MERGED", mergedAt="2026-11-16T10:00:00Z")
         got = ended(wa)
@@ -3442,10 +3459,10 @@ def surface_server(w: World) -> None:
               [(e["source"], e["type"], e["cr"]) for e in journal()] == [("hub", "merged@1", a[0])],
               str(journal()))
         # 4. the board killed hard: A's watcher, holding A's seat, starts a new one and resubscribes
-        wa = watcher("--after", 1)
+        wa = watcher("--after", base + 1)
         start = started(wa)
-        check("a watcher restarted with `--after 1` subscribes", start.startswith("watch: demo from "
-                                                                                  "cursor 1"), start)
+        check("a watcher restarted with `--after 1` subscribes", start.startswith(
+            f"watch: demo from cursor {base + 1}"), start)
         board_port(sw)  # the new board's port: a free one, the killed board's may linger
         surface_kill(sw)
         board.stop()
@@ -3459,7 +3476,7 @@ def surface_server(w: World) -> None:
         got = ended(wa)
         check("the next merge still wakes the watcher, resubscribed from its cursor",
               bool(got) and got[0].startswith(f"forge saw merged: {a[1]} {url(931)} into main")
-              and [e["seq"] for e in journal()] == [1, 2], str(got))
+              and [e["seq"] for e in journal()] == [base + 1, base + 2], str(got))
         # 5. the board a watcher started outlives it, and stops when its seat is released
         time.sleep(3)
         check("the board the watcher started is still alive after the watcher's end",
@@ -3471,7 +3488,7 @@ def surface_server(w: World) -> None:
         sw.chantier("seat", "take", "sess-a")
         board_port(sw)
         short = {"CHANTIER_HUB_TEST_TIMES": "1:4:6", "CHANTIER_API_TEST_TIMES": "1:6:5:5:5:8"}
-        wi = watcher("--after", 2, env=short)
+        wi = watcher("--after", base + 2, env=short)
         start = started(wi)
         check("a watcher with no board starts one", "; started the board (PID " in start, start)
         idle_pid = surface_pid(sw)
@@ -3479,7 +3496,7 @@ def surface_server(w: World) -> None:
         idea = sw.surface / out[0].removeprefix("filed ").split(";", 1)[0]
         got = ended(wi)
         check("a watcher left with no event ends with the `no event for <name> in 2 h` line",
-              got[-1:] == [IDLE_END.format(name=a_batch, watch=f"{cli_form} watch --after 2")], str(got))
+              got[-1:] == [IDLE_END.format(name=a_batch, watch=f"{cli_form} watch --after {base + 2}")], str(got))
         check("the board then stops by itself with no subscriber, its `server` entry removed",
               until(lambda: "server" not in state() and not psutil.pid_exists(idle_pid or 0), 60),
               str(state()))
@@ -10861,6 +10878,9 @@ def surface_config_page(w: SurfaceWorld, coder_line: Callable[..., str], frozen:
     target = w.project / "chantier.yaml"
     head = w.sh("git", "rev-parse", "HEAD", cwd=w.surface)
     bp = BoardProc(w, "serve", "--project", "demo", "--host", "127.0.0.1", "--port", 0, cwd=w.surface)
+    w.chantier("status", expect=None)  # tells the filings' arrivals: the told mark moves
+    journal_file = w.project / "changes" / "forge-journal.jsonl"
+    base = len(journal_file.read_text(encoding="utf-8").splitlines()) if journal_file.is_file() else 0
     try:
         link = Link(bp.line())
         code, _, view = op(link.port, link, "config.get", {"project": "demo"})
@@ -10875,11 +10895,11 @@ def surface_config_page(w: SurfaceWorld, coder_line: Callable[..., str], frozen:
               "`applies at the next batch`",
               code == 200 and answer.get("ok") is True and "applies at the next batch" in answer.get("lines", [])
               and target.is_file(), f"{code} {answer.get('lines')} {answer.get('error')}")
-        lines = [json.loads(x) for x in (w.project / "changes" / "forge-journal.jsonl")
-                 .read_text(encoding="utf-8").splitlines()]
+        lines = [e for e in (json.loads(x) for x in journal_file.read_text(encoding="utf-8").splitlines())
+                 if e["type"] != "arrived@1"]
         check("that save of a role's model appends one `config@1` line, by the board, keyed on the role",
               [(e["seq"], e["source"], e["type"], e["key"]) for e in lines]
-              == [(1, "board", "config@1", "hosts.claude.roles.coder.model")], str(lines))
+              == [(base + 1, "board", "config@1", "hosts.claude.roles.coder.model")], str(lines))
         check("the board's code committed nothing: the surface's HEAD did not move and the file waits "
               "for its writer",
               w.sh("git", "rev-parse", "HEAD", cwd=w.surface) == head
@@ -10925,13 +10945,13 @@ def surface_config_page(w: SurfaceWorld, coder_line: Callable[..., str], frozen:
             told = f"config changed on the board: batch.slots 4 -> 6; {w.name} keeps 4 until an order slots"
             got = ended(watch)
             check("a running `chantier watch` ends with the `config changed on the board` line and its cursor",
-                  got == [told, cursor(2)], str(got))
+                  got == [told, cursor(base + 2)], str(got))
         finally:
             watch.stop()
         # the specifying limit at 1 with a `work/specifying` marker present
         (w.project / "changes" / "1-inbox" / "marker-cr" / "work").mkdir(parents=True)
         (w.project / "changes" / "1-inbox" / "marker-cr" / "work" / "specifying").write_text("", "utf-8")
-        watch = BoardProc(w, "--project", "demo", "watch", "--after", 2, cwd=w.surface, env=quick)
+        watch = BoardProc(w, "--project", "demo", "watch", "--after", base + 2, cwd=w.surface, env=quick)
         try:
             started(watch)
             code, saved = save([{"key": "specifying.parallel", "value": 1}], saved["sha256"])
@@ -10940,7 +10960,7 @@ def surface_config_page(w: SurfaceWorld, coder_line: Callable[..., str], frozen:
                   f"{code} {saved.get('lines')} {saved.get('error')}")
             got = ended(watch)
             check("the watcher ends with the `specifying.parallel 4 -> 1` line",
-                  got == ["config changed on the board: specifying.parallel 4 -> 1", cursor(3)], str(got))
+                  got == ["config changed on the board: specifying.parallel 4 -> 1", cursor(base + 3)], str(got))
         finally:
             watch.stop()
     finally:

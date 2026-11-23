@@ -160,7 +160,6 @@ def _take(repo: Repo, path: Path, args: argparse.Namespace) -> list[str]:
         *(_record_transcript(repo, transcript) if transcript else []),
         *_own_watch_line(repo, transcript),
         *writer_lines(repo),
-        *arrival_lines(repo),
     ]
 
 
@@ -176,4 +175,6 @@ def seat(args: argparse.Namespace) -> list[str]:
     with changes_lock(repo):
         if args.action == "leave":
             return _leave(repo, path, args.session)
-        return _take(repo, path, args)
+        lines = _take(repo, path, args)
+    # outside the lock: the told mark takes the same, non-re-entrant lock
+    return [*lines, *arrival_lines(repo)]
