@@ -14,8 +14,9 @@
 # CI re-runs. The values are what the cards said before the configuration held them. A column
 # overrides the general value of its host; a setting a column never reads is not set under it.
 # `cache_ttl` is measured once (Claude Code, 2026-11-17) or unproved (Copilot): see the hosts'
-# cards. The Claude Code `steering_wake` is general: only the session column reads it, and it is 55m so that the Foreman wakes at worst once every 55
-# minutes, under the session's 1-hour cache (the CLI's bound stays 60 minutes).
+# cards. The Claude Code `steering_wake` is general: only the session column reads it, and it is
+# 55m so that the Foreman wakes at worst once every 55 minutes, under the session's 1-hour cache
+# (the CLI's bound stays 60 minutes).
 hosts:
   claude:
     timing:

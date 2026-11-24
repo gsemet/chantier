@@ -176,7 +176,9 @@
   lines, and only for an issue a CR's `issue:` line names; each watcher holds a lock of
   its own in the git folder, `chantier/watch-<project>/<session>.lock` (one per project and session
   that ran a watcher, held while it runs, empty, never removed), which `status`, `open`, `take`,
-  `order` and the switch to direct mode read to print the `watch: not running` line, which names the Chief of Staff's or the Foreman's watcher, and `status` prints `foreman watch: running` or `not running` for the Chief of Staff. Its measured cost to justify
+  `order` and the switch to direct mode read to print the `watch: not running` line, which names
+  the Chief of Staff's or the Foreman's watcher, and `status` prints `foreman watch: running` or
+  `not running` for the Chief of Staff. Its measured cost to justify
   it: one round trip with the user per merge and per board session ("rescan"); the Foreman's watcher,
   built on the user's answers foreman-wake-Q1 (2026-11-22) and Q2 (2026-11-24) from the cost study of
   `foreman-idle-wakes` (batch-29: 41 timer wakes of 291, the merges and red CIs relayed by the Chief

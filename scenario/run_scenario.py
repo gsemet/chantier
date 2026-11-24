@@ -2823,11 +2823,18 @@ def forge_hub(w: World) -> None:
         # 13. the Foreman's watcher (CR-479): a watch run under the session the batch records as its
         # Foreman reads its batch's merges only, starts no board, ignores the seat
         fm = {"CLAUDE_CODE_SESSION_ID": "uuid-fm"}
-        edit("third", c[0], status="working", pr=url(944))
-        edit("third", c[2], pr=url(943))
+        # step 12 left a hub `merged@1` line for each of c (the line's key holds no PR): the Foreman's
+        # batch gets two CRs added with no earlier line, on PRs 943 and 944
         whole = batch("third")
         whole.update(status="running", foreman_transcript="uuid-fm")
         (folder("third") / "4-batch" / "batch.json").write_text(json.dumps(whole, indent=2))
+        for n in (4, 5):
+            sw.chantier("order", "add", "--note", sw.prepare(f"Hub C{n}", project="third"),
+                        "--batch", c_batch, project="third")
+        f1, f2 = [x["id"] for x in batch("third")["crs"]][3:5]
+        edit("third", f1, status="working", pr=url(943))
+        edit("third", f2, status="working", pr=url(944))
+        sw.chantier("order", "merged", c[2], "--epoch", 1, "--batch", c_batch, project="third")
         base_f = journal("third", raw=True)[-1]["seq"]
         wf = watcher("third", "--after", base_f, "--stream", env={"CHANTIER_HUB_TEST_TIMES": "1:4:6", **fm})
         start_f = started(wf)
@@ -2839,13 +2846,13 @@ def forge_hub(w: World) -> None:
         got = block(wf)
         check("on its batch's merge it prints the `forge saw merged ... for the steering session` block "
               "and stays alive",
-              got[:1] == [says(c[2], 943, "2026-11-16T10:09:00Z")] and len(got) == 2
+              got[:1] == [says(f1, 943, "2026-11-16T10:09:00Z")] and len(got) == 2
               and got[1].startswith(f"watch: {c_batch} told up to cursor") and wf.p.poll() is None, str(got))
-        sw.chantier("order", "merged", c[2], "--epoch", 1, "--batch", c_batch, project="third", env=fm)
+        sw.chantier("order", "merged", f1, "--epoch", 1, "--batch", c_batch, project="third", env=fm)
         _, out = sw.chantier("status", "--batch", c_batch, project="third", expect=None)
         check("the Chief of Staff's `status` shows the merge recorded by the Foreman, no merged line "
               "left to record, and `foreman watch: running`",
-              next(x for x in batch("third")["crs"] if x["id"] == c[2])["status"] == "merged"
+              next(x for x in batch("third")["crs"] if x["id"] == f1)["status"] == "merged"
               and "foreman watch: running" in out and not any(x.startswith("forge saw merged") for x in out),
               str(out))
         whole = batch("third")
@@ -2856,7 +2863,7 @@ def forge_hub(w: World) -> None:
         got = block(wf)
         check("paused with one PR open merged on the forge, it prints a second `forge saw merged` block, "
               "and not the board's write",
-              got[:1] == [says(c[0], 944, "2026-11-16T10:10:00Z")] and len(got) == 2
+              got[:1] == [says(f2, 944, "2026-11-16T10:10:00Z")] and len(got) == 2
               and wf.p.poll() is None, str(got))
         whole = batch("third")
         whole["foreman_transcript"] = "uuid-fm-2"
