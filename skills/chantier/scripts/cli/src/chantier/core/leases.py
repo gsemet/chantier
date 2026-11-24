@@ -199,6 +199,35 @@ def not_confirmed(repo: Repo, unit: str, lease: Lease | None) -> str | None:
     return not_confirmed_text(lease)
 
 
+def reclaim_command(unit: str, lease: Lease, *, short: bool = False) -> str:
+    """The command that takes the unit from a lease that is not ended, by the unit's kind: a CR's
+    `take`, the stack's `take stack`, a QA order's `agents set`. `short`: a CR's with `...`."""
+    if unit == "stack":
+        return "take stack --reclaim --epoch <n>"
+    if is_order(unit):
+        return f"agents set {unit} <id> --reclaim --epoch <n>"
+    if short:
+        return f"take {unit} --reclaim ..."
+    return f'take {unit} --reclaim --note "resume: lease not confirmed" --epoch <n>'
+
+
+def _late_ship_tail(repo: Repo, unit: str, lease: Lease) -> str:
+    """What a refused `ship`, `stack` or `forge-stack` without `--lease` adds: the commands, by
+    the lease's state (live, or not confirmed)."""
+    if liveness(repo, unit, lease).state == LIVE:
+        who = "the stack driver" if unit == "stack" else "its Driver"
+        return (
+            f"; {unit}'s lease {lease.n} is live until {hms(lease.expires)}: {who} ships it; "
+            f"once the host shows that Driver ended, `agents set {unit} - --epoch <n>` ends the "
+            "lease and `ship` with no --lease is accepted"
+        )
+    return (
+        f"; {unit}'s lease {lease.n} not confirmed since {hm(lease.expires)} "
+        f"({minutes_ago(lease.expires)} min ago): once the host shows its Driver ended, "
+        f"`{reclaim_command(unit, lease)}` starts a new Driver, which ships it"
+    )
+
+
 def check_free(repo: Repo, d: BatchRecord, unit: str, reclaim: bool) -> Lease | None:
     """What `take` (and a QA driver's restart) asks of the unit's last lease: free when it has
     none or it ended. A live one (exit 3, "held") and a not confirmed one (exit 3, "check with the
@@ -211,13 +240,14 @@ def check_free(repo: Repo, d: BatchRecord, unit: str, reclaim: bool) -> Lease | 
         return lease
     if state == LIVE:
         raise ChantierError(
-            f"{unit} is held: lease {lease.n} live until {hms(lease.expires)}; take it again "
-            "with --reclaim only on the user's word",
+            f"{unit} is held: lease {lease.n} live until {hms(lease.expires)}; once the host shows "
+            f"its holder ended, `agents set {unit} - --epoch <n>` ends it; "
+            f"`{reclaim_command(unit, lease, short=True)}` only on the user's word",
             EXIT_CONFLICT,
         )
     raise ChantierError(
         f"{unit}: lease {lease.n} {not_confirmed_text(lease).removeprefix('lease ')}; "
-        "check with the host that its Driver ended, then take it with --reclaim",
+        f"check with the host that its Driver ended, then `{reclaim_command(unit, lease)}`",
         EXIT_CONFLICT,
     )
 
@@ -231,8 +261,8 @@ def reclaim(b: Batch, unit: str, old: Lease | None) -> None:
     b.log("reclaim", unit, lease=old.n, state=state)
 
 
-def require(
-    d: BatchRecord, unit: str, number: int | None, what: str, *, ended_ok: bool = False
+def require(  # noqa: PLR0913 - the record, the unit and the command's words
+    repo: Repo, d: BatchRecord, unit: str, number: int | None, what: str, *, ended_ok: bool = False
 ) -> None:
     """Refuse (exit 2) before any work a command whose unit holds a lease and which was given
     none: a Driver of this version passes the number `take` printed. `ended_ok`: the unit's
@@ -241,7 +271,9 @@ def require(
     held = lease_of(d, unit)
     if number is None and held is not None and not (ended_ok and held.ended):
         raise ChantierError(
-            f"{what} needs --lease <n> (the number take printed)", EXIT_PRECONDITION
+            f"{what} needs --lease <n> (the number take printed)"
+            + (_late_ship_tail(repo, unit, held) if ended_ok else ""),
+            EXIT_PRECONDITION,
         )
 
 
@@ -276,7 +308,9 @@ def claim(  # noqa: PLR0913 - the keywords say what each is
     if number is None:
         if required and not (ended_ok and lease.ended):
             raise ChantierError(
-                f"{what} needs --lease <n> (the number take printed)", EXIT_PRECONDITION
+                f"{what} needs --lease <n> (the number take printed)"
+                + (_late_ship_tail(b.repo, unit, lease) if ended_ok else ""),
+                EXIT_PRECONDITION,
             )
         return None
     if lease.n != number or lease.ended:

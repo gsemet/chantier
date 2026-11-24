@@ -7901,8 +7901,8 @@ def base_from_pr(w: World) -> None:
           and w.cr(two)["pr_base"] == w.cr(one)["branch"], str(out))
     forge_base(w, link, "main")
     _, out = w.chantier("handoff", two)
-    check("a PR on the default branch is printed as the remote's default branch",
-          worktree_line(out).endswith("base origin/main"), worktree_line(out))
+    check("a PR on the default branch is printed as the remote's default branch, after the place's base",
+          worktree_line(out).endswith(f"base {w.cr(one)['branch']}; PR on origin/main"), worktree_line(out))
     before = reads()
     _, out = w.chantier("handoff", three)
     check("a stacked CR with no PR prints today's line and makes no forge read",

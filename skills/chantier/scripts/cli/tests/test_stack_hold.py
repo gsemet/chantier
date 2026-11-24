@@ -11,7 +11,7 @@ import pytest
 from batch_helpers import changes, events, open_batch, record, write_record
 from conftest import Chantier
 
-from chantier.commands.orders_apply import check_merged
+from chantier.commands.orders_merged import check_merged
 from chantier.core.batch import Batch, read_batch, resolve_batch
 from chantier.core.errors import ChantierError
 from chantier.core.records import BatchRecord, CrEntry

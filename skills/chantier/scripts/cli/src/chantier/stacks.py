@@ -15,7 +15,7 @@ from chantier.rails import (
     out_of_order,
     series_predecessor,
 )
-from chantier.stack_apart import dependents
+from chantier.stack_apart import held_lines as held_lines  # noqa: PLC0414 - re-exported, moved out for size
 
 FORMING = 2  # the ready CRs with a PR that make the first stack due (`stack_due`)
 
@@ -161,31 +161,6 @@ def stack_due(b_data: BatchRecord) -> list[CrEntry]:
     return due if len(due) >= FORMING else []
 
 
-def held_lines(b_data: BatchRecord, repo: Repo) -> list[str]:
-    """One `status` line per held CR, in order: a ready CR held in a stack (where it sits and how
-    it comes back), or a CR held while it was live (out of the slots, with the CRs that wait with
-    it). An unheld CR still `blocked` is not held: its row says so."""
-    default: str = repo.config["default_branch"]
-    lines = []
-    for c in sorted(b_data.crs, key=lambda x: x.order):
-        if not is_held(c):
-            continue
-        if c.status == "ready" and b_data.mode == "stack":
-            lines.append(
-                f"held: {c.id} (order {c.held}) out of the stack, PR {c.shown_pr() or '-'} on "
-                f"{default}: `order unhold {c.id}` puts it back"
-            )
-            continue
-        waiting = [x.id for x in dependents(b_data.crs, c, b_data.mode)]
-        tail = f"; waiting with it: {', '.join(waiting)}" if waiting else ""
-        where = " and the stack" if b_data.mode == "stack" else ""
-        lines.append(
-            f"held: {c.id} (order {c.held}), was working, out of the slots{where}: only the "
-            f"user's `order unhold {c.id}` brings it back{tail}"
-        )
-    return lines
-
-
 def stack_line(b_data: BatchRecord) -> list[str]:
     """The `status` line that says the batch's first `take stack` is due; [] when it is not."""
     due = stack_due(b_data)
@@ -255,16 +230,27 @@ def start_on_for(
     return cand[1].branch if cand else None
 
 
-def _live_start(b_data: BatchRecord, c: CrEntry, landed: frozenset[str] = frozenset()) -> bool:
-    """True when `c.start_on` names the branch of a CR that is neither ended (nor in `landed`)
-    nor out of order (apart, or waiting with an apart CR)."""
+def _start_owner(b_data: BatchRecord, c: CrEntry, landed: frozenset[str]) -> CrEntry | None:
+    """The CR that owns `c.start_on` when it is neither ended (nor in `landed`) nor out of order."""
     owner = next((x for x in b_data.crs if x.branch == c.start_on), None) if c.start_on else None
-    return (
+    live = (
         owner is not None
         and owner.status not in ENDED
         and owner.id not in landed
         and not out_of_order(b_data.crs, owner, b_data.mode)
     )
+    return owner if live else None
+
+
+def _live_start(b_data: BatchRecord, c: CrEntry, landed: frozenset[str] = frozenset()) -> bool:
+    """True when `c.start_on` names the branch of a CR that is neither ended (nor in `landed`)
+    nor out of order, and that sits below `c` in `chain`: an order that puts it above `c` (or out
+    of the chain) ends the rule."""
+    owner = _start_owner(b_data, c, landed)
+    if owner is None:
+        return False
+    ids = [x.id for x in chain(b_data)]
+    return c.id not in ids or (owner.id in ids and ids.index(owner.id) < ids.index(c.id))
 
 
 def _dependent_base(b_data: BatchRecord, c: CrEntry) -> str | None:
@@ -287,9 +273,11 @@ def stack_start(
 ) -> str:
     """The branch a CR of a stack batch starts on, and the place the record gives it until
     `stack` places it (a CR that is neither a release nor a fix). First match wins:
-    1. its `start_on`, recorded at its take, while the CR that owns that branch is open;
+    1. its `start_on`, recorded at its take, while the CR that owns that branch is open and sits
+       below it in `chain` (a reorder that puts the owner above ends the rule);
     2. a CR taken, not placed, with no open dependency: the default branch (it started there, or
-       its `start_on` owner has ended);
+       its `start_on` owner has ended); but when that owner is open and now above it, the base a
+       queued CR gets (rule 3a);
     3. a CR not placed: a. queued, no open dependency: the start candidate's branch (the nearest
        CR below it in `chain` with a PR, when that CR is `ready`), else the default branch;
        b. with an open dependency, queued or taken: its highest open dependency's branch
@@ -303,7 +291,8 @@ def stack_start(
         return str(c.start_on)
     dep = _nearest_open(b_data, c, landed)
     if not c.stacked:
-        cand = _start_candidate(b_data, c, landed) if c.status == "queued" else None
+        moved = c.status != "queued" and _start_owner(b_data, c, landed) is not None
+        cand = _start_candidate(b_data, c, landed) if c.status == "queued" or moved else None
         pick = dep or cand
         return pick[1].branch if pick else default
     below = _below_with_pr(b_data, c, landed)

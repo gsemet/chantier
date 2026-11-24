@@ -63,11 +63,11 @@ def test_take_refuses_a_live_or_not_confirmed_lease_and_reclaim_starts_the_next(
     before = record(repo)
     code, _, err = chantier.bare(*resume)
     assert code == EXIT_CONFLICT and "is held: lease 1 live until 00:10:00" in err
-    assert "--reclaim only on the user's word" in err and record(repo) == before
+    assert "--reclaim ...` only on the user's word" in err and record(repo) == before
     at(11)
     code, _, err = chantier.bare(*resume)
     assert code == EXIT_CONFLICT and "lease 1 not confirmed since 00:10 (1 min ago)" in err
-    assert "check with the host that its Driver ended, then take it with --reclaim" in err
+    assert "Driver ended, then `take" in err and "--reclaim --note" in err
     code, out, err = chantier.bare(*resume, "--reclaim")
     assert code == 0, err
     assert out[0].endswith(", lease 2 until 00:21:00") and "lease: 2 (" in "\n".join(out)

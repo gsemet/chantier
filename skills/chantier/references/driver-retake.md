@@ -28,9 +28,12 @@ once both passed at that head. The `verifier`, given the move, judges again what
 before `handback ready`: only after a resolved conflict or a refused carry. Green, no conflict, on
 the default branch: turn the PR ready and `handback ready <link>`. A clean rebase and
 green CI start no new `coder` round and no new `verifier`. If the note names another open dependency instead, or is
-`rebase: <cr> moved`, or `take` prints the base as another CR's branch (for a stacked CR with a PR,
-the base `take` prints is the PR's own base on the forge; `base ? (not read from <link>: …)` means
-the read failed, so read the base on the forge yourself), rebase onto that branch,
+`rebase: <cr> moved`, or `take` prints the base as another CR's branch (the base `take` prints is the CR's place in the
+stack, as the record orders it; `; PR on <ref>` after it says the PR's base on the forge is still
+another branch: the place wins, rebase onto the place, and the PR's base is the stack driver's to set
+(`forge-stack rebuild`), or yours on a `note rebase: stacked on …`, as the next paragraph says;
+`; PR base ? (not read from <link>: …)` says the read failed and changes nothing for the rebase),
+rebase onto that branch,
 keep the PR a draft and `handback ready <link> draft on <base>: waits for <cr>`. A CR taken back
 `blocked` for a rebase, after the rebase, is handed back blocked with the same reason it had. A
 `note rebase: …` received while working: rebase before the next push, however many `rebase:`
@@ -44,7 +47,7 @@ changes the rebase command only: `git -C <worktree> rebase --onto <base> <the dr
 dropped commits leave the branch; the rest is the rule above. A series CR's PR opens, as a draft,
 on the base `take` printed: a Driver still retargets nothing but on a `rebase:` note.
 
-In a stack batch the `base` that `take` prints may be another CR's branch: the nearest earlier CR
+In a stack batch the `base` that `take` prints may be another CR's branch (after a reorder it follows the new order, not the branch the worktree started on): the nearest earlier CR
 of the batch that has a PR, handed back `ready`, that the forge does not show merged, or, for a CR with an open `after`, its highest open dependency's branch. Create the worktree on that base and no other, never on a branch with
 no PR (the PR's base is the `base` that `take` printed, never another), and open the PR on it as a
 draft; that branch is the stack driver's, never rebased by you but on a note or on a `ship` refused `branch not based on`. A `base:` line after
