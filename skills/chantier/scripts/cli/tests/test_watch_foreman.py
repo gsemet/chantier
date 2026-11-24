@@ -66,11 +66,17 @@ QUIETLY: list[dict[str, Any]] = [BOARD_LINE, CONFIG, OTHER_BATCH]
 
 
 def write_batch(
-    repo: Path, status: str, crs: list[dict[str, Any]], foreman: str | None = FM
+    repo: Path,
+    status: str,
+    crs: list[dict[str, Any]],
+    foreman: str | None = FM,
+    steering: str | None = None,
 ) -> None:
     folder = repo / ".agents" / "changes" / "4-batch"
     folder.mkdir(parents=True, exist_ok=True)
     data = {"id": BATCH, "status": status, "crs": crs, "foreman_transcript": foreman}
+    if steering:
+        data["steering"] = steering
     (folder / "batch.json").write_text(json.dumps(data), encoding="utf-8")
 
 
@@ -187,6 +193,19 @@ def test_the_not_running_line_and_the_status_line_name_the_foremans_watcher(
     d = autostart.open_record(found)
     assert d is not None
     assert not any(x.startswith("foreman watch:") for x in status_watch_lines(found, d))
+
+
+@pytest.mark.parametrize("steering", ["direct", "foreman"])
+def test_a_direct_batch_never_records_a_foremans_watcher(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, steering: str
+) -> None:
+    monkeypatch.setenv("CHANTIER_HOST", "claude")
+    monkeypatch.setattr(autostart, "session_key", lambda: FM)
+    write_batch(repo, "running", paused_crs("open"), FM, steering)
+    found = Repo.find()
+    line = autostart.not_running_line(found)[0]
+    assert line.startswith("watch: not running: for the Chief") == (steering == "direct")
+    assert (autostart.foreman_batch(found) is None) == (steering == "direct")
 
 
 @pytest.mark.parametrize(("epoch", "code"), [(1, 0), (0, 1)])
