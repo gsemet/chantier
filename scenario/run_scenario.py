@@ -2292,7 +2292,7 @@ def board_prs(w: World, port: int, link: Link, project: str, ids: tuple[str, str
           and by[four]["state"] == "draft" and by[four]["checking"] is True
           and by[four]["checks"] != "none", str((by[three], by[four])))
     wanted = (f"forge saw merged: {one} {shown} into main at 2026-11-16T10:00:00Z; "
-              f"for the Chief of Staff: order merged {one}")
+              f"for the steering session: order merged {one}")
     check("the merge the board saw is one line of `forge-journal.jsonl`, once, never published",
           [(e["cr"], e["pr"], e["into"], e["into_cr"], e["merged_at"]) for e in journal_entries()]
           == [(one, shown, "main", None, "2026-11-16T10:00:00Z")]
@@ -2382,7 +2382,7 @@ def forge_hub(w: World) -> None:
     """CR-358 and CR-429: the surface server is the one forge hub of a surface and machine; each
     session's watcher subscribes to its `events` topic, and starts it when none runs."""
     from chantier.board.command import WATCHES
-    from chantier.hub.watch_lines import NO_SEAT
+    from chantier.hub.watch_lines import FOREMAN_OTHER, NO_SEAT
     note("\n## 16d. The forge hub: the surface server reads the forge, `chantier watch` subscribes")
     sw = SurfaceWorld(w.root / "hub")
     sw.root.mkdir()
@@ -2459,7 +2459,7 @@ def forge_hub(w: World) -> None:
 
     def says(cr: str, number: int, at: str) -> str:
         return (f"forge saw merged: {cr} {url(number)} into main at {at}; "
-                f"for the Chief of Staff: order merged {cr}")
+                f"for the steering session: order merged {cr}")
 
     def cli_of(project: str) -> str:
         return (f'uvx --from "{SKILL.parents[1].resolve().as_posix()}" chantier '
@@ -2611,7 +2611,7 @@ def forge_hub(w: World) -> None:
         started(wa)
         got = ended(wa)
         red = (f"forge saw checks red: {a[3]} {url(913)} at feedfac, ready to merge in the record; "
-               "for the Chief of Staff: tell the user, record nothing")
+               "for the steering session: tell the user and note the CR's live Driver, record nothing")
         check("a ready PR's failing checks end the watcher with the `forge saw checks red` line",
               got == [red, cursor(base + 4)], str(got))
         _, out = sw.chantier("status", expect=None)
@@ -2820,6 +2820,50 @@ def forge_hub(w: World) -> None:
         got = ended(ws)
         check("another session's `seat take` ends the streaming watcher with the seat line",
               got == ["watch: the seat of third is another session's now; ended"], str(got))
+        # 13. the Foreman's watcher (CR-479): a watch run under the session the batch records as its
+        # Foreman reads its batch's merges only, starts no board, ignores the seat
+        fm = {"CLAUDE_CODE_SESSION_ID": "uuid-fm"}
+        edit("third", c[0], status="working", pr=url(944))
+        edit("third", c[2], pr=url(943))
+        whole = batch("third")
+        whole.update(status="running", foreman_transcript="uuid-fm")
+        (folder("third") / "4-batch" / "batch.json").write_text(json.dumps(whole, indent=2))
+        base_f = journal("third", raw=True)[-1]["seq"]
+        wf = watcher("third", "--after", base_f, "--stream", env={"CHANTIER_HUB_TEST_TIMES": "1:4:6", **fm})
+        start_f = started(wf)
+        check("the Foreman's `watch --stream`, another session holding the seat, subscribes to the "
+              "running board and starts none",
+              start_f.startswith(f"watch: third from cursor {base_f}") and "started the board" not in start_f
+              and wf.p.poll() is None, start_f)
+        merged(943, "2026-11-16T10:09:00Z")
+        got = block(wf)
+        check("on its batch's merge it prints the `forge saw merged ... for the steering session` block "
+              "and stays alive",
+              got[:1] == [says(c[2], 943, "2026-11-16T10:09:00Z")] and len(got) == 2
+              and got[1].startswith(f"watch: {c_batch} told up to cursor") and wf.p.poll() is None, str(got))
+        sw.chantier("order", "merged", c[2], "--epoch", 1, "--batch", c_batch, project="third", env=fm)
+        _, out = sw.chantier("status", "--batch", c_batch, project="third", expect=None)
+        check("the Chief of Staff's `status` shows the merge recorded by the Foreman, no merged line "
+              "left to record, and `foreman watch: running`",
+              next(x for x in batch("third")["crs"] if x["id"] == c[2])["status"] == "merged"
+              and "foreman watch: running" in out and not any(x.startswith("forge saw merged") for x in out),
+              str(out))
+        whole = batch("third")
+        whole["status"] = "paused"  # paused with one PR open: the Foreman's watcher keeps running
+        (folder("third") / "4-batch" / "batch.json").write_text(json.dumps(whole, indent=2))
+        check("a board write in the same window", write("third", "Foreman scenario idea") == 200)
+        merged(944, "2026-11-16T10:10:00Z")
+        got = block(wf)
+        check("paused with one PR open merged on the forge, it prints a second `forge saw merged` block, "
+              "and not the board's write",
+              got[:1] == [says(c[0], 944, "2026-11-16T10:10:00Z")] and len(got) == 2
+              and wf.p.poll() is None, str(got))
+        whole = batch("third")
+        whole["foreman_transcript"] = "uuid-fm-2"
+        (folder("third") / "4-batch" / "batch.json").write_text(json.dumps(whole, indent=2))
+        got = ended(wf)
+        check("a record naming another Foreman ends it with its line",
+              got == [FOREMAN_OTHER.format(batch=c_batch)] and wf.p.returncode == 0, str(got))
     finally:
         surface_kill(sw)
         for proc in reversed(procs):

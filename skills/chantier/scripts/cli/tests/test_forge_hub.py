@@ -182,7 +182,7 @@ def test_a_native_stack_merged_in_one_go_is_told_landed_with_its_bottom(world: W
     told = [schemas.merged_text(e) for e in entries[1:]]
     assert told == [
         f"forge saw merged: CR-{n} {LINK.format('alpha', 9 + n)} into CR-{n - 1}'s branch at "
-        f"{at}, landed with CR-1 at {T1}; for the Chief of Staff: order merged CR-{n}"
+        f"{at}, landed with CR-1 at {T1}; for the steering session: order merged CR-{n}"
         for n, at in ((2, "2026-11-18T10:00:01Z"), (3, "2026-11-18T10:00:02Z"))
     ]
 
@@ -315,7 +315,7 @@ def test_status_and_the_start_line_name_the_journal_the_hub_and_its_version(
     def forge_lines() -> list[str]:
         return [x for x in chantier("status")[1] if x.startswith(("forge ", "watch:"))]
 
-    order = "for the Chief of Staff: order merged"
+    order = "for the steering session: order merged"
     got = forge_lines()
     last = 5  # the journal's highest seq
     assert got[0] == "forge hub: none running" and got[-1].startswith("watch: not running:")
@@ -324,7 +324,7 @@ def test_status_and_the_start_line_name_the_journal_the_hub_and_its_version(
     got = got[1:-1]
     assert got[0] == f"forge saw merged: {a} P into main at t; {order} {a}"
     assert got[1] == (
-        f"forge saw merged: {b} P into {a}'s branch at t; for the Chief of Staff: not landed, "
+        f"forge saw merged: {b} P into {a}'s branch at t; for the steering session: not landed, "
         f"tell the user, record nothing until {a} lands"
     )
     assert (

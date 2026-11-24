@@ -65,6 +65,25 @@ STREAM_TOLD = (
 )
 
 
+FOREMAN_NO_SERVER = (
+    "watch: no surface server runs for {project}, and the Foreman's watcher starts none; ended: "
+    "until the Chief of Staff's watcher or the board starts one, the timer is the Foreman's wake"
+)
+FOREMAN_OTHER = (
+    "watch: {batch} no longer records this session as its Foreman (another Foreman, or direct "
+    "mode); ended"
+)
+FOREMAN_CLOSED = "watch: {batch} is closed; the Foreman's watcher ended"
+FOREMAN_EVENTS_END = (
+    "watch: {name} still running: for the Foreman, start again in the background now: {watch}"
+)
+FOREMAN_IDLE_END = (
+    "watch: no event for {name} in 2 h; the Foreman's watcher ended: for the Foreman, start "
+    "again in the background now: {watch}"
+)
+FOREMAN_TYPES = ("merged@1", "checks-red@1", "wait-cleared@1")  # the lines the Foreman acts on
+
+
 class Ended(Exception):
     """The watcher ends with this last line and this exit code."""
 

@@ -27,11 +27,25 @@ def watch_lines(repo: Repo, d: BatchRecord) -> list[str]:
         lines.append(
             f"watch: this session's watcher runs; pull path: {autostart.pull_command(repo, last)}"
         )
+    if (f := foreman_line(repo, d)) is not None:
+        lines.append(f)
     lines += [
         f"watch: session {s} runs a watcher too; its end wakes that session, not this one"
         for s in autostart.other_sessions(repo, project)
     ]
     return lines + board_lines(repo)
+
+
+def foreman_line(repo: Repo, d: BatchRecord) -> str | None:
+    """In the session of a running or paused batch in Foreman mode that is not the Foreman's
+    (the Chief of Staff's): whether the Foreman's session holds a watcher of the project."""
+    if d.status not in ("running", "paused") or not d.foreman_transcript:
+        return None
+    foreman = autostart.kept(d.foreman_transcript)
+    if not foreman or foreman == autostart.session_key():
+        return None
+    runs = foreman in lock.watchers(repo.git_dir, project_name(repo))
+    return "foreman watch: running" if runs else "foreman watch: not running"
 
 
 def board_lines(repo: Repo) -> list[str]:

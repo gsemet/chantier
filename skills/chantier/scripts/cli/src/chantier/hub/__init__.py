@@ -13,10 +13,14 @@ it starts one, detached, when the project's seat is this session's, else it ends
 reads the lines for it (see `journal.py`: every line is addressed), and ends 20 s after the last
 new event for it that wakes, and no sooner than `events.wake_every` after its start, which wakes
 its session; or 2 h after its start with no such event; or when the project's seat is another
-session's. It runs with or without a batch. Each watcher holds a lock of its own per project and
+session's. It runs with or without a batch. A watch run by the session that the running or paused
+batch records as its Foreman reads only that batch's merge, red-CI and wait-met lines, starts no
+server (the seat is the Chief of Staff's), and ends when the batch records another Foreman or
+closes, never on the seat. Each watcher holds a lock of its own per project and
 session (`chantier/watch-<project>/<session>.lock`, `lock.py`); `status`, `open`, `take`, `order`
-and the switch to direct mode read it to print the `watch: not running` line (`autostart.py`) when
-no watcher of the session runs.
+and the switch to direct mode read it to print the `watch: not running` line
+(`autostart.py`, naming the Chief of Staff's or the Foreman's watcher) when no watcher of the
+session runs.
 
 The one test seam: the environment variable `CHANTIER_HUB_TEST_TIMES`, read only by `times.py`,
 as `<cycle>:<quiet>[:<idle_end>]` in seconds (for example `0.5:3` or `0.5:3:10`), shortens the

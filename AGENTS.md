@@ -156,14 +156,18 @@
   `forge-journal.jsonl` (planning folder, never published) one line per merge the record does not
   hold, per CI turning red on a PR ready to merge and per wait of that batch's CR that the forge
   shows met (`wait-cleared@1`), and nothing else; each session's watcher, run for the Chief of Staff's
-  whole session, with or without a batch, subscribes to the surface server's `events` topic for
+  whole session, with or without a batch, or, as the Foreman's watcher, by the session the running or
+  paused batch records as its Foreman (it reads only that batch's `merged@1`, `checks-red@1` and
+  `wait-cleared@1` lines), subscribes to the surface server's `events` topic for
   its project (the hub's lines, the board's, the writer's and an outside poller's `issue@1`
   lines), never reads the journal file or the forge, and starts the server, detached, when none
-  runs and its session holds the seat, and, 20 s after the last new event for it that wakes and no
+  runs and its session holds the seat (the Foreman's watcher starts none: with none running it ends
+  at once with a line), and, 20 s after the last new event for it that wakes and no
   sooner than `events.wake_every` after its start or its last telling, tells the events it
   gathered, which wakes its session: in its streaming form (`watch --stream`, which the CLI prints
   on a host whose reference runs it so) it prints them and runs on, else it ends; it ends when the
-  project's seat is another session's, and, while no batch of the project runs and none is paused
+  project's seat is another session's (the Foreman's watcher never ends on the seat: it ends when the
+  batch no longer records its session as its Foreman or closes), and, while no batch of the project runs and none is paused
   with a PR the record holds neither merged nor cancelled, 2 h after the latest of its start, its
   last event for it that wakes and the last moment such a batch ran or was paused so (so a watcher
   an ended session left behind stops once the seat moves, or 2 h after its batch is done); the
@@ -172,8 +176,11 @@
   lines, and only for an issue a CR's `issue:` line names; each watcher holds a lock of
   its own in the git folder, `chantier/watch-<project>/<session>.lock` (one per project and session
   that ran a watcher, held while it runs, empty, never removed), which `status`, `open`, `take`,
-  `order` and the switch to direct mode read to print the `watch: not running` line. Its measured cost to justify
-  it: one round trip with the user per merge and per board session ("rescan").
+  `order` and the switch to direct mode read to print the `watch: not running` line, which names the Chief of Staff's or the Foreman's watcher, and `status` prints `foreman watch: running` or `not running` for the Chief of Staff. Its measured cost to justify
+  it: one round trip with the user per merge and per board session ("rescan"); the Foreman's watcher,
+  built on the user's answers foreman-wake-Q1 (2026-11-22) and Q2 (2026-11-24) from the cost study of
+  `foreman-idle-wakes` (batch-29: 41 timer wakes of 291, the merges and red CIs relayed by the Chief
+  of Staff), with its gain not measured before the next batch's retro.
   `lease`, an exception to the measured-cost rule and not a git one (with `take --reclaim` and
   `lease hold`), a Driver's, the stack driver's and a QA driver's short lease on their unit, renewed
   by their commands, built on the user's answer of 2026-11-20 ("tout": all five of Board's ideas);

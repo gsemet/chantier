@@ -299,14 +299,38 @@ After a compaction, read your entry action again, then the action of the moment 
   host's reference says (at the steering wake of the batch's `timing:` line, and who arms it). No wake ever arriving is a stop.
   While the batch is paused with no CR, arm no heartbeat (nothing can move); the turn that takes
   the first CR arms it.
-  A `forge saw merged` line in `status`, and the `forge hub:` and `watch:` lines, are the Chief of
-  Staff's: do nothing with them, send no message about them, and they are not an undone order for
-  ending the heartbeat. The `watch: not running` line in any output, `take`'s and `order qa`'s
-  included, is the same: the CLI prints it outside the Driver prompt block, not indented: never
-  copy it into a Driver's prompt nor relay it with the block.
-- A `checks red <cr> <pr> at <head7>` line from the Chief of Staff (a red CI on a PR ready to
-  merge): record nothing and start no Driver on it. When the CR's Driver is live, send it the line
-  as a `note`; with none, do nothing more.
+  A `forge saw merged` line in `status`, the `forge hub:` line and the Chief of Staff's own
+  `watch:` lines (the `pull path` line, another session's watcher) are the Chief of Staff's: do
+  nothing with them, send no message about them, and they are not an undone order for ending the
+  heartbeat. The line `watch: not running: for the Foreman, start in the background: <command>` is
+  yours (**Your watcher**, below); a `watch: not running: for the Chief of Staff` line is the
+  Chief of Staff's. Either, in any output, `take`'s and `order qa`'s included, is printed by the
+  CLI outside the Driver prompt block, not indented: never copy it into a Driver's prompt nor
+  relay it with the block.
+- **Your watcher** (`$CHANTIER watch`, run by your session, which the batch records as its
+  Foreman): the events of this batch wake you between two heartbeats. **Start and stop:** in the
+  background, with the command your `watch: not running: for the Foreman` line prints, as is (no
+  flag added), in the turn that arms the heartbeat (your first `take`), and again, with the command
+  of its last line, whenever it ended (a last line that is not `still watching`; one that says no
+  server runs leaves the timer as your wake until the Chief of Staff's watcher or the board
+  starts one). It does not stop with the heartbeat or with a pause, even the heartbeat's stop
+  after 30 minutes with no Driver: it leaves a merge of a PR handed back ready, after a pause,
+  recorded. On `switch to direct mode`, stop it by its id with the others (the CLI ends it too).
+  **At each notification** (it prints only your batch's lines):
+  - `forge saw merged: <cr> <pr> ... for the steering session: order merged <cr>`: check it on the
+    forge first (`gh pr view <pr> --json state,baseRefName,mergedAt`, `glab mr view <iid>`: merged
+    into the base the line names), then `$CHANTIER order merged <cr> --epoch <n>` and what follows
+    an `order merged` ([foreman-merge](foreman-merge.md)), on a paused batch too, with no `take`
+    first. A line saying `not landed`: record nothing. A merge the forge does not show
+    (`not merged`, closed, another base): record nothing and send the Chief of Staff one line,
+    `[foreman→chief-of-staff] unconfirmed <cr> <pr>: the forge shows <state>, base <base>`, which
+    names the CR, the PR and what the forge showed;
+  - `forge saw checks red: ... for the steering session`: as a `checks red` line below;
+  - `forge saw <wait type> met: ...`: as today (`wait <cr> clear <id> --epoch <n>`, then the
+    take-back, above).
+- A `checks red <cr> <pr> at <head7>` line (from the Chief of Staff, or your watcher's `forge saw
+  checks red` line) (a red CI on a PR ready to merge): record nothing and start no Driver on it.
+  When the CR's Driver is live, send it the line as a `note`; with none, do nothing more.
 - End the heartbeat, never your session (an idle session still receives an order), right after
   the pause (the CLI's or yours), and on the first wake that sees no Driver of any kind (CR, stack,
   QA, release) run for 30 minutes or more, whatever the wake's interval, and no order is undone:
@@ -358,9 +382,9 @@ After a compaction, read your entry action again, then the action of the moment 
 How you start, message and stop a Driver, and message the Chief of Staff, is your host's
 reference. Keep each turn short: never wait inside a call, never run a long command; start
 no background task of your own to wait for anything (a file, a task's output, a Driver, CI); the
-one exception is the Chief of Staff's watcher in direct mode (`$CHANTIER watch`,
+exceptions are the Chief of Staff's watcher in direct mode (`$CHANTIER watch`,
 [session-start-chief-of-staff](session-start-chief-of-staff.md), "The watcher"): started on the user's yes, started again after each end, it
-stops itself. The
+stops itself, and your own watcher (**Your watcher**, above). The
 `board:` version line and the `pull path` line of `status` are the Chief of Staff's: do nothing
 with them, send nothing. A
 Driver's line, the host's notice about a Driver, an order and the heartbeat wake you. Stop a task

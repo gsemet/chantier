@@ -1,8 +1,9 @@
-"""The line that tells the Chief of Staff to start its watcher, and the command it names.
+"""The line that tells a session to start its watcher, and the command it names.
 
-The CLI never starts the watcher: each block it tells (streaming) or its end must wake the Chief of
-Staff's session, so it is that session's background task. A running batch whose session holds no
-watcher lock gets one line, the last of the output."""
+The CLI never starts the watcher: each block it tells (streaming) or its end must wake the session
+it is for, so it is that session's background task. The session is the Chief of Staff's, or, for a
+running or paused batch that records this session as its Foreman (`foreman_batch`), the Foreman's.
+A session that holds no watcher lock gets one line, the last of the output."""
 
 from __future__ import annotations
 
@@ -12,6 +13,8 @@ import re
 
 from chantier.board.projects import project_name
 from chantier.core.errors import ChantierError
+from chantier.core.files import rel_in
+from chantier.core.records import BatchRecord, read_batch_json
 from chantier.core.remote_wire import VIA_SERVER
 from chantier.core.repo import Repo
 from chantier.hub import journal, lock, state
@@ -72,6 +75,37 @@ def other_dev_build(repo: Repo, own: str) -> tuple[str, str] | None:
     return found if found is not None and found[1] != own else None
 
 
+def kept(value: str | None) -> str:
+    """A transcript or session id kept to `[A-Za-z0-9-]`, as the watcher's key is."""
+    return re.sub(r"[^A-Za-z0-9-]", "", value or "")
+
+
+def open_record(repo: Repo) -> BatchRecord | None:
+    """The batch running or paused, None with none, a closed one or an unreadable file."""
+    path = repo.batches / "batch.json"
+    if not repo.store.is_file(rel_in(repo.store.root, path)):
+        return None
+    try:
+        d = read_batch_json(repo.store, path)
+    except (OSError, ValueError, ChantierError):
+        return None
+    return d if d.status in ("running", "paused") else None
+
+
+def records_foreman(d: BatchRecord | None, session: str | None = None) -> bool:
+    """Whether the batch records this session (or `session`) as its Foreman: the batch's
+    `foreman_transcript`, kept as the key is. Never with the key `none`."""
+    key = session_key() if session is None else session
+    return d is not None and key != NONE and kept(d.foreman_transcript) == key
+
+
+def foreman_batch(repo: Repo) -> BatchRecord | None:
+    """The running or paused batch that records this session as its Foreman, else None: what
+    makes a `watch` run the Foreman's watcher, and the line it is told by the Foreman's."""
+    d = open_record(repo)
+    return d if records_foreman(d) else None
+
+
 STREAM_HOSTS = frozenset({"claude"})  # the hosts whose reference runs the watcher streaming
 
 
@@ -104,14 +138,20 @@ def pull_command(repo: Repo, n: int) -> str:
 
 def not_running_line(repo: Repo) -> list[str]:
     """The line for a session whose watcher does not run, whatever the batch's status (a batch
-    running, paused or none), else nothing. A command that runs for a client of the surface
-    server (`CHANTIER_VIA_SERVER`) prints none: this machine's watcher says nothing of that
+    running, paused or none), else nothing; in the Foreman's session of a running or paused batch
+    it names the Foreman's watcher, with no pull path. A command that runs for a client of the
+    surface server (`CHANTIER_VIA_SERVER`) prints none: this machine's watcher says nothing of that
     client's Chief of Staff."""
     if os.environ.get(VIA_SERVER):
         return []
     if session_key() in lock.watchers(repo.git_dir, project_name(repo)):
         return []
     n = journal.last_seq(journal.read(repo.store, repo.changes)[0])
+    if foreman_batch(repo) is not None:  # no user message to pull at: no pull-path clause
+        return [
+            "watch: not running: for the Foreman, start in the background: "
+            + watch_command(repo, n)
+        ]
     return [
         "watch: not running: for the Chief of Staff, start in the background: "
         + watch_command(repo, n)

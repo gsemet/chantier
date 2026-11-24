@@ -348,7 +348,7 @@ def test_status_prints_the_signal_until_the_merge_is_recorded(
     board.get()
     assert status_lines(chantier, form, batch) == [
         f"forge saw merged: {cr} {LINK.format(FIRST)} into main at {MERGED_AT}; "
-        f"for the Chief of Staff: order merged {cr}"
+        f"for the steering session: order merged {cr}"
     ]
     assert chantier("order", "merged", cr, "--epoch", 1)[0] == 0
     assert status_lines(chantier, form, batch) == []
@@ -379,10 +379,10 @@ def test_status_names_what_it_cannot_read_and_prints_only_the_open_crs_of_its_ba
     (changes(board.repo) / SEEN).write_text("\n".join(lines) + "\n", encoding="utf-8")
     assert status_lines(chantier, "direct", batch) == [
         f"{SEEN}: line 1 unreadable",
-        f"forge saw merged: {c} P into {a}'s branch at t; for the Chief of Staff: not landed, "
+        f"forge saw merged: {c} P into {a}'s branch at t; for the steering session: not landed, "
         f"tell the user, record nothing until {a} lands",
         f"forge saw merged: {d} P into {a}'s branch at t, landed with {a} at u; "
-        f"for the Chief of Staff: order merged {d}",
+        f"for the steering session: order merged {d}",
     ]
     assert b not in "".join(status_lines(chantier, "direct", batch))
 

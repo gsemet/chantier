@@ -14,15 +14,16 @@ HOSTS = ("claude", "copilot")
 LIMIT = 12_544  # the manifest's limit, never raised
 SKILLS = PLUGIN_ROOT / "skills"
 DRIVERS = ("cr-driver", "stack-driver", "qa-driver", "release-driver")
-# the after figures of CR-471's PR (fix round 1; the Chief of Staff's include its `-any` piece),
+# the after figures of CR-471's PR (fix round 1, the Chief of Staff's and the Foreman's raised by
+# CR-479 for the Foreman's watcher; the Chief of Staff's include its `-any` piece),
 # per role and host; at its base the Claude host read
 # 380,314 (Chief of Staff), 292,020 (Foreman), 25,134, 66,302, 36,137 and 47,462 (the Drivers)
 AFTER = {
     # CR-478 adds the restart offer to the Chief of Staff cards: +1,776 and +1,814 bytes
-    ("chief-of-staff", "claude"): 200_646,
-    ("chief-of-staff", "copilot"): 110_740,
-    ("foreman", "claude"): 87_596,
-    ("foreman", "copilot"): 81_082,
+    ("chief-of-staff", "claude"): 202_396,
+    ("chief-of-staff", "copilot"): 111_492,
+    ("foreman", "claude"): 91_019,
+    ("foreman", "copilot"): 83_545,
     ("cr-driver", "claude"): 27_180,
     ("cr-driver", "copilot"): 27_246,
     ("stack-driver", "claude"): 34_054,
