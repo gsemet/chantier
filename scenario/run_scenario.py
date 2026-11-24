@@ -120,7 +120,7 @@ UNITS = {
     "surface-board": (
         735,
         ["github"],
-        ["remote_board", "forge_hub", "serve_and_webui", "several_boards", "remote_cli", "outside_poller", "typed_waits", "surface_server",
+        ["remote_board", "forge_hub", "restart_board", "serve_and_webui", "several_boards", "remote_cli", "outside_poller", "typed_waits", "surface_server",
          "external_surface", "surface_writer", "cr_summary"],
     ),
     "qa-driver": (255, ["github"], ["lost_messages", "qa_on_head", "driver_liveness", "restore_cr"]),
@@ -1873,8 +1873,8 @@ def board_api(w: World, port: int, link: Link, project: str):
     probe = fetch(port, "/api/board", headers=link.cookie)
     seen = json.loads(probe[2].decode("utf-8")) if probe[0] == 200 else {}
     check("the WebSocket with the cookie from the board's own origin gets `welcome`: protocol 1, "
-          "the 27 ops and 8 topics, the server's PID as the probe's",
-          welcome.get("protocol") == 1 and len(welcome.get("ops", [])) == 27
+          "the 28 ops and 8 topics, the server's PID as the probe's",
+          welcome.get("protocol") == 1 and len(welcome.get("ops", [])) == 28
           and len(welcome.get("topics", [])) == 8 and "board.get" in welcome["ops"]
           and welcome["server"]["pid"] == seen.get("pid"), str(welcome)[:300])
     check("`GET /api/board` holds the probe's fields only, `protocols: [1]`",
@@ -2867,6 +2867,69 @@ def two_keys(sw: World, link: Link, line: str | None) -> None:
     code, _, body = op(link.port, link, "backlog.new", {"project": project, "text": "# Two keys idea\n\nbody\n"})
     check("the private link still writes: `backlog.new` files an idea in 1-inbox",
           code == 200 and (sw.state / "1-inbox" / "two-keys-idea").is_dir(), f"{code} {body}")
+
+
+def restart_board(w: World) -> None:
+    """CR-478: `serve --restart` stops the board that runs, cleanly, and serves on this build with the
+    same key; a watcher starts no board while a chantier dev session holds its seat with another build."""
+    from chantier.hub import lock
+    from chantier.hub.watch_lines import NO_BOARD
+    note("\n## 16d1c. `chantier serve --restart`; the watcher's guard under a chantier dev session")
+    sw = SurfaceWorld(w.root / "restart")
+    sw.root.mkdir()
+    sw.build()
+    sw.chantier("init")
+    board_port(sw)
+    procs: list[BoardProc] = []
+    held = []
+    try:
+        old = BoardProc(sw, "--project", "demo", "serve", "--host", "127.0.0.1", cwd=sw.surface)
+        procs.append(old)
+        link = Link(old.line())
+        old_pid = surface_pid(sw)
+        check("a board runs, started by hand", link.ok and old_pid is not None, str(link))
+        new = BoardProc(sw, "--project", "demo", "serve", "--restart", "--host", "127.0.0.1",
+                        "--port", link.port, cwd=sw.surface)
+        procs.append(new)
+        stopped, start = new.line(60), new.line(60)
+        again = Link(start)
+        check("`serve --restart` prints `board stopped:` for the old board, then the usual start line "
+              "with the same key",
+              (stopped or "").startswith("board stopped: chantier ") and f"(PID {old_pid}," in (stopped or "")
+              and again.ok and again.key == link.key, f"{stopped} {start}")
+        check("the old process ended (no signal sent by the command) and the new one answers",
+              not psutil.pid_exists(old_pid) and surface_pid(sw) != old_pid
+              and fetch(again.port, "/api/board", headers=again.cookie)[0] == 200, str(surface_entry(sw)))
+        new.stop()
+        surface_kill(sw)
+        until = time.monotonic() + 20
+        while surface_alive(sw) and time.monotonic() < until:
+            time.sleep(0.25)
+        # the guard: a chantier dev session of this surface holds its seat with another build
+        sw.chantier("seat", "take", "sess-a")
+        dev = sw.surface / "projects" / "chantier" / "changes"
+        dev.mkdir(parents=True)
+        (dev / "seat.json").write_text(json.dumps({"session": "s-dev", "transcript": "t-dev",
+                                                   "build": "/elsewhere/checkout"}), encoding="utf-8")
+        mine = lock.WatcherLock(sw.surface / ".git", "chantier", "t-dev")
+        check("the dev session's watcher lock is taken", mine.acquire())
+        held.append(mine)
+        code, out = sw.chantier("serve", "--restart", "--port", "0", expect=None)
+        check("`serve --restart` under the guard refuses and starts no board",
+              "board not restarted: a chantier dev session (s-dev) holds its seat" in sw.last_stderr
+              and not surface_alive(sw), f"{code} {out} {sw.last_stderr}")
+        watch = BoardProc(sw, "--project", "demo", "watch", cwd=sw.surface,
+                          env={"CHANTIER_HUB_TEST_TIMES": "1:4"})
+        procs.append(watch)
+        line = watch.line(30) or ""
+        check("a watcher under the guard prints the no-board clause and starts none",
+              NO_BOARD in line and "started the board" not in line and not surface_alive(sw), line)
+    finally:
+        for each in held:
+            each.release()
+        surface_kill(sw)
+        for proc in reversed(procs):
+            proc.stop()
 
 
 def serve_and_webui(w: World) -> None:
@@ -11772,6 +11835,7 @@ CASES = {
     "foreman_in_a_worktree": foreman_in_a_worktree,
     "remote_board": remote_board,
     "forge_hub": forge_hub,
+    "restart_board": restart_board,
     "serve_and_webui": serve_and_webui,
     "several_boards": several_boards,
     "remote_cli": remote_cli,

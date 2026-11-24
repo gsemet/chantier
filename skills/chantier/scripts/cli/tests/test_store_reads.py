@@ -67,6 +67,10 @@ EXEMPT: dict[tuple[str, str], str] = {
     ("board/key.py", "*"): "the key, in the git folder",
     ("board/address.py", "*"): "an HTTP address",
     ("hub/state.py", "*"): "the git folder (chantier/server.json)",
+    (
+        "hub/autostart.py",
+        "dev_build",
+    ): "the chantier project's seat.json, a sibling project of the surface",
     ("hub/lock.py", "*"): "the git folder (the locks)",
     ("core/repo.py", IMPORT): "checkout.yml and project.md, beside the planning folder",
     ("core/repo.py", "read_keyed"): "checkout.yml, the project's folder beside the planning folder",

@@ -1054,6 +1054,12 @@
     "title": "SeatArgs",
     "type": "object"
   },
+  "op.server.stop": {
+    "additionalProperties": false,
+    "properties": {},
+    "title": "NoArgs",
+    "type": "object"
+  },
   "op.writer.sync": {
     "additionalProperties": false,
     "properties": {},

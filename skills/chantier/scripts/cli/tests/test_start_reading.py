@@ -18,8 +18,9 @@ DRIVERS = ("cr-driver", "stack-driver", "qa-driver", "release-driver")
 # per role and host; at its base the Claude host read
 # 380,314 (Chief of Staff), 292,020 (Foreman), 25,134, 66,302, 36,137 and 47,462 (the Drivers)
 AFTER = {
-    ("chief-of-staff", "claude"): 198_870,
-    ("chief-of-staff", "copilot"): 108_926,
+    # CR-478 adds the restart offer to the Chief of Staff cards: +1,776 and +1,814 bytes
+    ("chief-of-staff", "claude"): 200_646,
+    ("chief-of-staff", "copilot"): 110_740,
     ("foreman", "claude"): 87_596,
     ("foreman", "copilot"): 81_082,
     ("cr-driver", "claude"): 27_180,

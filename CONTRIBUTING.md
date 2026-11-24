@@ -258,9 +258,11 @@ but its own board and watcher on the user's yes; chantier's own sessions never r
 Another project runs chantier from its checkout in plugin mode, a build uv caches by version: it
 changes at each version bump. The board server, its writer and the forge hub, started from
 another project's session, run that build and serve every project of the surface, chantier
-included, with no notice while the version is equal, until the next version bump or until
-stopped by hand and started again from a chantier session; but a chantier session in the dev
-mode is told, on `status`, the watcher's start line and `serve`, when the board runs another
+included, with no notice while the version is equal, until the next version bump or until replaced;
+while a chantier dev session holds its seat (its `seat.json` names a `build`, its watcher's lock is
+held) its checkout's build serves the surface and other projects' watchers start no board, and a
+board of another build is replaced by `serve --restart` on the user's yes; a chantier session in the
+dev mode is told, on `status`, the watcher's start line and `serve`, when the board runs another
 build than its checkout's, even at the same version string (`server.json` records each entry's
 `source`).
 

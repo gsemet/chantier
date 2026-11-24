@@ -120,6 +120,7 @@ refused (400).
 | `config.get` | `project` | the configuration page's data: each role's agent, model and escalation, per host, the two limits, and the file's `sha256` |
 | `config.put` | `project`, `changes`, `base_sha256`?, `dry_run`? | the configuration saved (or only checked, with `dry_run`); 409 when `base_sha256` is stale |
 | `writer.sync` | none | the writer's state after one sync round |
+| `server.stop` | none | `{stopping, pid}`, then the board stops by Ctrl-C's path (its writer's last cycle runs first); refused while a client's `cli.run` command runs (private key only) |
 | `cli.run` | `argv`, `project`?, `env`?, `stdin`? | one chantier command run on the server's machine: `code`, `stdout`, `stderr`, `version`, `launch` (private key only; see Remote commands, below) |
 | `griller.get` | `project`, `item` | `available`, `reason` (when not), `host`, `machine` (the board's machine), `model`, `cli`, `running` (the project and item whose turn runs on the server, and since when, or null), `conversation` (null, or its `started` and `turns`: each `n`, `from`, `user`, `answer`, `state` `running`, `done`, `stopped`, `timed-out` or `failed`, `error`, `wrote`, `started`, `ended`, `grilled`), `now` |
 | `griller.send` | `project`, `item`, `text` (1 to 8,000 characters), `from` (an opaque client id, 64 characters at most) | 202 `{turn}`; the answer comes through the `griller` topic or the next `griller.get` |

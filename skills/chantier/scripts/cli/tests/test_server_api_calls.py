@@ -110,6 +110,9 @@ def test_a_good_call_of_every_op_answers_the_data_its_route_gave_or_the_store_ho
     status, _ = call(board, "griller.send", {**item, "text": "hi", "from": "p"})
     good.seen.add("griller.send")
     assert status == NOT_FOUND  # no such item: refused before anything starts
+    stops: list[int] = []
+    board.ctx.stop = lambda: stops.append(1)  # the real one would end this board
+    assert good("server.stop", {})["stopping"] is True and stops
     ran = good("cli.run", {**good.args, "argv": ["rules"]})
     assert ran["code"] == 0 and "launch" in ran
     _written(good)

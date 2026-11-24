@@ -10,7 +10,9 @@ from chantier.commands.registry import NO_BATCH, Subparsers, add_command
 SHIPPED_UI = Path(__file__).resolve().parents[1] / "clients" / "web"
 HELP = (
     "serve the board's API and the web client (or another UI: --ui) on this machine (on the "
-    "local network with --host or chantier.yaml's board.host: network), behind a key"
+    "local network with --host or chantier.yaml's board.host: network), behind a key; "
+    "--restart: stop the running board cleanly, after its writer's last cycle, then serve on "
+    "this build"
 )
 
 
@@ -51,6 +53,12 @@ def register(sub: Subparsers) -> None:
         "client); `none`: the API only, no page",
     )
     _switches(s)
+    s.add_argument(
+        "--restart",
+        action="store_true",
+        help="stop the running board cleanly, after its writer's last cycle, then serve on this "
+        "build (not with --stop-idle)",
+    )
 
 
 def _switches(s: argparse.ArgumentParser) -> None:

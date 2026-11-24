@@ -295,6 +295,7 @@ OP_ARGS: dict[str, type[BaseModel]] = {
     "config.get": ProjectArgs,
     "config.put": ConfigPutArgs,
     "writer.sync": NoArgs,
+    "server.stop": NoArgs,
     "cli.run": CliRunArgs,
     "griller.get": GrillerArgs,
     "griller.send": GrillerSendArgs,

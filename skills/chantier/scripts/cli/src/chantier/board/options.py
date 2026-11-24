@@ -18,6 +18,11 @@ BOTH_FLAGS = (
 )
 
 
+RESTART_IDLE = (
+    "--restart and --stop-idle do not go together: a restarted board is the session's own"
+)
+
+
 def ui_of(arg: Path | str) -> Path | None:
     """The folder to serve: `None` for `none`, else a folder holding an `index.html`."""
     if arg == "none":
@@ -45,6 +50,8 @@ def extra_of(args: argparse.Namespace, files: FileWatchThread) -> dict[str, Any]
 def options_of(args: argparse.Namespace) -> Path | None:
     """The options checked before anything is read: the two flags that do not go together, the
     clock, the folder to serve (`ui_of`)."""
+    if args.restart and args.stop_idle:
+        raise ChantierError(RESTART_IDLE, EXIT_USAGE)
     if args.stop_idle and args.forge_always:
         raise ChantierError(BOTH_FLAGS, EXIT_USAGE)
     if args.clock:

@@ -31,11 +31,12 @@ Griller, a Foreman, a Driver and the router before a role is chosen never start 
 Another project runs chantier from its checkout in plugin mode, a build uv caches by version: it
 changes at each version bump. The board server, its writer and the forge hub, started from
 another project's session, run that build and serve every project of the surface, chantier
-included, with no notice while the version is equal, until the next version bump or until
-stopped by hand and started again from a chantier session; but a chantier session in the dev
-mode is told, on `status`, the watcher's start line and `serve`, when the board runs another
-build than its checkout's, even at the same version string (`server.json` records each entry's
-`source`). (The dev mode runs only in chantier's
+included, with no notice while the version is equal, until the next version bump or until replaced; while a chantier dev session holds its seat (its
+`seat.json` names a `build`, its watcher's lock is held) its checkout's build serves the surface and
+other projects' watchers start no board, and a board of another build is replaced by `serve
+--restart` on the user's yes; a chantier session in the dev mode is told, on `status`, the watcher's
+start line and `serve`, when the board runs another build than its checkout's, even at the same
+version string (`server.json` records each entry's `source`). (The dev mode runs only in chantier's
 own checkout, when the session's project is chantier: the launch paragraph of the SKILL.md.) The
 watcher that is the hub (below) runs the same build.
 
@@ -48,7 +49,7 @@ watcher that is the hub (below) runs the same build.
   where the Costs page's "Copy as image" works (a browser allows an image copy on a secure origin
   only; the LAN link is plain http). The `read-only: <link>` line (and, when it differs, `on this machine, read-only: <link>`) is passed on with them: that link shows the board and acts on nothing, so it can be shared; the private link acts.
 - `board: no local network address found; on this machine only` (after the `board on` line, when `board.host: network` found no network address): the board is on this machine only; pass it on, and once the network is back the user stops it by the host's means, then it is started again.
-- `board already running at <URL>`: the same line (and the same second line, when it follows, then the `board: listens on the local network (...)` line when the board listens beyond this machine, which you pass on, and an added `board runs another build` line: say it once to the user as printed, never stop or restart the board), if
+- `board already running at <URL>`: the same line (and the same second line, when it follows, then the `board: listens on the local network (...)` line when the board listens beyond this machine, which you pass on, and an added `board runs another build` line: say it once to the user as printed, with the offer of the restart ("Restart the board", below)), if
   not given yet in this session. One board
   serves a planning surface (or a repository), on whatever port: a second session's `serve --seat
   <id>` registers its seat on it and prints this line.
@@ -63,9 +64,9 @@ watcher that is the hub (below) runs the same build.
 - `error: board not started: chantier serve <v> (PID <n>) already serves this surface ...` or
   `... holds this surface at <host>:<port> and does not answer ...`, or the watcher's `does not
   answer` line: one line to the user with the
-  version, the PID and the stop command as printed. Never stop it yourself and never start one on
-  another port to get round it: the user decides, then you run `serve --seat <id>` again on the
-  user's word.
+  version, the PID and the stop command as printed. Never stop it yourself but by the restart ("Restart the board", below),
+  and never start one on another port to get round it: the user decides, then you run `serve
+  --seat <id>` again, or `serve --restart --seat <id>`, on the user's word.
 - `board: writer not started: <reason>`: one line with the reason; the board serves anyway, and
   writes to the surface are refused until a writer runs. The board's other start line is the
   writer's own, `writer: <state>`.
@@ -75,6 +76,20 @@ watcher that is the hub (below) runs the same build.
   When the user's word asks for a board started by hand (`serve --seat <id>`, as the watcher's line
   prints it), run it by the host's background means (the host's reference, "Run the board"),
   never in the foreground (a board that starts never returns), and read its first lines.
+
+**Restart the board.** On a `board runs another build`, `board runs a build of chantier <v> older
+than this notice`, `board is chantier <v>: restart it to run this version` or `board: chantier <v>
+serves this surface ...` line, or after a merge that changes the board's code
+(`skills/chantier/scripts/cli/src/chantier/board/`, `hub/`, `writer/`, `clients/web/`) in the dev
+mode, offer the restart once, in one line with its cost: the board, the surface's writer and the
+hub are off for every project of the surface for the stop's length (up to two minutes), and a board
+Griller run in progress ends. On the user's yes, each time (a yes covers one restart, never the
+next): run `$CHANTIER serve --restart --seat <id>` (with `--forge-always` on a host that cannot run
+the watcher) by the host's background means (the host's reference, "Run the board"), read its first
+lines and pass them on as the board's start lines are. A refusal: one line to the user with the
+printed stop command, never run by you. No answer or a no: say nothing more until the next such
+line. While `sync pending` holds, the sync goes first
+([sync-checkout](sync-checkout.md)); the restart is not a sync's stop.
 
 On a surface, `$CHANTIER serve --seat <id>` keeps the `--project` that `$CHANTIER` holds.
 
@@ -108,7 +123,9 @@ workaround. Its lines:
   network (...)`, `board: no local network address found ...` and file-watch lines that may follow
   it (or the start line on a running board): pass each on, in one line, as the board's own. The
   start line's `board is chantier <v>: restart it to run this version`: tell the user once, in one
-  line, and go on.
+  line, with the offer of the restart ("Restart the board", below), and go on. Its `; no board
+  started: a chantier dev session holds its seat and its build serves this surface; linking when its
+  board runs` clause: pass it on once; the watcher links by itself when the board runs.
 - `watch: the board did not start within 20 s ...`, `watch: a chantier serve <v> (PID <n>) ...
   does not answer ...`, `watch: the board at <host>:<port> refused the key of server.json ...`,
   `watch: no seat for <project> ...`, `watch: the seat of <project> records no session transcript

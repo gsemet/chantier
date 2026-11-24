@@ -46,6 +46,10 @@ NOT_SERVED = (
     "watch: the board at {where} does not serve the events of {project} ({error}): for the Chief "
     "of Staff, restart it: stop it ({stop}), then start again: {watch}"
 )
+NO_BOARD = (
+    "; no board started: a chantier dev session holds its seat and its build serves this "
+    "surface; linking when its board runs"
+)
 OTHER_VERSION = "; board is chantier {version}: restart it to run this version"
 EVENTS_END = (
     "watch: {name} still running: for the Chief of Staff, start again in the background now: "

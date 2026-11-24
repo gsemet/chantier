@@ -33,6 +33,7 @@ from chantier.board.idle import IdleStop, IdleThread
 from chantier.board.key import KeyFile, load_or_create, public_key
 from chantier.board.options import extra_of, options_of
 from chantier.board.projects import Projects, check_planning, open_projects
+from chantier.board.restart import restart_with_key
 from chantier.board.seats import Seats
 from chantier.board.watch_files import NOTIFY, FileWatchThread
 from chantier.core.errors import ChantierError
@@ -327,6 +328,13 @@ def _listen(
     return _bind(host, port, lambda: _held_by(host, port, key, from_config), holder)
 
 
+def _migrated(projects: Projects, args: argparse.Namespace, host: str, port: int) -> None:
+    """The record migrated; with `--restart`, the board that runs stopped first."""
+    _writing(lambda: state.migrate(projects.home.git_dir))
+    if args.restart:
+        restart_with_key(projects, host, port)
+
+
 def board(args: argparse.Namespace) -> list[str]:
     ui = options_of(args)
     projects = open_projects()
@@ -336,7 +344,7 @@ def board(args: argparse.Namespace) -> list[str]:
         raise _not_started(e) from e
     host, port, no_network = settings(projects.home, args.host, args.port)
     git_dir = projects.home.git_dir
-    _writing(lambda: state.migrate(git_dir))
+    _migrated(projects, args, host, port)
     key = _writing(lambda: load_or_create(projects.home, args.new_key))
     seats = Seats(projects, follows=bool(args.seat))
     if args.seat:

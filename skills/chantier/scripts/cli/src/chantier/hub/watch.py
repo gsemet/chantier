@@ -34,10 +34,10 @@ from chantier.board import running
 from chantier.board.projects import project_name
 from chantier.board.seats import SEAT_CHECK_S
 from chantier.clients.tui.link import KEY, Event, Linked, Refusal, Refused
-from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
+from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.repo import Repo
 from chantier.core.seat import read_seat
-from chantier.hub import arrival_mark, autostart, batch_prs, journal, lock
+from chantier.hub import arrival_mark, autostart, batch_prs, journal, lock, state
 from chantier.hub import times as hub_times
 from chantier.hub.feed import Board, Feed, Got, passed_on, serve_argv
 from chantier.hub.lines import foreign_build_clause
@@ -45,6 +45,7 @@ from chantier.hub.watch_lines import (
     BAD_KEY,
     EVENTS_END,
     IDLE_END,
+    NO_BOARD,
     NO_KEY,
     NO_SEAT,
     NO_TRANSCRIPT,
@@ -58,7 +59,7 @@ from chantier.hub.watch_lines import (
     Ended,
     told,
 )
-from chantier.hub.watch_reads import Rules, once, open_batch, seat_moved, subscription
+from chantier.hub.watch_reads import Rules, checked, once, open_batch, seat_moved, subscription
 from chantier.plugin_files import cli_command, read_wake_rules
 
 EVENTS, SEAT, IDLE, END = "events", "seat", "idle", "end"
@@ -83,6 +84,8 @@ class Watch:
         board: Board | None = None,
     ) -> None:
         self.repo, self.cursor, self.version = repo, cursor, version
+        self.build = state.build_source()  # the build this watcher would start a board of
+        self.waiting = False  # no board started: a chantier dev session's build serves the surface
         rules = rules or Rules()
         self.wake_every, self.note, self.stream = rules.wake_every, rules.note, rules.stream
         self.board = board or Board()
@@ -140,10 +143,15 @@ class Watch:
             return seat.session
         raise Ended(SEAT_LINE.format(**texts), 0)
 
-    def start_board(self) -> tuple[dict[str, Any], str]:
+    def start_board(self) -> tuple[dict[str, Any], str] | None:
         """Start the board for this session's seat, detached, and wait for `server.json` to name
-        a live one that answers the probe with its key: its entry and the key."""
+        a live one that answers the probe with its key: its entry and the key. None, with nothing
+        spawned, while a chantier dev session of the surface holds its seat with another build
+        than this watcher's: that build serves the surface, and this watcher links when its
+        board runs."""
         session = self.seat_rule()
+        if autostart.other_dev_build(self.repo, self.build) is not None:
+            return None
         self.board.spawn(serve_argv(self.repo, session), self.repo.root)
         deadline = self.board.clock() + START_S
         while True:
@@ -177,8 +185,12 @@ class Watch:
         own process, from its entry), else None."""
         found = self.board.recorded(self.repo.git_dir)
         started = None
+        self.waiting = False
         if found is None:
             found = self.start_board()
+            if found is None:  # no link, no board: tried again as a lost link is
+                self.waiting, self.lost_at = True, now
+                return None
             started = int(found[0]["pid"])
             self.unlinked_since = None
         else:
@@ -198,13 +210,15 @@ class Watch:
         line = f"watch: {self.project} from cursor {self.cursor} for {', '.join(self.subscribed)}"
         if pid is not None:
             line += f"; started the board (PID {pid})"
+        if self.waiting:
+            line += NO_BOARD
         if other := autostart.board_clause(self.repo, self.version):
             line += OTHER_VERSION.format(version=other)
         elif foreign := foreign_build_clause(self.repo, self.version):
             line += f"; {foreign}"
         if self.note:
             line += f"; configuration: {self.note}"
-        return [line, *passed_on(self.repo, self.entry)]
+        return [line, *([] if self.waiting else passed_on(self.repo, self.entry))]
 
     # what comes
 
@@ -357,20 +371,7 @@ def run(w: Watch) -> tuple[list[str], int]:
 
 def watch(args: argparse.Namespace) -> list[str] | tuple[list[str], int]:
     repo = Repo.find()
-    for value in args.audience or []:
-        if not journal.audience_ok(value):
-            raise ChantierError(
-                f'watch: --for "{value}": one of {journal.AUDIENCE_FORMS}', EXIT_USAGE
-            )
-    if args.once and args.stream:
-        raise ChantierError("watch: --stream and --once do not go together", EXIT_USAGE)
-    if args.once and args.after is None:
-        raise ChantierError("watch --once needs --after SEQ", EXIT_USAGE)
-    last = journal.last_seq(journal.read(repo.store, repo.changes)[0])
-    if args.after is not None and args.after > last:
-        raise ChantierError(
-            f"watch: --after {args.after} is past the journal's end ({last})", EXIT_USAGE
-        )
+    last = checked(repo, args)
     if args.once:
         return once(repo, args.after, args.audience or [])
     rules = read_wake_rules(repo)

@@ -14,10 +14,11 @@ from chantier.core.files import write_json
 from chantier.core.records import ClaimRecord, SeatRecord, chief_sessions
 from chantier.core.repo import Repo
 from chantier.core.seat import read_seat
+from chantier.hub import state
 from chantier.hub.autostart import holds_seat, not_running_line
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock
-from chantier.plugin_files import detect_host, own_transcript
+from chantier.plugin_files import detect_host, is_dev_mode, own_transcript
 
 
 def foreman(args: argparse.Namespace) -> list[str]:
@@ -153,6 +154,7 @@ def _take(repo: Repo, path: Path, args: argparse.Namespace) -> list[str]:
         env=args.env,
         title=args.title,
         link=args.link,
+        **({"build": state.build_source()} if is_dev_mode(repo) else {}),
     )
     write_json(path, record.to_data())
     return [
