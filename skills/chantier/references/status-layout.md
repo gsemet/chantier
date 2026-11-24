@@ -15,6 +15,10 @@ leaves the Foreman's heartbeat alone (only the loop's wake, `--refresh --epoch <
 
 - **A CR's name:** name every CR by its number and slug together, like "CR-142 grill-rules",
   never one alone; an item with no number yet is named by its slug.
+- **The batch's state and the ready CRs:** the batch's state in the header is copied from `status`'s
+  first line and its `batch:` line. A CR named in **Notes** or **For you** as ready to merge or in
+  draft is written from its `handed back:` line, the prefix dropped and the ask's local run added
+  (`chief-of-staff-merge.md`, "The words to the user"). The skeleton and the columns do not change.
 - A cost or a time chantier did not observe is written `unknown` (or as the CLI prints it: `-`,
   `never`, `not measured`), never 0; a 0 is only a measured zero.
 - A Progress report and a Completion report always have the same shape: the columns

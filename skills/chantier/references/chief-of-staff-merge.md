@@ -8,6 +8,14 @@
   "prête" alone is never said of a CR or a PR, and "mergeable" never of a draft, whatever the
   forge's `mergeable` field says. An icon you write beside a CR is copied from `label` (🟢 ready to
   merge, 🟤 PR in draft, 🟣 ready locally), never judged.
+  `status` prints a `handed back:` line for each CR handed back; the words you say to the user
+  are that line in the user's language: its icon, its full PR link (never a named link), each
+  gap next to the link, its `do not merge: waits for` text on a draft, and its `owed before the
+  merge` clauses (what is still owed; the user may merge anyway, recorded as any merge). The
+  prefix `handed back:` is never said to the user. Its `long gate` clause is what the record
+  holds; the local run the project's rules owe comes from the Foreman's ask (`local gate <cr> at
+  <sha7>: …`), which you add. When the ask and the line differ, the ask wins. Nothing in the
+  line is judged.
 - **The icon is the present:** the icon beside a PR or a CR is its state at the time of writing,
   never the state it is expected to reach; the future is said in words. Wrong: "the next PR ready
   to merge will be 🟢 #171 CR-237" while #171 is a draft. Right: "🟤 #171 CR-237, do not merge: it
@@ -23,8 +31,8 @@
   green, no conflict, on the default branch or with everything under it ready to merge).
 - **A plain `ready-to-merge <cr> <link> gaps: …` ask (or `pr-in-draft <cr> <link> on <base>: waits
   for <what> gaps: …`):** when you tell the user the PR is ready to merge, quote each
-  gap of the ask next to the PR's link, in the user's language; with none, say nothing about
-  gaps.
+  gap of the ask next to the PR's link, in the user's language (the `handed back:` line carries
+  the same gaps from the hand-back); with none, say nothing about gaps.
   In a project whose rules ask a local run, the ask of each CR that owes the run, in a parallel
   or series batch, carries `local gate <cr> at <sha7>: …`: quote it in the user's language before you say the
   PR can be merged. `passed`: say the local gate ran and passed at that head. `not run` or

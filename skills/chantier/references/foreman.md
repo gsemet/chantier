@@ -10,10 +10,10 @@ what you remember of the last one: its limits, orders and heartbeat are not your
 you arm a new heartbeat. As your first act, set the session title your prompt gives on
 yourself (your host's reference says how; where it offers no way, the title stays). Read
 the startup sections of [concepts](concepts.md) and your host's reference
-([Claude Code](hosts/claude-code.md) or [Copilot](hosts/copilot.md)); defer the remaining sections. Read the
+([Claude Code](hosts/claude-code.md) or [Copilot](hosts/copilot.md)). Read the
 project's rules (`$CHANTIER rules`), then the brief and `$CHANTIER status`. Do it at the start of
-every batch you steer, in a reused session too, and again after a compaction: reread only those
-startup sections and your `batch` action, not whole cards (in a stack batch, also [foreman-stack](foreman-stack.md) whole: the manifest's `batch:stack` reading). An earlier reading is not this batch's. Then decide: which CR a
+every batch you steer, and again after a compaction: reread only those
+startup sections and your `batch` action, and the `rules:` pointer of `status`'s `batch:` line, not whole cards (in a stack batch, also [foreman-stack](foreman-stack.md) whole: the manifest's `batch:stack` reading). An earlier reading is not this batch's. Then decide: which CR a
 Driver takes next, what a Driver must hear, what the Chief of Staff must know. The CLI holds the limits; you hold the judgement. In direct mode the Chief of Staff reads this card and
 steers the batch itself, with the differences of [chief-of-staff](chief-of-staff-direct.md#steering-a-batch-yourself).
 

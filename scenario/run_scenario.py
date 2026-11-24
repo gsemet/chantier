@@ -1199,8 +1199,8 @@ def scenario(w: World) -> None:
           and w.chantier("status", "--batch", "batch-01")[0] == 0, w.name)
     opened_record(w)
     _, first = w.chantier("status")
-    check("`status` prints the last closed batch on its second line: none yet",
-          len(first) > 1 and first[1] == "last closed: none", str(first[:2]))
+    check("`status` prints the last closed batch on its third line (after the `batch:` line): none yet",
+          len(first) > 2 and first[2] == "last closed: none", str(first[:3]))
     board = (w.state / "STATUS.md").read_text(encoding="utf-8")
     batch_report = (w.folder() / "STATUS.md").read_text(encoding="utf-8")
     check("a spend not priced yet is unknown, never $0.00: `status`, the batch's STATUS.md and the board",
@@ -1330,6 +1330,11 @@ def scenario(w: World) -> None:
           and w.cr("CR-101")["status"] == "ready", str(out))
     check("after `handback ready` the step is null", sheet("CR-101")["phase"] is None
           and row("CR-101")["phase"] is None and "phase" not in w.cr("CR-101"))
+    _, shown = w.chantier("status")
+    check("`status` prints CR-101's `handed back:` line with its full link, and the `batch:` line",
+          any(ln.startswith("handed back: ") and "CR-101" in ln and pr101 in ln for ln in shown)
+          and len(shown) > 1 and shown[1].startswith("batch: shape ")
+          and "merges: the user" in shown[1], str(shown[:2]))
     fm.turn()
     check("hand-back frees a slot: CR-103 taken", fm.started[-1] == "CR-103")
     check("the Chief of Staff is told CR-101 is ready with its PR",
@@ -5692,9 +5697,9 @@ def retro_cases(w: World) -> None:
         w.env["CHANTIER_BATCH"] = w.name
         _, head = w.chantier("status")
         check(f"{label}: after a close and a new `open`, `status` names the last closed batch on "
-              "its second line",
-              len(head) > 1 and head[1].startswith(f"last closed: {previous}, closed 20"),
-              str(head[:2]))
+              "its third line",
+              len(head) > 2 and head[2].startswith(f"last closed: {previous}, closed 20"),
+              str(head[:3]))
         number = int(w.batch()["crs"][0]["id"].removeprefix("CR-"))
         w.chantier("foreman", "set", "local_foreman_retro", "--epoch", 1)
         drop_then_cancel(w, w.batch()["crs"][0]["id"], 1)  # the last end: paused
@@ -7451,12 +7456,12 @@ def stack_batch(w: World) -> None:
           and "base origin/main" in stacked[3], str(base) + str(stacked))
     _, empty = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
     check("`status --refresh` of a stack before any CR has a PR prints the empty-state shape line "
-          "second, exactly",
-          len(empty) > 1 and empty[1].startswith(
+          "third (after the `batch:` line), exactly",
+          len(empty) > 2 and empty[2].startswith(
               "shape stack: next parallel until 2 ready with a PR; stack driver: none; "
               "native stack: absent; alone asks: allowed; rules: ")
-          and empty[1].endswith("/references/foreman-stack.md (reread after a compaction)")
-          and Path(empty[1].split("rules: ", 1)[1].removesuffix(" (reread after a compaction)"))
+          and empty[2].endswith("/references/foreman-stack.md (reread after a compaction)")
+          and Path(empty[2].split("rules: ", 1)[1].removesuffix(" (reread after a compaction)"))
           .resolve() == (SKILL / "references" / "foreman-stack.md").resolve(), str(empty))
     asks_before: list = []
     for i, cr in enumerate((one, two, three)):
@@ -7468,7 +7473,7 @@ def stack_batch(w: World) -> None:
             asks_before = w.batch()["asks"]
             check("with exactly one open PR the shape line says `alone asks: allowed for <one> "
                   "only` and `asks ready-to-merge <one> <pr>` is accepted and recorded",
-                  f"alone asks: allowed for {one} only;" in solo[1] and len(asks_before) == 1,
+                  f"alone asks: allowed for {one} only;" in solo[2] and len(asks_before) == 1,
                   str(solo) + str(asks_before))
 
     def ship_bases(cr: str) -> list[str]:
@@ -7484,11 +7489,11 @@ def stack_batch(w: World) -> None:
     check("`status --refresh` of a stack prints one shape line after the batch line: the next "
           "step, no stack driver, no native stack, alone asks refused, the rules card",
           len([ln for ln in shape if ln.startswith("shape stack:")]) == 1
-          and shape[1].startswith("shape stack: next take stack; stack driver: none; native stack: "
+          and shape[2].startswith("shape stack: next take stack; stack driver: none; native stack: "
                                   "absent; alone asks: refused; rules: ")
-          and shape[1].endswith("references/foreman-stack.md (reread after a compaction)"),
+          and shape[2].endswith("references/foreman-stack.md (reread after a compaction)"),
           str(shape))
-    rules_path = Path(shape[1].split("rules: ", 1)[1].removesuffix(" (reread after a compaction)"))
+    rules_path = Path(shape[2].split("rules: ", 1)[1].removesuffix(" (reread after a compaction)"))
     check("the path the `rules:` part names exists",
           rules_path.is_file() and rules_path.name == "foreman-stack.md", str(rules_path))
     check("a plain `status` prints no `shape stack:` line",
@@ -7517,7 +7522,7 @@ def stack_batch(w: World) -> None:
     _, driven = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
     check("with a stack driver recorded the shape line reads `next note to the stack driver; "
           "stack driver: agent-stack`",
-          driven[1].startswith("shape stack: next note to the stack driver; "
+          driven[2].startswith("shape stack: next note to the stack driver; "
                                "stack driver: agent-stack;"), str(driven))
     w.chantier("agents", "set", "stack", "-", "--epoch", 1)
     check("with a stack driver recorded the line is absent; with none it is back", not held
@@ -7526,7 +7531,7 @@ def stack_batch(w: World) -> None:
     check("after `stack` marks the CRs the trigger line is absent", not trigger(), str(trigger()))
     _, shape = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
     check("with the CRs marked the shape line names the native stack and the next step",
-          shape[1].startswith("shape stack: next take stack at the next ready CR or merge; "
+          shape[2].startswith("shape stack: next take stack at the next ready CR or merge; "
                               f"stack driver: none; native stack: present ({one}, {two}, {three}); "
                               "alone asks: refused"), str(shape))
     forge_base(w, w.cr(two)["pr"], w.cr(one)["branch"])  # the stack driver retargets the PRs

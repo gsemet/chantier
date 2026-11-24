@@ -8,6 +8,11 @@ from typing import Any
 from chantier.commands import wait_view
 from chantier.commands.activity import activity, stopped_agents, stopped_text
 from chantier.commands.arrival_line import closing_lines
+from chantier.commands.batch_status_orders import (
+    ended_unrecorded,
+    order_lines,
+    stack_driver_lines,
+)
 from chantier.commands.cost.breakdown import cost_groups, cost_summary
 from chantier.commands.cost.pricing import TO_DATE, sum_unpriced
 from chantier.commands.cost.sessions import chief_line, cost_rows, foreman_uuid
@@ -29,7 +34,6 @@ from chantier.core.records import (
     BatchRecord,
     CrEntry,
     EventRecord,
-    OrderRecord,
     read_events,
     round_limit,
 )
@@ -55,6 +59,7 @@ from chantier.stack_shape import shape_line
 from chantier.stack_words import state_word
 from chantier.stacks import held_lines, stack_line
 from chantier.status.gate import gate_view
+from chantier.status.ready_line import batch_line, ready_lines
 from chantier.status.words import phase_text, shape_word, steering_word
 
 
@@ -180,19 +185,6 @@ def _heartbeat_text(d: BatchRecord, prev: str | None) -> str:
     return text
 
 
-def _ended_unrecorded(repo: Repo, d: BatchRecord, agent: str | None) -> bool:
-    """Claude: the Driver's last tool call is the host's hand-back, yet the CR is still working."""
-    from chantier.costs.sessions import agent_handed_back  # noqa: PLC0415 - slow import
-
-    if not agent or d.host == "copilot":
-        return False
-    try:
-        sessions = foreman_uuid(d)
-    except ChantierError:
-        return False
-    return agent_handed_back(repo.session_root, sessions, agent) is True
-
-
 def _working_tail(repo: Repo, d: BatchRecord, c: CrEntry, stopped: set[str]) -> str:
     """What the status adds to a working CR's row about its Driver and its lease."""
     tail = ""
@@ -200,7 +192,7 @@ def _working_tail(repo: Repo, d: BatchRecord, c: CrEntry, stopped: set[str]) -> 
         tail = " | no Driver recorded"
     elif c.agent in stopped:
         tail = f" | {stopped_text(c.agent)}"
-    elif _ended_unrecorded(repo, d, c.agent):
+    elif ended_unrecorded(repo, d, c.agent):
         tail = f" | Driver {c.agent} ended, no hand-back recorded"
     if late := leases.not_confirmed(repo, c.id, c.lease):
         tail += f" | {late}"
@@ -232,38 +224,6 @@ def _cr_row(
         row += f" | {c.notes[-1][:60]}"
     usd = c.cost_usd
     return f"{row} | {'-' if usd is None else f'${usd:.2f}'}"
-
-
-def _order_lines(d: BatchRecord, repo: Repo) -> list[str]:
-    open_orders = [o for o in d.orders if not o.done]
-    lines = []
-    for applied, head in (
-        (False, "orders pending: "),
-        (True, "orders the CLI applied, the Foreman marks each `order done <O-k> --epoch <n>`: "),
-    ):
-        group = [o for o in open_orders if bool(o.applied) is applied]
-        if group:
-            lines.append(
-                head
-                + "; ".join(
-                    f"{o.id} {o.kind}{' ' + o.cr if o.cr != '-' else ''}"
-                    f"{' ' + o.note[:40] if o.note else ''}"
-                    f"{' follow-up ' + o.follow_up if o.follow_up else ''}"
-                    f"{_late_suffix(repo, o)}"
-                    for o in group
-                )
-            )
-    return lines
-
-
-def _late_suffix(repo: Repo, o: OrderRecord) -> str:
-    late = leases.not_confirmed(repo, o.id, o.lease) if o.kind == "qa" else None
-    return f" ({late})" if late else ""
-
-
-def _stack_driver_lines(d: BatchRecord, repo: Repo) -> list[str]:
-    late = leases.not_confirmed(repo, "stack", d.stack_lease) if d.stack_agent else None
-    return [f"stack driver {d.stack_agent}: {late}"] if late else []
 
 
 def _seen_lines(repo: Repo, d: BatchRecord) -> list[str]:
@@ -343,8 +303,11 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
     elif args.refresh:
         extra, code, prev = _refresh(repo, batch, args.epoch)
     d = read_batch(repo, batch)
+    events = read_events(repo.store, repo.batch_dir(batch))
+    stopped = stopped_agents(repo, d, events)
     lines = [
         _batch_line(d, _heartbeat_text(d, prev)),
+        batch_line(repo, d, events, stopped),
         *(shape_line(d) if args.refresh else []),
         *writer_lines(repo),
         *_other_batches_lines(repo),
@@ -354,17 +317,16 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
     lines += _unpaused_line(d)
     lines.append(last_closed_text(last_closed(repo)))
     lines += watch_lines(repo, d)
-    events = read_events(repo.store, repo.batch_dir(batch))
-    stopped = stopped_agents(repo, d, events)
     lines += [
         _cr_row(repo, d, c, args.notes, (events, stopped))
         for c in sorted(d.crs, key=lambda c: c.order)
     ]
+    lines += ready_lines(repo, d, events, stopped)
     lines += stack_line(d)
     lines += held_lines(d, repo)
     lines += parked_lines(d)
-    lines += _stack_driver_lines(d, repo)
-    lines += _order_lines(d, repo)
+    lines += stack_driver_lines(d, repo)
+    lines += order_lines(d, repo)
     lines += _seen_lines(repo, d)
     unread = sum(1 for a in d.asks if not a.read)
     if unread:
