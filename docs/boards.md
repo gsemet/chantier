@@ -11,7 +11,10 @@ the projects whose seat or current batch, as its Foreman or Chief of Staff, name
 every project under a line saying no seat names it). It shows the live batches, the backlog (and `3-ready`), and the
 merged and trashed CRs. Nothing of it on Copilot, and the pane is not shown in a Remote Control view
 ([anthropics/claude-code#99217](https://github.com/anthropics/claude-code/issues/99217)). It writes
-nothing and runs no process but `git rev-parse`, to find the main checkout from a worktree. Besides the index it reads one
+nothing and runs no process but `git rev-parse` (to find the main checkout from a worktree) and `git remote get-url origin`
+(to match a surface). With a `planning:` pointer in the project's `AGENTS.md`, the pane reads the project's folder in the
+surface found above or beside the project's checkout, whose `origin` is the pointer's url. Besides the index, the project's
+`AGENTS.md` and the seat and batch records, it reads one
 file, the git folder's `chantier/server.json`, for the web board's key (the links of the Services section).
 
 ### How to open it

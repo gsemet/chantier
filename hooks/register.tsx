@@ -1,7 +1,10 @@
 // The CR board: a read-only pane over the planning folder's `STATUS.json`: the project's
 // `.agents/changes/`, or, in a planning surface, the `projects/<name>/changes/` whose seat or current
 // batch names this session, else one section per project.
-// It writes nothing and runs no process but `git rev-parse`. Besides the index it reads one file, the git
+// With a `planning:` pointer in the project's `AGENTS.md`, it reads that project's folder in the surface
+// found above or beside the project's checkout, whose `origin` is the pointer's url.
+// It writes nothing and runs no process but `git rev-parse` and `git remote get-url origin`. Besides the
+// index it reads the project's `AGENTS.md` (the `planning:` line), the seat and batch records, and the git
 // folder's `chantier/server.json`, for the web board's key (the board's links in the Services section);
 // what it reads there is drawn, never written anywhere. See README.md.
 import { atom, read, update } from 'claude-code'
@@ -37,7 +40,8 @@ const CHANGES = '.agents/changes'
 type Group = { name: string; title: string; rows: ChantierRow[]; merged: ChantierPast[] | null }
 
 /** A planning folder: the project's own (no name), or one project of a planning surface. */
-type Base = { name: string | null; dir: string }
+// `pinned`: the project's pointer names it exactly, so no seat or batch record chooses it.
+type Base = { name: string | null; dir: string; pinned?: boolean }
 type View = {
   dir: string
   name: string | null
@@ -52,7 +56,7 @@ const newView = (b: Base): View => ({ dir: b.dir, name: b.name, index: null, mti
 
 // Change a tag when the shape of its value changes: it declines what an earlier
 // version stored, which outlives a reload.
-const site = atom({ plugin: 'chantier', key: 'site' } as const, { root: null, common: null, bases: [], error: null, unseated: null, sid: null }, { shape: 'site-5' })
+const site = atom({ plugin: 'chantier', key: 'site' } as const, { root: null, common: null, bases: [], error: null, unseated: null, sid: null }, { shape: 'site-6' })
 const feed = atom({ plugin: 'chantier', key: 'feed' } as const, { views: [], note: null }, { shape: 'feed-2' })
 const pages = atom({ plugin: 'chantier', key: 'pages' } as const, [], { shape: 'pages-1' })
 const turned = atom({ plugin: 'chantier', key: 'turned' } as const, [], { shape: 'turned-1' })
@@ -207,22 +211,92 @@ const dirLines = (t: string) => t.replace(/\r/g, '')
 
 // ---- the files ----
 
-// The planning folders under `root`: its own `.agents/changes/`, else a surface's `projects/<name>/changes/`.
-async function findBases($: Engine, root: string): Promise<Base[]> {
+// The planning pointer of a project's `AGENTS.md`: `- planning: <url>, projects/<name>`.
+const POINTER = /^ *- planning: (\S+), projects\/([^/\s]+) *$/
+
+/** A git url in its normal form: `host/path`, the host lowercased, no trailing `/` or `.git`. */
+function normalUrl(url: string): string {
+  const u = url.trim().replace(/\/$/, '').replace(/\.git$/, '')
+  const web = /^[A-Za-z][A-Za-z0-9+.-]*:\/\/(?:[^@/]*@)?([^/:]+)(?::\d+)?\/(.*)$/.exec(u)
+  if (web) return `${(web[1] as string).toLowerCase()}/${web[2] as string}`
+  const scp = /^(?:[^@/]+@)?([^:/]+):\/?(.*)$/.exec(u)
+  if (scp) return `${(scp[1] as string).toLowerCase()}/${scp[2] as string}`
+  return u
+}
+
+type Found = { bases: Base[]; surface: string | null; error: string | null }
+
+/** The checkouts that may hold the surface: the ancestors of `root`, nearest first (never the filesystem or a drive's root), then the other folders beside it. */
+async function surfaceCandidates($: Engine, root: string): Promise<string[]> {
+  const out: string[] = []
+  const beside = parentOf(root)
+  let up = beside
+  while (up !== '' && up !== '/' && !isDrive(up)) {
+    out.push(up)
+    up = parentOf(up)
+  }
+  try {
+    const entries: { name: string; kind: string }[] = await $.fs.list(beside === '' || isDrive(beside) ? beside + '/' : beside)
+    for (const e of entries.filter(x => x.kind === 'dir').sort((a, b) => a.name.localeCompare(b.name))) {
+      const dir = clean(beside + '/' + e.name)
+      if (fold(dir) !== fold(root)) out.push(dir)
+    }
+  } catch {
+    // no list of the folder beside: the ancestors alone
+  }
+  return out
+}
+
+/** With a pointer: the one checkout of the surface that holds `projects/<name>/changes` and whose origin is `url`. */
+async function findSurface($: Engine, root: string, url: string, name: string): Promise<Found> {
+  const want = normalUrl(url)
+  const matches: string[] = []
+  for (const s of await surfaceCandidates($, root)) {
+    if (!(await $.fs.exists(`${s}/projects/${name}/changes`))) continue
+    try {
+      const o = await $.process.run(['git', 'remote', 'get-url', 'origin'], { cwd: s })
+      if (o.exitCode === 0 && normalUrl(o.stdout) === want) matches.push(s)
+    } catch {
+      // a folder whose origin cannot be read is no match
+    }
+  }
+  if (matches.length === 0)
+    return {
+      bases: [],
+      surface: null,
+      error: `This project plans in the surface at ${url} (projects/${name}); no checkout of it was found above or beside ${root}: clone it beside the project, or start the session in the surface.`,
+    }
+  if (matches.length > 1) return { bases: [], surface: null, error: `Several checkouts of the surface at ${url} hold projects/${name}: ${matches.join(', ')}.` }
+  const s = matches[0] as string
+  return { bases: [{ name, dir: `${s}/projects/${name}/changes`, pinned: true }], surface: s, error: null }
+}
+
+// The planning folders for `root`: the surface the project's `AGENTS.md` points to; else its own `.agents/changes/`, else a surface's `projects/<name>/changes/`.
+async function findBases($: Engine, root: string): Promise<Found> {
+  try {
+    const agents = await $.fs.read(root + '/AGENTS.md')
+    for (const line of agents.split(/\r?\n/)) {
+      const m = POINTER.exec(line)
+      if (m) return await findSurface($, root, m[1] as string, m[2] as string)
+    }
+  } catch {
+    // no readable AGENTS.md: no pointer
+  }
   const own = { name: null, dir: root + '/' + CHANGES }
-  if (await $.fs.exists(own.dir)) return [own]
+  const alone = (bases: Base[]): Found => ({ bases, surface: null, error: null })
+  if (await $.fs.exists(own.dir)) return alone([own])
   let entries: { name: string; kind: string }[] = []
   try {
     entries = await $.fs.list(root + '/projects')
   } catch {
-    return [own]
+    return alone([own])
   }
   const found: Base[] = []
   for (const e of entries.filter(x => x.kind === 'dir').sort((a, b) => a.name.localeCompare(b.name))) {
     const dir = `${root}/projects/${e.name}/changes`
     if (await $.fs.exists(dir)) found.push({ name: e.name, dir })
   }
-  return found.length > 0 ? found : [own]
+  return alone(found.length > 0 ? found : [own])
 }
 
 // This session's id, read at opening and at Refresh and kept in the site atom (a plugin reload keeps it);
@@ -279,7 +353,8 @@ async function idsOf($: Engine, path: string, fields: string[], lists: string[],
 
 /** On a surface, the projects whose seat or current batch names this session (all of them, with the line to say it, when none does). */
 async function choose($: Engine, bases: Base[], sid: Sid | null, force: boolean): Promise<{ kept: Base[]; unseated: string | null }> {
-  if (bases.every(b => b.name === null)) return { kept: bases, unseated: null }
+  // A pinned base names its project through the pointer: kept as it is, no seat read.
+  if (bases.every(b => b.name === null || b.pinned === true)) return { kept: bases, unseated: null }
   if (force) named.clear()
   const mine: Base[] = []
   const id = sid?.id ?? null
@@ -314,10 +389,23 @@ async function findRoot($: Engine): Promise<{ site: Site; kept: Base[] }> {
   // Not a repository: the session's folder.
   const common = out.exitCode !== 0 ? null : clean(out.stdout.trim())
   const root = common === null ? clean(cwd) : parentOf(common)
-  const bases = await findBases($, root)
+  const found = await findBases($, root)
+  if (found.error !== null) return { site: { root: null, common: null, bases: [], error: found.error, unseated: null, sid: null }, kept: [] }
+  const bases = found.bases
+  let siteRoot = root
+  let siteCommon = common
+  if (found.surface !== null) {
+    siteRoot = found.surface
+    try {
+      const g = await $.process.run(['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'], { cwd: found.surface })
+      siteCommon = g.exitCode === 0 ? clean(g.stdout.trim()) : null
+    } catch {
+      siteCommon = null
+    }
+  }
   const sid = await readSessionId($) // also for a project's own folder: the Services section names this session's watcher
   const { kept, unseated } = await choose($, bases, sid, true)
-  return { site: { root, common, bases, error: null, unseated, sid }, kept }
+  return { site: { root: siteRoot, common: siteCommon, bases, error: null, unseated, sid }, kept }
 }
 
 const isMissing = (err: unknown) => /ENOENT|ENOTDIR|no such file|not found|does not exist/i.test(message(err))
@@ -424,7 +512,7 @@ const viewsOf = (kept: Base[], old: View[]): View[] => kept.map((b: Base) => old
 
 /** At each periodic check: chooses again among all the projects (the session's id is not read again). Returns the kept projects, or null when the site holds one planning folder. */
 async function rechoose($: Engine, where: Site): Promise<Base[] | null> {
-  if (!where.bases.some(b => b.name !== null)) return null
+  if (!where.bases.some(b => b.name !== null && b.pinned !== true)) return null
   // An id the atom does not hold (never read, or lost) is read again; a known one is not.
   const sid = where.sid ?? (await readSessionId($))
   const { kept, unseated } = await choose($, where.bases, sid, false)
