@@ -10,6 +10,12 @@ export default {
   'dashboard.range_all': 'Tous les batches',
   'dashboard.live': "{batch} n'est pas clos : ses chiffres à ce jour sont sur la {link}.",
   'dashboard.live_link': 'page Coûts',
+  'dashboard.live_all':
+    "{project} : {batch} n'est pas clos, ses chiffres à ce jour sont sur sa {link}.",
+  'dashboard.per_project': 'Un seul projet :',
+  'dashboard.project_open': 'Ouvrir {project}',
+  'dashboard.batch_projects': 'Batch {n}, {count} projets',
+  'dashboard.batch_projects.one': 'Batch {n}, {count} projet',
   'dashboard.none': 'Les graphiques arrivent avec le premier batch clos',
   'dashboard.error': 'Les chiffres sont illisibles : {error}',
   'dashboard.error_kept': 'Les derniers chiffres restent affichés.',

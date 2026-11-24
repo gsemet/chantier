@@ -63,7 +63,7 @@ export default {
   'help.boards.line':
     'Trois façons de suivre un batch : ce board web, un volet dans Claude Code, une vue en terminal.',
   'help.boards.body':
-    "Le même état est montré de trois façons.\n\n- Ce board web : les batchs en direct, ce qui vous attend, le backlog et les CR fusionnées. Il peut tourner aussi sur votre téléphone, où vous pouvez trier le backlog. C'est un client de l'API publiée du serveur, qu'un script peut utiliser aussi.\n- Un volet en lecture seule dans Claude Code, ouvert avec /chantier-board ou en chargeant le Chief of Staff.\n- chantier live, une vue en lecture seule d'un board en marche, dans votre terminal.\n\nLes boards montrent l'état ; la session de pilotage agit dessus.",
+    "Le même état est montré de trois façons.\n\n- Ce board web : les batchs en direct, ce qui vous attend, le backlog et les CR fusionnées. Son tableau de bord dessine les batchs clos en graphiques, pour un projet ou, sur Tous les projets, additionnés sur tous les projets. Il peut tourner aussi sur votre téléphone, où vous pouvez trier le backlog. C'est un client de l'API publiée du serveur, qu'un script peut utiliser aussi.\n- Un volet en lecture seule dans Claude Code, ouvert avec /chantier-board ou en chargeant le Chief of Staff.\n- chantier live, une vue en lecture seule d'un board en marche, dans votre terminal.\n\nLes boards montrent l'état ; la session de pilotage agit dessus.",
   'help.chief_of_staff.name': 'Chief of Staff',
   'help.chief_of_staff.line': 'La seule personne à qui vous parlez, dans votre propre session.',
   'help.chief_of_staff.body':

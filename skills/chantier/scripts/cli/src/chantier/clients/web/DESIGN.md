@@ -394,7 +394,17 @@ computed from the closed batch records and apart from the drawing: the views com
   all-time model cost order (`--m8` is also "other models" when there are more than eight),
   `--queued-bar` for "not split", `--accent-light` dashed and `--state-merged` for held and merged.
 - Never a series by colour alone: its word in the legend, a dash for a line, the stack's order, and
-  every value in the readout. A value is read on hover, on focus and on a tap.
+  every value in the readout. A value is read on hover, on focus and on a tap; the read slot's band
+  is drawn behind the series (the drawing is stacked above the columns), so it never hides a line,
+  a mark or a bar.
+- The page also shows on "All projects" (`dashboard.get` with the `*` address, as the History's):
+  one curve (or stack) per graph, summed over the projects per batch number, counts and costs
+  summed and ratios pooled (the duration is a mean per point and a median for the headline), the
+  readout naming the batch's number and how many projects the point covers (and no day when the
+  records closed on different days), a live line naming each project with a running or paused
+  batch, one plain link per project under the head to that project's Dashboard (same tab and
+  range), and the project's mark (`mark`) on the ranking's rows, each opening its project
+  (`data-project`). No new token, component or colour.
 - The tile is the figure card; the range selector reuses `.seg` of `css/views/costs-models.css`
   unchanged (not a component; moving it is a separate CR). Every word is an i18n key of
   `en-dashboard.js` and `fr-dashboard.js`.

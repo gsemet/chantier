@@ -64,7 +64,13 @@ export const VIEWS = [
     module: costs,
     count: (state) => (state.data?.batch ? usd(state.data.batch.spent_usd) : null),
   },
-  { id: 'dashboard', icon: 'dashboard', word: 'nav.dashboard', module: dashboard },
+  {
+    id: 'dashboard',
+    icon: 'dashboard',
+    word: 'nav.dashboard',
+    module: dashboard,
+    overview: dashboard,
+  },
   { id: 'config', icon: 'config', word: 'nav.config', module: config },
   { id: 'help', icon: 'help', word: 'nav.help', module: help, overview: help, offline: true },
 ];

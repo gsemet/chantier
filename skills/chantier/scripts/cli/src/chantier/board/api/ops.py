@@ -124,7 +124,18 @@ def _prs(ctx: Context, project: Project, a: Any) -> Result:
     return Result(200, prs.answer(ctx.reads, project.id, data, project.repo, a.batch))
 
 
-def _dashboard(ctx: Context, project: Project, a: Any) -> Result:
+def _dashboard(ctx: Context, a: Any) -> Result:
+    """The Dashboard's figures; `*` asks for every project of the surface at once, summed per
+    batch number. Nothing is written and the forge is not read."""
+    if a.project == history_page.ALL:
+        ctx.projects.refresh()
+        histories = {
+            p.id: reads.state_of(ctx, p, ask=False)[0]["history"] for p in ctx.projects.all()
+        }
+        return Result(200, {**dashboard_page.answer_all(histories, a.range), "now": clock.now()})
+    project = _project(ctx, a)
+    if project is None:
+        return fail(404, NOT_FOUND)
     data, _ = reads.state_of(ctx, project, ask=False)
     return Result(200, {**dashboard_page.answer(data["history"], a.range), "now": clock.now()})
 
@@ -231,7 +242,7 @@ HANDLERS: dict[str, Handler] = {
     "costs.get": _on_project(_costs),
     "costs.recompute": _on_project(_recompute),
     "prs.get": _on_project(_prs),
-    "dashboard.get": _on_project(_dashboard),
+    "dashboard.get": _dashboard,
     "history.get": _history,
     "seats.register": _seat,
     "journal.get": _on_project(_journal),

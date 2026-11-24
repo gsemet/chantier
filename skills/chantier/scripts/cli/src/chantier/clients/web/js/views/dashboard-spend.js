@@ -1,13 +1,13 @@
 // The Dashboard's Spending tab: the cost per merged CR, the spend per batch (by model or by role,
 // the Costs card's switch), the outside-the-batches line and the ranking of the most expensive CRs.
-//   spending(a, by) returns the tab's markup; bindTop(root) opens a ranked CR's PR in a new tab.
+//   spending(a, by, all) returns the tab's markup; bindTop(root) opens a ranked CR's PR in a new tab.
 import { delegate, html } from '../core/dom.js';
 import { safeUrl, title } from '../core/format.js';
 import { parseModel } from '../model/models.js';
 import { money } from '../model/receipt.js';
 import { t } from '../model/words.js';
 import { lineChart, stackChart } from '../ui/chart.js';
-import { empty } from '../ui/parts.js';
+import { empty, mark } from '../ui/parts.js';
 import { PART_COLOR, partWord, tile } from './dashboard-tiles.js';
 
 const MODES = ['model', 'role'];
@@ -94,19 +94,25 @@ function perCrTile(a) {
   });
 }
 
-// A ranked CR: its number links to its PR in a new tab when it has one, and so does its row.
-function row(c) {
+// A ranked CR: its number links to its PR in a new tab when it has one, and so does its row. On
+// All projects the row shows its project's mark and opens that project instead.
+function row(c, all) {
   const url = safeUrl(c.pr);
-  const id = url
+  const number = url
     ? html`<a href="${url}" target="_blank" rel="noopener"><b>${c.cr}</b></a>`
     : html`<b>${c.cr}</b>`;
-  const attrs = url ? html` class="click" data-pr="${url}"` : '';
+  const own = all && c.project;
+  const id = own ? html`${mark(c.project)}${number}` : number;
+  let attrs = url ? html` class="click" data-pr="${url}"` : '';
+  if (own) {
+    attrs = html` class="click" data-project="${c.project}" tabindex="0" title="${t('dashboard.project_open', { project: c.project })}" data-key="dash-top-${c.project}-${c.cr}"`;
+  }
   const text = title(c.title);
   const rounds = typeof c.rounds === 'number' ? c.rounds : '—';
   return html`<tr${attrs}><td>${id}</td><td class="tt hide-phone"><span class="ct" title="${text}">${text}</span></td><td>${c.batch ?? ''}</td><td class="num">${rounds}</td><td class="num">${cost(c.cost_usd, c.unpriced)}</td></tr>`;
 }
 
-function topTable(a) {
+function topTable(a, all) {
   const top = a.spending.top;
   const cells = [
     ['costs.th_cr', ''],
@@ -118,12 +124,13 @@ function topTable(a) {
   const head = cells.map(([word, cls]) => html`<th class="${cls}">${t(word)}</th>`);
   const cover = t('dashboard.covers', { n: top.covered, total: a.total });
   const body = top.rows.length
-    ? html`<div class="tbl"><table><thead><tr>${head}</tr></thead><tbody>${top.rows.map(row)}</tbody></table></div>`
+    ? html`<div class="tbl"><table><thead><tr>${head}</tr></thead><tbody>${top.rows.map((c) => row(c, all))}</tbody></table></div>`
     : empty(t('dashboard.top_none'));
   return html`<section class="dtop"><h2 class="h2t">${t('dashboard.top')}</h2><p class="mut">${cover}</p>${body}</section>`;
 }
 
-export const spending = (a, by) => html`${perCrTile(a)}${spendTile(a, by)}${topTable(a)}`;
+export const spending = (a, by, all = false) =>
+  html`${perCrTile(a)}${spendTile(a, by)}${topTable(a, all)}`;
 
 // A click on a ranked row (not on its link) opens the same address in a new tab.
 export const bindTop = (root) =>
