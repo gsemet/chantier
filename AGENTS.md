@@ -59,7 +59,7 @@
   remote-cli-Q9, 2026-11-22), through one published API over a WebSocket, and over HTTP as the same
   protocol for a network where a WebSocket does not pass, behind a proxy for instance (not a
   fallback): two surfaces' servers on one machine never clash: each keeps its key and record in its own git
-  folder, and one that finds the default port held by another chantier board takes a free port
+  folder, and one that finds the default port held (by another chantier board or any program) takes the next free port above it
   and prints it (the user's answer remote-cli-Q17, 2026-11-22); it serves the record and the planning folder's files (it alone reads the planning
   files for the live clients, told of changes by the system's file notifications (inotify,
   FSEvents, ReadDirectoryChangesW), or, on a system where none works, by a check every 5 s (the

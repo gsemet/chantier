@@ -1698,6 +1698,15 @@ def free_port() -> int:
         return s.getsockname()[1]
 
 
+def taken_port_lines(proc: BoardProc) -> tuple[str | None, str | None]:
+    """A default-walk `serve`'s first lines: (the `board: port ... takes port <n>` line or None,
+    the start line)."""
+    first = proc.line()
+    if first is not None and first.startswith("board: port "):
+        return first, proc.line()
+    return None, first
+
+
 class Link:
     """What a board's start line says: the address, the key, the planning folder."""
 
@@ -2787,8 +2796,8 @@ def two_keys(sw: World, link: Link, line: str | None) -> None:
 
 def serve_and_webui(w: World) -> None:
     """CR-456: `serve` is the surface server's command and `webui` prints its link, starting it
-    (no seat, `--stop-idle`) when none runs; a second surface's server on the same machine takes a
-    free port when the default is held by the first."""
+    (no seat, `--stop-idle`) when none runs; each server walks from the default port to the next
+    free one, whoever holds the ports below (the user's own board included), CR-472."""
     from chantier.board.address import DEFAULT_PORT
     note("\n## 16d1. `chantier serve` and `chantier webui`; two surfaces' servers on one machine")
     sw = SurfaceWorld(w.root / "serve1")
@@ -2799,39 +2808,46 @@ def serve_and_webui(w: World) -> None:
         each.chantier("init")
     procs: list[BoardProc] = []
     try:
-        first = BoardProc(sw, "--project", "demo", "serve", "--host", "127.0.0.1", "--port",
-                          DEFAULT_PORT, cwd=sw.surface)
+        first = BoardProc(sw, "--project", "demo", "serve", "--host", "127.0.0.1", cwd=sw.surface)
         procs.append(first)
-        link = Link(first.line())
+        said1, start1 = taken_port_lines(first)
+        link = Link(start1)
         if not link.ok:
-            note(f"    the default port {DEFAULT_PORT} is held by another program here: "
-                 "the second-surface step is skipped; the first server takes a free port")
-            first.stop()
-            first = BoardProc(sw, "--project", "demo", "serve", "--host", "127.0.0.1", "--port",
-                              free_port(), cwd=sw.surface)
-            procs.append(first)
-            link = Link(first.line())
-        else:
-            second = BoardProc(sw2, "--project", "demo", "serve", "--host", "127.0.0.1",
-                               cwd=sw2.surface)
-            procs.append(second)
-            said, start = second.line(), second.line()
-            link2 = Link(start)
-            check("a second surface's server, with the default port held by the first, prints the "
-                  "`board: port ... takes port <n>` line, then its start line on another port",
-                  said is not None
-                  and said.startswith(f"board: port {DEFAULT_PORT} is held by another chantier board")
-                  and said.endswith(f"this one takes port {link2.port}")
-                  and link2.ok and link2.port != DEFAULT_PORT, f"{said} {start}")
-            got1 = fetch(link.port, "/api/board", headers=link.cookie)
-            got2 = fetch(link2.port, "/api/board", headers=link2.cookie)
-            check("both answer `board.get` with their own key and cookie, and not with the other's",
-                  got1[0] == 200 and got2[0] == 200 and link.cookie_name != link2.cookie_name
-                  and fetch(link.port, "/api/board", headers=link2.cookie)[0] == 401
-                  and fetch(link2.port, "/api/board", headers=link.cookie)[0] == 401,
-                  f"{got1[0]} {got2[0]}")
-            second.stop()
-            check("the second surface's server stops", second.p.poll() is not None)
+            first.p.terminate()
+            note(f"    the first server's stderr: {first.p.stderr.read()}")
+        check("the first server, on the default walk, prints its start line (on a port at or above "
+              f"{DEFAULT_PORT}) after the `board: port {DEFAULT_PORT} is held by ...: this one takes "
+              f"port <n>` line when {DEFAULT_PORT} is held, and no such line when it is free",
+              link.ok and link.port >= DEFAULT_PORT
+              and (said1 is None) == (link.port == DEFAULT_PORT)
+              and (said1 is None or (said1.startswith(f"board: port {DEFAULT_PORT} is held by ")
+                                     and said1.endswith(f"this one takes port {link.port}"))),
+              f"{said1} {start1}")
+        second = BoardProc(sw2, "--project", "demo", "serve", "--host", "127.0.0.1", cwd=sw2.surface)
+        procs.append(second)
+        said, start = taken_port_lines(second)
+        link2 = Link(start)
+        if not link2.ok:
+            second.p.terminate()
+            note(f"    the second server's stderr: {second.p.stderr.read()}")
+        check("a second surface's server, with the default port held, prints the "
+              "`board: port ... takes port <n>` line, then its start line on another port",
+              said is not None
+              and said.startswith(f"board: port {DEFAULT_PORT} is held by ")
+              and said.endswith(f"this one takes port {link2.port}")
+              and link2.ok and link2.port >= DEFAULT_PORT and link2.port != link.port
+              and (link.port != DEFAULT_PORT
+                   or said.startswith(f"board: port {DEFAULT_PORT} is held by another chantier board "
+                                      "(another project's key):")), f"{said} {start}")
+        got1 = fetch(link.port, "/api/board", headers=link.cookie)
+        got2 = fetch(link2.port, "/api/board", headers=link2.cookie)
+        check("both answer `board.get` with their own key and cookie, and not with the other's",
+              got1[0] == 200 and got2[0] == 200 and link.cookie_name != link2.cookie_name
+              and fetch(link.port, "/api/board", headers=link2.cookie)[0] == 401
+              and fetch(link2.port, "/api/board", headers=link.cookie)[0] == 401,
+              f"{got1[0]} {got2[0]}")
+        second.stop()
+        check("the second surface's server stops", second.p.poll() is not None)
         # `webui` on the running server prints its link
         _, out = sw.chantier("webui")
         running = surface_link(sw)

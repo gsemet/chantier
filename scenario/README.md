@@ -433,8 +433,8 @@ does a unit that is not in `UNITS` and a test that does not exist.
     test_outside_poller.py::test_journal_add_writes_the_event_once,
     test_outside_poller.py::test_journal_add_refuses_what_it_must_and_writes_nothing,
     test_forge_hub.py::test_the_hub_never_collects_the_issues_provider);
-  - `serve` and `webui` (CR-456, unit: surface-board): a second surface's `serve` on a default port the first holds
-    takes a free port and prints `board: port ... takes port <n>`, each server answers with its own cookie
+  - `serve` and `webui` (CR-456, unit: surface-board): the first server starts on the default walk, and a second surface's `serve` takes the next free port from
+    8765 and prints `board: port 8765 is held by ...: this one takes port <n>`, each server answers with its own cookie
     only; `webui` on a running server prints `board already running at`; after the server is killed it starts
     `serve --stop-idle` with no `--seat`, prints `board on` and the idle-stop line, and the server answers
     `board.get`; a watcher's board still runs `serve --seat ... --stop-idle`;
