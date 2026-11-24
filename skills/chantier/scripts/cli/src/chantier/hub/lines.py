@@ -8,17 +8,19 @@ from chantier import __version__
 from chantier.board.projects import project_name
 from chantier.core.records import BatchRecord
 from chantier.core.repo import Repo
-from chantier.hub import autostart, journal, lock, state
+from chantier.hub import autostart, batch_prs, journal, lock, state
 from chantier.launch import is_chantier_project
 from chantier.plugin_files import is_dev_checkout
 
 
 def watch_lines(repo: Repo, d: BatchRecord) -> list[str]:
-    """The hub's line (a running batch only), then the watcher's: this session's pull command
-    when it runs, one line per watcher of another session (its end wakes that session, not this
-    one), the board's version when it is not this CLI's. When none of this session runs,
-    `status` ends with `not_running_line`."""
-    lines = [hub_line(repo)] if d.status == "running" else []
+    """The hub's line (for the batch the hub follows only: running, or paused with open PRs, as
+    `batch_prs.followed_batch` tells), then the watcher's: this session's pull command when it
+    runs, one line per watcher of another session (its end wakes that session, not this one), the
+    board's version when it is not this CLI's. When none of this session runs, `status` ends with
+    `not_running_line`."""
+    followed = d.status == "running" or (d.status == "paused" and batch_prs.to_read(d))
+    lines = [hub_line(repo)] if followed else []
     project = project_name(repo)
     if autostart.session_key() in lock.watchers(repo.git_dir, project):
         last = journal.last_seq(journal.read(repo.store, repo.changes)[0])

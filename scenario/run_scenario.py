@@ -2464,13 +2464,14 @@ def forge_hub(w: World) -> None:
     not_running = "watch: not running: for the Chief of Staff, start in the background: "
 
     def no_watcher(n: int) -> str:
-        return (f"{not_running}{cli_form} watch --after {n}; after the user's no, at each user "
-                f"message: {cli_form} watch --once --after {n}")
+        # the scenario's host is Claude Code: the printed watcher runs in its streaming form
+        return (f"{not_running}{cli_form} watch --after {n} --stream; after the user's no, at each "
+                f"user message: {cli_form} watch --once --after {n}")
 
     def cursor(n: int, project: str = "demo") -> str:
         name = a_batch if project == "demo" else b_batch
         return ("watch: " + f"{name} still running: for the Chief of Staff, start again in the "
-                f"background now: {cli_of(project)} watch --after {n}")
+                f"background now: {cli_of(project)} watch --after {n} --stream")
 
     def write(project: str, text: str) -> int:
         link = surface_link(sw)
@@ -2692,7 +2693,7 @@ def forge_hub(w: World) -> None:
         check("a watcher of a project with no seat and no board ends with the `no seat` line, exit 1, "
               "and starts no board",
               got == [NO_SEAT.format(project="other", cli=cli_of("other"),
-                                     watch=f"{cli_of('other')} watch --after {base_b + 1}")]
+                                     watch=f"{cli_of('other')} watch --after {base_b + 1} --stream")]
               and wn.p.returncode == 1 and not surface_alive(sw), f"{got} {wn.p.returncode}")
         # 10. a board started by hand with `--forge-always` (a host that cannot run the watcher)
         board = BoardProc(sw, "serve", "--project", "other", "--host", "127.0.0.1", "--port", 0,
@@ -2744,6 +2745,75 @@ def forge_hub(w: World) -> None:
         check("B's `batch.json` and `events.jsonl` are as the hub found them",
               all((folder("other") / "4-batch" / f).read_bytes() == v
                   for (p, f), v in before.items() if p == "other"), "B's record changed")
+        # 12. the streaming watcher (CR-476): it tells each block and runs on; a paused batch with a
+        # PR open keeps it up, the hub reading that PR; another session's seat ends it
+        third = sw.surface / "projects" / "third"
+        third.mkdir(parents=True)
+        (third / "checkout.yml").write_text("repo: ../../../code2\nworktrees: ../../../wt3\n")
+        (third / "project.md").write_text(f"# third\n\n- Remote: {sw.root / 'origin.git'}\n")
+        sw.chantier("init", project="third")
+        items = [sw.prepare(f"Hub C{n}", project="third") for n in range(1, 4)]
+        _, out = sw.chantier("open", *items, "--direct", "--slots", 2, *FROM_AGENTS_MD, project="third")
+        c_batch = out[0].split()[1]
+        sw.chantier("foreman", "set", "uuid-chief", "--epoch", 1, "--batch", c_batch, project="third")
+        c = [x["id"] for x in batch("third")["crs"]]
+        for cr, number in zip(c, range(940, 943)):
+            edit("third", cr, pr=url(number))
+        sw.chantier("seat", "take", "sess-t", project="third")
+        sw.chantier("status", expect=None, project="third")  # tells the setup's arrivals
+        base_c = len(journal("third", raw=True))
+
+        def told(n: int, name: str = c_batch) -> str:
+            return (f"watch: {name} told up to cursor {n}; still watching (if this watcher stops, start "
+                    f"again: {cli_of('third')} watch --after {n} --stream)")
+
+        def block(proc: BoardProc) -> list[str]:
+            """The lines a streaming watcher printed up to its next `still watching` line."""
+            got = []
+            while (x := proc.line(60)) is not None:
+                got.append(x)
+                if x.startswith("watch: ") and "; still watching (" in x:
+                    break
+            return got
+
+        ws = watcher("third", "--after", base_c, "--stream", env={"CHANTIER_HUB_TEST_TIMES": "1:4:6"})
+        start_c = started(ws)
+        check("a `watch --stream` watcher subscribes to the running board",
+              start_c.startswith(f"watch: third from cursor {base_c}"), start_c)
+        merged(940, "2026-11-16T10:06:00Z")
+        got = block(ws)
+        check("its first block: the `forge saw merged` line, closed by `still watching`, and it runs on",
+              got == [says(c[0], 940, "2026-11-16T10:06:00Z"), told(base_c + 1)] and ws.p.poll() is None,
+              str(got))
+        merged(941, "2026-11-16T10:07:00Z")
+        got = block(ws)
+        check("a second merge gives a second block, no sooner than `events.wake_every` after the first, "
+              "and the same watcher still runs",
+              got == [says(c[1], 941, "2026-11-16T10:07:00Z"), told(base_c + 2)] and ws.p.poll() is None,
+              str(got))
+        for cr in c[:2]:
+            sw.chantier("order", "merged", cr, "--epoch", 1, "--batch", c_batch, project="third")
+        paused = batch("third")
+        paused["status"] = "paused"  # paused with one PR open (the owner's merge pause)
+        (folder("third") / "4-batch" / "batch.json").write_text(json.dumps(paused, indent=2))
+        time.sleep(8)  # past the watcher's quick idle end (6 s)
+        check("paused with a PR open, the watcher runs on past its idle end",
+              ws.p.poll() is None and ws.line(1) is None, str(ws.p.poll()))
+        merged(942, "2026-11-16T10:08:00Z")
+        got = block(ws)
+        check("the hub reads the paused batch's open PR: its merge gives a third block, written by the hub",
+              got == [says(c[2], 942, "2026-11-16T10:08:00Z"), told(base_c + 3)]
+              and [(e["source"], e["type"], e["cr"]) for e in journal("third")][-1:] == [("hub", "merged@1", c[2])],
+              str(got))
+        time.sleep(8)
+        check("the batch still in flight, the watcher runs on past its idle end", ws.p.poll() is None,
+              str(ws.p.poll()))
+        sw.chantier("seat", "take", "sess-y", "--over", "sess-t", "--env", "remote", "--title",
+                    "[Remote] Third", "--link", "link-y", project="third",
+                    env={"CLAUDE_CODE_SESSION_ID": "uuid-chief-b"})
+        got = ended(ws)
+        check("another session's `seat take` ends the streaming watcher with the seat line",
+              got == ["watch: the seat of third is another session's now; ended"], str(got))
     finally:
         surface_kill(sw)
         for proc in reversed(procs):
@@ -3537,6 +3607,13 @@ def surface_server(w: World) -> None:
         # 6. a second run: the board's idle stop and the watcher's idle end, both shortened
         sw.chantier("seat", "take", "sess-a")
         board_port(sw)
+        # no batch in flight (a watcher's idle end waits for none): A's batch paused, its PRs held
+        # merged; the record is put back once the watcher has ended
+        done = json.loads(record)
+        done["status"] = "paused"
+        for c in done["crs"]:
+            c["status"] = "merged"
+        batch_file.write_text(json.dumps(done, indent=2))
         short = {"CHANTIER_HUB_TEST_TIMES": "1:4:6", "CHANTIER_API_TEST_TIMES": "1:6:5:5:5:8"}
         wi = watcher("--after", base + 2, env=short)
         start = started(wi)
@@ -3546,7 +3623,9 @@ def surface_server(w: World) -> None:
         idea = sw.surface / out[0].removeprefix("filed ").split(";", 1)[0]
         got = ended(wi)
         check("a watcher left with no event ends with the `no event for <name> in 2 h` line",
-              got[-1:] == [IDLE_END.format(name=a_batch, watch=f"{cli_form} watch --after {base + 2}")], str(got))
+              got[-1:] == [IDLE_END.format(name=a_batch, watch=f"{cli_form} watch --after {base + 2} --stream")],
+              str(got))
+        batch_file.write_bytes(record)
         check("the board then stops by itself with no subscriber, its `server` entry removed",
               until(lambda: "server" not in state() and not psutil.pid_exists(idle_pid or 0), 60),
               str(state()))
@@ -10982,7 +11061,7 @@ def surface_config_page(w: SurfaceWorld, coder_line: Callable[..., str], frozen:
 
         def cursor(n: int) -> str:
             return (f"watch: {w.name} still running: for the Chief of Staff, start again in the "
-                    f"background now: {cli_form} watch --after {n}")
+                    f"background now: {cli_form} watch --after {n} --stream")
 
         watch = BoardProc(w, "--project", "demo", "watch", cwd=w.surface, env=quick)
         try:

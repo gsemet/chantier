@@ -23,7 +23,8 @@ from chantier.core.repo import Repo
 from chantier.hub import autostart, journal
 from chantier.hub import times as hub_times
 from chantier.hub.board_text import board_text
-from chantier.hub.watch import EVENTS, Rules, Watch, once
+from chantier.hub.watch import EVENTS, Watch
+from chantier.hub.watch_reads import Rules, once
 from chantier.playbook import config, events_check
 from chantier.plugin_files import read_wake_rules
 

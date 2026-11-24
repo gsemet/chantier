@@ -225,7 +225,7 @@ files, and declare the next batch ready (`next-batch.json`, the time and the CRs
   link instead of starting another. The board is also the surface's forge hub while it runs
   (the `hub` entry of the same file): while a page, a session's watcher or `chantier live` is
   subscribed, it reads the forge, read-only, every 20 s with your own
-  `gh` or `glab` (only the PRs a running batch waits for; `chantier interests --kind pr` lists them; it never
+  `gh` or `glab` (only the PRs a running batch, or a paused one with open PRs, waits for; `chantier interests --kind pr` lists them; it never
   reads an issue), so it needs the network for that; with no client it reads nothing (`status`
   prints `forge hub: PID <n>, the surface server, idle (no client subscribed)`). A board started
   with `--forge-always` (on a host that cannot run the watcher) reads every 20 s with or without a
@@ -235,8 +235,10 @@ files, and declare the next batch ready (`next-batch.json`, the time and the CRs
   board (`serve --seat <id> --stop-idle`). Such a board stops by itself when the seat leaves or 30
   minutes after its last client (no page, no watcher, no `chantier live`), after its writer's last
   cycle; its stop command (the watcher's start line names its PID) stops it sooner. A watcher ends
-  by itself 2 h after its start with no event, so a watcher an ended session left behind does not
-  keep such a board running.
+  by itself when the seat is another session's, and, while no batch is in flight (none running,
+  none paused with a PR the record holds neither merged nor cancelled), 2 h after the latest of its
+  start, its last event and the last moment a batch was in flight, so a watcher an ended session
+  left behind does not keep such a board running once the seat moves or its batch is done.
 - **How it sees changes.** The board alone reads the planning files for its clients, told of a
   change by the system's file notifications (inotify, FSEvents, ReadDirectoryChangesW); where none
   works, it checks every 5 s. Its last start line names which: `board: watches the planning

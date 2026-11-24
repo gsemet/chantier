@@ -105,4 +105,4 @@ batch:
 
 # How a watcher of this project is woken.
 events:
-  wake_every: 20s   # a watcher ends no sooner than this after its start (one wake per window)
+  wake_every: 20s   # a watcher tells no sooner than this after its start or its last telling (one wake per window)

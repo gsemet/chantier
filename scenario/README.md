@@ -352,7 +352,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
   step's end:
   - `status` of a running batch with no watcher prints `forge hub: none running` and, as its last
     line, `watch: not running: for the Chief of Staff, start in the background: <command>` (the
-    command ends `watch --after 0`, no `--batch`, then `; after the user's no, at each user
+    command ends `watch --after 0 --stream`, the host being Claude Code, no `--batch`, then `; after the user's no, at each user
     message: <command> watch --once --after 0`); while watchers of the session run, it prints
     `watch: this session's watcher runs; pull path: <command>` and no `not running` line; after a
     watcher's end it ends with the line again; `--after` past the journal's end exits 1, and
@@ -372,7 +372,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
     test_forge_hub.py::test_a_hub_cycle_reads_only_what_there_is_to_read_and_is_due_every_twenty_seconds);
   - A's PR merged on the forge: A's watcher ends with `forge saw merged: ... order merged <cr>` and
     `watch: <batch> still running: for the Chief of Staff, start again in the background now:
-    <command> watch --after 1`, the merge written once (`source: hub`); B's watcher keeps running
+    <command> watch --after 1 --stream`, the merge written once (`source: hub`); B's watcher keeps running
     and the board keeps reading the forge; neither project's record changes (unit: surface-board)
     (test: test_forge_hub.py::test_a_hub_cycle_writes_each_event_once,
     test_watch_events.py::test_a_watcher_ends_twenty_seconds_after_the_last_line_that_wakes);
@@ -416,6 +416,15 @@ does a unit that is not in `UNITS` and a test that does not exist.
     --after 2` prints it (unit: surface-board) (test:
     test_board_idle.py::test_with_the_forge_always_the_hub_reads_with_no_client,
     test_board_idle.py::test_the_two_flags_together_are_a_usage_error);
+  - the streaming watcher (CR-476), on a third project with a running batch of three CRs: one
+    `watch --stream` watcher prints two `forge saw merged` blocks, each closed by `watch: <batch>
+    told up to cursor <n>; still watching (...)`, and still runs after the second; the batch then
+    paused with one PR open, it runs on past its quick idle end, the hub reads that PR and its
+    merge gives a third block (`source: hub`), and it still runs past the idle end; another
+    session's `seat take` ends it with the seat line (unit: surface-board) (test:
+    test_watch_stream.py::test_a_streaming_watcher_tells_each_block_and_runs_on_until_the_seat_moves,
+    test_watch_stream.py::test_the_idle_end_waits_for_no_batch_in_flight,
+    test_forge_hub.py::test_the_hub_reads_a_paused_batch_while_one_of_its_prs_is_open);
   - the journal is ignored by git (`git check-ignore`), the record (`batch.json`, `events.jsonl`)
     is unchanged by the hub, a forge error lands in the `hub` entry and not in the journal, and no `gh`
     call is made but read-only `api graphql` queries (unit: surface-board) (test:
@@ -456,7 +465,8 @@ does a unit that is not in `UNITS` and a test that does not exist.
     on A's merge with `forge saw merged: ... order merged <cr>`, the line written once with
     `source: "hub"`; the board killed hard, the running watcher starts a new one, `status` names the
     new PID with a `last read`, and the next merge still wakes it; the board a watcher started
-    outlives the watcher and stops once its seat is released; a watcher with no event ends with
+    outlives the watcher and stops once its seat is released; with no batch in flight (A's batch
+    written paused, its CRs merged, the record put back after), a watcher with no event ends with
     `watch: no event for <name> in 2 h; ended, ...`, then its board stops by itself with no
     subscriber, its writer's final cycle having pushed the CR filed just before; the record is
     unchanged by the server and the git folder's `chantier/` holds only `server.json`,

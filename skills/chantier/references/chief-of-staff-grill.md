@@ -207,7 +207,7 @@ every mode (parallel, series, stack):
   run `$CHANTIER order add --note <folder>` and handle the order as usual (Foreman mode: relay its
   line to the Foreman; direct mode: take the CR when a slot frees). A Griller never runs `order`.
   The destination acted on is the last `Destination:` line of the CR's `02-answers.md`, whether
-  the grill wrote it or a board line did (see "A watcher's end"): `Destination: next batch ...`,
+  the grill wrote it or a board line did (see "A watcher's notification or end"): `Destination: next batch ...`,
   `triage <folder> --ready`; `Destination: running batch <batch> ...`, `order add --note
   <folder>`; `Destination: back to the backlog (board)`, no `triage` and no `order`: the CR stays
   in its inbox or priority row (the user's move put it there).

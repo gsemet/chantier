@@ -176,7 +176,7 @@ def test_the_outputs_end_with_the_line_when_no_watcher_of_this_session_runs(
         w.close()
     pull = f"{cli_command(found)} watch --once --after 2"
     no = "; after the user's no, at each user message: "
-    last = f"{LINE}{cli_command(found)} watch --after 2{no}{pull}"
+    last = f"{LINE}{cli_command(found)} watch --after 2 --stream{no}{pull}"  # host: claude
     if who == "mine":
         assert not any(x.startswith("watch: not running") for x in out)
     else:
@@ -189,6 +189,20 @@ def test_the_outputs_end_with_the_line_when_no_watcher_of_this_session_runs(
             f"watch: session {OTHER} runs a watcher too; its end wakes that session, not this one"
         )
         assert (theirs in out) == (who == "other")
+
+
+@pytest.mark.parametrize(("name", "stream"), [("claude", True), ("copilot", False), (None, False)])
+def test_the_watcher_command_streams_on_claude_code_only(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, name: str | None, stream: bool
+) -> None:
+    if name is not None:
+        monkeypatch.setenv("CHANTIER_HOST", name)
+    found = Repo.find()
+    plain = f"{cli_command(found)} watch --after 4"
+    assert autostart.watch_command(found, 4) == plain + (" --stream" if stream else "")
+    (line,) = autostart.not_running_line(found)
+    assert f"start in the background: {autostart.watch_command(found, 0)};" in line
+    assert line.endswith(autostart.pull_command(found, 0)) and "--once --after 0" in line
 
 
 def test_some_outputs_print_no_line(

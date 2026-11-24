@@ -67,7 +67,7 @@ def test_a_batch_in_two_repositories_is_not_read_and_the_entry_says_so(
     write_batch(world.project("alpha"), "running", crs)
     monkeypatch.setattr(connectors, "read", REAL_READ)
     monkeypatch.setattr(github, "run", never)
-    write_batch(world.project("beta"), "paused", crs_of("beta"))  # beta is not read
+    write_batch(world.project("beta"), "paused", crs_of("beta", "merged"))  # beta: no PR open
     world.hub.cycle(0.0)
     assert hub_error(world) == NOT_ONE_REPOSITORY
     assert world.journal("alpha") == []
@@ -152,7 +152,7 @@ def gitlab_alpha(world: World) -> None:
     for i, cr in enumerate(crs):
         cr["pr"] = GL_LINK.format(10 + i)
     write_batch(world.project("alpha"), "running", crs)
-    write_batch(world.project("beta"), "paused", crs_of("beta"))
+    write_batch(world.project("beta"), "paused", crs_of("beta", "merged"))
 
 
 def test_a_gitlab_batch_is_read_in_one_query_and_told_as_before(
@@ -182,7 +182,7 @@ def test_an_interest_asking_review_makes_the_one_query_carry_it_where_the_forge_
         gitlab_alpha(world)
         link = GL_LINK.format(10)
     else:
-        write_batch(world.project("beta"), "paused", crs_of("beta"))
+        write_batch(world.project("beta"), "paused", crs_of("beta", "merged"))
     asker = Asker("asker", frozenset({"pr"}), str(link))
     monkeypatch.setattr(interests, "PROVIDERS", (*interests.PROVIDERS, asker))
     world.hub.cycle(0.0)

@@ -55,6 +55,10 @@ IDLE_END = (
     "watch: no event for {name} in 2 h; ended, so a session that has ended leaves no board "
     "running: for the Chief of Staff, start again in the background now: {watch}"
 )
+STREAM_TOLD = (
+    "watch: {name} told up to cursor {n}; still watching (if this watcher stops, start again: "
+    "{watch})"
+)
 
 
 class Ended(Exception):

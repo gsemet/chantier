@@ -1,4 +1,5 @@
-"""The provider `batch`: the PRs of the running batch in `4-batch/`, as interests of kind `pr`.
+"""The provider `batch`: the PRs of the batch in `4-batch/` the hub follows (the running batch, or
+a paused one with open PRs), as interests of kind `pr`.
 
 It judges them as the board's PRs page judges them (`prs.rows_of`): a `merged` event for each row
 the forge shows merged and the record does not, a `checks-red` for each CR ready to merge in the
@@ -24,8 +25,10 @@ from chantier.stack_words import READY_TO_MERGE, ready_word
 ALWAYS = frozenset({"state", "checks"})
 
 
-def running_batch(repo: Repo) -> BatchRecord | None:
-    """The batch in `4-batch/` when it is running (a paused or closed one is not followed)."""
+def followed_batch(repo: Repo) -> BatchRecord | None:
+    """The batch in `4-batch/` the hub follows: the running batch, or a paused one with open PRs
+    (`to_read`). A closed batch, a paused one with no PR left open, no file or an unreadable one:
+    None. The watcher's "batch in flight" is this same batch."""
     path = repo.batches / "batch.json"
     if not repo.store.is_file(rel_in(repo.store.root, path)):
         return None
@@ -33,7 +36,9 @@ def running_batch(repo: Repo) -> BatchRecord | None:
         d = read_batch_json(repo.store, path)
     except (OSError, ValueError, ChantierError):
         return None
-    return d if d.status == "running" else None
+    if d.status == "running" or (d.status == "paused" and to_read(d)):
+        return d
+    return None
 
 
 def state_of(repo: Repo, d: BatchRecord) -> list[dict[str, Any]]:
@@ -82,7 +87,7 @@ class BatchPrs:
     kinds = frozenset({"pr"})
 
     def collect(self, repo: Repo) -> list[Interest]:
-        d = running_batch(repo)
+        d = followed_batch(repo)
         if d is None or not to_read(d):
             return []
         return [
@@ -93,7 +98,7 @@ class BatchPrs:
     def judge(
         self, repo: Repo, interests: list[Interest], facts: dict[str, Facts]
     ) -> list[dict[str, Any]]:
-        d = running_batch(repo)
+        d = followed_batch(repo)
         if d is None:
             return []
         forge: dict[int, Facts] = {}

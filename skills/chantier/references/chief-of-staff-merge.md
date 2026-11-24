@@ -47,8 +47,8 @@
   Driver's progress, a green CI or the PR's look on the forge. When the user merges a PR before
   its `ready-to-merge` line, record it as any merge (`order merged <cr>`: the user's merge is a fact) and
   tell the Foreman in the same message; no reproach, no question. A `forge saw merged: <cr> …`
-  line, in `status` or at a watcher's end, is a merge the user made: record it like any merge, at
-  the `status` that shows it or at the watcher's end, once the forge confirms it ([The
+  line, in `status` or in a watcher's notification or end, is a merge the user made: record it like any merge, at
+  the `status` that shows it or at the watcher's notification or end, once the forge confirms it ([The
   watcher](session-start-chief-of-staff.md#the-watcher)): `order merged <cr>`, then, in Foreman mode, send its line to the
   Foreman as for any order. A line that says `landed with <other cr>` is a merge to record, like
   the `into <branch>` one: the hub (or the board) read the PR merged into `<other cr>`'s branch and that CR's PR on the default branch
@@ -56,7 +56,7 @@
   a line that ends `not landed …` is not one to record: do not run `order merged`; tell the user
   where the PR went (into `<other cr>`'s PR, not the default branch) and wait until the PR under
   it lands (the hub or the board then writes a second line, `landed with`); the line keeps printing until
-  the CR is recorded merged. When the user merges several PRs of a batch with no stack in one action (or several `forge saw merged` lines come at one `status` or one watcher's end), record `order merged` for each.
+  the CR is recorded merged. When the user merges several PRs of a batch with no stack in one action (or several `forge saw merged` lines come at one `status` or one watcher's notification or end), record `order merged` for each.
   A CR taken out of a batch whose PR the user merges later, outside any batch (its folder is in the
   backlog or the next batch, `3-ready`, with `formerly.json`), has a route of its own: on "I
   merged #n" for it, run `order add --note <folder>`, which brings back its number and its PR,

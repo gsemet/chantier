@@ -1,5 +1,5 @@
-"""The provider `waits`: the approval, pipeline and merge waits of the running batch's CRs, as
-interests of kind `pr`.
+"""The provider `waits`: the approval, pipeline and merge waits of the followed batch's CRs
+(running, or paused with open PRs: `batch_prs.followed_batch`), as interests of kind `pr`.
 
 A wait is met when the forge shows it so: `merge` when the PR or MR is merged, `pipeline` when the
 checks of the wait's head are green, `approval` when the review is approved. A met wait is one
@@ -123,7 +123,7 @@ class Waits:
     kinds = frozenset({PR})
 
     def collect(self, repo: Repo) -> list[Interest]:
-        d = batch_prs.running_batch(repo)
+        d = batch_prs.followed_batch(repo)
         if d is None:
             return []
         return [

@@ -6,8 +6,10 @@ from __future__ import annotations
 import os
 
 CYCLE_S = 20.0  # the hub reads the forge at most this often (the board's page keeps its own 10 s)
-QUIET_S = 20.0  # a watcher ends this long after the last new event of its project
-IDLE_END_S = 7200.0  # a watcher with no event for it that wakes ends this long after its start
+QUIET_S = 20.0  # a watcher tells its events this long after the last new event of its project
+# with no batch in flight (none running, none paused with open PRs), a watcher ends this long
+# after the latest of its start, its last event for it that wakes and the last moment it saw one
+IDLE_END_S = 7200.0
 POLL_S = 1.0  # a watcher looks about this often
 TEST_ENV = "CHANTIER_HUB_TEST_TIMES"
 FIELDS = (2, 3)  # `<cycle>:<quiet>[:<idle_end>]`

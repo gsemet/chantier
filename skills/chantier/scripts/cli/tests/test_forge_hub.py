@@ -95,7 +95,8 @@ def test_a_hub_cycle_reads_only_what_there_is_to_read_and_is_due_every_twenty_se
     assert world.hub.due(0.0)
     world.hub.cycle(0.0)
     assert not world.hub.due(CYCLE - 1) and world.hub.due(CYCLE)
-    # alpha and beta are read, one call each; gamma is paused and delta has no PR left open
+    # alpha and beta are read, one call each; gamma is paused with no PR left open, and delta has
+    # no PR left open
     assert sorted(c[0] for c in world.calls) == [LINK.format("alpha", 10), LINK.format("beta", 20)]
     assert len(world.calls) == CALLS
     # a PR failing but not ready to merge in the record gives no event
@@ -115,13 +116,36 @@ def test_the_hub_never_collects_the_issues_provider(
         return []
 
     monkeypatch.setattr(issue_refs.PROVIDER, "collect", spy)
-    for name in ("alpha", "beta"):  # no running batch, but a CR naming an issue
-        write_batch(world.project(name), "paused", crs_of(name))
+    for name in ("alpha", "beta"):  # no batch in flight, but a CR naming an issue
+        write_batch(world.project(name), "paused", crs_of(name, "merged"))
         cr = world.project(name) / "changes" / "1-inbox" / "export"
         cr.mkdir(parents=True)
         (cr / "01-intent.md").write_text("# t\n\nissue: https://acme.atlassian.net/browse/P-1\n")
     world.hub.cycle(0.0)
     assert world.calls == [] and asked == []
+
+
+def _paused_crs(kind: str) -> list[dict[str, Any]]:
+    crs = crs_of("alpha", "cancelled" if kind == "cancelled" else "merged")
+    if kind == "one open":
+        crs[1]["status"] = "ready"
+    if kind == "no PR":
+        for c in crs:
+            c["pr"], c["status"] = None, "working"
+    return crs
+
+
+@pytest.mark.parametrize("kind", ["one open", "every merged", "every cancelled", "no PR"])
+def test_the_hub_reads_a_paused_batch_while_one_of_its_prs_is_open(world: World, kind: str) -> None:
+    write_batch(world.project("alpha"), "paused", _paused_crs(kind))
+    world.hub.cycle(0.0)
+    mine = [c for c in world.calls if c[0].startswith(LINK.format("alpha", ""))]
+    assert len(mine) == (kind == "one open")  # its PRs in the project's one call, or none
+    world.forge = {11: merged(MAIN, T1)}
+    world.hub.cycle(CYCLE)
+    world.hub.cycle(2 * CYCLE)  # read again: no second line
+    lines = [(e["source"], e["type"], e["cr"]) for e in world.journal("alpha")]
+    assert lines == ([("hub", "merged@1", "CR-2")] if kind == "one open" else [])
 
 
 def test_a_forge_error_lands_in_the_hub_record_not_in_the_journal(world: World) -> None:
@@ -295,7 +319,7 @@ def test_status_and_the_start_line_name_the_journal_the_hub_and_its_version(
     got = forge_lines()
     last = 5  # the journal's highest seq
     assert got[0] == "forge hub: none running" and got[-1].startswith("watch: not running:")
-    assert f" watch --after {last}; after the user's no" in got[-1]
+    assert f" watch --after {last} --stream; after the user's no" in got[-1]  # host: claude
     assert got[-1].endswith(f" watch --once --after {last}") and "watch: chantier watch" not in got
     got = got[1:-1]
     assert got[0] == f"forge saw merged: {a} P into main at t; {order} {a}"

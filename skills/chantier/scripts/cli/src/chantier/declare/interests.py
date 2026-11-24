@@ -5,9 +5,9 @@ from __future__ import annotations
 from chantier.commands.registry import NO_BATCH, Subparsers, add_command
 
 HELP = (
-    "what the CRs of this project wait for: the running batch's PRs or MRs, which the forge hub "
-    "reads, and the issues the CRs' issue: lines name, which only an outside poller reads; "
-    "--json is the poller's input"
+    "what the CRs of this project wait for: the PRs or MRs of the batch that runs or is paused "
+    "with open PRs, which the forge hub reads, and the issues the CRs' issue: lines name, which "
+    "only an outside poller reads; --json is the poller's input"
 )
 
 
