@@ -203,7 +203,8 @@ files, and declare the next batch ready (`next-batch.json`, the time and the CRs
 "rescan" button empties it, to tell the Chief of Staff the backlog changed. Each write also lands as one `board@1` line in the project's `forge-journal.jsonl`, which a Chief of Staff's watcher (or its pull path) reads: "rescan" is for one that runs neither. The surface's Home
 (the overview of the projects) is read-only.
 
-- **The link.** The Chief of Staff gives you one link, `http://<address>:8765/?k=<key>`. When the
+- **The link.** The Chief of Staff gives you one link, `http://<address>:<port>/?k=<key>` (the port is 8765
+  unless it is held, then the next free one above it, as the start line prints). When the
   board listens on every address (`board.host: network`, or `--host 0.0.0.0`), it prints a second line,
   `on this machine: http://127.0.0.1:<port>/?k=<key>` (same key): open that one on the machine
   that runs the board, where the Costs page's image copy works (a browser allows it on a secure
@@ -271,7 +272,7 @@ files, and declare the next batch ready (`next-batch.json`, the time and the CRs
 ```yaml
 board:
   host: network     # this machine's local network address, found at each start; default: this machine only
-  port: 8765        # default 8765
+  port: 8765        # default: 8765, or the next free port above it when held; a port set here is used as is
 ```
 
 - **The link on demand.** `chantier webui` prints the board's link with its key (and the read-only one) and starts the server, detached, when none runs; typing it is the yes. A server it starts holds no seat and stops by itself 30 minutes after its last client.

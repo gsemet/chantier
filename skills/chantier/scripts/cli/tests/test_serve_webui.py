@@ -3,6 +3,7 @@ two surfaces on one machine, each server's own cookie, and `webui`'s start."""
 
 from __future__ import annotations
 
+import errno
 import socket
 import types
 from pathlib import Path
@@ -12,15 +13,16 @@ import pytest
 from conftest import Chantier
 from test_board_running import _answer, _prepare_board
 
-from chantier.board import address, command, guard, routes, running
+from chantier.board import address, binding, command, guard, routes, running
 from chantier.board import key as keys
 from chantier.board.context import Context, Request
 from chantier.board.key import KeyFile
 from chantier.board.projects import open_projects
 from chantier.board.seats import Seats
 from chantier.commands import live, webui
-from chantier.core.errors import EXIT_EXTERNAL
+from chantier.core.errors import EXIT_EXTERNAL, ChantierError
 from chantier.hub import feed, watch_lines
+from chantier.playbook.board_check import MAX_PORT
 from chantier.writer import lines as writer_lines
 
 OK, UNAUTHORISED, USAGE, START_S = 200, 401, 2, 20
@@ -72,51 +74,112 @@ def test_a_command_named_board_is_an_invalid_choice(
     assert stopped.value.code == USAGE and "invalid choice: 'board'" in capsys.readouterr().err
 
 
-def _hold() -> tuple[socket.socket, int]:
-    held = socket.socket()
-    held.bind(("127.0.0.1", 0))
-    held.listen(1)
-    return held, held.getsockname()[1]
+def _hold(count: int = 1) -> tuple[list[socket.socket], int]:
+    """`count` consecutive ports held on 127.0.0.1, and the free one right above them."""
+    while True:
+        first = socket.socket()
+        first.bind(("127.0.0.1", 0))
+        base = first.getsockname()[1]
+        held, spare = [first], socket.socket()
+        try:
+            for port in range(base + 1, base + count):
+                held.append(socket.socket())
+                held[-1].bind(("127.0.0.1", port))
+            spare.bind(("127.0.0.1", base + count))
+        except OSError:
+            for each in (*held, spare):
+                each.close()
+            continue
+        spare.close()
+        for each in held:
+            each.listen(1)
+        return held, base
 
 
 @pytest.mark.parametrize(
-    ("holder", "named"),
+    "case",
     [
-        ("another-key", False),
-        ("another-folder", False),
-        ("plain", False),
-        ("another-key", True),
+        ("another-key", 1, False, "another chantier board (another project's key)"),
+        ("another-folder", 1, False, "another chantier board (/elsewhere/surface)"),
+        ("plain", 1, False, "another program"),
+        ("plain", 2, False, "another program"),
+        ("another-key", 1, True, ""),
     ],
 )
-def test_a_default_port_held_by_another_surfaces_board_takes_a_free_one(
+def test_a_default_port_held_walks_to_the_first_free_port_above_it(
     repo: Path,
     chantier: Chantier,
     monkeypatch: pytest.MonkeyPatch,
-    holder: str,
-    named: bool,
+    case: tuple[str, int, bool, str],
 ) -> None:
-    starts = holder != "plain" and not named
+    holder, rows, named, who = case
     answers: dict[str, Any] = {
         "another-key": "another-key",
         "another-folder": _answer("/elsewhere/surface", "1"),
         "plain": "other",
     }
     path, bound = _prepare_board(repo, chantier, monkeypatch, (False, None, answers[holder]))
-    held, port = _hold()
+    held, port = _hold(rows)
     try:
         monkeypatch.setattr(address, "DEFAULT_PORT", port)
         code, out, err = chantier("serve", *(("--port", str(port)) if named else ()))
-        if starts:
+        if not named:
             assert code == 0, err
-            assert out[0].startswith(f"board: port {port} is held by another chantier board (")
-            assert out[0].endswith(f"this one takes port {bound[0]}")
-            assert bound[0] != port and out[1].startswith("board on ")
-            assert f":{bound[0]}/" in out[1] and str(bound[0]) in path.read_text("utf-8")
+            assert (
+                out[0] == f"board: port {port} is held by {who}: this one takes port {port + rows}"
+            )
+            assert bound == [port + rows] and out[1].startswith("board on ")
+            assert f":{port + rows}/" in out[1] and str(port + rows) in path.read_text("utf-8")
         else:
             assert code == EXIT_EXTERNAL and not bound and out == []
             assert "is held by another chantier board" in err or "is in use" in err
     finally:
-        held.close()
+        for each in held:
+            each.close()
+
+
+class Refused(OSError):
+    """A bind error as Windows words it: `winerror` set, `errno` not the POSIX one."""
+
+    def __init__(self, winerror: int) -> None:
+        super().__init__(0, "refused")
+        self.winerror = winerror
+
+
+@pytest.mark.parametrize(
+    ("error", "last", "wanted"),
+    [
+        (OSError(errno.EADDRINUSE, "in use"), MAX_PORT, "no free port from 8765 to 65535 on h:"),
+        (Refused(binding.WSAEACCES), 8767, "this one takes port 8768"),
+        (Refused(binding.WSAEADDRINUSE), 8766, "this one takes port 8767"),
+        (OSError(errno.EPERM, "denied"), 8766, "board not started: [Errno 1] denied"),
+    ],
+)
+def test_the_walk_counts_in_use_and_access_denied_as_held_and_ends_at_the_last_port(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    error: OSError,
+    last: int,
+    wanted: str,
+) -> None:
+    sock = socket.socket()
+
+    def refuse(_host: str, port: int) -> socket.socket:
+        if port <= last:
+            raise error
+        return sock
+
+    monkeypatch.setattr(binding, "_open", refuse)
+    try:
+        if error.errno == errno.EPERM or last == MAX_PORT:
+            with pytest.raises(ChantierError) as stopped:
+                binding.bind("h", 8765, None, lambda: "another program")
+            assert wanted in str(stopped.value) and stopped.value.code == EXIT_EXTERNAL
+        else:
+            assert binding.bind("h", 8765, None, lambda: "another program") is sock
+            assert wanted in capsys.readouterr().out
+    finally:
+        sock.close()
 
 
 def test_each_servers_cookie_is_its_own(repo: Path, tmp_path: Path) -> None:

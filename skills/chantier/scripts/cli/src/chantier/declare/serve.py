@@ -28,7 +28,7 @@ def register(sub: Subparsers) -> None:
         "--port",
         type=int,
         help="the port, or 0 for a free one the system picks (default: chantier.yaml's "
-        "board.port, else 8765)",
+        "board.port, used as is, else 8765 or the next free port above it)",
     )
     s.add_argument(
         "--seat",

@@ -103,14 +103,14 @@ def _held_by(host: str, port: int, key: str, from_config: bool) -> str:
     return f"{where} is in use (a board may already run there, or another program): {out}"
 
 
-def _other_board(host: str, port: int, key: str, served: str) -> str | None:
-    """What names another surface's board that holds the port: its served folder, or "another
-    project's key"; None for a board of this folder or for anything else."""
+def _holder(host: str, port: int, key: str, served: str) -> str:
+    """What holds the default port, as far as the probe tells."""
     found = probe(host, port, key)
-    if isinstance(found, dict):
-        other = found.get("served")
-        return str(other) if other != served else None
-    return "another project's key" if found == "another-key" else None
+    if isinstance(found, dict) and found.get("served") != served:
+        return f"another chantier board ({found.get('served')})"
+    if found == "another-key":
+        return "another chantier board (another project's key)"
+    return "another program"
 
 
 def _start_writer(projects: Projects) -> WriterThread | None:
@@ -319,13 +319,12 @@ def _running_lines(  # noqa: PLR0913, PLR0917 - the address, the keys and the ru
 def _listen(
     args: argparse.Namespace, projects: Projects, host: str, port: int, key: str
 ) -> socket.socket:
-    """The bound socket: a port held refuses, but a default port held by another surface's board
-    takes a free one."""
+    """The bound socket: a named port held refuses; the default port held walks up to a free one."""
     from_config = args.port is None and "port" in load_board(projects.home)[0]
     served = projects.served.as_posix()
     default = args.port is None and not from_config
-    other = (lambda: _other_board(host, port, key, served)) if default else None
-    return _bind(host, port, lambda: _held_by(host, port, key, from_config), other)
+    holder = (lambda: _holder(host, port, key, served)) if default else None
+    return _bind(host, port, lambda: _held_by(host, port, key, from_config), holder)
 
 
 def board(args: argparse.Namespace) -> list[str]:

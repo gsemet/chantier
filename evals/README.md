@@ -85,10 +85,12 @@ from this checkout, with the [prerequisites](#prerequisites) met.
      say the global toggle may not reach PRs of local sessions), and **auto-archive / auto-close on
      PR merge or close off**, so the app does not archive a session when a run's PR merges. The
      per-PR switch is the operator's own job during the run (see "Auto-fix during the run").
-  2. **No board left running from an earlier run:** stop any `chantier serve` still running; its
-     port (8765 by default) in use made run 2's board fail. Check, on PowerShell,
-     `Get-NetTCPConnection -LocalPort 8765 -State Listen`; on POSIX,
-     `lsof -iTCP:8765 -sTCP:LISTEN`.
+  2. **No board left running from an earlier run:** stop any `chantier serve` still running; a
+     board left running no longer makes the next run's board fail (it takes the next free port
+     above 8765), but it still serves the old surface and holds its writer. Check for a running
+     board on 8765 and the ports just above it, on PowerShell,
+     `Get-NetTCPConnection -State Listen` filtered on the `chantier` process; on POSIX,
+     `lsof -iTCP -sTCP:LISTEN`; or by the surface's `server.json`.
   3. **The sandbox.** The first time, your own:
      `uv run --no-project python evals/kit/sandbox.py publish <you>/<name>` (the plan; then the
      same with `--yes`). It creates a public repository, pushes the base to its `main` and writes
