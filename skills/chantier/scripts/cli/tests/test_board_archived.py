@@ -9,7 +9,7 @@ from typing import Any
 
 import pytest
 
-from chantier.board import address
+from chantier.board import address, links
 from chantier.board.archived import recovered_after
 from chantier.store import FolderStore
 
@@ -25,7 +25,7 @@ from chantier.store import FolderStore
 def test_local_url_is_the_loopback_link_of_a_board_on_every_address(
     monkeypatch: pytest.MonkeyPatch, host: str, expected: str | None
 ) -> None:
-    monkeypatch.setattr(address, "_default_route_address", lambda: "192.168.1.20")
+    monkeypatch.setattr(links, "default_route_address", lambda: "192.168.1.20")
     assert address.local_url(host, 8765, "KEY") == expected
 
 
