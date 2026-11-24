@@ -1,7 +1,7 @@
 # Campaign ticket-summary
 
 A short campaign on the sandbox (`shelf`), the Chief of Staff only, no batch: the ticket summary
-of [chief-of-staff](../../skills/chantier/references/chief-of-staff.md) ("Ticket summary"), from
+of [chief-of-staff-grill](../../skills/chantier/references/chief-of-staff-grill.md) ("Ticket summary"), from
 the grill to the post on a real issue. About $1.
 
 **What it proves:** nothing is posted before the user's yes; the draft holds the comment, the plan

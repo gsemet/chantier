@@ -106,7 +106,7 @@ these differences.
     only). `triage --ready` never joins the running batch: a CR joins it only by `order add`, from
     a destination the user chose ("Where the CR goes").
   - **The spec-writer and the spec critic.** On the user's word that a CR already grilled (by a
-    Griller, or before the batch) is grilled enough, start the spec-writer as "Backlog and grill"
+    Griller, or before the batch) is grilled enough, start the spec-writer as `chief-of-staff:grill` (`chief-of-staff-grill.md`, "Backlog and grill")
     says; the spec critic stays open too, on a CR grilled before, and its questions wait for the
     pause, like any grill question.
   - **Not while the batch runs:** grill a CR (ask its questions, write its `01-intent.md` from a
