@@ -17,6 +17,7 @@ from chantier.board import (
     griller,
     history_page,
     journal,
+    overview,
     prs,
     reads,
     write_api,
@@ -75,7 +76,7 @@ def _on_project(read: Callable[[Context, Project, Any], Result]) -> Handler:
 
 
 def _board(ctx: Context, a: Any) -> Result:
-    return Result(200, reads.board_data(ctx))
+    return Result(200, overview.board_data(ctx))
 
 
 def _state(ctx: Context, project: Project, a: Any) -> Result:
@@ -126,7 +127,14 @@ def _dashboard(ctx: Context, project: Project, a: Any) -> Result:
     return Result(200, {**dashboard_page.answer(data["history"], a.range), "now": clock.now()})
 
 
-def _history(ctx: Context, project: Project, a: Any) -> Result:
+def _history(ctx: Context, a: Any) -> Result:
+    """The History page's answer; `*` asks for every project of the surface at once."""
+    if a.project == history_page.ALL:
+        ctx.projects.refresh()
+        return Result(200, history_page.answer(ctx, ctx.projects.all(), a.period, a.date, a.tz))
+    project = _project(ctx, a)
+    if project is None:
+        return fail(404, NOT_FOUND)
     return Result(200, history_page.answer(ctx, project, a.period, a.date, a.tz))
 
 
@@ -213,7 +221,7 @@ HANDLERS: dict[str, Handler] = {
     "costs.recompute": _on_project(_recompute),
     "prs.get": _on_project(_prs),
     "dashboard.get": _on_project(_dashboard),
-    "history.get": _on_project(_history),
+    "history.get": _history,
     "seats.register": _seat,
     "journal.get": _on_project(_journal),
     "config.get": _on_project(_config),

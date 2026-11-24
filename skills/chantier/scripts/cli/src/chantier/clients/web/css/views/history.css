@@ -28,6 +28,18 @@
   color: var(--bad-ink);
 }
 
+.histview .hfilters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.histview .hrow[data-project] {
+  cursor: pointer;
+}
+
 .histview .hkpis {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -79,7 +91,8 @@
   border-bottom: 0;
 }
 
-.histview .hrow[data-open]:hover {
+.histview .hrow[data-open]:hover,
+.histview .hrow[data-project]:hover {
   background: var(--hover);
 }
 

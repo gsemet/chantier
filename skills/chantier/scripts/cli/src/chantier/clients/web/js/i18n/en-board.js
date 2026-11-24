@@ -1,30 +1,11 @@
-// English words of the reading side that changed with the board's first tour: the Kanban's seven
-// columns and its priority filter, the header's figures, Home's In grill tile and earlier batches,
+// English words of the reading side that changed with the board's first tour: the header's
+// figures, Home's In grill tile and earlier batches,
 // and Costs' earlier batches. Merged into en.js.
 export default {
   'notice.key_field': 'The key or the whole link',
   'notice.key_open': 'Open',
-  'kanban.inbox': 'Inbox',
-  'kanban.backlog': 'Backlog',
-  'kanban.grill': 'Grill',
-  'kanban.ready': '3-ready',
-  'kanban.progress': 'In progress',
-  'kanban.handed': 'Handed back',
-  'kanban.done': 'Done',
-  'kanban.inbox_sub': '1-inbox: filed, not grilled yet',
-  'kanban.backlog_sub': '2-backlog: prioritised, not grilled yet',
-  'kanban.grill_sub': 'being grilled or specified, not in 3-ready yet',
   'kanban.ready_sub': 'waits for the next batch (not "ready to merge")',
-  'kanban.progress_sub': '{batch}: queued, working, blocked',
-  'kanban.progress_none': 'no batch: queued, working, blocked',
-  'kanban.handed_sub':
-    'handed back: ready to merge once the PR is out of draft on {branch} or on a CR ready to merge',
-  'kanban.done_sub': 'merged, newest first',
-  'kanban.count': '{n} items · {m} merged',
   'kanban.empty': 'empty',
-  'kanban.more': '{n} more',
-  'card.merged': 'merged {day}',
-  'priority.title': 'Priorities',
   'stats.inbox': 'inbox',
   'stats.progress': 'in progress',
   'home.grill': 'In grill',

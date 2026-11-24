@@ -98,7 +98,7 @@ refused (400).
 
 | Op | Arguments | Data |
 | --- | --- | --- |
-| `board.get` | none | `board`, `version`, `surface`, `pid`, `served`, `served_origin`, `origin`, `home`, `local_url`, `seats`, `projects`, `writer`, `protocols`, `now`. Each line of `projects` carries `needs_you`, the list of what needs the user (kinds `question`, `approval`, `merge` and `blocked`, each with `key`, `kind`, `cr`, `item`, `title`, `folder`, `pr`, `text`, `note`, `since`, `session`, `merge_place`, `merge_total`, newest first), built from the record and the planning folder, read-only |
+| `board.get` | none | `board`, `version`, `surface`, `pid`, `served`, `served_origin`, `origin`, `home`, `local_url`, `seats`, `projects`, `writer`, `protocols`, `now`. Each line of `projects` carries `needs_you`, the list of what needs the user (kinds `question`, `approval`, `merge` and `blocked`, each with `key`, `kind`, `cr`, `item`, `title`, `folder`, `pr`, `text`, `note`, `since`, `session`, `merge_place`, `merge_total`, newest first), built from the record and the planning folder, read-only, and `open_prs` (the open PRs of the running batch, one `{cr, title, pr, state}` per CR with `state` `ready`, `red` or `working`, ready and red first in merge order; red is a `checks-red@1` journal line later than the CR's hand-back, never a forge read). `board.get` also carries `activity`, the 20 newest events across the surface's projects (`project`, `kind`, `at`, `cr`, `title`, `batch`, `pr`, newest first; no cost) |
 | `project.state` | `project`, `rev`? | the project's state, with `rev` and `now`; with `rev` equal to the current one, `{"changed": false, "rev": ...}`. Each CR row of `batch.crs` has `lease`, and the batch `stack_lease`: `null` when the unit never had a lease, else `{n, renewed, expires, ended, gate}`, facts only (`gate`: `"gate running"`, `"gate queued"` or `null`); a client compares `expires` with `now` itself |
 | `project.tree` | `project`, `path`? | `{path, files, now}`: the files and folders of the planning folder at `path` |
 | `project.file` | `project`, `path` | a text file as `{text, cut, sha256}` (`cut` is true when the text was shortened); a binary file is 415 (read it over HTTP, below) |
@@ -106,7 +106,7 @@ refused (400).
 | `costs.recompute` | `project` | `202`: the recorded costs are being recomputed |
 | `prs.get` | `project`, `batch`? | the batch's PRs as the forge says they are now (`all_done`, `closed`, the rows, `now`) |
 | `dashboard.get` | `project`, `range`? | the Dashboard's figures over the project's closed batch records (range "10", "20" or "all", default "10"): points, productivity, spending, closed_total, now; read-only, computed from the records the server already reads |
-| `history.get` | `project`, `period`, `date`?, `tz` | the period's events by local day (`days`), its `totals`, `undated`, `unreadable`, `now`; `period` is `day`, `week` or `month`, `date` a `YYYY-MM-DD` (default: today), `tz` an IANA time zone name |
+| `history.get` | `project`, `period`, `date`?, `tz` | the period's events by local day (`days`), its `totals`, `undated`, `unreadable`, `now`; `period` is `day`, `week` or `month`, `date` a `YYYY-MM-DD` (default: today), `tz` an IANA time zone name; `project` `*` answers for every project of the surface, each event then carrying its `project`, the totals summed |
 | `seats.register` | `session`, `project`? | the seat of a session is recorded for the board |
 | `backlog.new` | `project`, `text`, `slug`?, `title`? | the item filed in the inbox |
 | `backlog.move` | `project`, `to`, `items`?, `group`? | the items moved to `to` (the inbox, a priority, `3-ready`), or `running-batch`: marked for the open batch, or, from `3-ready`, a journal line only; with no open batch, moved to `3-ready` |
@@ -211,7 +211,7 @@ finished sentence the server tells it by; a line with no `text` is told by its t
 | `project` | `project` | what `project.state` gives |
 | `costs` | `project` | what `costs.get` gives |
 | `prs` | `project`, `batch`? | what `prs.get` gives; the forge is read at most once every 10 s per project and batch |
-| `history` | `project`, `period`, `date`?, `tz` | what `history.get` gives; read only from the records and the archived CRs' steps, never the forge |
+| `history` | `project`, `period`, `date`?, `tz` | what `history.get` gives (`project` `*` included); read only from the records and the archived CRs' steps, never the forge |
 | `journal` | `project` | what `journal.get` gives |
 | `griller` | `project`, `item` | what `griller.get` gives; pushed at each change of the conversation, and at the push loop's regular pass |
 | `events` | `project`, `after`? | `{"lines": [...]}`: the new lines of the project's `forge-journal.jsonl`, 200 at most, each with its `seq`, and `text`, its type's sentence, when the type is published and its payload accepted (no `text` otherwise); that `text` replaces, in the answer only, a payload's own `text` key (`board@1`, `issue@1`, `sync-*@1`), which the sentence quotes and the journal file keeps; with no `after`, the lines after the last one at the time of `sub` |

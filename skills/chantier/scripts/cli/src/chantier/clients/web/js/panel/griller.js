@@ -34,9 +34,14 @@ export const isOn = (state) => Boolean(state.panel && state.grillOn === state.pa
 
 const valueFor = (state) => (state.griller?.key === state.panel?.key ? state.griller : null);
 
+// Whether the panel draws the Grill button. Off as shipped: the discussion cannot be opened from the
+// panel while it is off, and the server's Griller stays as it is. Turning it on takes an edit here
+// and a release (no configuration key).
+export const GRILL_BUTTON = false;
+
 // The head's Grill button; disabled, with the reason in its title, when the server says it cannot.
 export function grillAction(state, target) {
-  if (!grillable(target)) return '';
+  if (!GRILL_BUTTON || !grillable(target)) return '';
   const g = valueFor(state);
   const title = g && !g.available ? g.reason : t('griller.button_title');
   const pressed = isOn(state) ? 'true' : 'false';

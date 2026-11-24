@@ -1,4 +1,4 @@
-// One Triage card: the Kanban's item card (ui/item-card.js) with Triage's extras added to it: a check
+// One Triage card: the item card (ui/item-card.js) with Triage's extras added to it: a check
 // mark when picked, the late-summary clock and the "modified" mark in the top row, the origin badge and the "open"
 // button in the band, the mark "pending", and the attributes the drag and the selection need.
 // Pure: it returns markup from an item and a context; `bind` code lives in selection.js and drag.js.

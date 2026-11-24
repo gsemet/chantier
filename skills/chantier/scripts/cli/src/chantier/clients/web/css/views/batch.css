@@ -190,8 +190,73 @@
   }
 }
 
-/* the Kanban tab: the three columns share the central column's width (the project Kanban's phone
-   rule keeps its snapping columns) */
+/* the Kanban tab: three columns of the CRs' cards; the columns share the central column's width, and
+   on a phone they snap one at a time */
+.kanban {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.kanban .board {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-height: 0;
+  padding-bottom: var(--space-2);
+  overflow-x: auto;
+}
+
+.kanban .column {
+  flex: 0 0 290px;
+  max-height: 100%;
+}
+
+.kanban .none {
+  padding: var(--space-off-10) var(--space-2);
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+.kanban .step {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kanban .bars {
+  display: flex;
+  gap: var(--space-off-3);
+  margin-top: var(--space-off-10);
+}
+
+.kanban .bars i {
+  flex: 1;
+  height: 4px;
+  border-radius: var(--radius-off-2);
+  background: var(--chip-2);
+}
+
+.kanban .bars i.on {
+  background: var(--accent);
+}
+
+@media (max-width: 760px) {
+  .kanban .board {
+    gap: var(--space-off-10);
+    scroll-snap-type: x mandatory;
+  }
+
+  .kanban .column {
+    flex: 0 0 86%;
+    scroll-snap-align: start;
+  }
+}
+
 .batch .bkanban {
   flex: none;
 }

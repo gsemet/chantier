@@ -214,14 +214,46 @@ def _counts() -> dict[str, int]:
     return {"merged": 0, "dropped": 0, "opened": 0, "releases": 0}
 
 
-def answer(ctx: Context, project: Project, period: str, on: str | None, tz: str) -> dict[str, Any]:
-    """The period's events by local day, its totals and the counts that no period holds."""
+ALL = "*"  # the address of "All projects": every project of the surface
+
+
+def _tagged(ctx: Context, projects: list[Project]) -> dict[str, Any]:
+    """The events of every project, each with its `project` (the kept index is not touched), and the
+    sums of its counts."""
+    events: list[dict[str, Any]] = []
+    undated = unreadable = 0
+    for p in projects:
+        found = index_of(ctx, p)
+        events += [{**e, "project": p.id} for e in found["events"]]
+        undated += found["undated"]
+        unreadable += found["unreadable"]
+    return {"events": events, "undated": undated, "unreadable": unreadable}
+
+
+def feed(ctx: Context, projects: list[Project], rows: int) -> list[dict[str, Any]]:
+    """The newest `rows` events of the projects, newest first, as the Home's feed shows them: what
+    was done and when. An event's cost and rounds are the History's (private) and are left out."""
+    found = sorted(
+        _tagged(ctx, projects)["events"],
+        key=lambda e: (e["at"], str(e["cr"]), e["kind"], e["project"]),
+        reverse=True,
+    )[:rows]
+    return [
+        {k: e[k] for k in ("project", "kind", "at", "cr", "title", "batch", "pr")} for e in found
+    ]
+
+
+def answer(
+    ctx: Context, project: Project | list[Project], period: str, on: str | None, tz: str
+) -> dict[str, Any]:
+    """The period's events by local day, its totals and the counts that no period holds. A list of
+    projects answers for all of them at once: each event then carries its `project`."""
     zone = ZoneInfo(tz)
     today = clock.parse(clock.now()).astimezone(zone).date()
     first, last, before, after = _bounds(period, date.fromisoformat(on) if on else today)
     start, stop = day_bounds(zone, first)[0], day_bounds(zone, last)[1]
     holds = first <= today <= last
-    found = index_of(ctx, project)
+    found = _tagged(ctx, project) if isinstance(project, list) else index_of(ctx, project)
     days: dict[str, list[dict[str, Any]]] = {}
     for e in found["events"]:
         at = clock.parse(e["at"])

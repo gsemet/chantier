@@ -6,7 +6,7 @@
 // With no `t=`, the Batch view opens the tab
 // last shown on this device (the preference `batchTab`). With the store, this module is the only one
 // that writes the URL. `transport=http` (the HTTP binding, forced) is kept in every address.
-import { FILTER_BUCKETS, pref, setPref, snapshot, update } from './store.js';
+import { pref, setPref, snapshot, update } from './store.js';
 
 export const ALL = '*';
 const LAST = 'last';
@@ -80,9 +80,7 @@ function askedKeys(view, asked) {
 function settle(place) {
   const ids = (snapshot().board?.projects ?? []).map((p) => p.id);
   const next =
-    place.project === ALL
-      ? { ...place, batch: null, tab: TABS[0], st: null, sort: null, hp: null, hd: null }
-      : place;
+    place.project === ALL ? { ...place, batch: null, tab: TABS[0], st: null, sort: null } : place;
   if (place.project === ALL && !rules.overview.includes(place.view)) {
     const { dt, dr } = place;
     const tab = place.view === 'batch' ? keptTab() : TABS[0];
@@ -101,7 +99,6 @@ const reset = {
   editing: null,
   selection: [],
   labelFilter: [],
-  priorityFilter: [...FILTER_BUCKETS],
   historyOpen: [],
   prs: null,
   dashboard: null,

@@ -126,6 +126,29 @@ th.num {
   line-height: 1.6;
 }
 
+/* the layer under the open panel: it dims the page behind and takes its clicks (main.js); on a phone
+   the panel fills the screen, so there is none */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  background: var(--backdrop);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (max-width: 760px) {
+  .backdrop {
+    display: none;
+  }
+}
+
 /* the panel's shell: it slides in from the right (the views fill it) */
 .panel {
   position: fixed;

@@ -28,7 +28,7 @@ fails when the table and `tokens.css` disagree.
   never restyles one (test).
 - **One card, one column, one chip.** Every card is built by `js/ui/card.js` (test): a hairline all
   around, no side accent, the priority chip, when the item has a priority, first in its top row at
-  the top left. Every board column (Triage, Kanban, the Batch page's Kanban) is built by `js/ui/column.js`: a light area, a
+  the top left. Every board column (Triage, the Batch page's Kanban) is built by `js/ui/column.js`: a light area, a
   hairline, a plain head (dot, name, count) and a one-line grey sub-line saying what it holds; a
   column that appears on both pages has the same dot colour on both. The chip lives in
   `css/components/chip.css`; the priority chip is Triage's, filled with the priority colour, on
@@ -98,6 +98,7 @@ One row per custom property of `css/tokens.css`, in its order. Kind: `colour`, `
 | `--sep`                | `#c4c7cd`                                                                                                                                                               | colour | caption, count and separator greys                              |
 | `--selection`          | `#d6e2fa`                                                                                                                                                               | colour | text selection, scrollbar                                       |
 | `--scroll`             | `#cdd1d8`                                                                                                                                                               | colour | text selection, scrollbar                                       |
+| `--backdrop`           | `rgb(15 18 28 / 32%)`                                                                                                                                                   | colour | the dimmed layer under the open file panel                      |
 | `--warn-ink`           | `#8a5208`                                                                                                                                                               | colour | warning, error and ok ink                                       |
 | `--bad-ink`            | `#c03552`                                                                                                                                                               | colour | warning, error and ok ink                                       |
 | `--accent`             | `#1d5c63`                                                                                                                                                               | colour | the accent, deep teal, and its shades                           |
@@ -376,8 +377,8 @@ legend and the Stack / Series / Parallel switch sit in the title row, built by
 
 A CR with an open wait (a row's or an item's `open_waits`: answer, approval, pipeline, merge) shows
 one more words-only span in its card's meta line, `waits: <types>` (`card.waits`, `wait.<type>`),
-built by `js/ui/item-card.js`'s `waitsMeta` for the Kanban's CR card and the shared item card
-(Triage and Kanban backlog). It is plain text: no new colour, size, icon or class, and no span
+built by `js/ui/item-card.js`'s `waitsMeta` for the batch Kanban's CR card and the shared item card
+(Triage). It is plain text: no new colour, size, icon or class, and no span
 with no open wait. The board only shows a wait; the steering session clears it.
 
 ## Dashboard
@@ -401,7 +402,7 @@ computed from the closed batch records and apart from the drawing: the views com
 
 ## The Inbox page
 
-The second view, after Home: what waits for the user, in one list, newest first. It reads only the
+Shown as "Notifications" (`nav.inbox`; the view's id, files and classes keep `inbox`). The second view, after Home: what waits for the user, in one list, newest first. It reads only the
 project line's `needs_you` of the `board` topic (built by the server from the record and the
 backlog's waits) and draws nothing of its own: each entry is one card built by `js/ui/card.js`
 (through `js/inbox/entry.js`), with its kind as a chip, a one-line title, the CR, how long it has
@@ -412,10 +413,10 @@ blocked; kind chips filter the list, and the filter is a preference.
   lasts) are kept in `localStorage` through `core/store.js`'s `pref`/`setPref`, keyed by the entry's
   `key` (one occurrence of a fact: a new occurrence has a new key and shows again). Nothing is sent
   to the server; hidden entries sit in a closed `details` below the list, with Restore.
-- **The count.** The bar's Inbox badge counts the entries not hidden, of the scope shown.
+- **The count.** The bar's Notifications badge counts the entries not hidden, of the scope shown.
   `js/model/inbox.js` is pure (no storage, no transport); `js/inbox/marks.js` writes storage only
   and never calls `update()`, so drawing the page cannot redraw it.
-- **Notifications.** Off until the user turns them on from the page; a new entry then raises one
+- **Browser notifications.** Off until the user turns them on from the page; a new entry then raises one
   browser notification, once (`js/inbox/watch.js`), every call guarded: a browser with none shows
   nothing and breaks nothing.
 - **Look.** Tokens, the shared card, chip and column components; `css/views/inbox.css` only lays
@@ -425,11 +426,15 @@ blocked; kind chips filter the list, and the filter is a preference.
 ## History
 
 A read-only view (`js/views/history.js`), fed by the `history` topic only (`js/views/history-feed.js`;
-no field of the project state). Its address keys are `hp` (day, week, month) and `hd` (a date), each
+no field of the project state). It is also on "All projects" (the topic's `*` address): every project's events, each
+row with the project's mark (`mark`), and two filters, the kinds and the projects, drawn as the filter-toggle chip
+(`.tag.st`, `.off`), session-only (store keys `historyOffKinds`, `historyOffProjects`, never in the address),
+which `js/views/history-filter.js` applies to the answer and whose figures it recounts; a click on a row of that
+page opens nothing in the panel (the CR's folder is another project's), the batch button goes to the project's Batch. Its address keys are `hp` (day, week, month) and `hd` (a date), each
 only when not the default. Its rows are words, the existing chip and one-line titles (the state
 chip's variants only: merged, blocked, draft, ready), five plain figures, and a day head; a row opens
 its CR in the side panel, its batch name goes to the Batch view and its PR number is a link. There
-is no chart (charts are not this page's), and no new token, component or colour: `css/views/history.css`
+is no chart (charts are not this page's), and no new component or colour (the filters reuse the chip): `css/views/history.css`
 only lays things out. Its every word is an i18n key of `js/i18n/en-history.js` and `fr-history.js`.
 
 ## Triage: folded rows and the writes count
@@ -445,9 +450,22 @@ The journal panel opens on three lines (what the count is, why the Chief of Staf
 those writes, what to type), then the list; the button carries a one-sentence tooltip. No new colour,
 size or token.
 
+## All projects' Home blocks
+
+`js/views/overview.js` draws, under the project table, the open PRs of every project (`open_prs` of each project line:
+ready, red CI, working) and the recent activity (`activity` of the `board` topic, 20 events), as `.block` panels in the
+`.home` grid, with the existing state chip and tokens, no new colour or component.
+
+## The file panel's backdrop
+
+A dimmed layer (`#backdrop`, `.backdrop`, in `css/components.css`) sits under the open file panel (z-index 9, the
+panel's 10) and over the page, painted with the `--backdrop` token. A click on it asks `confirmLeave()` and then
+closes the panel, as the panel's own close does, so unsaved edits still ask first. It is hidden on a phone
+(760px or less), where the panel already covers the page.
+
 ## The Help page
 
-The `help` view sits after Home (and the Inbox) in the sidebar, the same on every project and on
+The `help` view is the last entry of the sidebar, after Configuration (and after History on "All projects"), the same on every project and on
 "All projects", with no count. On the phone it is one more item of the bottom bar, which scrolls
 sideways (`css/shell.css`'s `.bnav`, `overflow-x: auto`) when its items no longer fit a narrow
 phone, so its last item stays reachable. It needs no project data (the registry's `offline`: `ui/host.js`
@@ -480,7 +498,8 @@ too recovers at its next reload, the cookie being the browser's.
 A discussion with a Griller, in the file panel, for an item of the inbox, the backlog (P1 to P4) or
 `3-ready` only: never a CR of the batch or a merged one (`js/panel/griller.js`).
 
-- **The button.** "Grill" (`data-grill`) sits in the panel's actions place, built with the existing
+- **The button.** Hidden as shipped: `GRILL_BUTTON` of `js/panel/griller.js` is `false` and `grillAction` then draws nothing; set it
+  to `true` to show it. "Grill" (`data-grill`) sits in the panel's actions place, built with the existing
   button classes, filled while the discussion is on. A host that is not proved or not told gets it
   disabled, the server's reason in its `title`.
 - **The discussion** replaces the file view in the document region; the tree stays, so the files the

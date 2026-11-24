@@ -1,14 +1,13 @@
-// The cards of the Kanban for a CR of the batch and for a merged one (the item's card is shared with
-// Triage: ui/item-card.js). Each has empty `place` elements that a later change fills, and opens
-// its folder.
+// The card of a CR of the batch, for the Batch page's Kanban tab. It has an empty `place` element
+// that a later change fills, and opens its folder.
 import { html } from '../core/dom.js';
 import { slug, title, usd } from '../core/format.js';
 import { roundLimit, roundText, vstate } from '../model/semantics.js';
-import { crKey, doneKey, isOpenKey, itemKey } from '../model/targets.js';
+import { crKey, isOpenKey } from '../model/targets.js';
 import { t } from '../model/words.js';
 import { card } from '../ui/card.js';
 import { icon } from '../ui/icons.js';
-import { files, itemCard, waitsMeta } from '../ui/item-card.js';
+import { files, waitsMeta } from '../ui/item-card.js';
 import { opener } from '../ui/open.js';
 import { nextTag, stateIcon } from '../ui/parts.js';
 
@@ -20,26 +19,6 @@ function bars(c, batch) {
     (_, i) => html`<i class="${i < c.round ? 'on' : ''}"></i>`,
   );
   return html`<div class="bars">${cells}</div>`;
-}
-
-// The card of an item of the backlog, opened on a click: the shared card with the open mark.
-export function backlogCard(state, { item, bucket }, labels) {
-  const key = itemKey(item);
-  const variants = [isOpenKey(state, key) && 'sel'];
-  return itemCard(item, bucket, labels, { variants, attrs: opener(key) });
-}
-
-// The card of a merged CR: its id, title, batch and merge date; it opens its folder.
-export function doneCard(state, m) {
-  const key = doneKey(m);
-  const day = (m.when ?? '').slice(0, 10) || '—';
-  return card({
-    variants: [isOpenKey(state, key) && 'sel'],
-    attrs: opener(key),
-    top: html`<span class="tag cr">${m.cr ?? ''}</span><span class="lbl">${m.batch ?? ''}</span>`,
-    title: title(m.title),
-    meta: html`<span>${t('card.merged', { day })}</span>`,
-  });
 }
 
 // The card of a CR of the batch.

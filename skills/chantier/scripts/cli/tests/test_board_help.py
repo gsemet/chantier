@@ -72,8 +72,7 @@ def _help_links(rows: list[tuple[str, str, str]]) -> list[str]:
 def test_the_help_page_is_a_view_with_both_languages_and_real_links() -> None:
     registry = _read("views", "registry.js")
     order = re.findall(r"id: '(\w+)'", registry)
-    after = "inbox" if "inbox" in order else "home"
-    assert order[order.index(after) + 1] == "help"
+    assert order[-1] == "help"
     entry = registry[registry.index("id: 'help'") :].split("}")[0]
     assert "overview" in entry and "count" not in entry
 

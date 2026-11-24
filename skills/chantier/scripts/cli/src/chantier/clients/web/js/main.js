@@ -93,6 +93,7 @@ function draw(state) {
   paint(panel, panelMarkup(state));
   panel.classList.toggle('open', Boolean(state.panel));
   panel.inert = !state.panel;
+  $('#backdrop').classList.toggle('open', Boolean(state.panel));
   afterPanel(panel, state);
   syncPanel(state);
 }
@@ -145,6 +146,10 @@ function listenToFrame() {
     '[data-close]',
     guarded(() => closePanel()),
   );
+  // a click on the dimmed page closes the panel, as Escape does: an unsaved edit asks first
+  $('#backdrop').addEventListener('click', () => {
+    confirmLeave().then((ok) => ok && closePanel());
+  });
   delegate(body, 'click', '[data-new]', () => openNew());
   bindPanel($('#panel'));
   bindWriter(body);

@@ -90,7 +90,6 @@ export default {
   'home.written_none': 'rien depuis ton dernier « rescan »',
 
   'new.button': '+ Nouveau',
-  'new.kanban': '+ Nouveau : une nouvelle idée',
   'new.title': 'Une nouvelle idée',
   'new.idea': 'Ta nouvelle idée',
   'new.heading': 'Titre',

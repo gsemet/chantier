@@ -23,7 +23,7 @@ def test_history_is_listed_right_after_prs_and_before_costs() -> None:
     entry = re.search(r"\{ id: 'history'[^}]*\}", text)
     assert entry
     assert "icon: 'history'" in entry.group() and "word: 'nav.history'" in entry.group()
-    assert "count" not in entry.group() and "overview" not in entry.group()
+    assert "count" not in entry.group() and "overview: history" in entry.group()
     assert "history:" in _read("js", "ui", "icons.js")
 
 

@@ -37,8 +37,3 @@
   font-size: var(--text-off-13-5);
   font-weight: 500;
 }
-
-.overview .blocks {
-  display: grid;
-  margin-top: var(--space-3);
-}

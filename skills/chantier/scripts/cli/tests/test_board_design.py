@@ -315,7 +315,7 @@ def _check_closed_note() -> bool:
 
 def _check_shell() -> bool:
     sheet = _web("css", "shell.css")
-    return ".main:has(.view > .kanban)" in sheet and ".main:has(.kanban)" not in sheet
+    return ":has(.kanban)" not in sheet and ":has(.view > .kanban)" not in sheet
 
 
 def _check_parts() -> bool:

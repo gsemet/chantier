@@ -28,6 +28,8 @@ def test_the_inbox_is_the_second_view_and_reads_only() -> None:
     registry = _web("js", "views", "registry.js")
     ids = re.findall(r"\bid: '(\w+)'", registry)
     assert ids[1] == "inbox"
+    assert re.search(r"'nav\.inbox': 'Notifications',", _web("js", "i18n", "en.js"))
+    assert re.search(r"'nav\.inbox': '[^']*[A-Za-z][^']*',", _web("js", "i18n", "fr.js"))
     entry = registry.split("id: 'inbox'", 1)[1].split("},", 1)[0]
     assert all(key in entry for key in ("overview:", "count:", "countAll:"))
     scripts = _inbox_scripts()
