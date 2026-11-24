@@ -226,5 +226,5 @@ def test_the_shipped_files_name_the_lane() -> None:
     agents = (PLUGIN_ROOT / "AGENTS.md").read_text("utf-8")
     assert "action `running-batch`" in agents and "writes no file in the CR's folder" in agents
     cards = PLUGIN_ROOT / "skills/chantier/references"
-    for card in ("griller.md", "chief-of-staff.md"):
+    for card in ("griller.md", "chief-of-staff-grill.md"):
         assert "last `Destination:` line" in (cards / card).read_text("utf-8")

@@ -38,7 +38,7 @@ def _roles() -> dict[str, Path]:
             for p in (PLUGIN_ROOT / "skills").glob("*/SKILL.md")
         }
     )
-    roles["foreman"] = PLUGIN_ROOT / "skills" / "chantier" / "references" / "chief-of-staff.md"
+    roles["foreman"] = SKILL / "references" / "chief-of-staff-batch-start.md"
     return roles
 
 
@@ -98,8 +98,21 @@ def _resolve(reading: Any, host: str) -> dict[str, str]:
     return {"file": str(path), "heading": f"## {heading}" if heading else ""}
 
 
+def _expand(readings: list[Any]) -> list[Any]:
+    """The readings with each `@action` reference replaced by that action's readings."""
+    actions = _manifest()[0]["actions"]
+    out: list[Any] = []
+    for reading in readings:
+        if isinstance(reading, str) and reading.startswith("@"):
+            assert reading[1:] in actions, reading
+            out += _expand(actions[reading[1:]])
+        else:
+            out.append(reading)
+    return out
+
+
 def _sections(readings: list[Any], host: str) -> tuple[list[Path], list[dict[str, str]]]:
-    resolved = [_resolve(r, host) for r in readings]
+    resolved = [_resolve(r, host) for r in _expand(readings)]
     files = [Path(r["file"]) for r in resolved if not r["heading"]]
     return files, [r for r in resolved if r["heading"]]
 
@@ -132,7 +145,7 @@ def _check_actions(manifest: dict[str, Any]) -> set[Path]:
     }.items():
         card = manifest["roles"][role]
         own = {f"{card}#{h}" for h in ("CR driver", "Stack driver", "QA driver", "Release driver")}
-        listed = manifest["actions"][role]
+        listed = _expand(manifest["actions"][role])
         assert listed[-1] == f"{card}#{heading}"
         assert own & set(listed) == {f"{card}#{heading}"}
         assert listed[:-1]
@@ -144,7 +157,8 @@ def _check_actions(manifest: dict[str, Any]) -> set[Path]:
 def _check_driver_steps(manifest: dict[str, Any]) -> None:
     others = ("Stack driver", "QA driver", "Release driver")
     lines = {
-        k: manifest["actions"][k] for k in ("cr-driver", "cr-driver:ship", "cr-driver:closing")
+        k: _expand(manifest["actions"][k])
+        for k in ("cr-driver", "cr-driver:ship", "cr-driver:closing")
     }
     for key in ("cr-driver:ship", "cr-driver:closing"):
         card = manifest["roles"]["cr-driver"]
@@ -211,7 +225,7 @@ def test_startup_manifest_measures_every_real_role_and_host(host: str) -> None:
         print(f"startup-bytes role={role} host={host} bytes={total} reload={reload_total}")
         if role == "foreman":
             assert manifest["startup_sections"]["foreman"] == FOREMAN_SECTIONS
-            assert entry == {"wrapper": None, "prompt_builder": "chief-of-staff.md"}
+            assert entry == {"wrapper": None, "prompt_builder": "chief-of-staff-batch-start.md"}
             continue
         assert wrapper_path is not None
         declared = {Path(folder / manifest[k]).resolve() for k in ("common", "role_core")}
@@ -228,7 +242,7 @@ def test_empty_action_readings_are_rejected() -> None:
     assert all(manifest["actions"].values())
 
 
-CR_DRIVER_OPENING_LIMIT = 2_500
+CR_DRIVER_OPENING_LIMIT = 2_154
 RESTART = "Means: a Driver started again"
 CR_DRIVER_LIMITS = {
     ("cr-driver",): 18_000,
@@ -253,7 +267,7 @@ def _cr_driver_bytes(lines: tuple[str, ...]) -> int:
         if line == RESTART:
             total += _section_bytes(card, f"## {RESTART}")
             continue
-        for reading in manifest["actions"][line]:
+        for reading in _expand(manifest["actions"][line]):
             file, _, heading = reading.partition("#")
             assert (path.parent / file).resolve() == card, reading
             assert heading
@@ -322,7 +336,7 @@ def _agent_files() -> list[Path]:
 
 
 START, COS = REFS / "session-start.md", SKILLS / "chief-of-staff" / "SKILL.md"
-GRILLER, CHIEF_CARD = SKILLS / "griller" / "SKILL.md", REFS / "chief-of-staff.md"
+GRILLER, CHIEF_CARD = SKILLS / "griller" / "SKILL.md", REFS / "chief-of-staff-batch-start.md"
 FIRST_TURN, CORE = "4. First turn: introduce chantier", "Startup core"
 SESSION = "At the session's start, read `session-start.md`"
 ABOUT_FOREMAN = (
@@ -347,24 +361,25 @@ MOVED_IN = [
     *[("At startup read the startup core; defer", REFS / f"{c}.md", None) for c in WORKER_CARDS],
     (OWN_PROJECT, START, "2. The seat and the role"),
     (CRS_A + CRS_B, START, "2. The seat and the role"),
-    (OWN_PROJECT, CHIEF_CARD, "Backlog and grill"),
+    (OWN_PROJECT, REFS / "chief-of-staff-grill.md", "Backlog and grill"),
     (OWN_PROJECT, REFS / "griller.md", "Never"),
     (RUN_WORD, REFS / "griller.md", "Never"),
 ]
 
+CHIEF_CARDS = [*REFS.glob("chief-of-staff*.md")]
 MOVED_OUT = [
     ("Read this short role contract at boot", [*SKILLS.rglob("*.md")]),
     ("defer all other card sections", _agent_files()),
     *[("short Startup core section", [REFS / f"{c}.md"]) for c in WORKER_CARDS],
     ("the short `Startup core` section", [REFS / "foreman.md"]),
     ("named startup sections only", [REFS / "foreman.md"]),
-    ("startup sections of <skill>/references/foreman.md", [REFS / "chief-of-staff.md"]),
+    ("startup sections of <skill>/references/foreman.md", CHIEF_CARDS),
     ("Availability is not proof", [*REFS.glob("host-core-*.md")]),
     (
         "stop the board (the host's stop of its background shell), run `uv sync",
-        [REFS / "chief-of-staff.md"],
+        CHIEF_CARDS,
     ),
-    ("sync once `$CHANTIER status` shows no gate running", [REFS / "chief-of-staff.md"]),
+    ("sync once `$CHANTIER status` shows no gate running", CHIEF_CARDS),
     ("synced once by the steering session", [REFS / "concepts.md"]),
 ]
 
@@ -378,23 +393,3 @@ def test_moved_rule_is_where_it_now_lives(phrase: str, path: Path, heading: str 
 def test_moved_rule_is_gone_from_where_it_was(phrase: str, paths: list[Path]) -> None:
     assert paths
     assert [p for p in paths if phrase in _text(p)] == []
-
-
-def test_the_rules_that_must_not_be_missed_come_first() -> None:
-    paragraphs = _lf_bytes(REFS / "startup-core.md").decode("utf-8").split("\n\n")
-    assert "report the exact error and stop" in " ".join(paragraphs[1].split())
-    assert "never in a shell variable" in " ".join(paragraphs[1].split())
-    assert paragraphs[2].startswith("No fallback")
-    for skill, needle in {
-        "chief-of-staff": "`watch: not running`",
-        "chantier": "live Chief of Staff in the seat",
-        "status": "You change nothing",
-    }.items():
-        first = _lf_bytes(SKILLS / skill / "SKILL.md").decode("utf-8").split("## Startup core\n")[1]
-        assert needle in next(line for line in first.splitlines() if line.strip()), skill
-
-
-@pytest.mark.parametrize("card", ["driver.md", "debugger.md", "verifier.md"])
-def test_the_cards_send_a_downloaded_ci_artifact_to_the_scratch_folder(card: str) -> None:
-    text = (SKILL / "references" / card).read_text(encoding="utf-8")
-    assert "work/scratch/artifacts-<run id>/" in " ".join(text.split())

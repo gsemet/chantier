@@ -29,7 +29,7 @@ from chantier.plugin_files import read_wake_rules
 
 SRC = Path(__file__).resolve().parents[1] / "src" / "chantier"
 DEFAULTS = PLUGIN_ROOT / "config" / "chantier.defaults.yml"
-CARD = PLUGIN_ROOT / "skills" / "chantier" / "references" / "chief-of-staff.md"
+CARD = PLUGIN_ROOT / "skills" / "chantier" / "references" / "chief-of-staff-steering.md"
 BOARD = {"type": "board@1", "action": "move", "items": ["x"], "text": "x", "wakes": True}
 MERGED = {
     "type": "merged@1",

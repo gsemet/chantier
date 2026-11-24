@@ -81,11 +81,11 @@ def test_preflight_names_the_rebase_rules_and_a_deny_of_them(
 
 def test_the_refusal_sections_hold_and_no_card_asks_the_user_without_the_rebase() -> None:
     refs = SKILL / "references"
-    foreman = (refs / "foreman.md").read_text(encoding="utf-8")
+    foreman = (refs / "foreman-refused.md").read_text(encoding="utf-8")
     assert "## A Driver's refused force push" in foreman
     assert "## A Driver's refused rebase" in foreman
     said = re.compile(r"asked only if (both|the host refuses you too)|only if both are refused")
-    for card in ("chief-of-staff.md", "hosts/claude-code.md"):
+    for card in ("chief-of-staff.md", "chief-of-staff-steering.md", "hosts/claude-code.md"):
         text = (refs / card).read_text(encoding="utf-8")
         for para in re.split(r"\n\s*\n", text):
             flat = " ".join(para.split())

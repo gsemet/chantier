@@ -596,7 +596,7 @@ This holds for every parent and every agent (a
 Driver of any kind, a worker, a spec-writer, a spec critic, a retro critic, a Demo explorer).
 
 - Each such end is restarted **once** (except a Driver stopped from outside, restarted at each such
-  stop as `foreman.md`'s "A Driver stopped from outside" says, which counts toward nothing; other
+  stop as `foreman-lost-driver.md`'s "A Driver stopped from outside" says, which counts toward nothing; other
   agents and other causes keep "once"), from the recorded state (`handoff`, `log`, the CR's notes,
   the worktree's commits, the folder's files), and the parent records why first: for a CR,
   `$CHANTIER note <cr> "restart: <cause>"`; for a spec-writer or a spec critic, the line of `work/specifying`; for a retro critic, the cause in
@@ -759,7 +759,7 @@ stack driver's `conflict-resolver` escalates, the stack driver keeps the batch's
    only by the steering session's `merge --ff-only --no-overwrite-ignore` after a merge it
    records, and only when clean: the user's uncommitted changes and untracked files are never
    touched. No `sleep`, no polling loop: a wait is the forge's own watch, in a background shell
-   (except two bounded waits, each once: the one before a second CI look that [driver](driver.md), "Means: when CI lists no check",
+   (except two bounded waits, each once: the one before a second CI look that [driver-trouble](driver-trouble.md), "Means: when CI lists no check",
    names, and the one after a `pending` answer of GitHub's asynchronous merge, a single `sleep` of at
    most 30 seconds then one read, at most once per merge: [foreman](foreman.md), "Merging on GitHub").
    For a Driver and the steering session (the workers keep their cards' ground rules): a
@@ -772,7 +772,7 @@ stack driver's `conflict-resolver` escalates, the stack driver keeps the batch's
    `gh … --repo <owner>/<name>`, `glab … -R <owner>/<name>`. Whoever starts a background task
    stops it by its id, with the host's stop of a background task, once its result is read or no
    longer counts (the board and the Chief of Staff's watcher, `$CHANTIER watch`, keep
-   `session-start-chief-of-staff.md`'s and `chief-of-staff.md`'s start and stop rules: the watcher is started on
+   `session-start-chief-of-staff.md`'s and `chief-of-staff-steering.md`'s start and stop rules: the watcher is started on
    the user's yes, started again after each end, and stops itself (at its end, 2 h after its start with no event, or when the seat is another session's); the board a watcher starts is a detached process, no background task
    of the session: it stops itself when its seat leaves or 30 minutes after its last client, and
    by hand only with the stop command `session-start-chief-of-staff.md` names; only the current-folder rule

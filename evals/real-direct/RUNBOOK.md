@@ -40,7 +40,7 @@ The words "in direct mode" repeat the skill's `direct` argument: the Chief of St
 either one.
 
 The session is new and its own: not a Foreman session. It is the steering session ("Steering a
-batch yourself" in `chief-of-staff.md`): it runs `$CHANTIER preflight --direct`, `open --direct`,
+batch yourself" in `chief-of-staff-direct.md`): it runs `$CHANTIER preflight --direct`, `open --direct`,
 claims its epoch, renames itself `[<code>] 💬 Project · CoS (Batch <nn>)`, starts
 the Drivers itself and arms the heartbeat. It also plays the user in full, as in real-foreman.
 

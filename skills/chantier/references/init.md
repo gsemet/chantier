@@ -88,7 +88,7 @@ getting started here, phrases to say, the glossary.
    surface it does not apply: the planning folder is the surface's, and the tour says where it is.
    The example CR is offered for the inbox. The tour runs every check a user's machine needs:
    preflight's P5 (`uv`, `git`) and P10 (the allow rules), P9 with the forge's rights and branch
-   rules ("Forge permissions" of `chief-of-staff.md`), and the long gate above. For each missing
+   rules ("Forge permissions" of `chief-of-staff-batch-start.md`), and the long gate above. For each missing
    piece it asks and fixes it:
    - **The allow rules:** the Chief of Staff's question and write ([chief-of-staff](chief-of-staff.md),
      "The project"), and the command line of your host's "Allow rules to add" when the host

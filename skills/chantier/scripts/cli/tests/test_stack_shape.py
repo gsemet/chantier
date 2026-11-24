@@ -229,7 +229,8 @@ def card(name: str) -> str:
 def test_the_shipped_cards() -> None:
     manifest = json.loads((REFS / "startup-manifest.json").read_text(encoding="utf-8"))
     assert manifest["actions"]["batch:stack"] == ["foreman-stack.md"]
-    stack, foreman, chief = card("foreman-stack.md"), card("foreman.md"), card("chief-of-staff.md")
+    stack, foreman = card("foreman-stack.md"), card("foreman.md")
+    chief = card("chief-of-staff-merge.md") + " " + card("chief-of-staff-batch-start.md")
     for words in (
         "The five checks of a stack ready to merge",
         "--outside-stack",

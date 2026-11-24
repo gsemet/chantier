@@ -80,7 +80,7 @@ brackets are yours to fill, from the CLI as printed; the icons and their words s
 - **Notes and Cost notes are the only places for extra messages:** short lines in the user's
   language (explanations, warnings, tips on reading the figures). An empty place is left out, not
   written "none". **Notes** holds what a 🟠 or 🔴 CR waits for and who unblocks it, a chain and its
-  reason, a force push run for a Driver, the remaining floor and the delivery time (`chief-of-staff.md`, "The floor"), a slip of an hour or more with its cause, the mergeable partial stack as it stands and, when the time will not hold, the CRs of the partial stack aimed at, the main checkout's line after a merge (below). **Cost notes** holds the CLI's not-priced lines
+  reason, a force push run for a Driver, the remaining floor and the delivery time (`chief-of-staff-batch-start.md`, "The floor"), a slip of an hour or more with its cause, the mergeable partial stack as it stands and, when the time will not hold, the CRs of the partial stack aimed at, the main checkout's line after a merge (below). **Cost notes** holds the CLI's not-priced lines
   (`<model> has no price: add it under prices: in chantier.yaml (exact id: <model>)`, said in the
   user's language with the id kept) and, in the Completion report, the few plain lines of `cost
   --explain`. Nothing but the Tip follows **For you**.
@@ -101,7 +101,7 @@ In a stack batch with a native stack on the forge, every Progress report has one
 
 When a CR merged since the last report carries a `main checkout:` note, your next report has one line in **Notes**: `main checkout: fast-forwarded to <sha7>` (with `; uv.lock changed: sync pending` while the sync waits, then `sync pending: held by <holders>` when holders were named), or `already at <sha7>`, or `main checkout not fast-forwarded: <why>`, the latest one only. The Completion report has it too, by the same skeleton. It is not a **For you** item: nothing waits on the user, but a sync pending more than 3 minutes: then one **For you** item, `sync pending: held by <holders>`, with the offer to stop your own board and watcher when they are the only holders (from the 3-minute report, or from the first report where that holds), until the user answers; after a no, the holders only, plus "a later yes still counts"; or what the user may stop otherwise. That item is one item, its latest state, in each Progress and Completion report while the sync is pending, gone once synced, never a second chat question; outside a batch, the skill's chat line, and its one offer line when the offer could not be in it. A `tracked changes` or `on <branch>` line may leave the user something to do, which they judge.
 
-When you named a trace in the main checkout since the last report (`chief-of-staff.md`, "Reports": `git status --porcelain`, a path outside the planning folder), your next report has one line with the paths, and **For you** asks what to do with them.
+When you named a trace in the main checkout since the last report (`chief-of-staff-steering.md`, "Reports": `git status --porcelain`, a path outside the planning folder), your next report has one line with the paths, and **For you** asks what to do with them.
 
 On the Foreman's `ready-to-merge` that is the last of a stack, when no CR of the batch is working, end
 the Progress report with the offer of a demo of what the stack delivers (in **For you**).

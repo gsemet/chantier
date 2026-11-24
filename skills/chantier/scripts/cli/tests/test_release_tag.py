@@ -139,8 +139,7 @@ def test_tag_recipe_and_release_cards() -> None:
     assert lines[0] == "uv run --script scripts/version.py ff-main"
     assert lines[1] == "uv run --script scripts/version.py check-tag"
     refs = SKILL / "references"
-    driver = " ".join((refs / "driver.md").read_text("utf-8").split())
-    foreman = " ".join((refs / "foreman.md").read_text("utf-8").split())
-    section = driver.split("## Release driver", 1)[1]
+    section = " ".join((refs / "release-driver-merged.md").read_text("utf-8").split())
+    foreman = " ".join((refs / "foreman-release.md").read_text("utf-8").split())
     assert "blocked waits: the steering session runs" in section
     assert "tag done: steering session" in foreman
