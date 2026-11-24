@@ -35,8 +35,9 @@ or slug, no batch number and no path under `.agents/changes/`. The role names (C
 Foreman, Driver) are product vocabulary and may be used. The structure, in order:
 
 1. **Header**, centred:
-   - `<h1 align="center">chantier X.Y</h1>`;
-   - one bold line naming the two or three headline changes, as verbs;
+   - `<h1 align="center">chantier X.Y.Z</h1>`;
+   - one bold line naming the release's kind first, then the two or three headline changes in that
+     kind's words, as the template's title item says;
    - one `<sub>` line: `N changes since X.Y'.Z' · Claude Code and GitHub Copilot · MIT`, where N
      is `git rev-list --no-merges --count vPREVIOUS..HEAD` on the release branch before the version
      commit (the same number once merged by rebase).
@@ -44,19 +45,22 @@ Foreman, Driver) are product vocabulary and may be used. The structure, in order
    tutorial (`blob/vX.Y.Z/docs/tutorial-claude-code.md`) · the use cases
    (`blob/vX.Y.Z/docs/use-cases.md`) · Full changes (`compare/vPREVIOUS...vX.Y.Z`). Then a `---`
    rule.
-3. **Two to four highlight sections**, headed `## <emoji> <what the reader can now do>`, each
+3. **Two to four highlight sections**, headed `## <emoji> <the change, in its kind's words>`, each
    written as the template's [A highlight](../skills/chantier/references/release-template.md#a-highlight)
    says. The writing rules are the template's
    [Writing rules](../skills/chantier/references/release-template.md#writing-rules).
 4. **`## 🛠 Smaller changes`**: the smaller visible changes, one bullet each, with a bold lead.
 5. **Folded sections**: `<details><summary><b>🐞 All fixes</b></summary>`, then
-   `<details><summary><b>🛠 For contributors</b></summary>` (tooling, tests, docs process, known
-   issues). It holds one bullet that starts `**Not exercised by an eval.**`, followed by each
+   `<details><summary><b>🛠 For contributors</b></summary>` (tooling, tests, docs process). It
+   holds one bullet that starts `**Not exercised by an eval.**`, followed by each
    claim of the claims file whose `Result` is not `exercised`, in the reader's words (no CR number
    or slug), each marked "(proved by the scripted scenario)" when its result is `scenario only`;
    when every claim was exercised, the bullet reads `**Not exercised by an eval.** None: every
    change of this release came up in an eval run.` `scripts/release_notes.py --check` refuses
-   notes of 0.9.1 and later without that bullet.
+   notes of 0.9.1 and later without that bullet. A user-facing known issue, a removal and a
+   behaviour change each go on a `Known issue:`, `Removed:` or `Changed:` line in the visible
+   part, as the template's
+   [Bad news](../skills/chantier/references/release-template.md#bad-news) says.
 
 Every `feat:` and `fix:` commit since the previous tag appears exactly once: in a highlight, in
 Smaller changes or in All fixes.
