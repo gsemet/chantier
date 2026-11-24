@@ -7905,8 +7905,9 @@ def base_from_pr(w: World) -> None:
           worktree_line(out).endswith(f"base {w.cr(one)['branch']}; PR on origin/main"), worktree_line(out))
     before = reads()
     _, out = w.chantier("handoff", three)
-    check("a stacked CR with no PR prints today's line and makes no forge read",
-          worktree_line(out).endswith("base origin/main") and reads() == before, worktree_line(out))
+    check("a stacked CR with no PR prints its place's base alone and makes no forge read",
+          worktree_line(out).endswith(f"base {w.cr(two)['branch']}") and reads() == before,
+          worktree_line(out))
     w.gh(pull_read_refused=True)
     _, out = w.chantier("handoff", two)
     shown = f"base ? (not read from {link}: "
@@ -10430,7 +10431,7 @@ def dependencies(w: World) -> None:
     check("`order after` with `-` frees a queued CR; it is logged and printed for the Foreman",
           "after" not in w.cr(y) and out[0].startswith("[chief-of-staff→foreman] order O-1: after")
           and w.batch()["orders"][-1]["kind"] == "after" and len(w.batch()["crs"]) == 2
-          and any("base origin/main" in ln for ln in w.chantier("handoff", y)[1]), str(out))
+          and any(f"base {w.cr(x)['branch']}" in ln for ln in w.chantier("handoff", y)[1]), str(out))
     _, out = w.chantier("order", "after", y, "--note", x)
     check("`order after` replaces the dependencies of a queued CR, with no new number",
           w.cr(y).get("after") == [x] and len(w.batch()["crs"]) == 2
