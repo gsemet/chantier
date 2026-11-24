@@ -170,7 +170,7 @@ from this checkout, with the [prerequisites](#prerequisites) met.
   run: after each merge it records, the steering session fast-forwards it to the sandbox's `main`
   (a clean checkout on `main`, `merge --ff-only --no-overwrite-ignore` only, J26); the operator
   leaves the workspace's tracked files alone, so it does. In parallel mode the operator merges in the order the CRs become
-  ready; in series, in the series' order; in a stack, from the bottom up, as `chief-of-staff.md`
+  ready; in series, in the series' order; in a stack, from the bottom up, as `chief-of-staff-merge.md`
   says for the mode.
 - **A question** (`blocked question:`): the frozen CRs leave none open, so a question is a
   finding. The operator answers `Follow the specification as written; where it is silent, choose
@@ -277,7 +277,7 @@ These steps are for `claude-planted`.
    `uv run --no-project python evals/kit/setup.py <campaign> <workspace>`.
 2. **Be the Chief of Staff** in that workspace: load the chantier skill, run its CLI from the
    workspace (`$CHANTIER` is `uv run --locked --project "<this checkout>" chantier`),
-   and start the batch as `chief-of-staff.md` says (preflight, plan, go), with the `open`
+   and start the batch as `chief-of-staff-batch-start.md` says (preflight, plan, go), with the `open`
    command of the runbook. The Foreman's session starts with the workspace as its folder. The
    operator's shell lacks the workspace's `.claude/settings.local.json`: set its `env` before
    running `$CHANTIER`.

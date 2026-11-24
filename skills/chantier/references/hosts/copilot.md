@@ -82,7 +82,7 @@ already does); while an `/every` still fires, its next wake clears the mark, whi
   is the card's check. P10 does not run on Copilot, and no host rule is recorded. A refusal of a
   force push on Copilot is reported like any refusal (rule 7), and the general rule of
   [concepts](../concepts.md) holds: a CR's branches must be force-pushable at all times. The
-  ladder of [foreman](../foreman.md#a-drivers-refused-force-push), "A Driver's refused force
+  ladder of [foreman](../foreman-refused.md#a-drivers-refused-force-push), "A Driver's refused force
   push", holds. P10 does not run on Copilot and no allow rule is recorded for it, so the Foreman
   skips the route-rule read (step 3) and tries the push, as a Driver already does there. The risk,
   **unproved**: Copilot may stop the Foreman's unwatched session on a prompt instead of refusing
@@ -93,7 +93,7 @@ already does); while an `/every` still fires, its next wake clears the mark, whi
 - The capability table is the cards' commands, the same on both hosts: read it from
   [claude-code](claude-code.md), "Capabilities and their commands"; its rules are Claude Code's.
   The trials run as on Claude Code (the Chief of Staff's own calls, one per used capability), and
-  a refusal is told and recorded with its exact text (`chief-of-staff.md`, "The trials before the
+  a refusal is told and recorded with its exact text (`chief-of-staff-batch-start.md`, "The trials before the
   go"): **unproved** until a Copilot batch runs them. P9's forge probes are the card's and run
   unchanged.
 - The command hygiene of `concepts.md` rule 9 applies on both hosts.
@@ -112,13 +112,12 @@ Chief of Staff names no compacting command (the "Compacting" section holds).
 ## Surfaces and options
 
 Not done yet. How Copilot signals where the user is is not known. Until then the Chief of Staff
-offers every option, each with its condition (the "host says nothing" case of "Offering options",
-`chief-of-staff.md`). With no Remote Control signal known on Copilot, the no-argument mode follows
-P1 and P2 only (`chief-of-staff.md`, "Starting a batch"), unproved.
+offers every option, each with its condition (the "host says nothing" case of "Offering options", `chief-of-staff-steering.md`). With no Remote Control signal known on Copilot, the no-argument mode follows
+P1 and P2 only (`chief-of-staff-batch-start.md`, "Starting a batch"), unproved.
 
 ## Sessions
 
 The Foreman is started by `create_session`. A refused start is reported with its exact text.
 Nothing else is recorded here about Copilot's sessions.
 
-A Driver stopped from outside on Copilot is unproved; the card's rule (`foreman.md`, "A Driver stopped from outside") holds when the host says the Driver was stopped.
+A Driver stopped from outside on Copilot is unproved; the card's rule (`foreman-lost-driver.md`, "A Driver stopped from outside") holds when the host says the Driver was stopped.

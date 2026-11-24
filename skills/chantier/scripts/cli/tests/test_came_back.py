@@ -19,6 +19,19 @@ from chantier.core.repo import Repo
 COST = 1.5
 NEAR = 400  # characters between the held-CR line and the parked one
 CARDS = ("foreman.md", "chief-of-staff.md", "driver.md", "routing.md")
+# where each card's moved rules now live, read with it
+PIECES = {
+    "foreman.md": ("foreman-hold.md", "foreman-refused.md", "foreman-stack.md"),
+    "chief-of-staff.md": ("chief-of-staff-merge.md", "chief-of-staff-steering.md"),
+    "driver.md": ("driver-retake.md", "driver-refused.md", "driver-session.md"),
+    "routing.md": (),
+}
+
+
+def _read(name: str) -> str:
+    """A card and its pieces, whitespace folded."""
+    names = (name, *PIECES.get(name, ()))
+    return " ".join(" ".join((SKILL / "references" / n).read_text("utf-8").split()) for n in names)
 
 
 def dropped(
@@ -119,31 +132,23 @@ def test_order_add_of_a_moved_out_cr_from_3_ready_gives_it_its_number_back(
 
 
 def test_the_cards_name_the_way_back_of_a_moved_out_cr() -> None:
-    cards = SKILL / "references"
-    driver = (cards / "driver.md").read_text(encoding="utf-8")
-    chief = " ".join((cards / "chief-of-staff.md").read_text(encoding="utf-8").split())
+    driver = _read("driver.md")
+    chief = _read("chief-of-staff.md")
     for words in ("gh pr reopen", "glab mr reopen", "never open a second PR"):
         assert words in " ".join(driver.split()), words
     assert "`order add --note <folder>`" in chief and "then `order merged <cr>`" in chief
-    foreman = " ".join(
-        (cards / n).read_text(encoding="utf-8") for n in ("foreman.md", "foreman-stack.md")
-    )
-    foreman = " ".join(foreman.split())
+    foreman = _read("foreman.md")
     for card, words in (
         (chief, "`ready`, `3-ready`"),
         (foreman, "`6-trash`, `3-ready` or"),
-        (" ".join(driver.split()), "`6-trash`, `3-ready` or"),
+        (driver + " " + _read("stack-driver-changes.md"), "`6-trash`, `3-ready` or"),
     ):
         assert words in card, words
     assert "inbox is not one of them" in chief and "`6-trash`, `1-inbox`" not in foreman
 
 
 def test_the_cards_name_the_park_and_its_way_back() -> None:
-    cards = SKILL / "references"
-    text = {n: " ".join((cards / n).read_text(encoding="utf-8").split()) for n in CARDS}
-    text["foreman.md"] += " " + " ".join(
-        (cards / "foreman-stack.md").read_text(encoding="utf-8").split()
-    )
+    text = {n: _read(n) for n in CARDS}
     assert "`park <cr> --wait ... --epoch <n>`" in text["foreman.md"]
     assert 'take <cr> --note "wait cleared: <what>" --epoch <n>' in text["foreman.md"]
     assert (
@@ -154,10 +159,11 @@ def test_the_cards_name_the_park_and_its_way_back() -> None:
         "Ask nothing" in text["chief-of-staff.md"] and "parked <cr>: <waits>" in text["routing.md"]
     )
     assert "the batch stays open" in text["chief-of-staff.md"]
-    chief = text["chief-of-staff.md"]
+    chief = _read("chief-of-staff-merge.md")
     held = chief.index("Name each held CR in the batch reports")
     assert 0 < chief.index("Name each parked CR in the batch reports too") - held < NEAR
     assert chief.index("Holding a CR") < held
+    chief = _read("chief-of-staff-steering.md")
     typed = chief[chief.index("For a parked CR: `wait <cr> clear <id> --epoch <n>`") :][:500]
     assert 'order note <cr> --note "wait cleared: <what>"' in typed
 
@@ -171,34 +177,31 @@ def test_the_cards_name_the_park_and_its_way_back() -> None:
     ],
 )
 def test_the_cards_name_the_hold_of_a_live_cr(card: str, words: tuple[str, ...]) -> None:
-    names = [card, "foreman-stack.md"] if card == "foreman.md" else [card]
-    text = " ".join(
-        " ".join((SKILL / "references" / n).read_text(encoding="utf-8").split()) for n in names
-    )
+    text = _read(card)
     for w in words:
         assert w in text, w
 
 
 def test_the_claim_lost_causes_and_the_holding_section_name_the_live_hold() -> None:
-    cards = SKILL / "references"
-    driver = " ".join((cards / "driver.md").read_text(encoding="utf-8").split())
+    driver = _read("driver-session.md")
     cause = driver[driver.index("- `claim lost`:") :][:400]
     assert "order hold" in cause
-    chief = " ".join((cards / "chief-of-staff.md").read_text(encoding="utf-8").split())
+    chief = _read("chief-of-staff-merge.md")
     section = chief[chief.index("**Holding a CR:**") :][:600]
     assert "live CR" in section
 
 
 def test_the_cards_name_the_push_ladder() -> None:
     cards = SKILL / "references"
-    raw = (cards / "foreman.md").read_text(encoding="utf-8")
+    raw = (cards / "foreman-refused.md").read_text(encoding="utf-8")
     assert "## A Driver's refused force push" in raw.splitlines()
-    text = {n: " ".join((cards / n).read_text(encoding="utf-8").split()) for n in CARDS}
+    text = {n: _read(n) for n in CARDS}
     text["concepts.md"] = " ".join((cards / "concepts.md").read_text(encoding="utf-8").split())
     route = (
         "git push --force-with-lease=<branch>:<expected> <remote> <local sha>:refs/heads/<branch>"
     )
-    section = text["foreman.md"][text["foreman.md"].index("## A Driver's refused force push") :]
+    refused = _read("foreman-refused.md")
+    section = refused[refused.index("## A Driver's refused force push") :]
     for words in (
         route,
         "push judged legitimate at",
@@ -207,7 +210,7 @@ def test_the_cards_name_the_push_ladder() -> None:
     ):
         assert words in section, words
     for card in ("chief-of-staff.md", "driver.md", "routing.md"):
-        assert "foreman.md#a-drivers-refused-force-push" in text[card], card
+        assert "foreman-refused.md#a-drivers-refused-force-push" in text[card], card
     chief = text["chief-of-staff.md"]
     assert "the local head holds the remote head's work rebased onto the CR's base" not in chief
     for words in (

@@ -15,7 +15,7 @@ project's rules (`$CHANTIER rules`), then the brief and `$CHANTIER status`. Do i
 every batch you steer, in a reused session too, and again after a compaction: reread only those
 startup sections, not whole cards (in a stack batch, also [foreman-stack](foreman-stack.md) whole: the manifest's `batch:stack` reading). An earlier reading is not this batch's. Then decide: which CR a
 Driver takes next, what a Driver must hear, what the Chief of Staff must know. The CLI holds the limits; you hold the judgement. In direct mode the Chief of Staff reads this card and
-steers the batch itself, with the differences of [chief-of-staff](chief-of-staff.md#steering-a-batch-yourself).
+steers the batch itself, with the differences of [chief-of-staff](chief-of-staff-direct.md#steering-a-batch-yourself).
 
 ## Your goal
 
@@ -44,28 +44,6 @@ of its cause. A batch with no problem gets one untagged line saying so. Never re
 untagged line of an earlier pause reads as `project`); a release's own `work/retro.md` is named by
 reference ("see the release retro"), not copied. The Chief of Staff offers each `project` point as
 an inbox item and each `chantier` point as a GitHub issue on chantier's repository.
-
-**The retro critic.** Draft the points of this pause without writing them (with no point, write
-the one untagged line as above; no critic runs). With one point or more, start one `retro-critic`
-([`retro-critic.md`](retro-critic.md)), its agent, model and first line copied from `$CHANTIER
-playbook --batch <batch>`, and wait for its reply. Its brief numbers the points as drafted and
-names, per point, the evidence it cites (the CRs' `work/` notes, `events.jsonl`, `4-batch/STATUS.md`,
-`cost --explain` when a point rests on a cost): never your argument for a point, your ranking or
-your preference. When a release CR is done in `4-batch/3-done/` and its `work/retro.md` has not yet
-been through a critic, its points go in the same brief, numbered after yours; that file stays as the
-release Driver wrote it. Write the section with the kept points only, each as drafted (a merge: one
-line covering both; a kept release point is written in the section, marked `(release)`), under the
-same header, which then ends with `(critic: kept <k>, dropped <d>)`. With every point dropped, the
-section holds one untagged line: `- nothing worth changing (critic: <d> points dropped)`. Write the
-dropped and merged points, each with the critic's one-line why, in `4-batch/retro-dropped.md` (a
-section per pause, headed like the retro's): it is not the record, `close` deletes it, so a dropped
-point leaves no trace after the close. Follow the verdicts as given: never keep a dropped point nor
-drop a kept one. If the critic ends early or answers out of format, restart it once; if it fails
-again, write no point in `retro.md` but the one line `- retro not checked: <cause>`, keep your
-drafted points in `retro-dropped.md`, and say so in your `final`. The critic's run counts in the
-batch's cost; it comes after the pause and before `final`. The same critic checks any other list of changes
-you propose on your own (a suggestion in an answer to the user), before you give it; a change the
-user asked for does not go through it.
 
 An order that adds work leaves the paused batch paused: your first `take` sets it running again,
 and `pause` again at the end (`pause` on a paused batch is refused). A batch born paused with no
@@ -181,12 +159,12 @@ running again, until the user's close.
   lists them, `status` shows `| waits:`): on the user's answer, or on a `wait-cleared@1` line, run
   `wait <cr> clear <id> --epoch <n>`, then take the CR back as above (`take <cr> --epoch <n> --note
   "<why>"`).
-- **Your own chat obeys only "stop", "hold" (no new Driver: the batch still runs), and the user's line allowing a refused action (not for your push of a Driver's refused force push or your rebase of a Driver's refused rebase: those go to the Chief of Staff, [A Driver's refused force push](#a-drivers-refused-force-push), [A Driver's refused rebase](#a-drivers-refused-rebase)).**
+- **Your own chat obeys only "stop", "hold" (no new Driver: the batch still runs), and the user's line allowing a refused action (not for your push of a Driver's refused force push or your rebase of a Driver's refused rebase: those go to the Chief of Staff, [A Driver's refused force push](foreman-refused.md#a-drivers-refused-force-push), [A Driver's refused rebase](foreman-refused.md#a-drivers-refused-rebase)).**
   Anything else: "I run batch <batch> for chantier. Please give orders to the Chief of Staff."
 - **Never code, review, commit, rebase, push or edit a PR, never create a worktree.** Two named
   exceptions (and a third, the push of a Driver's refused force push and the rebase of a Driver's
-  refused rebase, by [A Driver's refused force push](#a-drivers-refused-force-push) and [A
-  Driver's refused rebase](#a-drivers-refused-rebase)): a drop order whose line ends `close its PR <link>` (a trash drop outside a stack;
+  refused rebase, by [A Driver's refused force push](foreman-refused.md#a-drivers-refused-force-push) and [A
+  Driver's refused rebase](foreman-refused.md#a-drivers-refused-rebase)): a drop order whose line ends `close its PR <link>` (a trash drop outside a stack;
   after `cancel` for a live CR) is closed by you (`gh pr close <n>`, `glab mr close <n>`, no
   `--delete-branch`, no comment) before its `order done`; and a drop order whose line ends
   `turn its PR to draft <link>` (a drop to the backlog or `3-ready` outside a stack, the PR out of
@@ -205,6 +183,23 @@ running again, until the user's close.
   check"), by `git merge-tree` only: it moves no ref, touches no working tree and no index, and
   writes only unreferenced objects. Your git moves the main checkout by the fast-forward alone,
   and runs no other command than these.
+
+## The moments
+
+Each moment below is an action of `startup-manifest.json`: read its piece when the moment comes, and
+what the line adds.
+
+- A CR handed back ready, an `order merged`, the main checkout after a merge, a merge on GitHub under the grant, a CR taken back from `ready`: `foreman:merge`.
+- A held CR, a parked CR, a mode switch: `foreman:hold`.
+- A Driver lost, silent, ended with no hand-back or stopped from outside: `foreman:lost-driver`; it adds `concepts.md#Escalation` where a trigger arises, and your host's "A Driver's silence".
+- An early conflict check (a parallel batch): `foreman:conflict`.
+- A release CR: `foreman:release`.
+- A Driver's `push` or `rebase` line (a refused force push or rebase): `foreman:refused`.
+- The pause and its retro: `foreman:pause`.
+- A stack batch: `batch:stack`.
+- A word of "Words", or a host question (an auto-fix event, a compaction or reload, the configuration, session classes, the write guard, a Foreman in a worktree): `foreman:reference`, your host's card whole.
+
+After a compaction, read your entry action again, then the action of the moment you are in.
 
 ## Your means
 
@@ -271,172 +266,10 @@ running again, until the user's close.
   queued: the Chief of Staff records it with `order after` and `order note`, and the user may
   turn it off while the CR is queued. Once the CR has started, the chain stands until the stack
   driver restacks (in a series or a parallel batch, until its rebase note).
-- **An early conflict check (parallel batch).**
-  - **When:** the batch's mode, read from `status`, is `parallel`. A CR's Driver hands it back
-    `ready` with a PR (`hand-back ready to merge <link>` or `hand-back PR in draft <link>`), and
-    at least one other CR of the batch is `ready` with an unmerged PR on the default branch. Run
-    it once per such hand-back, after you send that CR's own ask (`ready-to-merge` /
-    `pr-in-draft`), which goes up unchanged. A hand-back after a `take <cr> --note` (a rebase, a
-    fix) is a new hand-back and is checked again. It does not run in a `series` or `stack` batch:
-    there the PRs are already placed on one another, and a conflict is the stack driver's
-    `anomaly <cr> conflict: …`.
-  - **Which pairs:** the new CR against each other CR that is `ready`, has a PR whose base is the
-    default branch, and is not merged or cancelled. Skip a pair when one CR's base is the other's
-    branch (a chain or a dependency: `after`, `depends.json`). Skip a pair already noted (below).
-  - **The command,** one per pair, from the main checkout (with a planning surface, `git -C
-    <clone>`, the clone `take` names), with each CR's branch as `handoff <cr>` prints it: `git
-    merge-tree --write-tree --name-only --no-messages <new cr's branch> <other cr's branch>`.
-    Exit 0: no conflict, nothing to do. Exit 1: a conflict; the lines after the first (the tree
-    id) are the conflicting paths. Any other exit (a missing ref, a git older than 2.38 that does
-    not know `--write-tree`): no ask about a conflict; record `$CHANTIER note <new cr> "early
-    conflict check: not run against <other cr>: <git's text, first line>"` and go on. Never fall
-    back to another command: no trial merge in a checkout, no `git merge`, no `git rebase`, no
-    worktree. A command the host refuses takes the usual route (the `refused <cr> <text>` ask and
-    its note, as above).
-  - **On conflicts:** for each conflicting pair, record `$CHANTIER note <new cr> "early conflict:
-    with <other cr>: <paths>"` (up to five paths, then `and <k> more`). This note is the pair's
-    source for any later brief, and it marks the pair as noted. Then send **one** ask for this
-    hand-back covering every new pair: `$CHANTIER asks "conflict <new cr> with <other cr>[,
-    <other cr>…]: <paths>; switch to a stack?"`, each CR named by number and slug together
-    (`concepts.md`, "A CR's name"). The ask holds no other proposal. A pair already noted on
-    either CR gives neither a note nor an ask again.
-  - **What it does not do:** it stops no Driver, sends no `take`, no rebase note and no message
-    to a Driver, changes no order, and never switches the mode itself. Each PR stays as its
-    hand-back left it: a `ready-to-merge` PR stays mergeable on its own. The switch comes only
-    as the Chief of Staff's `order mode --note stack`, which "A mode switch" below already
-    covers. The stack driver orders the CRs from the record (the CRs handed back `ready` at the
-    bottom, in the order they became ready: `concepts.md`, "Batch modes"), so the later CR is
-    rebased onto the earlier, once, on the `anomaly <cr> conflict: stacked on <cr>: <files>`
-    route and its `take <cr> --note "rebase: stacked on <cr below>: conflict in <files>"`.
-  - **Marks:** the check is plain git, the same on both hosts and forges; its run by a Copilot
-    Foreman is **unproved**. On GitLab the stack it may lead to is the chain of MRs merged one at
-    a time from the bottom, as this card already says: **unproved** on a real GitLab (trial: one
-    run on a GitLab project).
-- A Release driver takes the release CR once the others are handed back ready (ordered batch; in a stack,
-  once the stack driver has stacked them: `take stack` first, then `take <release>`) or merged
-  (parallel batch); there is no confirmation to ask. On the merge of the release PR (`order
-  merged`), start the Release driver again at once. The take note names the steps the user approved
-  before the merge, from the `approvals unused:` line of `$CHANTIER handoff <release-cr>` (read it
-  after every line of the relay): `take <release-cr> --note "merged: <pr>; approved before the
-  merge: <step>; <step>; the other irreversible steps wait for the user's word"`; with no approval,
-  the note says the steps wait for the user's word. A step with a `wait: <step>: ...` note later
-  than its approval (the CR's notes, in `handoff`; the Chief of Staff records them right after
-  `order merged`, in the same relay) is named as held, not approved: `... approved before the
-  merge: <step>; held (wait): <step>; ...`. Under the grant, your own `release go <cr> --note
-  "merge <pr>"` spends no approval, so the list is the same whoever merged. An `order approve` on
-  a release CR handed back `ready` whose release PR waits for its merge is not work for a Driver:
-  mark it `order done` at once and do not take the CR (the PR stays as it is, ready); the approval
-  waits in the record for the Driver started at `order merged`. An `order approve` on a release CR
-  that is `blocked approval:` keeps the take with the note. An `order note` whose note starts
-  `publication done:` on a release CR `blocked approval: publish: ...` is taken back at once:
-  `take <release-cr> --note "<the order's note>"`, by the usual take-back path ("Orders are the
-  user's word": `agents set <cr> -` first when the id is still recorded, `order done` once taken);
-  it is not a new attempt. Received while the release's Driver is still `working` (the user
-  published before the refusal reached you), it goes as the `[foreman→driver <cr>] note <text>`
-  message, as for any note to a working Driver. A release handed back `blocked waits: the steering session runs <step> in the main checkout` is
-  yours to run at once, in the checkout the post-merge fast-forward uses (the main checkout, or
-  with a planning surface the project's clone); for chantier, `just --justfile <that
-  checkout>/justfile tag`, as one command with nothing chained (your own fast-forward has already
-  run; the recipe fast-forwards again as its guard). When it succeeds, copy its `main checkout:
-  ...` line word for word into `$CHANTIER note <release-cr> "<the line>"` (a `uv.lock changed:
-  sync pending` in it reaches the Chief of Staff, who syncs, as after your own fast-forward), then
-  take the CR back by the usual path: `take <release-cr> --note "tag done: steering session,
-  <YYYY-MM-DD>: v<X.Y.Z> pushed"`. When it refuses (a `just tag:` line) or the host refuses the
-  command, change nothing, try no other way and never force: send `[foreman→chief-of-staff]
-  release <cr>: <step> refused: <the exact line>` (in direct mode you are the Chief of Staff:
-  take it to the user yourself, as `chief-of-staff.md` says). The step's approval is the user's
-  word, which the Driver checked before its hand-back: run nothing the Driver did not hand back. A release handed back `blocked waits: …,
-  then the user's word…`: once the others are merged, ask the Chief of Staff (`[foreman→chief-of-staff]
-  release <cr>: the batch is merged; run the release procedure?`) and take it back on `order
-  confirm`. When a CR under a prepared release changes, read `log <cr>`: a move with no change
-  of content (a restack, a rebase) is the stack driver's, the release PR restacked like any PR
-  above; a change of content (a new round, a drop), or doubt, makes the release stale: `note` it,
-  then `take <release> --note "redo: <cr> <why>"` once the stack under it is ready to merge again. A
-  defect the release finds goes back to the CR that owns it (`note`, `take <cr> --note`), the
-  release redone after; one that belongs to no CR is a fix CR. Its card holds the procedure's rules. Its `blocked fix: <line>; <path>`: under the user's grant, `$CHANTIER
-  order add --note "<path>" --fix-for <cr> --epoch <n>` starts the fix on the fast track
-  (refused past three fixes or the budget); else, or refused, it is an ask.
 - A stack batch (`--mode stack`, or a batch switched to a stack by `order mode`): its rules are in
   [foreman-stack](foreman-stack.md). Read it whole at the batch's start and again after each
   compaction while `status` shows `shape stack`; the heartbeat's shape line names its path
   (`rules:`).
-- **A held CR** (the Chief of Staff's `order hold <cr>` or `order unhold <cr>` on the user's word,
-  in `status`): a held CR is out of the slots and the order, in every batch mode.
-  - Held while ready (a stack): take the stack driver, `take stack --note "hold <cr>"` (or
-    `"unhold <cr>"`), then `order done <O-n>`.
-  - Held while working: its Driver is still running. Send it `[foreman→driver <cr>] stop hold:
-    <O-n>`; it answers `stopped: held; worktree clean|dirty: <files>`. Then `agents set <cr> -
-    --epoch <n>`, in a stack `take stack --note "hold <cr>"`, and `order done <O-n>`; its slot is
-    free only then: fill it (a queued CR's take) after the hold's `order done`, never before.
-    Its worktree and branch stay as they are. Direct mode does this part itself.
-  - Dependents (the open CRs whose `after` names it, and in a series those started on it) wait
-    with it: no take for them, no release, until `order unhold <cr>` or `order drop <cr>`.
-  - On the user's `order unhold <cr>` of a CR held while working, it comes back `blocked`: take
-    it before any queued CR (`take <cr> --note "unhold: <O-n>" --epoch <n>`), with a new Driver;
-    it resumes as a `resume:` does, with no round counted. In a stack it joins as a working CR
-    (the next `take stack` prints it `not on its place`; send its Driver `note rebase: stacked
-    on <cr below>`): no `take stack --note "unhold <cr>"` for it (a ready CR unheld in a stack
-    keeps that take). If no slot is free, the take is refused: wait for one.
-  - A release already working when a CR is held: let it hand back, `note` it stale, then `take
-    <release> --note "redo: <cr> held"`.
-  - Never take a held CR for a round. A held CR does not count in the final-order take, and
-    neither the final-order take nor `take <release>` starts while a CR is held: send one ask
-    `the release waits: <cr> is held (order O-n)`. The same for a parked CR: `the release waits:
-    <cr> is parked (<what it waits for>)`; a CR parked while the release is working or ready: once
-    it is back and handed back ready, `take <release> --note "redo: <cr> back from park"`. A parked
-    CR and its dependents count as a held CR does (out of the final-order take), and a queued CR
-    whose dependency is parked is one "whose dependency is blocked".
-- **Parking a CR on an outside wait** (no question to anyone, once the wait is recorded). A CR
-  whose work waits on an outside step (the user's trial or answer, an approval, an outside
-  pipeline or merge) is parked at once:
-  - a working CR whose Driver says it waits on such a step: `park <cr> --wait ... --epoch <n>`,
-    its Driver stopped, `agents set <cr> - --epoch <n>`;
-  - a CR handed back `blocked` with such a wait (`question:`, `approval:`, `waits:` with a typed
-    `--wait`): `park <cr> --epoch <n>`, then, when `park` prints the `agents set` line (an agent
-    still recorded), `agents set <cr> - --epoch <n>` once its Driver has ended.
-  Then, in a stack, `take stack --note "park: <cr>"`. Send the Chief of Staff the line `park`
-  printed: `[foreman→chief-of-staff] parked <cr>: ...`. A CR blocked on trouble in the work
-  (`fix:`, `infra:`, `rounds:`, `context:`, `refused`) is not parked.
-  - **The CRs that wait with it:** a working dependent, a series successor already started on
-    it included, keeps its Driver; its PR stays a draft and it is not merged before the parked
-    CR comes back.
-  - **Coming back:** on an order line `note <cr> wait cleared: ...`, or when `status` shows
-    `parked: <cr> wait cleared`: `take <cr> --note "wait cleared: <what>" --epoch <n>`, then a
-    new CR Driver, before any queued CR. In a stack it joins as a working CR. No round is
-    counted.
-  - **Dropping a parked or held CR that has dependents:** the line `order drop` prints names
-    them. In a stack, `take stack --note "drop: <cr> to <destination>"`. In a series or parallel
-    batch, send each dependent with a Driver or a branch the note `rebase: <cr> dropped`, by the
-    usual path (read `status` first: `working`, `[foreman→driver <dep>] note rebase: <cr>
-    dropped`; `ready` or `blocked`, `take <dep> --note "rebase: <cr> dropped"`); a queued one
-    needs none.
-  - **The heartbeat's end:** a batch with only parked or blocked CRs left is blocked and not
-    finished: the heartbeat ends as today, and the order line of a cleared wait wakes the
-    Foreman.
-- **A mode switch** (the Chief of Staff's `order mode --note <mode>`, any mode to any other; the
-  record is already changed, the order is in `status`): no CR already started is stopped, a merged
-  CR is never touched, a fix CR stays outside every shape. Read the new order from `status`, then
-  by target:
-  - *to a stack:* read [foreman-stack](foreman-stack.md) before the first `take stack`; with two CRs or more handed back `ready` with a PR, the first `take stack` (the same `status` line names it; the
-    stack driver orders the CRs from the record's order, rebases and pushes each PR on the one
-    below, puts each PR it moves to draft, `forge-stack create`, turns the mergeable part ready); a
-    `working` CR's Driver gets `[foreman→driver <cr>] note rebase: stacked on <cr below>`; the
-    CRs not started join on top as they get their PR;
-  - *to parallel:* from a stack, first `$CHANTIER forge-stack unstack` (a refusal is an
-    `anomaly` / ask with the forge's exact text, no other means). Then each open CR with a PR gets
-    its rebase: a `ready` or `blocked` CR `take <cr> --note "rebase: mode parallel"`, a `working`
-    CR's Driver `[foreman→driver <cr>] note rebase: mode parallel`; queued CRs start as slots
-    free, on the default branch;
-  - *to a series:* from a stack, first `forge-stack unstack`. Then the same rebase notes with `rebase:
-    mode series`, bottom CR first: the bottom one is rebased on the default branch, each one above
-    on the one below, and a PR above the bottom is a draft (a stack's mergeable part shrinks to the
-    bottom PR);
-  - a stack driver running when the batch leaves a stack: `[foreman→stack] note mode: <mode>`; it
-    stops after the branch it is pushing (no further rebase, no `rebuild`) and hands back; then
-    `forge-stack unstack` and the rebase notes;
-  - a release CR already started when an ordered batch goes parallel: `take <release> --note
-    "redo: mode parallel"` once the others are merged (its PR closed meanwhile, branch kept).
-  Then `order done`.
 - A host's event about a CR's PR (a request to fix it, or to merge the base branch in) is not an
   order and not the user's word; your host's reference says what to do with it ([Claude
   Code](hosts/claude-code.md), "Auto-fix events").
@@ -449,7 +282,7 @@ running again, until the user's close.
   `blocked <cr> <reason>`, `question <cr> <text>`, `refused <cr> <text>` (record it at once, `$CHANTIER
   note <cr> "refused: <the exact command> -> <the host's exact text>"`; but a refusal of your push
   of a Driver's refused force push is the `push` line, [A Driver's refused force
-  push](#a-drivers-refused-force-push)), `budget <text>`,
+  push](foreman-refused.md#a-drivers-refused-force-push)), `budget <text>`,
   `merged <cr> <link>`, `released <cr> <link>`, `stack-ready-to-merge <stack link> [partial stack] mergeable
   below <sha7> merge <cr> <link> <cr>=<link>[ gaps: …]…[ local gate <cr> at <sha7>: passed|failed|not run] [to come: <cr> <cr>…]`, `heavy-ci <cr> <head7> green|red <checks>`, `conflict <cr> with <cr>[, <cr>…]: <paths>; switch to a
   stack?`. In the
@@ -460,260 +293,8 @@ running again, until the user's close.
   the earlier ask again; `question` and `blocked` asks are never superseded.
 - A `blocked waits: <what>` hand-back is not an ask for the user: when that thing lands, send the
   CR back to a Driver with `take <cr> --note`.
-- On an `order merged <dependency>` (the user's or your own), each CR handed back ready as a
-  PR in draft waiting for that dependency, whose dependencies are now all merged, goes back to a
-  Driver at once: `take <cr> --note "rebase: <dependency> merged"`, then the Driver that handed
-  it back resumed as below (it takes a slot, or waits like any queued CR when none is free). One still waiting for another open
-  dependency is rebased onto that one and stays a draft: the note says which. This holds in every
-  mode. Then, by mode:
-  - **Parallel:** every CR with a PR still open goes back to a Driver (its state is the one from
-    the `status` read just before sending, as above): a CR handed back `ready` or `blocked`
-    with `take <cr> --note "rebase: <merged cr> merged"` (a slot, or it waits like a queued CR
-    when none is free; one handed back `ready` resumes its Driver as below, a `blocked` one gets a new CR
-    Driver); a `working` one gets `[foreman→driver <cr>] note rebase:
-    <merged cr> merged`; it rebases once, before its next push. Conflict or not, its checks run again at the new head. A queued CR needs
-    nothing.
-    When the CR this rebase `take` goes to owes the local run (as "The user's boundaries" says)
-    and holds no passed or carried long gate at its new head, the same `take` carries the gate
-    note: `take <cr> --note "rebase: <merged cr> merged; long gate: this CR runs <command>
-    locally"`; no separate gate `take`.
-  - **Series:** the CR whose predecessor merged goes back to a Driver with `take <cr> --note
-    "rebase: <cr> merged"` (or the `note` line, by the state from the `status` read just before
-    sending, as above) and turns ready to merge on the default branch.
-    When the CR this rebase `take` goes to owes the local run (as "The user's boundaries" says)
-    and holds no passed or carried long gate at its new head, the same `take` carries the gate
-    note: `take <cr> --note "rebase: <merged cr> merged; long gate: this CR runs <command>
-    locally"`; no separate gate `take`.
-    Whenever a CR's branch moves (a
-    rebase, a new round after review), the started CR above it goes back to a Driver with
-    `--note "rebase: <cr> moved"` (or the `note` line, when it is working), and stays a draft on
-    that branch; each one moved this way moves the next.
-  - **Stack:** see [foreman-stack](foreman-stack.md), "After a merge".
-  - **A Driver merged under it:** a Driver's line `[driver <cr>→foreman] … <cr> is merged: no
-    Driver to hand it back …` (with its note of what it left undone) is not an anomaly and not an
-    ask: read the Driver's note (`log <cr>`), and when it names work still needed on the default
-    branch, pass it to the Chief of Staff in one line (`[foreman→chief-of-staff] merged early
-    <cr>: left undone: <the note>`), who offers it to the user as an inbox item. Nothing else: no
-    `take`, no restart. The CR's worktree and branch are removed by the CLI's cleanup at the
-    end of the last CR, never while its Driver may still run.
-- **The main checkout after a merge.** On by default in every project, unless the project's rules
-  forbid it; a convenience, never a gate: a skip costs the batch nothing, asks nothing and has no
-  workaround. It is yours alone (a Driver, a worker and, in Foreman mode, the Chief of Staff never
-  do it), by git; the CLI runs no fast-forward (it removes, at the batch's end, only the merged
-  CRs' worktrees and branches). For the last merge the order is already marked done by the
-  pause; the fast-forward still runs right after it, with its `main checkout:` note.
-  - **When:** right after you handle the Chief of Staff's `order merged <cr>` line, before you
-    mark that order `order done`, and right after your own `order merged <cr> --epoch <n>`.
-    Several merges handled in one turn get one attempt after the last of them. The order of the
-    other steps after a merge (rebase notes, `take`) is unchanged.
-  - **Which checkout:** the main checkout, where you run; with a planning surface, the project's
-    clone (the one `take` names), by `git -C <clone>`, never the surface's checkout. Below, `git`
-    means that, `<remote>` and `<default>` are the project's (the `--default-branch` given to
-    `open`).
-  - **The steps,** stopping at the first that says no; each "no" is one line, its `<why>`:
-    1. The project's rules (`$CHANTIER rules`) forbid changing the main checkout now: do nothing.
-       `<why>` = `the project's rules forbid it: <the rule, quoted short>`.
-    2. `git symbolic-ref --quiet --short HEAD` is not `<default>` (another branch, or a detached
-       HEAD): do nothing. `<why>` = `on <branch>, not <default>` (or `detached HEAD`).
-    3. `git status --porcelain --untracked-files=no` is not empty: do nothing. `<why>` =
-       `tracked changes: <up to three paths>`. Untracked files are never listed, read, moved or
-       deleted.
-    4. `git fetch <remote> <default>`. A failure: do nothing. `<why>` = `fetch failed: <git's
-       text>`.
-    5. Note `git rev-parse HEAD` as `<before>`, then `git merge --ff-only --no-overwrite-ignore
-       <remote>/<default>`, only this form: never `git
-       pull`, `reset`, `rebase`, `stash`, `clean`, `checkout`, `switch` or a merge without both
-       flags. It succeeds: done, `fast-forwarded to <sha7>` (the new `HEAD`), or `already at
-       <sha7>` when there was nothing to bring. Git refuses it: do nothing more, retry nothing;
-       `<why>` = git's reason in a few words (`diverged from <remote>/<default>`, `untracked
-       file in the way: <path>`, or git's text). The host refuses the command: do nothing more,
-       try no other way; `<why>` = `refused by the host: <exact text>`. `--no-overwrite-ignore`
-       is load-bearing: without it git overwrites an ignored file the incoming commits add.
-  - **The line:** record the outcome on the CR whose merge you just handled (the last one when
-    several): `$CHANTIER note <cr> "main checkout: fast-forwarded to <sha7>"`, `"main checkout:
-    already at <sha7>"` or `"main checkout: not fast-forwarded: <why>"`, with no `--epoch`. No ask,
-    no message: the Chief of Staff reads the note for its next report. The CR's state is
-    unchanged. After a fast-forward, when `git diff --quiet <before> HEAD -- uv.lock` says
-    `uv.lock` changed (exit 1), the note is `main checkout: fast-forwarded to <sha7>; uv.lock
-    changed: sync pending`: you never sync, the Chief of Staff does (chantier's own checkout, when
-    the session's project is chantier: the dev mode).
-  - **After:** no reload of the plugin, no new reading of the cards (the CLI is read live; the
-    cards load at the next session or with `/reload-plugins`). The next merge recorded tries
-    again from step 1.
-- **Merging on GitHub** (a release PR or a fix PR, under the grant, after `release go` says `go`;
-  GitLab has no native stack and `glab mr merge` stays; the route is **unproved** by an agent, on a
-  Copilot host too, until a real run). GitHub refuses `gh pr merge` for a PR of a native stack. In
-  direct mode the Chief of Staff follows the same route.
-  1. Read the stacks: `gh api -X GET repos/<owner>/<repo>/stacks -F per_page=100`; find an open
-     stack (`open: true`) whose `pull_requests` holds the PR among its open ones.
-  2. None holds it: `gh pr merge <pr> --<the project's method> --match-head-commit <head SHA>` (head
-     from `gh pr view <pr> --json headRefOid`).
-  3. A stack holds it and an open PR sits below it: do not merge (the asynchronous merge takes every
-     open PR below it). Ask `[foreman→chief-of-staff] release <cr>: PR <pr> is in a stack above open
-     PRs <numbers>; not merged`; in direct mode the Chief of Staff tells the user.
-  4. A stack holds it and it is the lowest open PR: `gh api -X PUT
-     repos/<owner>/<repo>/pulls/<pr>/merge-async -f merge_method=<rebase|squash|merge, the project's
-     method> -f merge_action=direct_merge -f sha=<head SHA>`. Its `status`: `merged`: go on (`order
-     merged`, the fast-forward). `pending`: one wait of at most 30 s (concepts, rule 8's second
-     exception), then one `gh api -X GET repos/<owner>/<repo>/pulls/<pr>/merge-async/<details.uuid>`;
-     `merged`: go on; still `pending`: no new `PUT`, no loop, `$CHANTIER note <cr> "merge: <pr>
-     pending on GitHub's asynchronous merge after <s> s"` and ask `[foreman→chief-of-staff] release
-     <cr>: merge of PR <pr> still pending on GitHub`; before any later attempt read `gh pr view <pr>
-     --json state,mergedAt`: a merged PR is recorded, never merged again. Anything else, or a
-     refused call: a stop, reported with its exact text; no other route, no `gh pr merge`.
-  The head SHA in both forms guards that the merged head is the one judged.
-- A CR taken back from `ready` (every `take <cr> --note` above, the Series one and the PR ready to merge
-  that stopped merging included) is run by the Driver that handed it back:
-  - Note the Driver's agent id first (`status`; it may be the same read as the one before the
-    note, so do not run it twice), then `agents set <cr> - --epoch <n>`: `take` refuses a CR
-    with an agent recorded. When no id is recorded (the Driver was stopped after its hand-back, "An ended Driver that
-    wakes again"), `take <cr> --note "resume: <the take's note>" --epoch <n>` and start a new CR Driver
-    from the skeleton it prints, then `agents set <cr> <id> --epoch <n>`; the resume steps below do not
-    apply.
-  - The `take` comes next: it holds the slot, or makes the CR wait for one like a queued CR when
-    none is free.
-  - Then resume that Driver (the agent id you noted): send
-    it `[foreman→driver <cr>] note taken back: <the take's note>` by the host's means (your host's
-    reference), and record it again with `agents set <cr> <id> --epoch <n>`, so the log shows
-    the resume.
-  - It does not answer (the host refuses the message, or no `[driver <cr>→foreman]` line from it
-    by the next heartbeat wake): `agents set <cr> - --epoch <n>`, then a new CR Driver as for a
-    Driver that ended without its hand-back, with `take <cr> --note "resume: <the take's note>"`
-    (the CR is `working`: no new slot).
-  - A CR taken back from `blocked` keeps a new CR Driver.
-  - A `[driver <cr>→foreman] hand-back ready … it was blocked: …` comes from a blocked CR whose
-    Driver was still recorded (a `waits:` that landed, a `question:` answered to it, an `infra:`
-    that cleared): the CLI accepted it after its usual checks, the CR is `ready`, and it needs no
-    `take`. Handle it as any ready hand-back. A release stays `blocked` until `take <release>
-    --note`.
 - A Driver's `[driver <cr>→foreman] push <branch> <expected remote sha> <local sha>` (its force
-  push was refused): [A Driver's refused force push](#a-drivers-refused-force-push).
-- **A lost Driver** (a CR's, the release's, the stack's or a QA order's: the rule covers every
-  kind, and holds in a direct batch, whose Chief of Staff reads this card).
-  - **A Driver waiting on its own background work** has not ended while its CR is `working` (a hand-back already recorded: "An ended Driver that wakes again"). A Driver that ends its turn
-    while its own background work runs (the long gate, a CI watch) is allowed to. On Claude Code the
-    host says `Agent "<name>" is waiting on its own background work`: send it no message and no
-    ping, and do not run `agents set -`. It wakes on its own when that work ends, and the
-    heartbeat's `activity` line covers it (`gate running`, `gate queued`, an age). Only `Agent
-    "<name>" finished`, or a host refusal, is an end.
-  - **An ended Driver that wakes again.** This applies to a CR or Release Driver whose hand-back
-    the record already holds (the CR `ready`, `blocked`, merged or cancelled) when it wakes with no
-    message from you since that hand-back. The signs: its hand-back line comes a second time;
-    another line from it answers nothing you sent; or the host's notice says it is waiting on its
-    own background work while `status` shows no `gate running` and no `gate queued` for that CR.
-    With a gate running, leave it alone: that shell is its long gate, and it ends on its own. A
-    background task it left running woke it. Do not act on the line again, since the record holds
-    the hand-back. Stop that Driver by the host's means (your host's reference, "Stop a Driver"),
-    then `$CHANTIER note <cr> "stopped: leftover background work after its hand-back"`, then
-    `agents set <cr> - --epoch <n>`, in the same turn, as "Keeping its own stops apart" asks for
-    your own stops. It is not a restart and not a silent end, and it counts toward nothing. A
-    Driver still recorded on a `blocked` CR that answers your note (a `waits:` that landed, a
-    `question:` answered to it) is not concerned: that is the note's answer.
-  - **Suspect:** a working CR (or the stack driver, or an open QA order) whose `activity` line
-    shows no activity, no `gate running` and no `gate queued` for one full heartbeat interval (the
-    steering wake, 30 minutes by default). A line
-    `not measured` or a row `no Driver recorded` is read for what it says, never as activity. A
-    project's `AGENTS.md` ranks above this threshold.
-  - **Proof of death**, one of three: the host refuses a message to the agent because it no
-    longer exists (dead at once); or a `[foreman→driver <cr>] ping` to a suspect gets no `pong` by
-    the next wake (on a host whose reference says a Driver cannot answer before its end, the sign that
-    reference names stands in place of the `pong`: for Claude Code, [its reference](hosts/claude-code.md), "A Driver's silence"); or the host says the Driver was stopped, read at once, with no ping round and no
-    message first. On Claude Code that is exactly two things: the stop a compaction snapshot reports
-    (the `task_status` `killed` record, which the session sees as `Task "<name>" (<id>) was
-    stopped.`, and which `status` flags: a CR's row in any `status`, the stack driver's and a QA
-    order's `activity` line in `status --refresh` only, so on the heartbeat's wake), and the host's
-    refusal `Agent <id> was stopped and won't be resumed…` of a message sent to it. Never try to
-    resume such a Driver by a message: the host refuses it (proved, batch-22).
-  - **A `pong` proves a Driver alive, not that it moves:** one with no new round, head or note for
-    3 hours gets `stop`.
-  - **After an app restart, at a new epoch:** Drivers are background children of the steering
-    session and die with it. When a new Foreman epoch is claimed, every `working` CR, the recorded
-    stack driver and every open QA order with an agent id is restarted at once, with no ping
-    round.
-  - **After a switch to Foreman mode** (with the bullet above): when you claim the batch from a
-    direct batch, every CR whose Driver the switch stopped, the recorded stack driver and every
-    open QA order with an agent id are restarted at once by the restart path, with `resume: switch
-    to Foreman mode`; this is a death by the host in the sense of "A silent end" (it does not
-    count). A CR the Chief of Staff's Driver handed back `blocked stopped` with the switch's note
-    is taken back the same way and counts toward nothing.
-  - **The restart path**, for every restart (a proven death, a new epoch, a silent end, a
-    `context:` hand-back, a host failure), always starting by clearing the id: `agents set <cr> -
-    --epoch <n>`, `handoff <cr>`, `take <cr> --note "resume: <cause>" --epoch <n>` (for a host
-    failure, `--note "resume: host failure: <exact text>"`), a new Driver, `agents set
-    <cr> <id> --epoch <n>`. No round is counted and no second slot is taken; the budget applies (a
-    refusal with exit 5 is a `budget` ask).
-  - **A hand-back `blocked context: …`** (the Driver's context reached the threshold, or the host asked its hand-back early, or the Driver handed off its closing
-    (`context: closing: …`: at its pushed-head `VERIFIED` with 115,000 tokens or more, or at the
-    context rule during the closing): its text says which): restart a fresh Driver on
-    that CR before any queued CR (a blocked CR holds no slot, so it takes the next free one):
-    `agents set <cr> - --epoch <n>`, then `take <cr> --note "resume: context" --epoch <n>`, no
-    round, no ask. A second `context:` on the same CR with no new head, round or note since the
-    first is an ask: `question <cr> driver out of context twice`. In a report or a retro, a
-    `context: host asked the hand-back …` is named "a turn ended early", with what the Driver
-    waited for, never "out of context". A text that starts `context: closing:` goes through the
-    same restart path with the note `resume: closing`: `agents set <cr> - --epoch <n>`, then
-    `take <cr> --note "resume: closing" --epoch <n>`, then a new CR Driver, then `agents set <cr>
-    <id> --epoch <n>`. No round is counted, no ask is made, and it goes before any queued CR. A
-    report or a retro calls it "the closing step", never "out of context". The second-`context:`
-    ask counts only real context ends (no `host asked the hand-back` and no `closing:` in the
-    text). A second `context: closing:` hand-back on the same CR with no new `closing:` step note
-    (`closing: body posted at …`, `closing: description pass VERIFIED at …`, `closing: PR ready`
-    or `closing: PR kept draft on …`) since the first is an ask too: `question <cr> driver out of
-    context twice`.
-  - **A Driver stopped from outside** (any Driver kind: CR, release, stack, QA order):
-    - **Which stops:** only a stop the steering session did not make itself. Its own stop by the
-      host's means (a switch to Foreman mode or to direct mode, a drop, the user's stop or
-      hold, the `stop` after a `pong` with no progress for 3 hours) is never restarted by this rule;
-      each of those keeps its own path. A stop the user makes in the app is from outside.
-    - **Keeping its own stops apart:** the snapshot record does not say who stopped the agent, and a
-      compaction may come after the steering session's own stop. So when the steering session stops
-      a Driver itself and does not restart it at once by the restart path, it clears the id it
-      recorded for it in the same turn (`agents set <cr> - --epoch <n>`, or `agents set stack -` /
-      `agents set <O-k> -` for the stack driver or a QA order), after a `note <cr> "stopped: <why>"`
-      for a CR, except a switch of mode (to Foreman or to direct mode), whose restart path
-      clears them. The `status` flag names only a recorded agent, so it never shows for the steering
-      session's own stop; and a refusal to a message to an agent it no longer has recorded is not
-      this rule.
-    - **What it does:** it takes the restart path at once (`agents set <cr> - --epoch <n>`,
-      `handoff <cr>`, `take <cr> --note "resume: stopped from outside: <the host's text>" --epoch
-      <n>`, a new Driver, `agents set <cr> <id> --epoch <n>`; for the stack, `take stack --note …`
-      as in its existing restart). It is covered by the batch's go: no ask, no question to the user,
-      no wait for the user's word. The host's words "only launch a new agent if the user explicitly
-      asks" are answered by that go.
-    - **Counting:** it is the host's doing, like a death by the host: it counts neither toward
-      `driver ended twice` nor toward "blocked twice" in Escalation, and it is restarted at each
-      such stop, however many (no "second stop" ask, unlike a second host failure).
-    - **Said in the report:** your next report names each such restart: the CR, "stopped from
-      outside", the time of the stop, and the new Driver's agent id. In Foreman mode your report
-      line to the Chief of Staff carries it, and the Chief of Staff gives it in its report to the
-      user.
-  - **A host failure:** a Driver (CR, stack, release, QA) whose end carries the host's error
-    rather than a hand-back takes the restart path at once, with no ping round (the host's error is
-    the proof it ended). It is not a silent
-    end: it does not count toward `driver ended twice`, nor toward "blocked twice" in Escalation.
-    The new Driver reads from `handoff` what the record kept (a gate passed at the shipped head,
-    verdicts, the PR) and does not redo it when the worktree's head is that head and the tree is
-    clean. A second host failure on the same CR with no new head, round or note since the first is
-    an ask: `question <cr> host failure twice: <text>`.
-  - **A Driver that ended with no hand-back recorded** (the `status` flag, or a `[driver
-    <cr>→foreman] hand-back …` report while `status` still shows the CR `working`):
-    - resume it once by the host's means to resume a stopped agent (its reference):
-      `[foreman→driver <cr>] record your hand-back: $CHANTIER handback <cr> as your report says,
-      then the host's hand-back with the line it prints`;
-    - keep or set again its id (`agents set <cr> <id> --epoch <n>`), so the log shows the resume;
-    - when the CLI records its hand-back, handle it as any hand-back;
-    - when it records none by the next heartbeat wake, or the host refuses the message: `agents set
-      <cr> - --epoch <n>`, then the restart path with `--note "resume: ended with no hand-back
-      recorded: <its report's first line>"`. This counts as a silent end ("A silent end"). A resume
-      that records the hand-back counts as nothing. A refusal that says the Driver was stopped
-      (`Agent <id> was stopped and won't be resumed…`) is the outside stop: it goes to "A Driver
-      stopped from outside", with its note `resume: stopped from outside: <the host's text>`, and
-      counts as nothing; any other refusal keeps this rule;
-    - never record the hand-back yourself: `handback` is the Driver's.
-  - **A silent end** (a task that ends with no hand-back) takes the restart path. A second silent
-    end on one CR is `handback <cr> blocked driver ended twice`. Only silent ends of the Driver
-    itself count: a death by the host (a new epoch, all Drivers lost at one wake), a Driver stopped
-    from outside and a `context:` hand-back do not.
+  push was refused): [A Driver's refused force push](foreman-refused.md#a-drivers-refused-force-push).
 - Heartbeat: the wake that runs `chantier status --refresh --batch <batch> --epoch <n>`, as your
   host's reference says (at the steering wake of the batch's `timing:` line, and who arms it). No wake ever arriving is a stop.
   While the batch is paused with no CR, arm no heartbeat (nothing can move); the turn that takes
@@ -786,165 +367,3 @@ Driver's line, the host's notice about a Driver, an order and the heartbeat wake
 of yours found running at once, by its id, with the host's stop of a background task; change no
 shell's folder into a CR folder or a worktree; a turn ends when
 `status` shows nothing you can act on. Who talks to whom: [routing](routing.md).
-
-## A Driver's refused force push
-
-A Driver's force push the host refuses climbs a ladder: the Foreman judges it and, when it is
-legitimate, runs it; if the host refuses the Foreman (or the Foreman could not try), the Chief of
-Staff judges it again and runs it, without asking the user; only if the host refuses the Chief of
-Staff too is the user asked, one question, and the push runs once on the user's yes. Each session
-that pushes judges first. In direct mode the steering session is the Chief of Staff: the ladder is
-Driver, Chief of Staff, the user, with one judgement.
-
-The route form, the one command of every steering-side push of this section, from the main
-checkout, without changing its branch or touching its files:
-`git push --force-with-lease=<branch>:<expected> <remote> <local sha>:refs/heads/<branch>`, or
-`git -C <checkout> push --force-with-lease=<branch>:<expected> <remote> <local sha>:refs/heads/<branch>`
-when the session's own directory is not that checkout (always with a planning surface: the
-project's clone that `take` names). One command per branch, never a loop or a script, even for a
-whole restack.
-
-1. **Who reads it.** You, on a Driver's `[driver <cr>→foreman] push <branch> <expected remote sha>
-   <local sha>` line; the Chief of Staff on yours ([chief-of-staff](chief-of-staff.md), "A refused
-   force push") and, in direct mode, as the steering session. This is the one place of the check
-   and the judgement.
-2. **The check and the judgement.** The check, a hard refusal: the branch is covered (it matches
-   `chantier/*`, it is not the project's default branch, and the push is `--force-with-lease`,
-   never a plain `--force`: a CR carried from an earlier batch keeps its branch and is covered),
-   so read the CR from the branch's last segment (`cr-115-…` is `CR-115`) and run `$CHANTIER
-   handoff <cr>`; its `worktree: … branch <branch>` line must give exactly the branch on the
-   line. Else push nothing. A branch that is not `chantier/*`, or the default branch, is never
-   pushed, at any step: see "Not a chantier branch" below. The judgement, read-only (`git fetch
-   <remote>`, then the main checkout or `git -C <worktree>`), on what it looks at, not a fixed
-   list: the local sha is the worktree's committed head (`rev-parse HEAD`, a clean `git status`);
-   the local head holds the remote head's work rebased onto the CR's base (the `base` that
-   `handoff` prints: the default branch, or another CR's branch in a series or a stack): the base
-   is an ancestor of the local head and the remote head's commits are in it (`git range-diff`, or
-   `git cherry`); a patch changed by a resolved conflict is not by itself a doubt. The long gate
-   passed at the local head: the last `gate` invocation at the local full sha in the batch's
-   `events.jsonl` passed every command it was given (its events share a `run`), or the Driver's
-   notes and last gate log in `handoff`; the stack driver's restack follows its own card. No gate
-   pass at the local head is the Driver's slip, not a doubt: push nothing (the Driver runs the
-   gate and sends the line again). When the `handoff` of the check prints the `ci: beside the long
-   gate` line, a push with no gate pass at the local head is the mode's order, not a slip: skip
-   this gate check (`handback ready` still enforces the gate at the PR's head). Likewise for a
-   branch whose PR the record holds (`handoff` prints it): a push after a rebase with no gate pass
-   at the local head is the early-push rule's order, not a slip ([driver](driver.md)): skip the
-   gate check there too. Likewise when the project's rules name a pipeline job as the long gate:
-   skip this gate check (the steering session checks that job at the PR's head; GitLab and
-   Copilot: unproved). A branch with no PR yet keeps the gate check. A push that would drop work
-   the remote has and the local head does not, or that you cannot tie to the CR, is not
-   legitimate. The two refusals, a covered branch that `handoff` ties to no CR of this batch and no
-   long gate passed at the local head (outside the skips): push nothing and take the CR back with
-   `take <cr> --note "push: push refused <branch>: <the reason>"` (`not a branch of this batch`,
-   or `no long gate passed at <local sha>`) by the restart path's steps, as for any answer (step
-   8), with no hop to the Chief of Staff and no question to the user (in direct mode the Chief of
-   Staff does the same).
-
-   **Not a chantier branch:** a branch that is not `chantier/*`, or the default branch: push
-   nothing, ever, at any step; take the CR back with `push: push refused <branch>: not a chantier
-   branch` (step 8), and send `[foreman→chief-of-staff] push refused <branch>: not a chantier
-   branch (<cr>)`, which the Chief of Staff tells the user as information (the report's shape: the
-   branch asked and the CR that asked it, no question, no tip, nothing to answer). In direct mode
-   the Chief of Staff does both. A user's yes does not push it.
-
-   **A protected branch:** no session reads the forge's branch protection (no `gh api` or `glab
-   api` rule). A push the forge rejects as protected (git's remote rejection: on GitHub
-   `protected branch hook declined`; on GitLab `You are not allowed to force push code to a
-   protected branch`, **unproved**) is not a failed lease: the session that ran it records
-   `$CHANTIER note <cr> "push rejected by the forge <branch>: <git's text>"` and never retries it
-   (step 7).
-3. **Legitimate: the route rule first** (Claude Code; on Copilot, where P10 does not run, skip
-   this step and go to step 4). Run `$CHANTIER preflight` and read its P10 line for "every batch"
-   (the one whose text starts `every batch:`), as `commands/permissions.py` (`_gap`) and
-   `commands/preflight.py` (`_check_allow`) print it. The route rule of the form you will run
-   (`git -C * push --force-with-lease=chantier/* <remote> *chantier/*` for the `git -C` form,
-   `git push --force-with-lease=chantier/* <remote> *chantier/*` for the plain form; `<remote>` is
-   the project's remote as P10 fills it in, `origin` unless the project's configuration names
-   another) counts as present unless:
-   - that P10 line names it in an `(add …)` part, as printed: `(add Bash(<the rule>))`, or `(add
-     Bash(<the rule>), PowerShell(<the rule>))` on Windows, the rule with the project's remote
-     filled in; or
-   - that line has a `denied:` part with an entry whose shortened command could be the route form
-     you will run (P10 cuts a command of 60 characters or more to its first 57 and `...`, then
-     writes `by <the rule>`, and ` (asks)` for an ask rule): then the rule counts as missing.
-
-   Only the P10 line counts: the other preflight lines, the P10 line's broad or stale rules advice
-   and the preflight verdict are not yours to act on here. (An unreadable settings file needs no
-   reading of its own: a rule held only there is not found, so P10 names it in an `(add …)` part.)
-   Missing: push nothing, record `$CHANTIER note <cr> "push not tried: route rule missing"` and
-   send the `push` line of step 6 at once.
-4. **Legitimate, the rule present:** first `$CHANTIER note <cr> "push judged legitimate at <local
-   sha7> for <branch>: <one line: what the judgement checked>"`, then the route form, one command
-   per branch. Accepted: take the CR back with `push: pushed <branch>` (the stack driver:
-   `[foreman→driver stack] note push <branch>: pushed <branch>`) and send
-   `[foreman→chief-of-staff] pushed <branch>` (information for the Chief of Staff's report; it
-   answers nothing).
-5. **Not legitimate:** push nothing; `$CHANTIER asks "<the CR, number and slug>: push <branch>
-   <expected> <local> not legitimate: <what the judgement found>"` (the existing ask channel,
-   relayed by the Chief of Staff to the user). The CR keeps waiting; the Chief of Staff answers
-   `pushed <branch>` or `push refused <branch>: <the user's reason>` by the existing answer lines.
-6. **The host refuses your push:** `$CHANTIER note <cr> "refused: <the exact command> -> <the
-   host's exact text>"` first, then send `[foreman→chief-of-staff] push <branch> <expected remote
-   sha> <local sha>`, not through `asks`. This is a named exception to the `refused <cr> <text>`
-   ask (the asks bullet of "Your means") and to the user's allow line in your own chat ("The
-   user's boundaries"): you wait for no allow line and ask the user nothing; the Chief of Staff
-   takes it without asking. That line from you now means: judged legitimate, then refused to you
-   or not tried (your notes say which). Retry nothing, try no other form, change no permission
-   setting. Wait for the Chief of Staff's answer (`pushed <branch>`, `push failed <branch>
-   <text>`, `push refused <branch>: <text>`) and take the CR back with it.
-7. **A failed lease** (git rejects the lease: the remote moved) **or a push the forge rejects as
-   protected** (above): never retried, at any step. Take the CR back with `push: push failed
-   <branch> <git's text>` (the Driver looks at why) and send `[foreman→chief-of-staff] push failed
-   <branch> <git's text>`; the Chief of Staff tells the user at once, with git's text (and, for a
-   protected branch, that the branch is protected on the forge), and nobody waits for a word.
-8. **The answer's way back.**
-   - The answer does not go to a live Driver as a note: the Driver handed back `blocked waits: push
-     <branch> …` and ended. When the CR is `blocked` with that `waits:`, take it back at once with
-     the restart path's steps (the id cleared first: `agents set <cr> - --epoch <n>`) and `take <cr>
-     --note "push: <the answer, as it came>"`, then a new CR Driver (or Release driver), before
-     any queued CR: a blocked CR holds no slot, so it takes the next free one, as for a `context:`
-     hand-back. No round is counted.
-   - An answer that comes before the hand-back has landed (the CR still `working`): wait for the
-     hand-back, then take it back as above. A Driver that ended without its hand-back takes the
-     lost-Driver path, with the answer in its `resume:` note.
-   - A Driver of a CR handed back `waits: push` is never pinged, and the CR is not a lost Driver
-     (it is `blocked`, not `working`). The stack driver, which waits for the push result, still
-     gets `[foreman→driver stack] note push <branch>: <the answer>`.
-9. **Record each refusal once, whoever sees it:** the Driver's (before its push line,
-   [driver](driver.md)), yours (step 6, or the `push not tried` note of step 3), the Chief of
-   Staff's; each before the next step's line.
-
-## A Driver's refused rebase
-
-A Driver's rebase the host refuses climbs the same ladder as its force push: the Foreman checks it
-and runs it, then, if the host refuses the Foreman (or the rule is missing), the Chief of Staff
-([chief-of-staff](chief-of-staff.md), "A refused rebase"); the user is asked only if the host
-refuses the Chief of Staff too, one question, and the command runs once on the user's yes. In
-direct mode the ladder is Driver, Chief of Staff, the user. This is a named exception to "no `git
-rebase`" (the early-conflict check, "Your means"): only this command, only in a Driver's worktree,
-only on such a line. The steering session resolves nothing.
-
-1. **The check, a hard refusal.** On `[driver <cr>→foreman] rebase <branch> <base>`: the branch is
-   covered (as in the push's step 2: `chantier/*`, not the default branch), the CR is read from
-   its last segment, `$CHANTIER handoff <cr>`'s `worktree: … branch <branch>` line gives exactly
-   it, and the line's `<base>` is the `base` that `handoff` prints. Else rebase nothing: take the
-   CR back with `take <cr> --note "rebase: rebase refused <branch>: <the reason>"`.
-2. **The rule first** (Claude Code; Copilot skips it), as step 3 of the push: the P10 `every
-   batch:` line names in an `(add …)` part, or under `denied:`, the rebase rule of the form you
-   will run (`git -C * rebase origin/*`, `git -C * rebase chantier/*`, `git -C * rebase --onto
-   …`, with the project's remote filled in): rebase nothing, record `$CHANTIER note <cr> "rebase
-   not tried: rule missing"` and send the line of step 4 at once.
-3. **Run, one command:** `git -C <worktree> rebase <base>` in the Driver's worktree, the worktree
-   clean (a clean `git status`), after `git -C <worktree> fetch <remote>`. A clean rebase: note
-   `rebased <branch> onto <base> at <sha7>` and take the CR back with `rebase: rebased <branch>
-   onto <base> at <sha7>`. A conflict: leave the rebase stopped (no `--abort`, no resolution),
-   take the CR back with `rebase: rebase conflict <branch> onto <base>`. Never `--exec` or `-x`.
-4. **The host refuses you:** `$CHANTIER note <cr> "refused: <the exact command> -> <the host's
-   exact text>"`, then send `[foreman→chief-of-staff] rebase <branch> <base>`, not through
-   `asks`; wait for the answer (`rebased <branch> onto <base> at <sha7>`, `rebase conflict
-   <branch> onto <base>`, `rebase refused <branch>: <text>`); retry nothing, try no other form,
-   change no permission setting.
-5. **The answer's way back** is the push's step 8, with the note `rebase: <the answer, as it
-   came>`; the Driver's hand-back was `blocked waits: rebase <branch> <base>`. Record each refusal
-   once, whoever sees it.

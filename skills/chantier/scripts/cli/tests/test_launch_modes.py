@@ -223,7 +223,7 @@ def test_the_cards_and_hosts_state_the_exception_the_row_and_the_for_you_item() 
         assert "--seat <this session's id>" in row and "board already running" in row, host
         assert host != "copilot" or row.endswith("untested |")
     assert "the one exception is your own board and watcher, on the user's yes" in _flat(
-        refs / "chief-of-staff.md"
+        refs / "chief-of-staff-steering.md"
     )
     layout = _flat(refs / "status-layout.md")
     paragraph = next(p for p in layout.split("When a CR merged since") if "nothing waits on" in p)
@@ -240,7 +240,7 @@ def test_the_cards_and_hosts_state_the_exception_the_row_and_the_for_you_item() 
     ("name", "sentence"),
     [
         (
-            "chief-of-staff.md",
+            "chief-of-staff-steering.md",
             "A `board runs another build` or `board runs a build of chantier <v> older than this "
             "notice` line (on `status`, the start line or `serve`): say it once to the user as "
             "printed; never stop or restart the board.",

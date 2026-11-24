@@ -8,13 +8,14 @@ from test_startup_manifest import _lf_bytes, _section_span
 
 SKILL_MD = PLUGIN_ROOT / "skills" / "chief-of-staff" / "SKILL.md"
 CARD = SKILL / "references" / "chief-of-staff.md"
+START = SKILL / "references" / "chief-of-staff-batch-start.md"
 SENTENCE = "run the printed command as is: no flag added"
 
 # (file, heading, the texts that section must hold)
 CARRIES = [
     (SKILL_MD, "## Startup core", ["`watch: not running`", SENTENCE]),
     (SKILL_MD, "# chantier: Chief of Staff", ["but its Startup core"]),
-    (CARD, "## Starting a batch", ["5. **Start the watcher.**", SENTENCE]),
+    (START, "## Starting a batch", ["5. **Start the watcher.**", SENTENCE]),
     (CARD, "## Entry points", ["\n| a `watch: not running` line", SENTENCE]),
     (CARD, "## Entry points", ["still running: …"]),
 ]

@@ -2,9 +2,9 @@
 
 `$CHANTIER` is the CLI, prepared only as your skill or prompt says. Write `$CHANTIER` out in
 full, as given, in each shell call, never in a shell variable. If it cannot run (the launch
-fails: uv or uvx cannot set it up or start it, or the CLI crashes on start), in either mode, at
+fails: uv or uvx cannot set it up or start it, or it crashes on start), in either mode, at
 any call, report the exact error and stop: no work as the role, no seat, nothing written in the
-planning folder, never "without it". Do not upgrade, reinstall, repair, relaunch another way or
+planning folder. Do not upgrade, reinstall, repair, relaunch another way or
 choose another source or tool; retry once only on a transient network error. A steering session
 tells the user; a started agent ends its turn with the error as text. A CLI refusal, a
 command's own error exit and a host's permission denial keep their handling. The CLI is never a
@@ -29,5 +29,4 @@ action only.
 
 No shell call changes its folder (`cd`, `Set-Location`, `pushd`, alone or chained before a
 command) into a CR folder (any stage), whatever your role: name the target with absolute paths.
-On Windows a process whose current folder is inside a folder keeps that folder from being moved
-(WinError 32), so the CR's next move fails.
+On Windows a folder that holds a process's current folder cannot be moved (WinError 32), so the CR's next move fails.
