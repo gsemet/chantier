@@ -100,6 +100,9 @@ function world(on: On, cwd = ROOT) {
   let gitStdout = `${ROOT}/.git\n`
   let gitExit = 0
   let gitDeny: string | null = null
+  // Per folder (the `cwd` of the call): the common dir a `rev-parse` answers, and the answer of `remote get-url origin`.
+  const commons = new Map<string, string>()
+  const origins = new Map<string, { stdout: string; exitCode: number }>()
   let sessionId = 'sess-1'
   let idDeny: string | null = null
   let isOpen = false
@@ -114,7 +117,14 @@ function world(on: On, cwd = ROOT) {
   on('process.run', (_, e) => {
     calls.run.push({ argv: e.argv, cwd: n(String(e.init?.cwd)) })
     if (gitDeny !== null) return { deny: gitDeny }
-    return { value: { exitCode: gitExit, stdout: gitStdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+    const at = n(String(e.init?.cwd))
+    const reply = (stdout: string, exitCode: number) => ({ value: { exitCode, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
+    if (e.argv[1] === 'remote') {
+      const o = origins.get(at)
+      return o ? reply(o.stdout, o.exitCode) : reply('', 2)
+    }
+    const common = commons.get(at)
+    return common !== undefined ? reply(common, 0) : reply(gitStdout, gitExit)
   })
   on('fs.stat', (_, e) => {
     calls.stat.push(n(e.path))
@@ -161,6 +171,12 @@ function world(on: On, cwd = ROOT) {
     git: (stdout: string, exitCode = 0) => {
       gitStdout = stdout
       gitExit = exitCode
+    },
+    common: (cwd: string, stdout: string) => {
+      commons.set(n(cwd), stdout)
+    },
+    origin: (cwd: string, stdout: string, exitCode = 0) => {
+      origins.set(n(cwd), { stdout, exitCode })
     },
     refuseGit: (reason: string) => {
       gitDeny = reason
@@ -1618,5 +1634,193 @@ test('an index of the older shape (no merged, counts or services) draws as it di
   expect(text).not.toContain('CRs:')
   expect(await ui.find({ key: 'fold-services' })).toBeUndefined()
   expect(await ui.find({ key: REST })).toBeDefined()
+  await ui.unmount()
+})
+
+// ---- a project that plans in a surface: the pointer in its AGENTS.md, the surface found beside or above it ----
+
+const POINTER_URL = 'https://github.com/o/surface'
+const agentsMd = (eol = '\n') => ['# Studio', '', `- planning: ${POINTER_URL}, projects/studio`, '- another: rule'].join(eol) + eol
+const STUDIO = '/work/studio'
+const SURFACE = '/work/surface'
+const STUDIO_CR = `${SURFACE}/projects/studio/changes/4-batch/2-actives/01-first`
+const STUDIO_REST = 'studio|batch-4-batch-rest-table'
+const upOf = (p: string) => p.slice(0, p.lastIndexOf('/'))
+
+/** A surface checkout at `at`: `studio` (1 live) and `other` (4 live), its origin and its git folder. */
+function surfaceAt(w: ReturnType<typeof world>, at: string, origin = 'git@github.com:o/surface.git', over = {}) {
+  w.dirs.set(n(at), ['projects'])
+  w.dirs.set(n(`${at}/projects`), ['studio', 'other'])
+  for (const name of ['studio', 'other']) {
+    w.dirs.set(n(`${at}/projects/${name}`), ['changes'])
+    w.dirs.set(n(`${at}/projects/${name}/changes`), [])
+  }
+  w.put(`${at}/projects/studio/changes/STATUS.json`, index(over))
+  w.put(`${at}/projects/other/changes/STATUS.json`, index({ active_crs: 4 }))
+  w.origin(at, origin + '\n')
+  w.common(at, `${at}/.git\n`)
+}
+
+/** The Studio's checkout (cwd `at`): its AGENTS.md, a leftover `.agents/changes/` and the folders beside it; the surface is not made here. */
+function studio(w: ReturnType<typeof world>, at = STUDIO, eol = '\n', beside = ['studio', 'surface', 'unrelated']) {
+  w.git(`${at}/.git\n`)
+  w.put(`${at}/AGENTS.md`, agentsMd(eol))
+  w.dirs.set(n(`${at}/.agents/changes`), [])
+  w.dirs.set(n(at), ['.agents'])
+  w.dirs.set(n(upOf(at)), beside)
+  for (const d of beside) if (!w.dirs.has(n(`${upOf(at)}/${d}`))) w.dirs.set(n(`${upOf(at)}/${d}`), [])
+}
+
+for (const origin of ['git@github.com:o/surface.git', 'https://github.com/o/surface.git', 'ssh://git@GitHub.com/o/surface']) {
+  test(`a project with a planning pointer reads its project from the surface beside it (origin ${origin})`, async ($, on) => {
+    mock.clock(on)
+    const w = world(on, STUDIO)
+    studio(w)
+    surfaceAt(w, SURFACE, origin)
+    w.put(`${STUDIO_CR}/STATUS.json`, sheet())
+
+    await skill($)
+    const ui = await board($)
+    const text = await words(ui)
+    expect(text).toContain('1 live')
+    expect(text).not.toContain('4 live')
+    expect(text).toContain('studio')
+    expect(text).not.toContain('No seat names')
+    expect(w.calls.stat).not.toContain(`${STUDIO}/.agents/changes/STATUS.json`)
+    expect(w.calls.stat.filter(x => x.endsWith('seat.json'))).toEqual([])
+    expect(w.calls.read.filter(x => x.endsWith('seat.json'))).toEqual([])
+    const links = (await ui.findAll({ type: 'Markdown' })).map((m: any) => m.props.text).join('\n')
+    expect(links).toContain(STUDIO_CR)
+    await ui.press({ key: STUDIO_REST, link: { href: `file://${STUDIO_CR}` } })
+    expect(await words(ui)).toContain('| Step | Done | Verdict |')
+    await ui.unmount()
+  })
+}
+
+test('a pointer hides the own folder even when it holds a status', async ($, on) => {
+  mock.clock(on)
+  const w = world(on, STUDIO)
+  studio(w)
+  surfaceAt(w, SURFACE)
+  w.put(`${STUDIO}/.agents/changes/STATUS.json`, index({ active_crs: 7 }))
+
+  await skill($)
+  const ui = await board($)
+  const text = await words(ui)
+  expect(text).toContain('1 live')
+  expect(text).not.toContain('7 live')
+  expect(w.calls.stat).not.toContain(`${STUDIO}/.agents/changes/STATUS.json`)
+  await ui.unmount()
+})
+
+test('a clone nested in the surface finds the surface among its ancestors', async ($, on) => {
+  mock.clock(on)
+  const nested = `${SURFACE}/repos/studio`
+  const w = world(on, nested)
+  studio(w, nested, '\n', ['studio'])
+  surfaceAt(w, SURFACE)
+
+  await skill($)
+  const ui = await board($)
+  const text = await words(ui)
+  expect(text).toContain('studio')
+  expect(text).toContain('1 live')
+  expect(text).not.toContain('4 live')
+  await ui.unmount()
+})
+
+const NO_SURFACE = `This project plans in the surface at ${POINTER_URL} (projects/studio); no checkout of it was found above or beside ${STUDIO}: `
+
+for (const [what, beside] of [
+  ['a sibling holding the project but another origin', true],
+  ['no candidate at all', false],
+] as const) {
+  test(`with ${what} the pane says so in one line, draws no board, and a press finds the surface once cloned`, async ($, on) => {
+    mock.clock(on)
+    const w = world(on, STUDIO)
+    studio(w)
+    w.put(`${STUDIO}/.agents/changes/STATUS.json`, index({ active_crs: 7 }))
+    if (beside) surfaceAt(w, SURFACE, 'https://github.com/o/elsewhere')
+
+    await skill($)
+    const ui = await board($)
+    const text = await words(ui)
+    expect(text).toContain(NO_SURFACE)
+    expect(text).toContain('clone it beside the project, or start the session in the surface.')
+    expect(text).toContain('Refresh')
+    expect(text).not.toContain('live')
+    expect(w.calls.stat).not.toContain(`${STUDIO}/.agents/changes/STATUS.json`)
+
+    surfaceAt(w, SURFACE)
+    await ui.press(REFRESH)
+    const shown = await words(ui)
+    expect(shown).toContain('1 live')
+    expect(shown).not.toContain(NO_SURFACE)
+    await ui.unmount()
+  })
+}
+
+test('two checkouts of the surface are named, and none is picked', async ($, on) => {
+  mock.clock(on)
+  const w = world(on, STUDIO)
+  studio(w, STUDIO, '\n', ['studio', 'surface', 'surface-copy'])
+  surfaceAt(w, SURFACE)
+  surfaceAt(w, `${SURFACE}-copy`)
+
+  await skill($)
+  const ui = await board($)
+  const text = await words(ui)
+  expect(text).toContain(`Several checkouts of the surface at ${POINTER_URL} hold projects/studio: ${SURFACE}, ${SURFACE}-copy.`)
+  expect(text).not.toContain('live')
+  expect(text).toContain('Refresh')
+  await ui.unmount()
+})
+
+for (const [what, agents] of [
+  ['an AGENTS.md with no planning line', '# Rules\n- planning: https://example.com/x\n- planning rule: none\n'],
+  ['no AGENTS.md', null],
+] as const) {
+  test(`with ${what} the project's own folder is read, and no origin is asked`, async ($, on) => {
+    mock.clock(on)
+    const w = world(on)
+    w.put(INDEX, index())
+    if (agents !== null) w.put(`${ROOT}/AGENTS.md`, agents)
+
+    await skill($)
+    const ui = await board($)
+    expect(await words(ui)).toContain('1 live')
+    expect(w.calls.stat).toContain(INDEX)
+    expect(w.calls.run.filter(c => c.argv[1] === 'remote')).toEqual([])
+    await ui.unmount()
+  })
+}
+
+test("the surface's board keys are read from the surface's git folder", async ($, on) => {
+  mock.clock(on)
+  const w = world(on, STUDIO)
+  studio(w)
+  surfaceAt(w, SURFACE, 'git@github.com:o/surface.git', { services: services() })
+  w.put(`${SURFACE}/.git/chantier/server.json`, { key: KEY, read_key: READ_KEY, server: { pid: 1 } })
+
+  await skill($)
+  const ui = await board($)
+  await ui.press({ key: 'fold-studio|services' })
+  expect(await links(ui)).toContain(`http://192.168.1.5:8765/?k=${KEY}`)
+  expect(w.calls.run).toContainEqual({ argv: ['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'], cwd: SURFACE })
+  await ui.unmount()
+})
+
+test('a Windows drive path and a CRLF pointer line find the same board', async ($, on) => {
+  mock.clock(on)
+  const w = world(on, 'C:/work/studio')
+  studio(w, 'C:/work/studio', '\r\n')
+  surfaceAt(w, 'C:/work/surface')
+
+  await skill($)
+  const ui = await board($)
+  const text = await words(ui)
+  expect(text).toContain('studio')
+  expect(text).toContain('1 live')
+  expect(text).not.toContain('4 live')
   await ui.unmount()
 })
