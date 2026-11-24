@@ -13,7 +13,7 @@ the startup sections of [concepts](concepts.md) and your host's reference
 ([Claude Code](hosts/claude-code.md) or [Copilot](hosts/copilot.md)); defer the remaining sections. Read the
 project's rules (`$CHANTIER rules`), then the brief and `$CHANTIER status`. Do it at the start of
 every batch you steer, in a reused session too, and again after a compaction: reread only those
-startup sections, not whole cards (in a stack batch, also [foreman-stack](foreman-stack.md) whole: the manifest's `batch:stack` reading). An earlier reading is not this batch's. Then decide: which CR a
+startup sections and your `batch` action, not whole cards (in a stack batch, also [foreman-stack](foreman-stack.md) whole: the manifest's `batch:stack` reading). An earlier reading is not this batch's. Then decide: which CR a
 Driver takes next, what a Driver must hear, what the Chief of Staff must know. The CLI holds the limits; you hold the judgement. In direct mode the Chief of Staff reads this card and
 steers the batch itself, with the differences of [chief-of-staff](chief-of-staff-direct.md#steering-a-batch-yourself).
 
@@ -122,9 +122,9 @@ running again, until the user's close.
   except under the grant, once every other CR is merged or cancelled and its base is the default
   branch, after `$CHANTIER release go <cr> --note "merge <pr>"` says `go`; an approval never
   covers it. You merge a fix only under the grant (else it is an ordinary CR handed back), with the
-  forge's CLI by the project's method (on GitHub, by the route of "Merging on GitHub", Your means),
+  forge's CLI by the project's method (on GitHub, by the route of "Merging on GitHub", `foreman:merge`),
   then `$CHANTIER order merged <cr> --epoch <n>`, then the
-  fast-forward (Your means).
+  fast-forward (`foreman:merge`).
 - **The batch's limits are the CLI's:** `take` is refused past the slots or the budget, `round`
   past the limit or the budget; a refusal is a fact, not an argument. The batch keeps the slots it opened with, whatever the board's Configuration page now says: only an `order slots` the Chief of Staff sends changes them. A spent budget, a round limit, a
   question, an approval, an infrastructure failure: the Chief of Staff hears it as an ask, once.
@@ -150,11 +150,11 @@ running again, until the user's close.
   plain `$CHANTIER status` (no `--refresh`, no `--epoch`: it is a check before an action, not a
   wake, and records no heartbeat), and choose the path from the state it shows now, never from
   the one read at your last wake: `ready` or `blocked`, no message, `take <cr> --note "<the
-  note>"` and the take-back path below; `working`, the `[foreman→driver <cr>] note <text>`
+  note>"` and the take-back list of `foreman:merge`; `working`, the `[foreman→driver <cr>] note <text>`
   message. A hand-back that lands between that read and the message is caught by the Driver, who
   passes the note back: then take the CR back as for a CR handed back `ready`. A `blocked` CR
   whose Driver is still recorded may be handed back `ready` by that Driver with no `take` (a
-  `hand-back ready … it was blocked: …` line, see the take-back list below).
+  `hand-back ready … it was blocked: …` line, see the take-back list of `foreman:merge`).
   A `blocked` CR whose hand-back line ends `; waits: w1 approval` has typed waits (`$CHANTIER wait <cr>`
   lists them, `status` shows `| waits:`): on the user's answer, or on a `wait-cleared@1` line, run
   `wait <cr> clear <id> --epoch <n>`, then take the CR back as above (`take <cr> --epoch <n> --note
@@ -179,8 +179,7 @@ running again, until the user's close.
   next batch (`3-ready`) stay, and are not offered for removal.
   Your git in the main checkout has a second duty: the fast-forward after each merge you handle
   (with a planning surface, `git -C <clone>`), by the bullet "The main checkout after a merge"
-  in Your means. A third duty is the early conflict check (Your means, "An early conflict
-  check"), by `git merge-tree` only: it moves no ref, touches no working tree and no index, and
+  of `foreman:merge`. A third duty is the early conflict check (`foreman:conflict`), by `git merge-tree` only: it moves no ref, touches no working tree and no index, and
   writes only unreferenced objects. Your git moves the main checkout by the fast-forward alone,
   and runs no other command than these.
 
@@ -189,17 +188,18 @@ running again, until the user's close.
 Each moment below is an action of `startup-manifest.json`: read its piece when the moment comes, and
 what the line adds.
 
-- A CR handed back ready, an `order merged`, the main checkout after a merge, a merge on GitHub under the grant, a CR taken back from `ready`: `foreman:merge`.
-- A held CR, a parked CR, a mode switch: `foreman:hold`.
-- A Driver lost, silent, ended with no hand-back or stopped from outside: `foreman:lost-driver`; it adds `concepts.md#Escalation` where a trigger arises, and your host's "A Driver's silence".
+- A CR handed back ready (and, in a parallel batch, its early conflict check: `foreman:conflict`), an `order merged`, the main checkout after a merge, a merge on GitHub under the grant, any `take <cr> --note` on a `ready` CR (the take-back list): `foreman:merge`.
+- A held CR, a CR that waits on an outside step (park it at once), a mode switch: `foreman:hold`.
+- A Driver lost, silent, ended with no hand-back, stopped from outside, or waking again; a new epoch or a switch to Foreman mode (every working CR restarts at once); a `blocked context:` or `context: closing:` hand-back (a fresh Driver, no ask): `foreman:lost-driver`.
+- A `blocked` hand-back that a trigger of `concepts.md#Escalation` fits (blocked twice, `rounds:`): `foreman:lost-driver` reads it.
 - An early conflict check (a parallel batch): `foreman:conflict`.
-- A release CR: `foreman:release`.
+- A release CR: `foreman:release` (it waits while a CR is held or parked: the rule is in `foreman:hold`).
 - A Driver's `push` or `rebase` line (a refused force push or rebase): `foreman:refused`.
 - The pause and its retro: `foreman:pause`.
 - A stack batch: `batch:stack`.
-- A word of "Words", or a host question (an auto-fix event, a compaction or reload, the configuration, session classes, the write guard, a Foreman in a worktree): `foreman:reference`, your host's card whole.
+- A word of "Words", or a host question (an auto-fix event, a compaction or reload, the configuration, session classes, the write guard, a Foreman in a worktree, a Driver's silence): `foreman:reference`, your host's card whole.
 
-After a compaction, read your entry action again, then the action of the moment you are in.
+After a compaction, read your entry action again, then the action of the moment you are in. Your entry action is `batch`; read your startup reading again with it, and the actions of every moment you are in.
 
 ## Your means
 
@@ -258,7 +258,7 @@ After a compaction, read your entry action again, then the action of the moment 
   batch `take` accepts only the next CR: that is the rule, not a reason to wait. A dependency that is cancelled never frees it: ask the Chief of Staff, once, for
   the user to drop that CR or change it. A CR whose dependency went back to a Driver after it
   started is restacked by the stack driver in a stack batch; in a series or a parallel batch it gets the
-  rebase note below instead.
+  rebase note (above) instead.
 - You may chain a queued CR on another when that costs less than rebasing, for instance small
   work, or two CRs whose specifications edit the same lines (one table, one template block),
   whose rebase would conflict anyway; a shared file alone is no reason, and a CR that has started is never
@@ -359,7 +359,7 @@ How you start, message and stop a Driver, and message the Chief of Staff, is you
 reference. Keep each turn short: never wait inside a call, never run a long command; start
 no background task of your own to wait for anything (a file, a task's output, a Driver, CI); the
 one exception is the Chief of Staff's watcher in direct mode (`$CHANTIER watch`,
-[chief-of-staff](chief-of-staff.md)): started on the user's yes, started again after each end, it
+[session-start-chief-of-staff](session-start-chief-of-staff.md), "The watcher"): started on the user's yes, started again after each end, it
 stops itself. The
 `board:` version line and the `pull path` line of `status` are the Chief of Staff's: do nothing
 with them, send nothing. A

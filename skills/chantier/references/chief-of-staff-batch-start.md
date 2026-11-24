@@ -1,75 +1,5 @@
 # Chief of Staff: the start of a batch
 
-## Forge permissions (P9)
-
-At your first turn of a session and again at step 1 of "Starting a batch", check that the batch's
-forge operations will go through. Read-only, each command alone (rule 9); on Windows PowerShell
-5.1, print `--json` and read the JSON, with no `--jq` or `--template` expression that holds
-spaces. A CLI not logged in still fails P9 for a batch. Everything below only **warns**, and the
-batch starts whatever it says.
-
-**GitHub:**
-
-1. `gh auth status`, and its `Token scopes:` line: `repo` (a fine-grained token prints none: say
-   "unknown: a fine-grained token, see its permissions") and `workflow`. A missing `workflow` is
-   said only as "needed by a CR that touches `.github/workflows/`"; at step 1 name the CRs of the
-   plan that do.
-2. `gh repo view --json viewerPermission,defaultBranchRef`: `WRITE`, `MAINTAIN` and `ADMIN` can
-   push, edit PRs and publish a release; `READ` and `TRIAGE` cannot: say so.
-3. The rules over `chantier/` branches: `gh api repos/<owner>/<repo>/rules/branches/<a chantier/
-   branch name>` (the name need not exist). A `non_fast_forward` rule refuses the force push,
-   `update` refuses the push, `creation` refuses a new branch: name each with its ruleset. The
-   legacy branch protection is read only for an `ADMIN` account, else say "not readable with your
-   rights". Write the branch name's `/` raw (`rules/branches/chantier/x/y`): the endpoint answered
-   to it and to `%2F` alike (tried 2026-11-13).
-4. A stack (made by `forge-stack` or by the extension): the stacks API, `gh api
-   repos/<owner>/<repo>/stacks -X GET -F per_page=1`. A 404 or 403 means no native stack on this
-   repository: warn that `forge-stack create` or the extension will fail there, and that the
-   stack then stays a chain.
-5. A merge by the steering session (a release on its own, fixes on a grant), and a stack (merged
-   by the user in one action): the default branch's rules, `gh api
-   repos/<owner>/<repo>/rules/branches/<default branch>`, and the methods, `gh repo view --json
-   mergeCommitAllowed,rebaseMergeAllowed,squashMergeAllowed`. Warn on: a `pull_request` rule with
-   required approving reviews (a steering session's merge of its own account's PR waits for a
-   review it cannot give: the grant's merge stops); a `required_status_checks` rule (the merge
-   waits for those checks: said, not a problem); a `merge_queue` rule (a merge enqueues instead of
-   merging, and a stack's one-action merge may not apply); the project's merge method (its rules,
-   for instance "merge by rebase") not among the allowed methods. The legacy branch protection is
-   read as item 3 says (an `ADMIN` account only).
-
-**GitLab** (the remote's host is GitLab), all **unproved**; trial: one run on a GitLab project.
-
-1. `glab auth status`, and the token's scopes if printed (`api` is needed).
-2. `glab api projects/<url-encoded path>`: `permissions.project_access` or `group_access`
-   `access_level` 30 (Developer) or more to push, open MRs and create a release.
-3. `glab api projects/<url-encoded path>/protected_branches`: a name or wildcard that matches a
-   `chantier/` branch with `allow_force_push: false` refuses the force push; `push_access_levels`
-   above the account's level refuses the push.
-4. No native stack: nothing to probe (a stack stays a chain).
-5. `glab api projects/<url-encoded path>`: `merge_method`, `approvals_before_merge` (or the
-   approval rules), merge trains; `projects/<path>/protected_branches/<default branch>`:
-   `merge_access_levels` above the account's level refuses the merge.
-
-These probes run at step 1 for the capabilities the batch uses.
-
-**What the user hears:** one short block in the first message, after the P5/P10 lines, in the same
-message:
-
-- what may stop the batch from running unattended, a P10 warn first (the strong warning, "The
-  project"), each line with what to change, a forge right in the forge's own words (for
-  instance: a ruleset `protect-all` refuses force pushes on `chantier/*`: allow them for `chantier/**`, or exclude that pattern); the missing host rules are
-  exactly the ones P10 named (the question of "The project");
-- on Claude Code, the alert sentence of [claude-code](hosts/claude-code.md), "Auto mode";
-- the release's publication, when the project's release procedure runs it. Without a grant it
-  stays asked by the host, by design (no rule in the base set, and it is not a missing rule). With
-  a grant, the publication is a command of the capability "a release on its own": its rules are
-  offered ("The project"), and when they are not added, the strong warning says the release may
-  stop at publication with nobody to answer. When the account can publish, the Release driver
-  runs the publication and the host asks or judges it. When the host refuses, "the publication is yours: you will be asked to run `<the command>`" (the user is
-  told now, not at the end).
-
-At step 1 the same check runs again; the plan's message repeats only what is still missing.
-
 ## The trials before the go
 
 At step 1 of "Starting a batch", after the preflight with the batch's options: **one harmless
@@ -126,7 +56,7 @@ Only in the turn where the user gave the go:
    user of each skill or tool the playbook names and your session lacks. You check P2 (the
    session tools of your host's reference load), P3 (the go is in the user's own message of this turn), P9 (`gh auth status`
    or `glab auth status` is logged in to the remote's host) and that a person is at the
-   keyboard. P9 also covers the forge's rights ([Forge permissions](#forge-permissions-p9)): they
+   keyboard. P9 also covers the forge's rights ([Forge permissions](chief-of-staff-any.md#forge-permissions-p9)): they
    only warn. **Then the trials** ([below](#the-trials-before-the-go)). On a failure start
    nothing, offer no other way, and say which condition failed and what the user can do. The mode is settled before the preflight (step 2). Forced `direct`, or no
    argument under the host's Remote Control notice: run `$CHANTIER preflight --direct`: P1 then
@@ -140,7 +70,7 @@ Only in the turn where the user gave the go:
    numbered them, else the slug, the file and the lines both edit, for instance "README.md, the
    Routes table", and in plain words "a rebase with a conflict that would happen anyway"); how many CRs start at once, on how many slots (the `batch slots` of the `limits:` line of `$CHANTIER playbook`: 4 unless a `chantier.yaml` or the board's Configuration page sets it, or you say
    otherwise; `open` takes it when you pass no `--slots`, and refuses a configured 0), and, on a surface, the other batches of P14 (project, batch, steering, Drivers), so
-   the user picks the slots knowing the machine's load (no cap is proposed or applied); the mode, asked as a question (below), budget, the floor ([The floor](#the-floor)) with its two terms and the critical path, and the delivery time it gives ("not before <time>") or "unknown" with the reason, the team (what `$CHANTIER playbook` printed: each role's agent and model); and who steers
+   the user picks the slots knowing the machine's load (no cap is proposed or applied); the mode, asked as a question (below), budget, the floor ([The floor](chief-of-staff-any.md#the-floor)) with its two terms and the critical path, and the delivery time it gives ("not before <time>") or "unknown" with the reason, the team (what `$CHANTIER playbook` printed: each role's agent and model); and who steers
    the batch. **The mode question:** a batch question in the format of "Asking the user: a series" (it carries
    no `<short name>-Q<n>` reference). It offers parallel, series (with the order) and stack, and
    marks your recommendation `(recommended)`, weighing three things: whether the CRs are linked (a
@@ -219,6 +149,24 @@ Only in the turn where the user gave the go:
    delivery time are said, nothing else. With the delivery time unknown, no cut can be counted:
    say so in the plan.
 
+   You ask the user for the batch's shape at every opening, in step 2 "Show the plan" with the other
+   plan items, and never take parallel by default (the CLI's `open` defaults to parallel, but you
+   always pass `--mode`). In a parallel batch a CR starts
+   as soon as a slot is free, and every open PR is rebased after each merge. Touching the same file is no reason to wait, and
+   two CRs editing the same file do not depend on each other. Write `depends.json` in a CR's folder
+   (`{"after": ["<slug>", …]}`, a slug being a folder's name without its number) only when it needs
+   the result of another, merged or handed back ready first, and say in the plan what it needs; `open` and
+   `order add` read it and exit 2 on an unknown slug, a malformed file or a cycle. A CR without the
+   file depends on nothing. Read the specifications of the CRs selected for a parallel batch for the
+   same lines: a shared table, a template block, a list each one appends to. For such a pair, propose
+   in the plan that the later one waits for the other, and say why: both edit those lines, so each
+   merge of one would make the other rebase with a conflict anyway; waiting, it starts on the first
+   one's work. Say the cost too: the waiting CR starts only once the other is handed back ready, so it takes
+   longer on the clock and a slot may stay free. A shared file alone is no reason. Small work whose
+   rebase would cost more than waiting stays a reason too. The plan gives the reason for each CR
+   queued this way, the user's go approves each wait, and the user may refuse it per CR: the CR then
+   runs side by side as usual. There is no threshold: you judge, and say why.
+
    The limits are the same in both modes; there is no CR threshold of its own. Then
    the go. While a batch is not closed, whatever its state
    (running or paused), there is no new plan: new work joins it with `order add`.
@@ -244,7 +192,7 @@ Only in the turn where the user gave the go:
    `brief.md`: complete it from the grill (the team, autonomous decisions allowed, questions to
    bring back). Right after `open`, before the first `take` (direct mode) or before starting the
    Foreman, record each wait the go approved: `$CHANTIER order after <cr> --note "<cr>"`, then
-   `$CHANTIER order note <cr> --note "chain: <reason>"`, as in "A chain" below. `order after`
+   `$CHANTIER order note <cr> --note "chain: <reason>"`, as in "A chain" (`chief-of-staff:steering`). `order after`
    replaces the CR's whole `after`: when the CR already waits for a real dependency, list it
    too, comma separated. `order after` carries no `--epoch`.
 4. **Foreman mode: start the Foreman. Direct mode: steer it yourself**
@@ -299,51 +247,3 @@ Only in the turn where the user gave the go:
    background, by the host's means, on the session's yes (the first time in the session, ask as
    [session-start-chief-of-staff](session-start-chief-of-staff.md), "The watcher", says): run the printed command as is: no flag added. A batch
    opened paused (`open` with no CR) prints it too, whatever the batch's status.
-
-### The floor
-
-The least time the batch can take, counted from facts, never a prediction: extra rounds, a
-Verifier or a wait add to it, and none of them is counted. It is said "at least about <h> h" and a
-delivery time from it "not before <time>", in the user's time zone. You count it by hand; the CLI
-prints none.
-
-- **The depth:** the longest chain of CRs that wait for one another (each CR's `after`: its
-  `depends.json`, a chain the go approved or the Foreman recorded, the order of a series; a
-  release CR waits for every other CR, one more level). Say it with the CRs of that chain, in
-  order: "critical path: CR-221 → CR-237 → …". A parallel batch with no `after` has depth 1.
-- **The gates:** the CRs still to pass their long gate. Long gates run one at a time under one
-  lock ([concepts](concepts.md), the long gate), so every CR's gate queues behind the others
-  whatever the slots. A CR whose project rules exempt it from the long gate (`handback
-  --no-gate`) does not count, nor does a CR covered by a waiver (`order waive`); under a stack
-  waiver the stack's top counts, once.
-  Under a rule that asks a local run, every CR of a parallel or series batch that owes the run
-  counts, and the stack's top counts once in a stack, whatever its exemption or waiver (a CR
-  the rules exempt owes none in parallel or series), unless a waiver's words name that gate.
-- **The two terms, and the floor.** The **lock term** is the gates times the long gate's time.
-  The **chain term** is the depth times (the long gate's time plus one CI run's time), since a
-  level cannot start before the one under it is handed back ready. The floor is the larger of the two; the
-  line says which one it is.
-- **The long gate's time: from the record only.** The latest passed runs of the gate in this
-  project: in the batch's `events.jsonl`, the `gate` events of one `run` share that id; the run
-  ends at the last event's `t` (UTC) and starts at the time in the `run` id
-  (`<yyyymmdd>-<hhmmss>-<pid>`, the machine's local time, not UTC: convert before subtracting).
-  With no run in this batch, the project's rules when they give the gate's time. A time with no
-  source is unknown ("A brief … states a past fact only with its source", "The project").
-- **A CI run's time: from the forge.** The latest passed runs of the project's CI on its PRs or
-  its default branch, read on the forge read-only with what the session already uses (on GitHub,
-  `gh run list --json`, each run's start and update times; on GitLab, `glab ci list`). A project
-  with no CI on its PRs counts 0 for it (a measured zero, said as such). The record holds no CI
-  event, so the forge is the only source. When it cannot be read (no `gh` or `glab`, no rights,
-  no passed run yet), the chain term counts the gate alone and the line says `CI time unknown, not
-  counted`; the delivery time is still told as `not before`.
-- **Unknown gate time.** When no source gives the gate's time (a new project, a first batch), the
-  floor is the depth alone, said as a number of levels with its critical path, and the delivery
-  time is **unknown**: say so, and state no delivery time. Nobody is asked for the gate's time and
-  no gate is run to measure it.
-- **No delivery time without it.** Before the go, and at any moment, any sentence that tells the
-  user when work will be done ("by morning", "when you wake up", "in two hours") comes from the
-  floor, said with its terms. With no floor in hours, no time is promised.
-
-Example (batch-17's figures; the CI time is a symbol): "lock: 13 gates × 35 min = about 7.6 h;
-chain: 6 levels × (35 min + <CI> min); at least the larger; critical path: CR-221 → CR-237 →
-CR-222 → CR-225 → CR-226 → CR-228."

@@ -83,7 +83,7 @@ these differences.
   main checkout after a merge": its steps, commands and `<why>` words) is yours, after each
   `order merged <cr> --epoch <n>` you record, with its `main checkout:` note on that CR
   (`note` carries no `--epoch`). It is on by default unless the project's rules forbid it; for an
-  eval and a worktree session see "Work in the main checkout" in Offering options.
+  eval and a worktree session see "Work in the main checkout" in Offering options (`chief-of-staff-any.md`).
 - **Nothing is sent to yourself.** No `ready <batch>`, no `[foreman→chief-of-staff]` line. An
   ask is still recorded with `$CHANTIER asks "<text>"` (so a resume loses nothing) and told to the
   user at once, in the report's shape. A Driver's refused rebase or force push is judged and run by
@@ -116,7 +116,7 @@ these differences.
   - Any other request is noted word for word and handed back when the batch completes; an idea
     that arrives while the batch runs is filed in the inbox at once (`file`, no grill). A request
     to grill, or to order a QA, gets at once, besides being noted, the three-part answer of row A
-    in [Refusals to say before they are met](chief-of-staff-steering.md#refusals-to-say-before-they-are-met): what is
+    in [Refusals to say before they are met](chief-of-staff-any.md#refusals-to-say-before-they-are-met): what is
     refused, why, and the ways (a Griller session, or a fork of this one, is the user's step:
     explain it, never do it).
   - A paused batch is not running: all of this lifts at the pause. When the CLI paused the batch,

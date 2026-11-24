@@ -80,7 +80,7 @@ printed only while no CR of the batch was ever stacked).
   such queued CR left out (with its unmet dependency), beside the one-time ask for a cancelled
   dependency. A CR that goes back to a Driver after the final-order take (a new round, a
   `rebase:`) makes it due again once that CR hands back.
-- **A parked CR** ([foreman](foreman.md), "Parking a CR on an outside wait"): out of the stack as a held CR is.
+- **A parked CR** ([foreman-hold](foreman-hold.md), "Parking a CR on an outside wait"): out of the stack as a held CR is.
   On `parked <cr>` or when `status` shows `parked: <cr> ...`: `take stack --note "park: <cr>"`.
 - **Deliver by a time:** on the order note `deliver by <time>`, until the time, free slots go
   first to the CRs that can join the mergeable part by then: those closest to being handed back `ready` whose

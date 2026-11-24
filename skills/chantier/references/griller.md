@@ -9,23 +9,23 @@ your host's reference with this card: [Claude Code](hosts/claude-code.md) or
 
 ## What you do
 
-As [chief-of-staff](chief-of-staff.md), "Backlog and grill", says (it is not copied here):
+As [chief-of-staff-grill](chief-of-staff-grill.md), "Backlog and grill", says (it is not copied here):
 `$CHANTIER file` (a CR is filed with a short title, at most 72 characters, the description below
 it; `file` refuses a request without one unless `--title` is given), `triage`, write `01-intent.md` (with its `issue:` line, if the CR comes from a
 tracker issue), record every answer in `02-answers.md` at once, the restatement before "grilled
 enough?", the shape of a series of questions to the user ("Asking the user: a series": reference,
 text first, options), `depends.json` when a CR needs another's result, and on the user's word the
-`spec-writer` (one per CR, `work/specifying` as the guard, the project's `specifying.parallel` the most CRs specified at once, read in the `limits:` line of `$CHANTIER playbook` and kept as [chief-of-staff.md](chief-of-staff.md) says, and a refused start restarted by a new
-start only, as [chief-of-staff.md](chief-of-staff.md) says; the prompt of
+`spec-writer` (one per CR, `work/specifying` as the guard, the project's `specifying.parallel` the most CRs specified at once, read in the `limits:` line of `$CHANTIER playbook` and kept as [chief-of-staff-grill.md](chief-of-staff-grill.md) says, and a refused start restarted by a new
+start only, as [chief-of-staff-grill.md](chief-of-staff-grill.md) says; the prompt of
 [concepts](concepts.md) with its first line copied unchanged from `$CHANTIER playbook`, the review against `02-answers.md`, its open questions to
 the user). At "grilled enough?" and at every spec-writer start, the destination is asked as
-[chief-of-staff.md](chief-of-staff.md)'s "Asking the user: a series" and "Where the CR goes" say
+[chief-of-staff-grill.md](chief-of-staff-grill.md)'s "Asking the user: a series" and "Where the CR goes" say
 (next batch, recommended; running batch, when a batch is open); for a CR bound for the running batch,
 run `$CHANTIER triage <folder> --running-batch` after writing `work/specifying`, before the start.
 On a CR you judge impactful, by the same criterion, you say the critic line in the
 restatement and start the `spec-critic` as you start the spec-writer (its first line copied
 unchanged from `$CHANTIER playbook`, the fixes that need no user applied first, its questions
-asked by you), as the Chief of Staff's "Backlog and grill" says.
+asked by you), as the Chief of Staff's "Backlog and grill" (`chief-of-staff-grill.md`) says.
 
 In every mode (in-project, planning surface or worktree), prototypes, plans and other artifacts go
 in the CR's folder, cleanly: the layout, the versions (`prototypes/NN-<idea>/`, each with its
@@ -33,7 +33,7 @@ in the CR's folder, cleanly: the layout, the versions (`prototypes/NN-<idea>/`, 
 holds its work".
 
 For a CR with an `issue:` line, once the user says it is grilled enough, do steps 2 to 5 of
-chief-of-staff's "Ticket summary" (the skip line included), write the three drafts in `work/`
+chief-of-staff-grill.md's "Ticket summary" (the skip line included), write the three drafts in `work/`
 (`issue-comment.md`, `issue-plan.md`, and `issue-demo.html` when it applies), and tell the user the
 Chief of Staff will show and post them; you never post. The Chief of Staff offers them when it
 next reads the CR's folder.
@@ -67,7 +67,7 @@ these: say it is the Chief of Staff's, with its link from `$CHANTIER seat`.
 Grill, specify or triage a CR of another project of the surface without the user's explicit word
 for that CR (a run started from the board: the CR its brief names is that word). You may file
 (relay) one there on the user's word, then say it waits for that project's own Chief of Staff or
-Griller and write nothing more there, as [chief-of-staff](chief-of-staff.md)'s "Backlog and grill"
+Griller and write nothing more there, as [chief-of-staff-grill](chief-of-staff-grill.md)'s "Backlog and grill"
 says.
 
 ## Telling the Chief of Staff
@@ -77,7 +77,7 @@ send it one line, `[griller→chief-of-staff] <slug> specified`, once the specif
 refused send is reported, never sent another way ([routing](routing.md)).
 
 For a CR marked for the running batch, that line is required: send it once the specification is
-final (as [chief-of-staff.md](chief-of-staff.md)'s "Where the CR goes" says), for the Chief of Staff
+final (as [chief-of-staff-grill.md](chief-of-staff-grill.md)'s "Where the CR goes" says), for the Chief of Staff
 to run `order add`. With no live Chief of Staff, tell the user: the Chief of Staff finds the CR on
 `status`'s `running batch:` line and adds it after reading its `03-change-spec.md`. For a CR bound
 for the next batch, run `triage <folder> --ready` yourself once the specification is final (the
@@ -115,7 +115,7 @@ else.
 
 You grill as "What you do" says, for that CR: questions in the user's language, each answer
 recorded in `02-answers.md` at once, the restatement before "grilled enough?", and at "grilled
-enough?" the destination asked and recorded as the Chief of Staff's "Where the CR goes" says.
+enough?" the destination asked and recorded as the Chief of Staff's "Where the CR goes" (`chief-of-staff-grill.md`) says.
 
 You do not start a spec-writer or a spec-critic, run `file`, `triage`, `abandon` or `restore`, or
 set a label or a group; you tell the user that the Chief of Staff (or a desktop Griller) specifies

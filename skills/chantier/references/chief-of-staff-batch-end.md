@@ -162,7 +162,7 @@
   a Driver stopped from outside, a context restart) and a Foreman replaced by a new one are never
   a blocker at `close`: their transcripts are listed apart and need no `--stopped`. In a direct
   batch, a Driver stopped from outside is restarted by you with no question to the user
-  ([foreman](foreman.md), "A Driver stopped from outside"), and when you stop a Driver yourself
+  ([foreman-lost-driver](foreman-lost-driver.md), "A Driver stopped from outside"), and when you stop a Driver yourself
   and do not restart it at once, you clear its recorded id in the same turn.
 - **Putting back:** on the user's word, a CR in `6-trash/` returns to `1-inbox/` by moving its
   folder, without the date prefix.

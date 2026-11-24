@@ -30,7 +30,7 @@ machine's code in front: a phone shows about 25 characters of a title. Its parts
 | Chief of Staff steering a direct batch, from `open --direct`, the hand-over or a switch to direct mode until the batch is closed, then back to the line above | `[<code>] 💬 Project · CoS (Batch <nn>)` |
 | Griller | `[<code>] 💬 Project · Griller` |
 | Griller, once its subject is known | `[<code>] 💬 Project · Griller · <subject>` |
-| Foreman, given in its prompt ([chief-of-staff](chief-of-staff.md)) | `[<code>] ⚙️ Project · Foreman (Batch <nn>)` |
+| Foreman, given in its prompt ([chief-of-staff-batch-start](chief-of-staff-batch-start.md)) | `[<code>] ⚙️ Project · Foreman (Batch <nn>)` |
 
 Examples: `[Battle] 💬 Chantier · CoS`, `[Battle] 💬 Chantier · CoS (Batch 17)`,
 `[Battle] 💬 Chantier · Griller`, `[Battle] 💬 Chantier · Griller · landing page`,

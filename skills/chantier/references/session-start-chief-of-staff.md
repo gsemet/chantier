@@ -119,7 +119,7 @@ workaround. Its lines:
 - `watch: no event for <name> in 2 h; ended ...`: start it again at once with the printed command,
   saying nothing to the user.
 
-When it starts and stops: [chief-of-staff](chief-of-staff.md).
+When it starts and stops: [chief-of-staff-steering](chief-of-staff-steering.md) (`chief-of-staff:steering`).
 
 ## Stopping the board by hand
 

@@ -1,7 +1,7 @@
 # Ticket summary: a reference
 
 Modelled on a real ticket summary of 2026-11-10; its text is not kept here. The shape and the size
-are the point: [chief-of-staff](chief-of-staff.md), "Ticket summary", says how it is made and posted.
+are the point: [chief-of-staff-grill](chief-of-staff-grill.md), "Ticket summary", says how it is made and posted.
 
 ## The comment
 

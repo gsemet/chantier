@@ -58,7 +58,7 @@ At startup, identify the role, batch, project and parent session.
   in a series, after the rest, from the bottom up); the steering session merges it only under the
   grant, and never a stack that holds it. On GitHub a PR in a native stack is merged through the
   asynchronous merge, which takes every open PR below it, so the steering session merges it only when
-  nothing open sits below it ([foreman](foreman.md), Your means, "Merging on GitHub").
+  nothing open sits below it ([foreman-merge](foreman-merge.md), "Merging on GitHub").
 - **Lease:** a numbered hold of a Driver, the stack driver or a QA driver on its unit (a CR, `stack`
   or a QA order `O-k`), started by `take` (or `order qa`), lasting 10 minutes and renewed by the
   commands that carry `--lease <n>` and by `lease <unit> renew`; `lease <unit> hold` sets its expiry ahead (45
@@ -351,7 +351,7 @@ At startup, identify the role, batch, project and parent session.
   or a QA driver (an `order qa` not yet `order done` holds one from the order on, and is refused
   when none is free). A `ready` or `blocked` CR holds none. The budget is dollars the Foreman's
   session and its agents may spend; a round is one Coder pass with its reviews, three per CR
-  unless the user grants more, or the Chief of Staff under the rounds exception ([chief-of-staff](chief-of-staff.md), Steering). The CLI refuses what passes a limit: `take` and `round` are refused
+  unless the user grants more, or the Chief of Staff under the rounds exception ([chief-of-staff-steering](chief-of-staff-steering.md), "While it runs"). The CLI refuses what passes a limit: `take` and `round` are refused
   (exit 5) once the budget is spent, on the spend each of them first refreshes from the
   transcripts (when the batch has a budget), the budget before the round limit; `order qa`, the
   Foreman's granted fix and `release go` check the same refreshed figure; when the transcripts
@@ -604,10 +604,10 @@ Driver of any kind, a worker, a spec-writer, a spec critic, a retro critic, a De
 - The causes, one word each: `stopped from outside: <the host's text>` (the host stopped the agent: its `task_status` `killed`
   record or its refusal of a message), `host failure: <the host's exact text>` (an API error, an overloaded
   or refused service, a network error the host reports as the agent's end, not the agent's own
-  words), `refused first line`, `reply out of format: <what is missing>`, `switch to Foreman mode`, `switch to direct mode`, plus those `foreman.md` already names
+  words), `refused first line`, `reply out of format: <what is missing>`, `switch to Foreman mode`, `switch to direct mode`, plus those [foreman-lost-driver](foreman-lost-driver.md) already names
   (`context`, a proven death, a new epoch, a silent end).
 - **One way, never both.** A restart is either a message that resumes the ended agent, where a card
-  names that way (only the `taken back:` note of `foreman.md` does), or a new start; never a
+  names that way (only the `taken back:` note of [foreman-merge](foreman-merge.md) does), or a new start; never a
   message and a new start for the same end. The parent starts nothing while the agent it would
   replace may still run (the host lists it running, or it answered a `ping`).
 - A worker ended by a host failure: its Driver starts one new worker of the same role with the
@@ -761,7 +761,7 @@ stack driver's `conflict-resolver` escalates, the stack driver keeps the batch's
    touched. No `sleep`, no polling loop: a wait is the forge's own watch, in a background shell
    (except two bounded waits, each once: the one before a second CI look that [driver-trouble](driver-trouble.md), "Means: when CI lists no check",
    names, and the one after a `pending` answer of GitHub's asynchronous merge, a single `sleep` of at
-   most 30 seconds then one read, at most once per merge: [foreman](foreman.md), "Merging on GitHub").
+   most 30 seconds then one read, at most once per merge: [foreman-merge](foreman-merge.md), "Merging on GitHub").
    For a Driver and the steering session (the workers keep their cards' ground rules): a
    background task is a background shell or a host monitor (a tool that streams a command's output
    to its owner). A task that waits on a file or on another task's output (`until grep …; do sleep

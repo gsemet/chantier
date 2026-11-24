@@ -112,7 +112,7 @@ Chief of Staff names no compacting command (the "Compacting" section holds).
 ## Surfaces and options
 
 Not done yet. How Copilot signals where the user is is not known. Until then the Chief of Staff
-offers every option, each with its condition (the "host says nothing" case of "Offering options", `chief-of-staff-steering.md`). With no Remote Control signal known on Copilot, the no-argument mode follows
+offers every option, each with its condition (the "host says nothing" case of "Offering options", `chief-of-staff-any.md`). With no Remote Control signal known on Copilot, the no-argument mode follows
 P1 and P2 only (`chief-of-staff-batch-start.md`, "Starting a batch"), unproved.
 
 ## Sessions

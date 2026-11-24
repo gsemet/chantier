@@ -5,8 +5,7 @@
 Once the release is out (the procedure's publication step done), every item below, in this order,
 before the host's hand-back: the run is not over while one is undone, and none waits for a word
 from the steering session or the user, except as the bullets above already require (a go the
-procedure itself asks for: `handback blocked approval: <step>`; a failure: "Half-done irreversible
-work: stop").
+procedure itself asks for: `handback blocked approval: <step>`; a failure: the failure bullet of "Release driver" in `driver.md`).
 
 - [ ] `$CHANTIER release published <cr> --note "<version> <link>"`.
 - [ ] The procedure's checks, and any watch of the deploys it names (a package registry, pages).
