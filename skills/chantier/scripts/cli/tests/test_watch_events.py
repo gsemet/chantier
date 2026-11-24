@@ -159,6 +159,8 @@ def test_watch_refusals_and_the_pull_path(
         assert code == EXIT_USAGE and "watch: --after 5 is past the journal's end (0)" in err
     code, _, err = chantier("watch", "--once")
     assert code == EXIT_USAGE and "--once needs --after" in err
+    code, _, err = chantier("watch", "--stream", "--once", "--after", "0")
+    assert code == EXIT_USAGE and "watch: --stream and --once do not go together" in err
     assert files() == before and not (repo / ".git" / "chantier").exists()
 
 

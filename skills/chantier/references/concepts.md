@@ -773,7 +773,7 @@ stack driver's `conflict-resolver` escalates, the stack driver keeps the batch's
    stops it by its id, with the host's stop of a background task, once its result is read or no
    longer counts (the board and the Chief of Staff's watcher, `$CHANTIER watch`, keep
    `session-start-chief-of-staff.md`'s and `chief-of-staff-steering.md`'s start and stop rules: the watcher is started on
-   the user's yes, started again after each end, and stops itself (at its end, 2 h after its start with no event, or when the seat is another session's); the board a watcher starts is a detached process, no background task
+   the user's yes, started again after each end, and stops itself (after each block in its plain form, after 2 h with no event nor batch in flight, or when the seat moves); the board a watcher starts is a detached process, no background task
    of the session: it stops itself when its seat leaves or 30 minutes after its last client, and
    by hand only with the stop command `session-start-chief-of-staff.md` names; only the current-folder rule
    applies to them). The shell that runs `$CHANTIER gate` is the gate itself: it

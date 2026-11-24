@@ -16,7 +16,7 @@ from conftest import Chantier
 
 from chantier.core.repo import Repo
 from chantier.hub import journal, schemas
-from chantier.hub.watch import once
+from chantier.hub.watch_reads import once
 
 SHIPPED = Path(__file__).resolve().parents[1] / "src" / "chantier" / "hub" / "schemas.json"
 HEAD = ["v", "seq", "t", "type", "source", "audience"]

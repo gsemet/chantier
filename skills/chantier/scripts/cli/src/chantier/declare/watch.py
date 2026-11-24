@@ -11,9 +11,12 @@ HELP = (
     "batch; with no server running it starts one, detached, when the project's seat is this "
     "session's, else it ends and says why; every event is addressed (its audience: project, "
     "role:<name>, cr:<id>, session:<key> or user) and a watcher reads the lines for it: the "
-    "project's, its own session's and each --for value; it ends 20 s after the last new event "
-    "for it that wakes, and no sooner than events.wake_every after its start, or 2 h after its "
-    "start with none, or when the project's seat is another session's; the server alone reads "
+    "project's, its own session's and each --for value; 20 s after the last new event for it "
+    "that wakes, and no sooner than events.wake_every after its start or its last telling, it "
+    "tells the events it gathered and ends, or with --stream prints them with a still watching "
+    "line and runs on; it ends when the project's seat is another session's, and, while no batch "
+    "runs and none is paused with an open PR, 2 h after the latest of its start, its last event "
+    "that wakes and the last moment such a batch ran or was paused so; the server alone reads "
     "the forge, every 20 s while observed; --once --after SEQ prints the journal's lines for it "
     "past SEQ and exits"
 )
@@ -42,4 +45,11 @@ def register(sub: Subparsers) -> None:
         action="store_true",
         help="the pull path: print the journal's lines past --after and the next command, take "
         "no lock, reach no server, start nothing",
+    )
+    s.add_argument(
+        "--stream",
+        action="store_true",
+        help="run through several events: print each block with a still watching line and run "
+        "on, ending only on another session's seat, the 2 h with no batch in flight or a lost "
+        "board (the form the CLI prints on Claude Code); not with --once",
     )

@@ -116,8 +116,8 @@ workaround. Its lines:
   with the printed command or reason; no workaround. For `no seat`, `records no session transcript`
   and `cannot be read`, take the seat as printed only when the session is the Chief of Staff by the
   seat table of [session-start](session-start.md), "2. The seat and the role", then start the watcher again.
-- `watch: no event for <name> in 2 h; ended ...`: start it again at once with the printed command,
-  saying nothing to the user.
+- `watch: no event for <name> in 2 h; ended ...` (only with no batch in flight): start it again at
+  once with the printed command, saying nothing to the user.
 
 When it starts and stops: [chief-of-staff-steering](chief-of-staff-steering.md) (`chief-of-staff:steering`).
 

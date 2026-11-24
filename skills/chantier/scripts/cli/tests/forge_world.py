@@ -62,15 +62,15 @@ def write_batch(project: Path, status: str, crs: list[dict[str, Any]]) -> None:
 
 
 class World:
-    """A surface of four projects: alpha and beta run a batch of two ready CRs, gamma's is paused,
-    delta's CRs are merged. The forge answers `forge` (a PR number to the fields that differ
-    from `OPEN`); every call of the seam is kept in `calls`."""
+    """A surface of four projects: alpha and beta run a batch of two ready CRs, gamma's is paused
+    with no PR left open (its CRs cancelled), delta's CRs are merged. The forge answers `forge` (a
+    PR number to the fields that differ from `OPEN`); every call of the seam is kept in `calls`."""
 
     def __init__(self, surface: Surface, monkeypatch: pytest.MonkeyPatch) -> None:
         self.root = surface.root
         write_batch(self.project("alpha"), "running", crs_of("alpha"))
         write_batch(self.project("beta"), "running", crs_of("beta"))
-        write_batch(self.project("gamma"), "paused", crs_of("gamma"))
+        write_batch(self.project("gamma"), "paused", crs_of("gamma", "cancelled"))
         write_batch(self.project("delta"), "running", crs_of("delta", "merged"))
         self.forge: dict[int, dict[str, Any]] = {}
         self.calls: list[list[str]] = []

@@ -145,19 +145,23 @@
   the Chief of Staff on a host that cannot run the watcher, which reads it every 20 s with or
   without a client (the user's answer of 2026-11-21), through the connector of its forge (GitHub with `gh`, GitLab with `glab`), one
   query per project of the surface for which the interest registry holds a PR or MR, and only
-  those: today, the PRs of a project's running batch while one of them is not held merged or
-  cancelled, and the PRs or MRs that the open approval, pipeline and merge waits of the running
-  batch's CRs name, in the same query; it appends to that project's `forge-journal.jsonl` (planning
-  folder, never published) one line per merge the record does not hold, per CI turning red on
-  a PR ready to merge and per wait of a running batch's CR that the forge shows met
-  (`wait-cleared@1`), and nothing else; each session's watcher, run for the Chief of Staff's
+  those: today, the PRs of a project's batch that runs, or is paused with open PRs, while one of
+  them is not held merged or cancelled, and the PRs or MRs that the open approval, pipeline and
+  merge waits of that batch's CRs name, in the same query; it appends to that project's
+  `forge-journal.jsonl` (planning folder, never published) one line per merge the record does not
+  hold, per CI turning red on a PR ready to merge and per wait of that batch's CR that the forge
+  shows met (`wait-cleared@1`), and nothing else; each session's watcher, run for the Chief of Staff's
   whole session, with or without a batch, subscribes to the surface server's `events` topic for
   its project (the hub's lines, the board's, the writer's and an outside poller's `issue@1`
   lines), never reads the journal file or the forge, and starts the server, detached, when none
-  runs and its session holds the seat, and ends 20 s after the last new event for it that wakes, and no
-  sooner than `events.wake_every` after its start, which wakes its session, or when the project's
-  seat is another session's, or 2 h after its start with no event for it that wakes (so a watcher
-  an ended session left behind stops); the
+  runs and its session holds the seat, and, 20 s after the last new event for it that wakes and no
+  sooner than `events.wake_every` after its start or its last telling, tells the events it
+  gathered, which wakes its session: in its streaming form (`watch --stream`, which the CLI prints
+  on a host whose reference runs it so) it prints them and runs on, else it ends; it ends when the
+  project's seat is another session's, and, while no batch of the project runs and none is paused
+  with a PR the record holds neither merged nor cancelled, 2 h after the latest of its start, its
+  last event for it that wakes and the last moment such a batch ran or was paused so (so a watcher
+  an ended session left behind stops once the seat moves, or 2 h after its batch is done); the
   hub records nothing in a batch, runs no git and messages no agent (the server runs no git but its writer's and that of a command its `cli.run` runs, the batch's end cleanup); every journal line, the CLI commands' included in their own process, goes through the one append function; an outside poller (the user's own program, never
   started by chantier) writes into a project's journal only through `journal add`, only `issue@1`
   lines, and only for an issue a CR's `issue:` line names; each watcher holds a lock of
@@ -170,8 +174,8 @@
   by their commands, built on the user's answer of 2026-11-20 ("tout": all five of Board's ideas);
   `lease hold` runs nothing: it keeps a lease live for a bounded time (45 minutes by default, 90 at
   most), and the hub writes nothing for leases. `interests`
-  and `journal add`: `interests` lists, read-only, what the CRs wait for (the running batch's PRs
-  or MRs, read by the forge hub, and the issues the CRs' `issue:` lines name, read by an outside
+  and `journal add`: `interests` lists, read-only, what the CRs wait for (the PRs or MRs of the
+  batch that runs or is paused with open PRs, read by the forge hub, and the issues the CRs' `issue:` lines name, read by an outside
   poller only); `journal add` is the one entry by which an outside poller appends an `issue@1`
   line to a project's journal; built on the user's answer planning-server-Q24 (2026-11-20: issues
   polled from outside), with no measured cost.

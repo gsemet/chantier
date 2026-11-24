@@ -1,8 +1,8 @@
 """The line that tells the Chief of Staff to start its watcher, and the command it names.
 
-The CLI never starts the watcher: its end must wake the Chief of Staff's session, so it is that
-session's background task. A running batch whose session holds no watcher lock gets one line, the
-last of the output."""
+The CLI never starts the watcher: each block it tells (streaming) or its end must wake the Chief of
+Staff's session, so it is that session's background task. A running batch whose session holds no
+watcher lock gets one line, the last of the output."""
 
 from __future__ import annotations
 
@@ -35,8 +35,17 @@ def holds_seat(transcript: str | None) -> bool:
     return bool(kept) and kept == session_key()
 
 
+STREAM_HOSTS = frozenset({"claude"})  # the hosts whose reference runs the watcher streaming
+
+
 def watch_command(repo: Repo, n: int) -> str:
-    return f"{cli_command(repo)} watch --after {n}"
+    """The watcher's command from cursor `n`: streaming (`--stream`) on a host whose reference
+    runs it so (Claude Code, through `Monitor`), the plain form on Copilot and with no host."""
+    try:
+        stream = detect_host() in STREAM_HOSTS
+    except ChantierError:  # no host known (a bare terminal): the plain form
+        stream = False
+    return f"{cli_command(repo)} watch --after {n}" + (" --stream" if stream else "")
 
 
 def other_sessions(repo: Repo, project: str) -> list[str]:

@@ -7,12 +7,18 @@ server running it starts one, detached (`serve --seat <session> --stop-idle`), w
 seat is this session's; else it starts nothing and ends with the line that says why. On a running
 board it registers the seat when the seat is this session's, so that board follows it too. It
 reads the lines for it only: its audience holds `project`, its own `session:<key>` or a `--for`
-value; the others only move its cursor. It ends once `quiet_s()` has passed with no newer event
-for it that wakes, measured on its own monotonic clock from when it saw each one, and no sooner
-than `events.wake_every` after its start; or `idle_end_s()` (2 h) after its start with none, so a
-watcher an ended session left behind stops observing the board; or when the project's seat is
-another session's. `--once --after SEQ` is the pull path: it prints the journal's lines past SEQ
-and takes no lock, reaches no server and starts nothing."""
+value; the others only move its cursor. It tells the events it gathered once `quiet_s()` has
+passed with no newer event for it that wakes, measured on its own monotonic clock from when it saw
+each one, and no sooner than `events.wake_every` after its start or its last telling: in its
+plain form it then ends; with `--stream` (the form the CLI prints on Claude Code, run through
+`Monitor`) it prints them with one `still watching` line and runs on. It ends when the project's
+seat is another session's, or, while no batch is in flight (none running, none paused with a PR
+the record holds neither merged nor cancelled: `batch_prs.followed_batch`, the batch the hub
+follows), `idle_end_s()` (2 h) after the latest of its start, its last event for it that wakes and
+the last moment it saw a batch in flight, so a watcher an ended session left behind stops
+observing the board; the batch is read at most every `SEAT_CHECK_S`. `--once --after SEQ` is the
+pull path: it prints the journal's lines past SEQ and takes no lock, reaches no server and starts
+nothing."""
 
 from __future__ import annotations
 
@@ -21,7 +27,6 @@ import contextlib
 import re
 import sys
 import time
-from dataclasses import dataclass, field
 from typing import Any
 
 from chantier import __version__
@@ -30,11 +35,9 @@ from chantier.board.projects import project_name
 from chantier.board.seats import SEAT_CHECK_S
 from chantier.clients.tui.link import KEY, Event, Linked, Refusal, Refused
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.core.files import rel_in
-from chantier.core.records import read_batch_json
 from chantier.core.repo import Repo
 from chantier.core.seat import read_seat
-from chantier.hub import arrival_mark, autostart, journal, lock
+from chantier.hub import arrival_mark, autostart, batch_prs, journal, lock
 from chantier.hub import times as hub_times
 from chantier.hub.feed import Board, Feed, Got, passed_on, serve_argv
 from chantier.hub.lines import foreign_build_clause
@@ -50,10 +53,12 @@ from chantier.hub.watch_lines import (
     OTHER_VERSION,
     REFUSED,
     SEAT_LINE,
+    STREAM_TOLD,
     UNREADABLE_SEAT,
     Ended,
     told,
 )
+from chantier.hub.watch_reads import Rules, once, open_batch, seat_moved, subscription
 from chantier.plugin_files import cli_command, read_wake_rules
 
 EVENTS, SEAT, IDLE, END = "events", "seat", "idle", "end"
@@ -61,48 +66,6 @@ START_S = 20.0  # a board the watcher starts answers within this, else the watch
 SILENT_S = 20.0  # a recorded board links within this, else it holds the surface and is silent
 RETRY_S = 5.0  # a lost link is tried again this often
 STEP_S = 0.5  # the wait between two looks at a starting board
-
-
-def seat_moved(repo: Repo, session: str) -> bool:
-    """Whether `seat.json` records a transcript that is not this session's key. No seat, a seat
-    with no transcript, an unreadable one or a session keyed `none`: nothing to compare."""
-    if session == autostart.NONE:
-        return False
-    try:
-        held = read_seat(repo)
-    except ChantierError:
-        return False
-    kept = re.sub(r"[^A-Za-z0-9-]", "", (held.transcript if held else None) or "")
-    return bool(kept) and kept != session
-
-
-def subscription(session: str, audiences: list[str] | tuple[str, ...] = ()) -> list[str]:
-    """The audience values a watcher reads, each once: `project`, its own session (not with the
-    key `none`), then the `--for` values in their order."""
-    own = [] if session == autostart.NONE else [f"session:{session}"]
-    return list(dict.fromkeys([journal.PROJECT, *own, *audiences]))
-
-
-def open_batch(repo: Repo) -> str | None:
-    """The id of the batch running or paused, None with none."""
-    path = repo.batches / "batch.json"
-    if not repo.store.is_file(rel_in(repo.store.root, path)):
-        return None
-    try:
-        d = read_batch_json(repo.store, path)
-    except (OSError, ValueError, ChantierError):
-        return None
-    return d.id if d.status in ("running", "paused") else None
-
-
-@dataclass
-class Rules:
-    """What a watcher is told at its start: the `--for` values, `events.wake_every` in seconds
-    (0 for none) and the first configuration problem outside the `events` block, if any."""
-
-    audiences: list[str] = field(default_factory=list)
-    wake_every: float = 0.0
-    note: str | None = None
 
 
 class Watch:
@@ -121,9 +84,14 @@ class Watch:
     ) -> None:
         self.repo, self.cursor, self.version = repo, cursor, version
         rules = rules or Rules()
-        self.wake_every, self.note = rules.wake_every, rules.note
+        self.wake_every, self.note, self.stream = rules.wake_every, rules.note, rules.stream
         self.board = board or Board()
         self.started: float | None = None
+        self.told_at: float | None = None  # the last block told (`--stream`)
+        self.woke_at: float | None = None  # the last new line for it that wakes, kept when told
+        self.batch_at: float | None = None  # the last read of the batch
+        self.in_flight = False  # a batch in flight at that read (`batch_prs.followed_batch`)
+        self.flight_at: float | None = None  # the last moment it saw a batch in flight
         self.project = project_name(repo)
         self.session = autostart.session_key()
         self.own = lock.WatcherLock(repo.git_dir, self.project, self.session)
@@ -271,7 +239,7 @@ class Watch:
         self.events += mine
         self.cursor = int(new[-1]["seq"])  # a line for others is passed, never printed
         if any(journal.waking(e) for e in mine):
-            self.last_new = now
+            self.last_new = self.woke_at = now
 
     def _link(self, now: float) -> None:
         if self.feed is None and (self.lost_at is None or now - self.lost_at >= RETRY_S):
@@ -281,9 +249,26 @@ class Watch:
         if self.unlinked_since is not None and now - self.unlinked_since >= SILENT_S:
             raise Ended(f"watch: {running.silent_text(self.entry)}")
 
+    def _flight(self, now: float) -> None:
+        """The batch in flight, read at most every `SEAT_CHECK_S`; the last moment it was seen."""
+        if self.batch_at is None or now - self.batch_at >= SEAT_CHECK_S:
+            self.batch_at = now
+            self.in_flight = batch_prs.followed_batch(self.repo) is not None
+        if self.in_flight:
+            self.flight_at = now
+
+    def _idle(self, now: float, started: float) -> bool:
+        """No batch in flight, and `idle_end_s()` passed since the latest of its start, its last
+        line that wakes and the last moment it saw a batch in flight."""
+        if self.in_flight or self.last_new is not None:
+            return False
+        since = max(started, self.woke_at or started, self.flight_at or started)
+        return now - since >= hub_times.idle_end_s()
+
     def poll(self, now: float) -> str | None:
         """One look: its lock, what the link delivered, the link again once lost. The reason this
-        watcher ends (`events`, `seat`, `idle` or `end`), else None."""
+        watcher ends or tells (`events`, `seat`, `idle` or `end`), else None; with `--stream`,
+        `events` is a block to tell (`tell`), and the watcher runs on."""
         self.own.acquire()
         if self.started is None:
             self.started = now
@@ -296,25 +281,48 @@ class Watch:
             self.seat_at = now
             if seat_moved(self.repo, self.session):
                 return SEAT
-        if now - self.started < self.wake_every:
+        self._flight(now)
+        since = self.started if self.told_at is None else self.told_at
+        if now - since < self.wake_every:
             return None
         if self.last_new is not None and now - self.last_new >= hub_times.quiet_s():
             return EVENTS
-        if self.last_new is None and now - self.started >= hub_times.idle_end_s():
-            return IDLE
-        return None
+        return IDLE if self._idle(now, self.started) else None
 
-    def lines(self, reason: str) -> list[str]:
+    def _told(self) -> list[str]:
         out = [told(e) for e in self.events]
         with contextlib.suppress(OSError, ChantierError):
             arrival_mark.tell_arrivals(self.repo, self.events)
+        return out
+
+    def _name(self) -> str:
+        return open_batch(self.repo) or f"{self.project} (no batch)"
+
+    def tell(self, now: float) -> list[str]:
+        """`--stream`: the block of events gathered and the `still watching` line; the block is
+        emptied and the next comes no sooner than `events.wake_every` from now."""
+        out = self._told()
+        out.append(
+            STREAM_TOLD.format(
+                name=self._name(),
+                n=self.cursor,
+                watch=autostart.watch_command(self.repo, self.cursor),
+            )
+        )
+        self.events, self.last_new, self.told_at = [], None, now
+        return out
+
+    def lines(self, reason: str) -> list[str]:
+        out = self._told()
         if reason == END and self.end is not None:
             return [*out, self.end.line]
         if reason == SEAT:
             return [*out, SEAT_LINE.format(project=self.project)]
-        name = open_batch(self.repo) or f"{self.project} (no batch)"
         text = IDLE_END if reason == IDLE else EVENTS_END
-        return [*out, text.format(name=name, watch=autostart.watch_command(self.repo, self.cursor))]
+        return [
+            *out,
+            text.format(name=self._name(), watch=autostart.watch_command(self.repo, self.cursor)),
+        ]
 
     def code(self, reason: str) -> int:
         return self.end.code if reason == END and self.end is not None else 0
@@ -326,39 +334,22 @@ class Watch:
         self.own.release()
 
 
-def once(repo: Repo, after: int, audiences: list[str] | tuple[str, ...] = ()) -> list[str]:
-    """The pull path: the lines past `after` that are for it, whether they wake or not, and the
-    cursor of the last line read, whoever it was for, with the command for the next message."""
-    subscribed = subscription(autostart.session_key(), audiences)
-    entries = journal.read(repo.store, repo.changes)[0]
-    last = journal.last_seq(entries)
-    if after > last:
-        raise ChantierError(
-            f"watch: --after {after} is past the journal's end ({last})", EXIT_USAGE
-        )
-    new = sorted(
-        (e for e in entries if type(e.get("seq")) is int and e["seq"] > after),
-        key=lambda e: e["seq"],
-    )
-    mine = [e for e in new if journal.for_subscription(e, subscribed)]
-    arrival_mark.tell_arrivals(repo, mine)
-    return [
-        *(journal.event_text(e) for e in mine),
-        f"watch: cursor {last}; next, at the user's next message: "
-        f"{autostart.pull_command(repo, last)}",
-    ]
-
-
 def run(w: Watch) -> tuple[list[str], int]:
-    """Start the watcher, print its start lines, poll until it ends: its last lines and code."""
+    """Start the watcher, print its start lines, poll until it ends: its last lines and code.
+    With `--stream`, each block of events is printed in one write as it comes, and it polls on."""
     try:
         try:
             print("\n".join(w.start()), flush=True)
         except Ended as e:
             return [e.line], e.code
-        while (reason := w.poll(time.monotonic())) is None:
+        while True:
+            now = time.monotonic()
+            reason = w.poll(now)
+            if reason == EVENTS and w.stream:
+                print("\n".join(w.tell(now)), flush=True)
+            elif reason is not None:
+                return w.lines(reason), w.code(reason)
             time.sleep(hub_times.poll_s())
-        return w.lines(reason), w.code(reason)
     finally:
         w.close()
         sys.stdout.flush()
@@ -371,6 +362,8 @@ def watch(args: argparse.Namespace) -> list[str] | tuple[list[str], int]:
             raise ChantierError(
                 f'watch: --for "{value}": one of {journal.AUDIENCE_FORMS}', EXIT_USAGE
             )
+    if args.once and args.stream:
+        raise ChantierError("watch: --stream and --once do not go together", EXIT_USAGE)
     if args.once and args.after is None:
         raise ChantierError("watch --once needs --after SEQ", EXIT_USAGE)
     last = journal.last_seq(journal.read(repo.store, repo.changes)[0])
@@ -391,7 +384,10 @@ def watch(args: argparse.Namespace) -> list[str] | tuple[list[str], int]:
             repo,
             last if args.after is None else args.after,
             rules=Rules(
-                args.audience or [], hub_times.wake_every_s(rules["seconds"]), rules["other"]
+                args.audience or [],
+                hub_times.wake_every_s(rules["seconds"]),
+                rules["other"],
+                args.stream,
             ),
         )
     )

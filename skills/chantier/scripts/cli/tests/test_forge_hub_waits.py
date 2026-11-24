@@ -71,15 +71,25 @@ WAIT_CASES: list[Any] = [  # (id, forge, wait type, wait ref, lines wanted, GitL
 ]
 
 
-def _waiting(world: World, kind: str, ref: str, gitlab: bool, status: str = "blocked") -> str:
-    """Alpha's CR-1 waits (w1) on its own PR, on GitHub or on GitLab; the wait's link."""
+def _waiting(  # noqa: PLR0913, PLR0917
+    world: World,
+    kind: str,
+    ref: str,
+    gitlab: bool,
+    status: str = "blocked",
+    batch: str = "running",
+) -> str:
+    """Alpha's CR-1 waits (w1) on its own PR, on GitHub or on GitLab; the wait's link. A paused
+    batch keeps that one PR open (CR-2's merged)."""
     crs = crs_of("alpha", status)
     link = GL.format(10) if gitlab else crs[0]["pr"]
     if gitlab:
         for i, c in enumerate(crs):
             c["pr"] = GL.format(10 + i)
     crs[0]["waits"] = [_wait("w1", kind, ref or link, link)]
-    write_batch(world.project("alpha"), "running", crs)
+    if batch == "paused":
+        crs[1]["status"] = "merged"
+    write_batch(world.project("alpha"), batch, crs)
     return link
 
 
@@ -113,13 +123,17 @@ def test_a_wait_on_another_repository_is_not_read_and_the_read_does_not_refuse(
     assert not [e for e in world.journal("alpha") if e["type"] == "wait-cleared@1"]
 
 
-def test_the_waits_add_no_read_one_call_per_project_and_cycle(world: World) -> None:
-    link = _waiting(world, "merge", "", False)
+@pytest.mark.parametrize("batch", ["running", "paused"])
+def test_the_waits_add_no_read_one_call_per_project_and_cycle(world: World, batch: str) -> None:
+    link = _waiting(world, "merge", "", False, batch=batch)
+    world.forge = {10: merged(MAIN, T1)}
     world.hub.cycle(0.0)
     world.hub.cycle(CYCLE)
     alpha = [c for c in world.calls if any("/alpha/" in x for x in c)]
     assert len(alpha) == len(world.calls) // CALLS == CALLS  # one read per cycle, per project
     assert all(c.count(link) == 1 for c in alpha)
+    got = [e for e in world.journal("alpha") if e["type"] == "wait-cleared@1"]
+    assert [(e["cr"], e["wait"]) for e in got] == [("CR-1", "w1")]  # a paused batch's too
 
 
 @pytest.mark.parametrize(

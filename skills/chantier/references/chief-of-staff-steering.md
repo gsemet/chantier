@@ -246,10 +246,16 @@
   user does in the board (`board wrote`, `config changed on the board`) and the issue events an
   outside poller writes (`tracker saw`; a CR a pull brought: `surface pull brought`), the events for it (the
   project's and this session's), which it reads from the board, subscribed (it starts the board,
-  detached, when none runs and the seat is this session's), and ends 20 s after the last new one
-  for it that wakes, and no sooner than `events.wake_every` after its start, or 2 h after its start
-  with no event for it that wakes (the `no event for <name> in 2 h` line: start it again at once,
-  nothing to tell the user), or when the seat is another session's; its end starts your turn.
+  detached, when none runs and the seat is this session's). 20 s after the last new one for it
+  that wakes, and no sooner than `events.wake_every` after its start or its last telling, it tells
+  the events it gathered: in its streaming form (the printed command ends with `--stream`, on a
+  host whose reference runs it so) it prints them, closed by its `watch: <name> told up to cursor
+  <n>; still watching` line, and runs on; in its plain form it ends there. It ends when the seat is
+  another session's, and, while no batch is in flight (none running, none paused with a PR the
+  record holds neither merged nor cancelled), 2 h after the latest of its start, its last event
+  for it that wakes and the last moment a batch was in flight (the `no event for <name> in 2 h`
+  line: start it again at once, nothing to tell the user). Its notification, or its end, starts
+  your turn.
   - *When it starts:* whatever the batch, running, paused or none, the CLI prints `watch: not
     running: for the Chief of Staff, start in the background: <command>` when no watcher of this
     session runs (after `open`, `seat take`, `seat`, the `take` or `order qa` that sets a paused
@@ -258,7 +264,8 @@
     run the printed command as is: no flag added. In Foreman mode the resuming `take` is the
     Foreman's, so the line reaches you at your next `status` (your next report, or the next
     Foreman message you act on). A watcher of another session, which `status` names, does not
-    wake you: start your own. After a watcher's end: its last line `watch: <name> still
+    wake you: start your own. After a watcher's notification (its last line `still watching`):
+    no restart, it runs on. After a watcher's end: its last line `watch: <name> still
     running: …` (`<name>` the batch, or `<project> (no batch)`) prints the restart: run the
     printed command as is: no flag added. A watcher that ends with `the seat of <project> is
     another session's now` is not started again: the seat moved. The `board:` line of `status`
@@ -269,7 +276,7 @@
     The watcher's other lines (its `started the board (PID <n>)` clause, the board's lines it
     passes on, the lines of a board that does not come up or of a seat it cannot start one for):
     as [session-start-chief-of-staff](session-start-chief-of-staff.md), "The watcher", says.
-  - *A watcher's end:* read its output. A `forge saw merged … order merged <cr>` line, on this
+  - *A watcher's notification or end:* read its output, each line handled the same way. A `forge saw merged … order merged <cr>` line, on this
     path and at the next `status`, is checked on the forge first (`gh pr view <pr> --json
     state,baseRefName,mergedAt`, `glab mr view <iid>` on GitLab): merged, into the default
     branch, or, for a `landed with` line, its base's PR merged into the default branch. Then
@@ -279,8 +286,8 @@
     landed` line: tell the user where the PR went, record nothing. The GitLab fold rule keeps its
     precedence. A `forge saw checks red` line: tell the user (the CR, the PR, the head), record
     nothing; in Foreman mode send the Foreman `checks red <cr> <pr> at <head7>`. Then one message
-    to the user with what was recorded and told (the report format), and start the watcher again
-    from its last line. A `config changed on the board: batch.slots <old> -> <new>; <batch> keeps <n> until an
+    to the user with what was recorded and told (the report format), and, when the watcher ended
+    (its last line is not `still watching`), start it again from its last line. A `config changed on the board: batch.slots <old> -> <new>; <batch> keeps <n> until an
     order slots` line (also in `status`, until an `order slots` follows it): the user changed the
     slots on the board for the next batch, the running one keeps its own; tell the user and offer
     `order slots --note <new>` for the running batch, send nothing before their word. A
@@ -311,14 +318,14 @@
     line (an `arrived@1` line: a CR that reached the inbox or the backlog from another
     machine or session): one line to the user that names the folder and its stage, no tool call,
     no action; the CR is not claimed, moved or grilled for it. `seat` and `status` list the arrivals
-    not yet told when no watcher runs, and a watcher's end or a `watch --once` moves the mark.
+    not yet told when no watcher runs, and a watcher's notification or end or a `watch --once` moves the mark.
   - *The pull path:* when no watcher can wake this session (its host's reference, or the user's
     no), run the printed `watch --once` command (the `watch: not running` line's `after the
     user's no` clause, the `pull path` line of `status`, or the last `--once` output's `next`
     line) at the start of each turn the user's message opens: run it as is: no flag added. Tell
     its `board wrote`, `tracker saw`, `surface pull brought` / `another session wrote` and role `config@1` lines as above, and act on its merge and two-key
-    `config@1` lines as at a watcher's end. A `board wrote (...)` line that sets a CR's destination
-    is handled as at a watcher's end: write the destination into the CR's `02-answers.md` (latest
+    `config@1` lines as at a watcher's notification or end. A `board wrote (...)` line that sets a CR's destination
+    is handled as at a watcher's notification or end: write the destination into the CR's `02-answers.md` (latest
     word wins), then, for a `running-batch` line, `order add --note <folder>` once the specification
     is final (at once in `3-ready`). A line whose `seq` was already told is not told
     again. After the user's no, merges go back to the user's word: no board reads the forge.
