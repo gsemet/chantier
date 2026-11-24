@@ -62,8 +62,9 @@
   remote-cli-Q9, 2026-11-22), through one published API over a WebSocket, and over HTTP as the same
   protocol for a network where a WebSocket does not pass, behind a proxy for instance (not a
   fallback): two surfaces' servers on one machine never clash: each keeps its key and record in its own git
-  folder, and one that finds the default port held on any address (by another chantier board or any program, a connect check before the bind everywhere and an exclusive bind on Windows) takes the next free port above it; one surface has one serving process per machine: a start takes the surface's `chantier/hub.lock`, held for the process's life (no new file), and a start that does not win it waits briefly for the board the winner starts and joins it (`board already running`), or refuses with the silent-board text, and a server that finds `server.json`'s `server` entry naming another live PID stops itself, cleanly, without writing that entry
-  and prints it (the user's answer remote-cli-Q17, 2026-11-22); it serves the record and the planning folder's files (it alone reads the planning
+  folder, and one that finds the default port held on any address (by another chantier board or any program, a connect check before the bind everywhere and an exclusive bind on Windows) takes the next free port above it and prints it (the user's answer remote-cli-Q17, 2026-11-22).
+  One surface has one serving process per machine: a start takes the surface's `chantier/hub.lock`, held for the process's life (no new file), and a start that does not win it waits briefly for the board the winner starts and joins it (`board already running`), or refuses with the silent-board text, and a server that finds `server.json`'s `server` entry naming another live PID stops itself, cleanly, without writing that entry.
+  It serves the record and the planning folder's files (it alone reads the planning
   files for the live clients, told of changes by the system's file notifications (inotify,
   FSEvents, ReadDirectoryChangesW), or, on a system where none works, by a check every 5 s (the
   user's own decision of 2026-11-21, not a fallback), and publishes 1 s after the last change),
