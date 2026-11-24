@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from collections import Counter
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -294,6 +295,26 @@ def _past(store: PlanStore, stage: Path, start: Path) -> tuple[list[dict[str, An
     return out, len(folders)
 
 
+def _merged_row(
+    repo: Repo, d: BatchRecord, c: CrEntry, where: Path | None, start: Path
+) -> dict[str, Any]:
+    """One merged CR as a `ChantierPast` row, for the merged lists."""
+    return {
+        "cr": c.id,
+        "title": shown_title(repo.store, c.title, where),
+        "state": c.status,
+        "batch": d.id,
+        "pr": c.shown_pr(),
+        "cost_usd": c.cost_usd,
+        "when": c.merged_at,
+        "path": _link(where, start) if where else "",
+    }
+
+
+def _newest_first(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(rows, key=lambda r: r["when"] or "", reverse=True)
+
+
 def _done_rows(repo: Repo, start: Path) -> list[dict[str, Any]]:
     """The batch's CRs waiting in `3-done`, newest merge first: they head the merged list."""
     out = []
@@ -303,19 +324,19 @@ def _done_rows(repo: Repo, start: Path) -> list[dict[str, Any]]:
             where = repo.planning_path(c.path) if c.path else None
             if where is None or where.parent != folder / "3-done":
                 continue
-            out.append(
-                {
-                    "cr": c.id,
-                    "title": shown_title(repo.store, c.title, where),
-                    "state": c.status,
-                    "batch": d.id,
-                    "pr": c.shown_pr(),
-                    "cost_usd": c.cost_usd,
-                    "when": c.merged_at,
-                    "path": _link(where, start),
-                }
-            )
-    return sorted(out, key=lambda r: r["when"] or "", reverse=True)
+            out.append(_merged_row(repo, d, c, where, start))
+    return _newest_first(out)
+
+
+def _batch_merged(repo: Repo, d: BatchRecord, start: Path) -> list[dict[str, Any]]:
+    """All of the batch's merged CRs, newest merge first, uncapped, wherever their folder is."""
+    out = []
+    for c in d.crs:
+        if c.status != "merged":
+            continue
+        where = repo.planning_path(c.path) if c.path else None
+        out.append(_merged_row(repo, d, c, where, start))
+    return _newest_first(out)
 
 
 def dashboard_view(repo: Repo, paths: dict[str, Path]) -> dict[str, Any]:
@@ -343,6 +364,9 @@ def dashboard_view(repo: Repo, paths: dict[str, Path]) -> dict[str, Any]:
                 "mode": v["mode"],
                 "crs_total": v["crs_total"],
                 "crs": [_row(repo, d, c, start, events) for c in active],
+                "merged": _batch_merged(repo, d, start),
+                "created": d.created,
+                "counts": dict(Counter(c.status for c in d.crs)),
             }
         )
     merged, merged_total = _past(repo.store, paths["archives"], start)

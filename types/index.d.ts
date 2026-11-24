@@ -58,6 +58,12 @@ export type ChantierBatch = {
   slots?: { taken: number; total: number }
   mode?: string | null // the batch's shape: stack, series or parallel
   crs: ChantierRow[]
+  /** All the batch's merged CRs, newest merge first, wherever their folder is; absent from an older file. */
+  merged?: ChantierPast[]
+  /** The batch record's creation time (UTC); absent from an older file. */
+  created?: string | null
+  /** The batch's CRs per status, ended ones included; absent from an older file. */
+  counts?: Record<string, number>
 }
 
 export type ChantierBacklogItem = {
@@ -84,6 +90,30 @@ export type ChantierPast = {
   path: string
 }
 
+/** A snapshot of this machine's chantier processes for the planning surface, taken when the CLI wrote the index. It holds no key. */
+export type ChantierServices = {
+  /** UTC time of the snapshot. */
+  at: string
+  server: {
+    pid: number
+    version: string
+    source: string
+    started: string
+    host: string
+    port: number
+    /** The board's address, with no key. */
+    url: string
+    /** Its 127.0.0.1 form when it differs; else null. */
+    local_url: string | null
+    /** Set when the server runs another version or build than the CLI that wrote the index; else null. */
+    build_note: string | null
+  } | null
+  hub: { pid: number; version: string; started: string; idle?: boolean } | null
+  writer: { pid: number; state: string; text?: string } | null
+  /** The sessions that held a watcher lock of this project at the snapshot. */
+  watchers: string[]
+}
+
 /** `.agents/changes/STATUS.json`. */
 export type ChantierIndex = {
   schema: number
@@ -95,6 +125,8 @@ export type ChantierIndex = {
   merged_total: number
   trashed: ChantierPast[]
   trashed_total: number
+  /** Absent from an older file. */
+  services?: ChantierServices
 }
 
 export type ChantierStep = {
