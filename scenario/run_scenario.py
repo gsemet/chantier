@@ -2826,7 +2826,7 @@ def forge_hub(w: World) -> None:
         # step 12 left a hub `merged@1` line for each of c (the line's key holds no PR): the Foreman's
         # batch gets two CRs added with no earlier line, on PRs 943 and 944
         whole = batch("third")
-        whole.update(status="running", foreman_transcript="uuid-fm")
+        whole.update(status="running", foreman_transcript="uuid-fm", steering="foreman")
         (folder("third") / "4-batch" / "batch.json").write_text(json.dumps(whole, indent=2))
         for n in (4, 5):
             sw.chantier("order", "add", "--note", sw.prepare(f"Hub C{n}", project="third"),

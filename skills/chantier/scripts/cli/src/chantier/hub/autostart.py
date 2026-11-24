@@ -94,9 +94,12 @@ def open_record(repo: Repo) -> BatchRecord | None:
 
 def records_foreman(d: BatchRecord | None, session: str | None = None) -> bool:
     """Whether the batch records this session (or `session`) as its Foreman: the batch's
-    `foreman_transcript`, kept as the key is. Never with the key `none`."""
+    `foreman_transcript`, kept as the key is. Never with the key `none`, and never in a direct
+    batch (`steering == "direct"`): the Chief of Staff steers it with its one watcher."""
     key = session_key() if session is None else session
-    return d is not None and key != NONE and kept(d.foreman_transcript) == key
+    if d is None or d.steering == "direct":
+        return False
+    return key != NONE and kept(d.foreman_transcript) == key
 
 
 def foreman_batch(repo: Repo) -> BatchRecord | None:

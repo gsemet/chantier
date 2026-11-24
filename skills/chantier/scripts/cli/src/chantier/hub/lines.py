@@ -41,6 +41,8 @@ def foreman_line(repo: Repo, d: BatchRecord) -> str | None:
     (the Chief of Staff's): whether the Foreman's session holds a watcher of the project."""
     if d.status not in ("running", "paused") or not d.foreman_transcript:
         return None
+    if d.steering == "direct":  # no Foreman's watcher in direct mode
+        return None
     foreman = autostart.kept(d.foreman_transcript)
     if not foreman or foreman == autostart.session_key():
         return None
