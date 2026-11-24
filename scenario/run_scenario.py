@@ -2350,8 +2350,9 @@ def surface_pid(sw: World) -> int | None:
 
 def surface_alive(sw: World) -> bool:
     """A board `server.json` names runs: its entry is there and its process lives."""
+    from chantier.procs import alive
     pid = surface_pid(sw)
-    return pid is not None and psutil.pid_exists(pid)
+    return pid is not None and alive(pid)
 
 
 def surface_link(sw: World) -> Link:
@@ -2874,6 +2875,7 @@ def restart_board(w: World) -> None:
     same key; a watcher starts no board while a chantier dev session holds its seat with another build."""
     from chantier.hub import lock
     from chantier.hub.watch_lines import NO_BOARD
+    from chantier.procs import alive as proc_alive
     note("\n## 16d1c. `chantier serve --restart`; the watcher's guard under a chantier dev session")
     sw = SurfaceWorld(w.root / "restart")
     sw.root.mkdir()
@@ -2898,7 +2900,7 @@ def restart_board(w: World) -> None:
               (stopped or "").startswith("board stopped: chantier ") and f"(PID {old_pid}," in (stopped or "")
               and again.ok and again.key == link.key, f"{stopped} {start}")
         check("the old process ended (no signal sent by the command) and the new one answers",
-              not psutil.pid_exists(old_pid) and surface_pid(sw) != old_pid
+              not proc_alive(old_pid) and surface_pid(sw) != old_pid
               and fetch(again.port, "/api/board", headers=again.cookie)[0] == 200, str(surface_entry(sw)))
         new.stop()
         surface_kill(sw)
