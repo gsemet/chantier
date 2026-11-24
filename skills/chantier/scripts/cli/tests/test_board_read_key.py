@@ -16,7 +16,7 @@ from dashboard_world import cr, rec
 from test_board_history import entry
 from test_board_prs import Board, served
 
-from chantier.board import address, guard, reads, routes
+from chantier.board import guard, links, reads, routes
 from chantier.board import key as keys
 from chantier.board.api import auth, ops, protocol, times, topics
 from chantier.board.api.push import PushLoop
@@ -170,7 +170,7 @@ def test_the_welcome_frame_carries_the_access() -> None:
 def test_the_read_key_never_sees_the_private_key_in_the_boards_data(
     board: Board, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(address, "_default_route_address", lambda: LAN)
+    monkeypatch.setattr(links, "default_route_address", lambda: LAN)
     board.ctx.bound = ("0.0.0.0", 8765)
     read = _read_key(board)
     private = _call(board, board.key, "board.get")[1]["data"]["local_url"]

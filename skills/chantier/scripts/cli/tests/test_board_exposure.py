@@ -12,7 +12,7 @@ from conftest import Chantier
 from test_board_running import _answer, _prepare_board
 
 from chantier import __version__
-from chantier.board import address, command, guard
+from chantier.board import address, command, guard, links
 from chantier.board import key as keys
 from chantier.board.context import Request
 from chantier.board.projects import open_projects
@@ -28,11 +28,11 @@ NETWORK = "board:\n  host: network\n"
 
 
 def _route(monkeypatch: pytest.MonkeyPatch, *found: str) -> None:
-    """`_default_route_address` answers these addresses in turn (the last one again)."""
+    """`default_route_address` answers these addresses in turn (the last one again)."""
     answers = list(found)
     monkeypatch.setattr(
-        address,
-        "_default_route_address",
+        links,
+        "default_route_address",
         lambda: answers.pop(0) if len(answers) > 1 else answers[0],
     )
 

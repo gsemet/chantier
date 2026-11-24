@@ -7,7 +7,8 @@ from pathlib import Path
 from typing import Any
 
 from chantier import __version__
-from chantier.board.address import local_url, url
+from chantier.board.links import local_url, url
+from chantier.board.projects import project_name
 from chantier.core import clock
 from chantier.core.files import rel_in, write_file
 from chantier.core.records import BatchRecord, EventRecord, read_events
@@ -95,7 +96,7 @@ def services_view(repo: Repo) -> dict[str, Any]:
         "server": server,
         "hub": hub,
         "writer": _picked(writer, ("pid", "state", "text")),
-        "watchers": lock.watchers(git_dir, (repo.project_dir or repo.root).name),
+        "watchers": lock.watchers(git_dir, project_name(repo)),
     }
 
 
