@@ -82,10 +82,25 @@ def _drawn(values: list[dict[str, float] | None]) -> set[str]:
     return {k for v in values if v is not None for k in v}
 
 
-def _split(records: list[dict[str, Any]], rank_: list[tuple[str, list[str]]]) -> dict[str, Any]:
+Groups = list[list[dict[str, Any]]]
+
+
+def _sum_segments(parts: list[dict[str, float] | None]) -> dict[str, float] | None:
+    """The segments of a point's records, summed by key; `None` when no record has a bar."""
+    got = [p for p in parts if p is not None]
+    if not got:
+        return None
+    out: dict[str, float] = {}
+    for p in got:
+        for k, v in p.items():
+            out[k] = out.get(k, 0) + v
+    return out
+
+
+def _split(groups: Groups, rank_: list[tuple[str, list[str]]]) -> dict[str, Any]:
     key_of = {m: key for key, models in rank_ for m in models}
-    role = [_segments(r, _by_role(r)) for r in records]
-    model = [_segments(r, _by_model(r, key_of)) for r in records]
+    role = [_sum_segments([_segments(r, _by_role(r)) for r in g]) for g in groups]
+    model = [_sum_segments([_segments(r, _by_model(r, key_of)) for r in g]) for g in groups]
     drawn = _drawn(model)
     series = [{"key": k, "models": models} for k, models in rank_ if k in drawn]
     if "unsplit" in drawn:
@@ -98,27 +113,34 @@ def _split(records: list[dict[str, Any]], rank_: list[tuple[str, list[str]]]) ->
     }
 
 
-def _spend(records: list[dict[str, Any]], rank_: list[tuple[str, list[str]]]) -> dict[str, Any]:
-    got = [r for r in records if num(r.get("cost_usd"))]
+def _spend(groups: Groups, rank_: list[tuple[str, list[str]]]) -> dict[str, Any]:
+    got = [r for g in groups for r in g if num(r.get("cost_usd"))]
     return {
-        **_split(records, rank_),
+        **_split(groups, rank_),
         "total": sum(r["cost_usd"] for r in got) if got else None,
-        "covered": len(got),
+        "covered": sum(any(num(r.get("cost_usd")) for r in g) for g in groups),
         "unpriced": any(unpriced(r) for r in got),
     }
 
 
-def _per_cr(records: list[dict[str, Any]]) -> dict[str, Any]:
+def _costed_merged(group: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [r for r in group if num(r.get("cost_usd")) and merged_of(r)]
+
+
+def _per_cr(groups: Groups) -> dict[str, Any]:
+    """The cost per merged CR: at a point the records' summed cost over their summed merged CRs,
+    and over the range the same sums, so that it is a ratio and never a sum of ratios."""
+    kept = [_costed_merged(g) for g in groups]
     values = [
-        r["cost_usd"] / len(merged_of(r)) if num(r.get("cost_usd")) and merged_of(r) else None
-        for r in records
+        sum(r["cost_usd"] for r in k) / sum(len(merged_of(r)) for r in k) if k else None
+        for k in kept
     ]
-    got = [r for r, v in zip(records, values, strict=True) if v is not None]
+    got = [r for k in kept for r in k]
     cost = sum(r["cost_usd"] for r in got)
     merged = sum(len(merged_of(r)) for r in got)
     return {
         "values": values,
-        "covered": len(got),
+        "covered": sum(bool(k) for k in kept),
         "cost": cost if got else None,
         "merged": merged if got else None,
         "ratio": cost / merged if got else None,
@@ -138,18 +160,19 @@ def _outside_of(rec: dict[str, Any]) -> list[dict[str, Any]] | None:
     return parts
 
 
-def _outside(records: list[dict[str, Any]]) -> dict[str, Any]:
-    got = [p for p in (_outside_of(r) for r in records) if p is not None]
+def _outside(groups: Groups) -> dict[str, Any]:
+    found = [[p for r in g if (p := _outside_of(r)) is not None] for g in groups]
+    got = [parts for f in found for parts in f]
     return {
         "usd": sum(part["usd"] for parts in got for part in parts) if got else None,
-        "covered": len(got),
+        "covered": sum(bool(f) for f in found),
         "unpriced": any(unpriced(part, "unpriced") for parts in got for part in parts),
     }
 
 
 def _row(rec: dict[str, Any], cr: dict[str, Any]) -> dict[str, Any]:
     title, rounds, pr = cr.get("title"), cr.get("rounds"), cr.get("pr")
-    return {
+    row = {
         "cr": cr["cr"],
         "title": title if isinstance(title, str) else None,
         "batch": point_of(rec)["batch"],
@@ -158,6 +181,7 @@ def _row(rec: dict[str, Any], cr: dict[str, Any]) -> dict[str, Any]:
         "unpriced": unpriced(cr),
         "pr": pr if isinstance(pr, str) else None,
     }
+    return {**row, "project": rec["_project"]} if "_project" in rec else row
 
 
 def _costed(rec: dict[str, Any]) -> list[dict[str, Any]]:
@@ -169,20 +193,28 @@ def _costed(rec: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def _top(records: list[dict[str, Any]]) -> dict[str, Any]:
-    rows = [(r, c) for r in records for c in _costed(r)]
-    rows.sort(key=lambda rc: (-rc[1]["cost_usd"], -number_of(rc[0]), rc[1]["cr"]))
+def _top(groups: Groups) -> dict[str, Any]:
+    rows = [(r, c) for g in groups for r in g for c in _costed(r)]
+    rows.sort(
+        key=lambda rc: (
+            -rc[1]["cost_usd"],
+            -number_of(rc[0]),
+            rc[1]["cr"],
+            rc[0].get("_project", ""),
+        ),
+    )
     return {
         "rows": [_row(r, c) for r, c in rows[:TOP]],
-        "covered": sum(bool(_costed(r)) for r in records),
+        "covered": sum(any(_costed(r) for r in g) for g in groups),
     }
 
 
-def spending(records: list[dict[str, Any]], closed: list[dict[str, Any]]) -> dict[str, Any]:
-    """The Spending tab over the range's `records`; the model rank is over all `closed`."""
+def spending(groups: Groups, closed: list[dict[str, Any]]) -> dict[str, Any]:
+    """The Spending tab over the range's points (each a group of records, one for a project); the
+    model rank is over all `closed` records."""
     return {
-        "per_cr": _per_cr(records),
-        "spend": _spend(records, rank(closed)),
-        "outside": _outside(records),
-        "top": _top(records),
+        "per_cr": _per_cr(groups),
+        "spend": _spend(groups, rank(closed)),
+        "outside": _outside(groups),
+        "top": _top(groups),
     }

@@ -92,7 +92,15 @@ function barOf(spec, value, i, top) {
 function reading(spec, p, i) {
   const value = spec.values[i];
   const day = typeof p.closed === 'string' ? dayOf(p.closed) : '';
-  const head = [t('dashboard.batch_n', { n: p.n ?? p.batch }), day].filter(Boolean).join(', ');
+  const n = p.n ?? p.batch;
+  // On All projects a point says how many projects it sums, so one project's is not read as all.
+  const name = Number.isInteger(p.projects)
+    ? t(p.projects === 1 ? 'dashboard.batch_projects.one' : 'dashboard.batch_projects', {
+        n,
+        count: p.projects,
+      })
+    : t('dashboard.batch_n', { n });
+  const head = [name, day].filter(Boolean).join(', ');
   const have = spec.series.map((s) => ({ s, v: figure(value, s.key) })).filter((x) => x.v !== null);
   const items = have.map(({ s, v }) => `${s.word} ${spec.format(v)}`);
   if (have.length > 1 && spec.stacked) {

@@ -60,7 +60,7 @@ export default {
   'help.boards.line':
     'Three ways to watch a batch: this web board, a pane in Claude Code, a terminal view.',
   'help.boards.body':
-    "The same record is shown three ways.\n\n- This web board: live batches, what waits for you, the backlog and the merged CRs. It can run on your phone too, where you can triage the backlog. It is one client of the server's published API, which a script can use as well.\n- A read-only pane in Claude Code, opened with /chantier-board or by loading the Chief of Staff.\n- chantier live, a read-only view of a running board in your terminal.\n\nThe boards show the state; the steering session acts on it.",
+    "The same record is shown three ways.\n\n- This web board: live batches, what waits for you, the backlog and the merged CRs. Its Dashboard draws the closed batches as graphs, for one project or, on All projects, summed over every project. It can run on your phone too, where you can triage the backlog. It is one client of the server's published API, which a script can use as well.\n- A read-only pane in Claude Code, opened with /chantier-board or by loading the Chief of Staff.\n- chantier live, a read-only view of a running board in your terminal.\n\nThe boards show the state; the steering session acts on it.",
   'help.chief_of_staff.name': 'Chief of Staff',
   'help.chief_of_staff.line': 'The one person you talk to, in your own session.',
   'help.chief_of_staff.body':

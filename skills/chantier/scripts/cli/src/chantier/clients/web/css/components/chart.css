@@ -1,7 +1,8 @@
 /* The chart component (DESIGN.md), built by js/ui/chart.js: a readout line, a plot at a fixed height
    (--chart-height) drawn as one stretched SVG (lines and marks keep their thickness through
-   vector-effect), a transparent column over each point to read it, the batch numbers under it and
-   a legend. A colour reaches it as --c and the number of points as --n (data-vars); tokens only. */
+   vector-effect), a transparent column under the drawing at each point to read it (its band, on
+   hover or focus, is behind the series), the batch numbers under it and a legend. A colour reaches
+   it as --c and the number of points as --n (data-vars); tokens only. */
 .chart {
   display: flex;
   flex-direction: column;
@@ -46,6 +47,7 @@
   width: 100%;
   height: 100%;
   overflow: visible;
+  z-index: 1; /* above the columns: the read slot's band is behind the series, never over them */
   pointer-events: none;
 }
 

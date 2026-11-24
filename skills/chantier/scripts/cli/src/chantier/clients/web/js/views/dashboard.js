@@ -1,15 +1,17 @@
-// The Dashboard view: the figures of one project's closed batches, one point per batch, on two
+// The Dashboard view: the figures of one project's closed batches (on All projects, of every
+// project's, summed per batch number), one point per batch, on two
 // tabs (Productivity, Spending) and a range (the last 10, the last 20, all). Read-only: the figures
 // are the server's (`dashboard.get`, board/dashboard_page.py) and this view only draws them. The
 // tab and the range are in the address (`dt=`, `dr=`); the Spending tab's switch is Costs' own.
 //   render(state) returns the view's markup; mount(root) returns a cleanup.
 
 import { $, delegate, html } from '../core/dom.js';
-import { DASH_RANGES, DASH_TABS, go } from '../core/router.js';
+import { ALL, DASH_RANGES, DASH_TABS, go } from '../core/router.js';
 import { snapshot } from '../core/store.js';
 import { t } from '../model/words.js';
 import { bindCharts } from '../ui/chart.js';
 import { empty } from '../ui/parts.js';
+import { projectsOf } from '../ui/picker.js';
 import { bindSpendBy } from './costs-models.js';
 import { startFeed } from './dashboard-feed.js';
 import { bindTop, spending } from './dashboard-spend.js';
@@ -22,8 +24,34 @@ const tabBar = (current) =>
 const rangeBar = (current) =>
   html`<div class="seg" role="group" aria-label="${t('dashboard.range')}">${DASH_RANGES.map((id) => html`<button type="button" data-dash-range="${id}" data-key="dash-range-${id}" aria-pressed="${id === current}">${t(`dashboard.range_${id}`)}</button>`)}</div>`;
 
+// On All projects, one line per project with a running or paused batch, each leading to that
+// project's Costs.
+function liveAll(state) {
+  const lines = projectsOf(state)
+    .filter((p) => p.batch && ['running', 'paused'].includes(p.batch.state))
+    .map((p) => {
+      const [before, after] = t('dashboard.live_all', {
+        project: p.id,
+        batch: p.batch.id,
+        link: '{link}',
+      }).split('{link}');
+      return html`<p class="mut">${before}<button type="button" class="dlink" data-dash-costs="${p.id}" data-key="dash-live-${p.id}">${t('dashboard.live_link')}</button>${after}</p>`;
+    });
+  return html`${lines}`;
+}
+
+// On All projects, one link per project opens that project's Dashboard on the same tab and range.
+function perProject(state) {
+  const links = projectsOf(state).map(
+    (p) =>
+      html`<button type="button" class="dlink" data-dash-project="${p.id}" data-key="dash-project-${p.id}">${p.id}</button>`,
+  );
+  return html`<p class="mut dprojects" data-key="dash-projects">${t('dashboard.per_project')} ${links}</p>`;
+}
+
 // The running or paused batch has no point: one line says so and leads to Costs.
 function live(state) {
+  if (state.project === ALL) return liveAll(state);
   const batch = state.data?.batch?.id;
   if (!batch) return '';
   const [before, after] = t('dashboard.live', { batch, link: '{link}' }).split('{link}');
@@ -43,13 +71,16 @@ function body(state) {
   const err = d.error ? problem(d, true) : '';
   if (a.closed_total === 0) return html`${err}${empty(t('dashboard.none'))}`;
   const tiles =
-    state.dashTab === 'spending' ? spending(a, state.spendBy ?? 'model') : productivity(a);
+    state.dashTab === 'spending'
+      ? spending(a, state.spendBy ?? 'model', state.project === ALL)
+      : productivity(a);
   return html`${err}<div class="dgrid dgrid-${state.dashTab}">${tiles}</div>`;
 }
 
 export function render(state) {
   const tab = state.dashTab;
-  return html`<div class="dash"><div class="dhead">${tabBar(tab)}${rangeBar(state.dashRange)}</div>${live(state)}<div role="tabpanel" id="dash-panel" aria-labelledby="dash-tab-${tab}">${body(state)}</div></div>`;
+  const projects = state.project === ALL ? perProject(state) : '';
+  return html`<div class="dash"><div class="dhead">${tabBar(tab)}${rangeBar(state.dashRange)}</div>${projects}${live(state)}<div role="tabpanel" id="dash-panel" aria-labelledby="dash-tab-${tab}">${body(state)}</div></div>`;
 }
 
 // Left and right move between the tabs: the next tab is clicked, as a pointer would.
@@ -76,6 +107,13 @@ function choose(key, value) {
 
 export function mount(root) {
   const offs = [
+    delegate(root, 'click', '[data-dash-project]', (_, b) => {
+      const { dashTab, dashRange } = snapshot();
+      go({ project: b.dataset.dashProject, view: 'dashboard', dt: dashTab, dr: dashRange });
+    }),
+    delegate(root, 'click', '[data-dash-costs]', (_, b) =>
+      go({ project: b.dataset.dashCosts, view: 'costs' }),
+    ),
     delegate(root, 'click', '[data-dash-tab]', (_, b) => choose('dt', b.dataset.dashTab)),
     delegate(root, 'click', '[data-dash-range]', (_, b) => choose('dr', b.dataset.dashRange)),
     delegate(root, 'keydown', '[role="tab"]', arrows),

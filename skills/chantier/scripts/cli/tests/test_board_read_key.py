@@ -12,6 +12,7 @@ import pytest
 from api_client import settled
 from batch_helpers import changes, record, write_record
 from conftest import PLUGIN_ROOT, Chantier
+from dashboard_world import cr, rec
 from test_board_history import entry
 from test_board_prs import Board, served
 
@@ -256,3 +257,31 @@ def test_the_read_key_sees_the_activity_and_the_open_prs_with_no_cost_and_no_rou
         text = json.dumps(part)
         for word in ("cost", "rounds", "round", "unpriced", "7.77", "9.87"):
             assert word not in text, word
+
+
+def test_the_read_key_reads_the_all_projects_dashboard_as_a_projects_and_no_more(
+    board: Board,
+) -> None:
+    archives = changes(board.repo) / "5-archives" / "batches"
+    archives.mkdir(parents=True, exist_ok=True)
+    one = rec(
+        3,
+        [cr(1, rounds=2, cost=4.0)],
+        cost=4.0,
+        models=[{"model": "m", "calls": 1, "usd": 4.0, "unpriced": 0}],
+    )
+    (archives / "batch-3.json").write_text(json.dumps(one), encoding="utf-8")
+    read = _read_key(board)
+    got = {}
+    for name, project in (("all", "*"), ("own", board.id)):
+        status, data = _call(board, read, "dashboard.get", {"project": project, "range": "all"})
+        assert status == OK, data
+        got[name] = data["data"]
+        assert _call(board, board.key, "dashboard.get", {"project": project})[0] == OK
+    assert set(got["all"]) == set(got["own"])  # no field of its own at the top
+    assert set(got["all"]["productivity"]) == set(got["own"]["productivity"])
+    assert set(got["all"]["spending"]) == set(got["own"]["spending"])
+    assert set(got["all"]["points"][0]) - set(got["own"]["points"][0]) == {"projects"}
+    top_all, top_own = got["all"]["spending"]["top"]["rows"], got["own"]["spending"]["top"]["rows"]
+    assert set(top_all[0]) - set(top_own[0]) == {"project"} and top_all[0]["project"] == board.id
+    assert "projects" not in got["own"]["points"][0]

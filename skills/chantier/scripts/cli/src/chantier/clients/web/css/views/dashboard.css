@@ -25,6 +25,12 @@
   margin: 0;
 }
 
+.dash .dprojects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+
 .dash .dlink {
   padding: 0;
   border: 0;

@@ -362,14 +362,14 @@ def test_a_batch_view_draws_the_batch_folder_chip_not_a_priority() -> None:
 
 
 def test_the_dashboard_sits_between_costs_and_configuration_and_its_chart_is_linked() -> None:
-    """The Dashboard entry: after Costs, before Configuration, no overview, no count; its chart
-    sheet is linked right after the column's."""
+    """The Dashboard entry: after Costs, before Configuration, an overview (it shows on All
+    projects), no count; its chart sheet is linked right after the column's."""
     registry = _web("js", "views", "registry.js")
     ids = re.findall(r"^\s*(?:\{\s*)?id: '(\w+)'", registry, re.M)
     at = ids.index("dashboard")
     assert (ids[at - 1], ids[at + 1]) == ("costs", "config")
     entry = re.search(r"\{[^{}]*id: 'dashboard'[^{}]*\}", registry)
-    assert entry and "overview" not in entry[0] and "count" not in entry[0]
+    assert entry and "overview: dashboard" in entry[0] and "count" not in entry[0]
     links = re.findall(r'<link rel="stylesheet" href="(css/[^"]+)"', _web("index.html"))
     assert links[links.index("css/components/column.css") + 1] == "css/components/chart.css"
     assert links[links.index("css/views/costs-stamp.css") + 1] == "css/views/dashboard.css"

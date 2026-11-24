@@ -5,6 +5,7 @@ the views need that no view has; those stay in the board's own data, never in `S
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import time
@@ -236,6 +237,18 @@ def project_paths(repo: Repo) -> dict[str, str]:
     return {"folder": folder, "repo": written, **where}
 
 
+def closed_rev(state: dict[str, Any]) -> str:
+    """A short digest of the closed batch records' batch, day and cost: it changes when a batch
+    closes or a record is corrected, so the Dashboard on All projects asks again. It says nothing
+    of the figures themselves."""
+    seen = [
+        [r.get("batch"), r.get("closed"), r.get("cost_usd")]
+        for r in state.get("history", [])
+        if isinstance(r, dict) and r.get("state") == "closed"
+    ]
+    return hashlib.sha1(json.dumps(seen).encode(), usedforsecurity=False).hexdigest()[:12]
+
+
 def project_line(project_id: str, state: dict[str, Any]) -> dict[str, Any]:
     """What the project picker and "All projects" draw of a project."""
     batch = state["batch"]
@@ -265,4 +278,5 @@ def project_line(project_id: str, state: dict[str, Any]) -> dict[str, Any]:
         "asks_unread": batch["asks_unread"] if batch else 0,
         "last_event_at": state["events"][-1]["t"] if state["events"] else None,
         "needs_you": needs_you(state),
+        "closed_rev": closed_rev(state),
     }
