@@ -6520,10 +6520,8 @@ def driver_liveness(w: World) -> None:
           w.last_stderr)
     cards = HERE.parent / "skills" / "chantier" / "references"
     # a card is its entry file and its pieces (`foreman-*.md`, `driver-*.md`, `stack-driver-*.md`...)
-    foreman = "
-".join(f.read_text(encoding="utf-8") for f in sorted(cards.glob("foreman*.md")))
-    driver = "
-".join(f.read_text(encoding="utf-8") for f in sorted(cards.glob("*driver*.md")))
+    foreman = "\n".join(f.read_text(encoding="utf-8") for f in sorted(cards.glob("foreman*.md")))
+    driver = "\n".join(f.read_text(encoding="utf-8") for f in sorted(cards.glob("*driver*.md")))
     check("foreman.md names the suspect rule, the two proofs of death, the new-epoch rule, the "
           "`context:` case and what counts toward `ended twice`; driver.md lists `context:`",
           all(s in foreman for s in ("**Suspect:**", "**Proof of death**", "new Foreman epoch",
