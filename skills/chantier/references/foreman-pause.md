@@ -3,7 +3,7 @@
 ## The retro critic
 
 **The retro critic.** Draft the points of this pause without writing them (with no point, write
-the one untagged line as above; no critic runs). With one point or more, start one `retro-critic`
+the one untagged line of the retro's section ([foreman](foreman.md), the retro bullet of the pause); no critic runs). With one point or more, start one `retro-critic`
 ([`retro-critic.md`](retro-critic.md)), its agent, model and first line copied from `$CHANTIER
 playbook --batch <batch>`, and wait for its reply. Its brief numbers the points as drafted and
 names, per point, the evidence it cites (the CRs' `work/` notes, `events.jsonl`, `4-batch/STATUS.md`,

@@ -9,7 +9,7 @@
   dependency is rebased onto that one and stays a draft: the note says which. This holds in every
   mode. Then, by mode:
   - **Parallel:** every CR with a PR still open goes back to a Driver (its state is the one from
-    the `status` read just before sending, as above): a CR handed back `ready` or `blocked`
+    the `status` read just before sending a note, [foreman](foreman.md), "Your means"): a CR handed back `ready` or `blocked`
     with `take <cr> --note "rebase: <merged cr> merged"` (a slot, or it waits like a queued CR
     when none is free; one handed back `ready` resumes its Driver as below, a `blocked` one gets a new CR
     Driver); a `working` one gets `[foreman→driver <cr>] note rebase:
@@ -21,7 +21,7 @@
     locally"`; no separate gate `take`.
   - **Series:** the CR whose predecessor merged goes back to a Driver with `take <cr> --note
     "rebase: <cr> merged"` (or the `note` line, by the state from the `status` read just before
-    sending, as above) and turns ready to merge on the default branch.
+    sending a note, as in the parallel line) and turns ready to merge on the default branch.
     When the CR this rebase `take` goes to owes the local run (as "The user's boundaries" says)
     and holds no passed or carried long gate at its new head, the same `take` carries the gate
     note: `take <cr> --note "rebase: <merged cr> merged; long gate: this CR runs <command>

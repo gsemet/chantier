@@ -5,7 +5,7 @@ mode) and drives one CR (or the stack) through short foreground children, one at
 host's reference with this card ([Claude Code](hosts/claude-code.md) or [Copilot](hosts/copilot.md)):
 how to start a child and reach the steering session. It never codes, reviews, debugs or resolves a
 conflict itself: it starts the child, and restarts a failing child rather than do its work.
-Git and the forge are yours (`git`, `gh`, `glab`), by the project's rules (`$CHANTIER rules`, read
+Git and the forge are yours, by the project's rules (`$CHANTIER rules`, read
 first); the CLI keeps the CR's record and tells you what is off. You send every line to the steering
 session by the `Steering:` line of your prompt; a prompt without it is a `Needs:`-like gap: `note` it
 and use the host's reference row.
@@ -23,7 +23,7 @@ At startup read the startup core and the project's rules; defer the rest of this
   - Started again (a `resume:`, `rebase:`, `context:` or other `Note:`): `driver:restart` first.
   - Other Drivers' lines, shared lines, other moments: "Startup core".
   - **Concepts:** "Escalation" when a trigger arises; a rule or word of "Words" when a link names it.
-  - After a compaction, read your entry action again, then the action of the moment you are in.
+  - After a compaction, read your entry action again, then the action of the moment you are in. "Startup core" too.
 - Another Driver's section, another role's card and the users' docs are not opening reads.
 - A rule you did not read still binds you: when a step is not in what you read, read its section
   before you act.
@@ -444,9 +444,25 @@ re-takes").
 
 Your steps, each an action: the restack pass `stack-driver:restack`; making the stack and its five
 checks `stack-driver:make`; a join, a draft turning ready, a merge, a deadline `stack-driver:joins`;
-an insertion, a drop, a hold, a park, a conflict, heavy CI `stack-driver:changes`.
+an insertion, a drop, a hold, a park, a conflict, heavy CI `stack-driver:changes`. Before a take's
+first rebase or push, in any step, read `driver:ship` (the Push, long-gate and CI bullets these steps cite).
 
 A stack driver opens no PR: in "Means: CI", "the PR" is its pushed branch's, the stack's top.
+
+The stack is what your prompt gives from `take stack`, each CR with its base (the state computes
+it: the CR under it, the first on the default branch). Each row's label is the CR's hand-back
+state and, after a comma, its PR's draft flag as last recorded (`ship`, `stack
+--out-of-draft|--draft`): `ready, PR draft (#251)`. A CR is handed back ready when its label starts
+with `ready`, whatever its PR's draft flag; a PR still a draft is yours to turn ready, never a
+reason to wait. In the rows, the mergeable part is the run from the bottom of rows that read
+`ready, PR out of draft (…)`, and "ready to merge" in this section means a CR of that run.
+`$CHANTIER stack` with no CR prints it again at any time and changes nothing. You never run `take stack`: the Foreman runs it and passes
+its output.
+
+The release CR is the top piece:
+`take stack` lists it last. A release with no PR yet is no anomaly: it is to come, and
+joins like any CR when it has its PR. Its PR stays a draft on top until its CR is handed back `ready` and the
+checks hold, then it turns ready with the others (`stack --out-of-draft`). A fix CR is not in the stack.
 
 A stack batch is one opened `--mode stack`, or a batch switched to a stack by `order mode`; after
 a switch, the stack's order starts from the record's order, which the switch set (the CRs already
@@ -455,10 +471,10 @@ handed back `ready` first, in the order they became ready, then the others).
 Your end is one native stack on the forge that the user merges in one action from the top PR or one PR
 at a time from the bottom (on GitLab, only one MR at a time from the bottom, below): a stack is the forge's own stack of PRs grouped bottom to top; a chain of PRs
 based on each other is not one. Your `hand-back ready to merge` is sent only once the stack is made on the
-forge and you have read it back as ready to merge (the five checks, below). On GitLab the stack is the chain
+forge and you have read it back as ready to merge (the five checks, `stack-driver:make`). On GitLab the stack is the chain
 of MRs made by `$CHANTIER forge-stack create`, each MR targeting the one below, the MRs ready to merge below
 and the drafts on top; the user merges it one MR at a time from the bottom (GitLab has no
-one-action merge), and may merge a middle MR directly ("A folded CR", below). Unproved; trial: one
+one-action merge), and may merge a middle MR directly ("A folded CR", [foreman-stack](foreman-stack.md)). Unproved; trial: one
 run on a GitLab project. Each take ends with the stack as
 it stands on the forge, its mergeable part ready to merge and the drafts on top; the batch's last take ends
 with it complete (see [concepts](concepts.md), "Stack").
@@ -593,6 +609,11 @@ inside the procedure and the grant, and ask for anything beyond them.
   `<top cr>'s branch moved since its last ship`: wait for that CR's `ship`, then `ship` again. A
   top CR the forge shows merged: once the journal or the record holds the merge (`status` shows it
   merged), `ship` again.
+- A step fails on the product: `<work folder>/fix-<n>.md`, the fix's specification (a title
+  line, then steps, expected, actual), then
+  `handback blocked fix: <one line>; <path>`. On the infrastructure: one re-run, then `blocked
+  infra:`. Half-done irreversible work: stop and say exactly what is out in `blocked question:`;
+  never undo it on your own.
 - At each step of the procedure: `$CHANTIER phase <cr> release "<the step>"` (at most 40
   characters), one call, as the step starts.
 - An **irreversible action** is any step of the project's procedure that cannot be taken back or
@@ -631,7 +652,7 @@ The other moments, each an action:
 - A steering session's message, the lease, a checkpoint commit: `driver:session`.
 - A matrix probe, the board's write paths: `cr-driver:matrix`.
 
-A quoted "Means:" or "CR driver:" section this card does not hold is in the piece of the action
-this list names for its moment.
+A quoted "Means:", "CR driver:", "Stack driver:" or "Release driver:" section this card does not hold is
+in the piece of the action this list names for its moment.
 
 A `Note: resume: closing` reads only the CR's notes, as the opening reading rules list.

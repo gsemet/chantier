@@ -80,7 +80,7 @@ brackets are yours to fill, from the CLI as printed; the icons and their words s
 - **Notes and Cost notes are the only places for extra messages:** short lines in the user's
   language (explanations, warnings, tips on reading the figures). An empty place is left out, not
   written "none". **Notes** holds what a 🟠 or 🔴 CR waits for and who unblocks it, a chain and its
-  reason, a force push run for a Driver, the remaining floor and the delivery time (`chief-of-staff-batch-start.md`, "The floor"), a slip of an hour or more with its cause, the mergeable partial stack as it stands and, when the time will not hold, the CRs of the partial stack aimed at, the main checkout's line after a merge (below). **Cost notes** holds the CLI's not-priced lines
+  reason, a force push run for a Driver, the remaining floor and the delivery time (`chief-of-staff-any.md`, "The floor"), a slip of an hour or more with its cause, the mergeable partial stack as it stands and, when the time will not hold, the CRs of the partial stack aimed at, the main checkout's line after a merge (below). **Cost notes** holds the CLI's not-priced lines
   (`<model> has no price: add it under prices: in chantier.yaml (exact id: <model>)`, said in the
   user's language with the id kept) and, in the Completion report, the few plain lines of `cost
   --explain`. Nothing but the Tip follows **For you**.
@@ -202,4 +202,4 @@ what chantier really answers, and never a command the host refuses in this sessi
 user cannot take from where they are (the host's signal of where the user is, if it gives one). It
 may name `/chantier:status`, for a progress table at once. After "plus de conseils" (or the same in
 any language) a report carries none for the rest of the session. The examples and the full rule
-are in [chief-of-staff](chief-of-staff.md), "Tips".
+are in [chief-of-staff-any](chief-of-staff-any.md), "Compacting and tips".

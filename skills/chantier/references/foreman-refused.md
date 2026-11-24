@@ -18,7 +18,7 @@ project's clone that `take` names). One command per branch, never a loop or a sc
 whole restack.
 
 1. **Who reads it.** You, on a Driver's `[driver <cr>→foreman] push <branch> <expected remote sha>
-   <local sha>` line; the Chief of Staff on yours ([chief-of-staff](chief-of-staff.md), "A refused
+   <local sha>` line; the Chief of Staff on yours ([chief-of-staff-steering](chief-of-staff-steering.md), "A refused
    force push") and, in direct mode, as the steering session. This is the one place of the check
    and the judgement.
 2. **The check and the judgement.** The check, a hard refusal: the branch is covered (it matches
@@ -100,7 +100,7 @@ whole restack.
 6. **The host refuses your push:** `$CHANTIER note <cr> "refused: <the exact command> -> <the
    host's exact text>"` first, then send `[foreman→chief-of-staff] push <branch> <expected remote
    sha> <local sha>`, not through `asks`. This is a named exception to the `refused <cr> <text>`
-   ask (the asks bullet of "Your means") and to the user's allow line in your own chat ("The
+   ask (the asks bullet of [foreman](foreman.md), "Your means") and to the user's allow line in your own chat ("The
    user's boundaries"): you wait for no allow line and ask the user nothing; the Chief of Staff
    takes it without asking. That line from you now means: judged legitimate, then refused to you
    or not tried (your notes say which). Retry nothing, try no other form, change no permission
@@ -132,10 +132,10 @@ whole restack.
 
 A Driver's rebase the host refuses climbs the same ladder as its force push: the Foreman checks it
 and runs it, then, if the host refuses the Foreman (or the rule is missing), the Chief of Staff
-([chief-of-staff](chief-of-staff.md), "A refused rebase"); the user is asked only if the host
+([chief-of-staff-steering](chief-of-staff-steering.md), "A refused rebase"); the user is asked only if the host
 refuses the Chief of Staff too, one question, and the command runs once on the user's yes. In
 direct mode the ladder is Driver, Chief of Staff, the user. This is a named exception to "no `git
-rebase`" (the early-conflict check, "Your means"): only this command, only in a Driver's worktree,
+rebase`" (the early-conflict check, [foreman-conflict](foreman-conflict.md)): only this command, only in a Driver's worktree,
 only on such a line. The steering session resolves nothing.
 
 1. **The check, a hard refusal.** On `[driver <cr>→foreman] rebase <branch> <base>`: the branch is

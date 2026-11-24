@@ -14,21 +14,22 @@ HOSTS = ("claude", "copilot")
 LIMIT = 12_544  # the manifest's limit, never raised
 SKILLS = PLUGIN_ROOT / "skills"
 DRIVERS = ("cr-driver", "stack-driver", "qa-driver", "release-driver")
-# the after figures of CR-471's PR, per role and host; at its base the Claude host read
+# the after figures of CR-471's PR (fix round 1; the Chief of Staff's include its `-any` piece),
+# per role and host; at its base the Claude host read
 # 380,314 (Chief of Staff), 292,020 (Foreman), 25,134, 66,302, 36,137 and 47,462 (the Drivers)
 AFTER = {
-    ("chief-of-staff", "claude"): 177_821,
-    ("chief-of-staff", "copilot"): 87_975,
-    ("foreman", "claude"): 86_857,
-    ("foreman", "copilot"): 80_343,
-    ("cr-driver", "claude"): 27_122,
-    ("cr-driver", "copilot"): 27_188,
-    ("stack-driver", "claude"): 32_692,
-    ("stack-driver", "copilot"): 32_754,
-    ("qa-driver", "claude"): 24_064,
-    ("qa-driver", "copilot"): 24_134,
-    ("release-driver", "claude"): 25_391,
-    ("release-driver", "copilot"): 25_451,
+    ("chief-of-staff", "claude"): 198_870,
+    ("chief-of-staff", "copilot"): 108_926,
+    ("foreman", "claude"): 87_596,
+    ("foreman", "copilot"): 81_082,
+    ("cr-driver", "claude"): 27_180,
+    ("cr-driver", "copilot"): 27_246,
+    ("stack-driver", "claude"): 34_054,
+    ("stack-driver", "copilot"): 34_116,
+    ("qa-driver", "claude"): 24_122,
+    ("qa-driver", "copilot"): 24_192,
+    ("release-driver", "claude"): 25_806,
+    ("release-driver", "copilot"): 25_866,
 }
 
 

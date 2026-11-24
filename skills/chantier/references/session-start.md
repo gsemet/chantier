@@ -52,7 +52,7 @@ anything else:
 The other preflight lines are a batch's and are not reported here, except what the configuration
 checks add to the first message (P5, P9, P10), which goes in the same message; P10's warning
 (one per capability, the base only at a first turn) comes as the Chief of Staff's question ([chief-of-staff](chief-of-staff.md), "The project"). P9 now holds the
-forge's rights and branch rules too ([chief-of-staff](chief-of-staff.md), "Forge permissions").
+forge's rights and branch rules too ([chief-of-staff-any](chief-of-staff-any.md), "Forge permissions").
 
 ## 2. The seat and the role
 
@@ -66,7 +66,7 @@ surface. It may file (relay) an item into another project's inbox on the user's 
 one line that the CR waits for that project's own Chief of Staff or Griller, offers no grill,
 specification, batch or order for it, and writes nothing more there. Only the user's explicit word
 for that CR ("grill it here") lifts the default, for its grill, specification and triage, never for
-a launch ([chief-of-staff](chief-of-staff.md), "Backlog and grill").
+a launch ([chief-of-staff-grill](chief-of-staff-grill.md), "Backlog and grill").
 
 `$CHANTIER seat` prints the seat: the repository's Chief of Staff session (its id, environment,
 title, link), then, when no watcher runs, the CRs that arrived in the planning folder from another

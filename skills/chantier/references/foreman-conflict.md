@@ -13,7 +13,7 @@
     `anomaly <cr> conflict: …`.
   - **Which pairs:** the new CR against each other CR that is `ready`, has a PR whose base is the
     default branch, and is not merged or cancelled. Skip a pair when one CR's base is the other's
-    branch (a chain or a dependency: `after`, `depends.json`). Skip a pair already noted (below).
+    branch (a chain or a dependency: `after`, `depends.json`). Skip a pair already noted (see "On conflicts").
   - **The command,** one per pair, from the main checkout (with a planning surface, `git -C
     <clone>`, the clone `take` names), with each CR's branch as `handoff <cr>` prints it: `git
     merge-tree --write-tree --name-only --no-messages <new cr's branch> <other cr's branch>`.
@@ -23,7 +23,7 @@
     conflict check: not run against <other cr>: <git's text, first line>"` and go on. Never fall
     back to another command: no trial merge in a checkout, no `git merge`, no `git rebase`, no
     worktree. A command the host refuses takes the usual route (the `refused <cr> <text>` ask and
-    its note, as above).
+    its note, as in [foreman-refused](foreman-refused.md)).
   - **On conflicts:** for each conflicting pair, record `$CHANTIER note <new cr> "early conflict:
     with <other cr>: <paths>"` (up to five paths, then `and <k> more`). This note is the pair's
     source for any later brief, and it marks the pair as noted. Then send **one** ask for this
@@ -34,12 +34,12 @@
   - **What it does not do:** it stops no Driver, sends no `take`, no rebase note and no message
     to a Driver, changes no order, and never switches the mode itself. Each PR stays as its
     hand-back left it: a `ready-to-merge` PR stays mergeable on its own. The switch comes only
-    as the Chief of Staff's `order mode --note stack`, which "A mode switch" below already
+    as the Chief of Staff's `order mode --note stack`, which "A mode switch" in [foreman-hold](foreman-hold.md) already
     covers. The stack driver orders the CRs from the record (the CRs handed back `ready` at the
     bottom, in the order they became ready: `concepts.md`, "Batch modes"), so the later CR is
     rebased onto the earlier, once, on the `anomaly <cr> conflict: stacked on <cr>: <files>`
     route and its `take <cr> --note "rebase: stacked on <cr below>: conflict in <files>"`.
   - **Marks:** the check is plain git, the same on both hosts and forges; its run by a Copilot
     Foreman is **unproved**. On GitLab the stack it may lead to is the chain of MRs merged one at
-    a time from the bottom, as this card already says: **unproved** on a real GitLab (trial: one
+    a time from the bottom, as [foreman-stack](foreman-stack.md) already says: **unproved** on a real GitLab (trial: one
     run on a GitLab project).

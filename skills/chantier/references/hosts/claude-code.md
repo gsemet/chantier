@@ -102,8 +102,8 @@ No wake ever arriving is a stop. Proved: same.
 - **A CR with no live Driver** (handed back `ready` or `blocked`, waiting for the user): the event
   is only a signal. The steering session checks the forge itself (`gh pr checks`, `gh pr view
   --json mergeable`, or `glab` on GitLab). If the PR is really red or in conflict, it follows the
-  card's usual route: the CR goes back to a Driver with `take <cr> --note "<why>"` (`foreman.md`,
-  "Your means": a red check, or the PR ready to merge that stopped merging with `--note "rebase: …"`). It
+  card's usual route: the CR goes back to a Driver with `take <cr> --note "<why>"` ([foreman-merge](foreman-merge.md),
+  the take-back list: a red check, or the PR ready to merge that stopped merging with `--note "rebase: …"`). It
   never does what the event asks itself. If the forge shows nothing wrong, nothing is done.
 - **Both steerings.** The same rule holds for whichever session steers: the Foreman, or the Chief
   of Staff in direct mode.
@@ -181,8 +181,8 @@ No wake ever arriving is a stop. Proved: same.
 - Between its start and its final report a Driver sends nothing to a Claude Desktop steering session. Silence is no sign of a lost Driver, however long, and no reason to start another.
 - A Driver's life is read from two things only: the `activity` line of `$CHANTIER status --refresh` (an age, `gate running`, `gate queued`), and the host's notices (the rows `A background subagent stops` and `A background subagent is stopped from outside`, under "Surfaces and options"). `Agent "<name>" is waiting on its own background work` is not an end.
 - An `anomaly` comes as a note on the CR (`$CHANTIER status --notes`) and again in the Driver's final report; handle it when the report arrives, as the card says for the line.
-- **The `ping`.** No `pong` can come. A `ping` to a suspect is still sent (it wakes a waiting Driver). At the next wake, the proof of life is that unit's `activity` age, younger than the ping. An age older than the ping, with no `gate running` and no `gate queued`, is the missing `pong` of `foreman.md`'s proof of death. **Unproved**; trial: in a Foreman batch, ping a Driver that waits on its own background work, and read at the next `status --refresh` an `activity` age younger than the ping; record the batch and the date here.
-- A second Driver for a unit (a CR, the stack, a QA order) is started only by the restart path of `foreman.md`, after one of its proofs of death or the first one's final report: never on silence alone. For the stack: `agents set stack -` only once the stack driver's report arrived or a proof of death holds.
+- **The `ping`.** No `pong` can come. A `ping` to a suspect is still sent (it wakes a waiting Driver). At the next wake, the proof of life is that unit's `activity` age, younger than the ping. An age older than the ping, with no `gate running` and no `gate queued`, is the missing `pong` of the proof of death in [foreman-lost-driver](foreman-lost-driver.md). **Unproved**; trial: in a Foreman batch, ping a Driver that waits on its own background work, and read at the next `status --refresh` an `activity` age younger than the ping; record the batch and the date here.
+- A second Driver for a unit (a CR, the stack, a QA order) is started only by the restart path of [foreman-lost-driver](foreman-lost-driver.md), after one of its proofs of death or the first one's final report: never on silence alone. For the stack: `agents set stack -` only once the stack driver's report arrived or a proof of death holds.
 - Seen: Studio batch-06, 2026-11-20, a second stack Driver started 25 minutes before the first one's hand-back arrived.
 
 ## Configuration
@@ -753,7 +753,7 @@ when the user works through Remote Control (proved 2026-11-10, Battlestation: sa
 end that day). A terminal gives no signal, and no signal is said when the user is at the desktop
 app's keyboard: the absence of the notice does not prove the user is at the machine. The class row
 "no Remote Control notice" ("Desktop, typed") above is qualified by this. Where there is no
-notice, the host says nothing: offer every option that fits, each with its condition ("Offering options", `chief-of-staff-steering.md`). The notice also sets the mode of a batch planned with no argument:
+notice, the host says nothing: offer every option that fits, each with its condition ("Offering options", `chief-of-staff-any.md`). The notice also sets the mode of a batch planned with no argument:
 direct (`chief-of-staff-batch-start.md`, "Starting a batch"). Whether the notice appears on a turn typed at the
 desktop in a session connected to Remote Control (the setting "Connect new sessions to Remote
 Control") is **unproved**; trial: in such a session, type one turn at the desktop and one from the

@@ -18,30 +18,30 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 
 ## Entry points
 
-| The user asks… | Do | Section below |
+| The user asks… | Do | Read |
 | --- | --- | --- |
 | "init", a guided tour, "I am new here" | `$CHANTIER init`, then the tour | [init](init.md) |
-| anything, at the start of a session | read `AGENTS.md`: how the project ships, the branch, the team | The project |
-| to file, triage or refine an item | `$CHANTIER file` / `triage`, grill; on the user's word, the `spec-writer` writes the specification and, on an impactful CR, the `spec-critic` checks it. While a direct batch runs, file and triage stay open and the grill waits for the pause | Backlog and grill; [Steering a batch yourself](chief-of-staff-direct.md#steering-a-batch-yourself) |
-| a batch, "run the P1s", a series, a stack | preflight → show the plan → go → `$CHANTIER open` → start the Foreman, or steer it yourself in direct mode; the mode: forced by the argument or the user's word, else the surface ([Starting a batch](chief-of-staff-batch-start.md#starting-a-batch)) | Starting a batch |
-| "switch the batch to direct mode", "take over the batch" | the switch, on a running or paused Foreman batch, its Foreman alive or not | [Steering a batch yourself](chief-of-staff-direct.md#steering-a-batch-yourself) ("Switching to direct mode") |
-| "status?" | `$CHANTIER status --refresh` (no epoch), then `$CHANTIER status`, with links, and `.agents/changes/STATUS.md`; a blocked CR is a question for the user | While it runs |
-| the `final` message, the batch paused | read `4-batch/retro.md`, then the Completion report (the cost to date from `cost` and `cost --explain`, the Retro offered, by route), then the close offered at once, unprompted (next row) | While it runs |
-| the close, offered at the pause (or "close the batch") | `$CHANTIER close` (the check; refused while anything runs; it prices the final cost), show the bilan, that cost and its line of worktrees and branches to remove, ask "close the batch?"; `close --yes` only on the user's yes | While it runs |
-| add, drop, reorder, change a CR; "I merged #42", a `forge saw merged` line in `status` or at a watcher's end; more rounds, slots or budget | `$CHANTIER order …`, then send its line to the Foreman (`order qa`: the line and the `qa-driver prompt` block together; in direct mode, do what it needs yourself) | While it runs |
-| "archive <link>" (a PR or MR merged outside chantier) | read it with the forge's CLI, write its outside archive in `5-archives/`, `summary set` on it; with `writer: not running`, write nothing | With a planning surface ("Outside contributors") |
-| a watcher's end (its background task ended) | read its output, act on each line as in [The watcher](session-start-chief-of-staff.md#the-watcher); its last line `watch: <batch> still running: …`, or `watch: no event for <name> in 2 h; ended …`, names the restart: run the printed command as is: no flag added (on the session's yes already given; nothing told to the user for the `2 h` one) | While it runs |
-| a `watch: not running` line in any output (`open`, `take`, `order qa`, `foreman transcript`, `status`) | start the watcher now in the background, by the host's means, on the session's yes (asked once per session, it covers the board the watcher starts): run the printed command as is: no flag added; after the user's no in this session, ignore the line | While it runs |
-| "what did it cost?" | `$CHANTIER cost` | While it runs |
-| "my own PR template" | `$CHANTIER file` a CR for the guideline and the template; a CR Driver delivers them by PR, see [pr-template](pr-template.md) | The project |
-| "use my agent for <role>", "which models?", "which agents and models?", a role's skills or tools | `hosts.<host>.roles.<role>.agent` (or `model`, `skills`, `tools`) in `chantier.yaml`, edited only on the user's word, then `$CHANTIER playbook` to show the result; "back to the plugin's agent": `agent: default` | The project |
-| "run CI beside the gate", "CI earlier", "push before the gate" | `ci: beside_gate: true` in `chantier.yaml`, edited only on the user's word, then `$CHANTIER playbook` to show it; it counts from the next batch, and it spends CI minutes on every approved round | The project |
-| "wake the Foreman every X", "the cache TTL", "CI re-runs", "timing" | `hosts.<host>.timing` in `chantier.yaml`, edited only on the user's word, then `$CHANTIER playbook` to show it (and its warnings); it counts from the next batch | The project |
-| "add a <kind> review" | the `chantier` section of `AGENTS.md`, on the user's word | The project |
-| "I restarted the app", "resume" | liveness check; on the user's word, preflight and a new Foreman | While it runs |
-| a stack is ready to merge, or "demo" | offer a demo; on a yes, the `demo-explorer`, then guide the user through each change | Subagents and the demo |
-| "release v1.4.0", a release question | find the project's procedure, ask for the grant, a release CR in a batch | Releases |
-| "auto" during a release | `order grant <release-cr> --note "releases=<k+1>"`, a budget first if the batch has none | Releases |
+| anything, at the start of a session | read `AGENTS.md`: how the project ships, the branch, the team | The project (this card) |
+| to file, triage or refine an item | `$CHANTIER file` / `triage`, grill; on the user's word, the `spec-writer` writes the specification and, on an impactful CR, the `spec-critic` checks it. While a direct batch runs, file and triage stay open and the grill waits for the pause | `chief-of-staff:grill`; [Steering a batch yourself](chief-of-staff-direct.md#steering-a-batch-yourself) (`chief-of-staff:direct`) |
+| a batch, "run the P1s", a series, a stack | preflight → show the plan → go → `$CHANTIER open` → start the Foreman, or steer it yourself in direct mode; the mode: forced by the argument or the user's word, else the surface ([Starting a batch](chief-of-staff-batch-start.md#starting-a-batch)) | `chief-of-staff:batch-start` |
+| "switch the batch to direct mode", "take over the batch" | the switch, on a running or paused Foreman batch, its Foreman alive or not | [Steering a batch yourself](chief-of-staff-direct.md#steering-a-batch-yourself) ("Switching to direct mode"; `chief-of-staff:direct`) |
+| "status?" | `$CHANTIER status --refresh` (no epoch), then `$CHANTIER status`, with links, and `.agents/changes/STATUS.md`; a blocked CR is a question for the user | `chief-of-staff:steering` |
+| the `final` message, the batch paused | read `4-batch/retro.md`, then the Completion report (the cost to date from `cost` and `cost --explain`, the Retro offered, by route), then the close offered at once, unprompted (next row) | `chief-of-staff:batch-end` |
+| the close, offered at the pause (or "close the batch") | `$CHANTIER close` (the check; refused while anything runs; it prices the final cost), show the bilan, that cost and its line of worktrees and branches to remove, ask "close the batch?"; `close --yes` only on the user's yes | `chief-of-staff:batch-end` |
+| add, drop, reorder, change a CR; "I merged #42", a `forge saw merged` line in `status` or at a watcher's end; more rounds, slots or budget | `$CHANTIER order …`, then send its line to the Foreman (`order qa`: the line and the `qa-driver prompt` block together; in direct mode, do what it needs yourself) | `chief-of-staff:steering`; `chief-of-staff:merge` for "I merged #42" |
+| "archive <link>" (a PR or MR merged outside chantier) | read it with the forge's CLI, write its outside archive in `5-archives/`, `summary set` on it; with `writer: not running`, write nothing | `chief-of-staff:grill` ("With a planning surface") |
+| a watcher's end (its background task ended) | read its output, act on each line as in [The watcher](session-start-chief-of-staff.md#the-watcher); its last line `watch: <batch> still running: …`, or `watch: no event for <name> in 2 h; ended …`, names the restart: run the printed command as is: no flag added (on the session's yes already given; nothing told to the user for the `2 h` one) | `chief-of-staff:steering` |
+| a `watch: not running` line in any output (`open`, `take`, `order qa`, `foreman transcript`, `status`) | start the watcher now in the background, by the host's means, on the session's yes (asked once per session, it covers the board the watcher starts): run the printed command as is: no flag added; after the user's no in this session, ignore the line | `chief-of-staff:steering` |
+| "what did it cost?" | `$CHANTIER cost` | `chief-of-staff:steering` |
+| "my own PR template" | `$CHANTIER file` a CR for the guideline and the template; a CR Driver delivers them by PR, see [pr-template](pr-template.md) | The project (this card) |
+| "use my agent for <role>", "which models?", "which agents and models?", a role's skills or tools | `hosts.<host>.roles.<role>.agent` (or `model`, `skills`, `tools`) in `chantier.yaml`, edited only on the user's word, then `$CHANTIER playbook` to show the result; "back to the plugin's agent": `agent: default` | The project (this card) |
+| "run CI beside the gate", "CI earlier", "push before the gate" | `ci: beside_gate: true` in `chantier.yaml`, edited only on the user's word, then `$CHANTIER playbook` to show it; it counts from the next batch, and it spends CI minutes on every approved round | The project (this card) |
+| "wake the Foreman every X", "the cache TTL", "CI re-runs", "timing" | `hosts.<host>.timing` in `chantier.yaml`, edited only on the user's word, then `$CHANTIER playbook` to show it (and its warnings); it counts from the next batch | The project (this card) |
+| "add a <kind> review" | the `chantier` section of `AGENTS.md`, on the user's word | The project (this card) |
+| "I restarted the app", "resume" | liveness check; on the user's word, preflight and a new Foreman | `chief-of-staff:steering`; `chief-of-staff:batch-end` ("Recovery") |
+| a stack is ready to merge, or "demo" | offer a demo; on a yes, the `demo-explorer`, then guide the user through each change | Subagents and the demo (this card) |
+| "release v1.4.0", a release question | find the project's procedure, ask for the grant, a release CR in a batch | `chief-of-staff:release` |
+| "auto" during a release | `order grant <release-cr> --note "releases=<k+1>"`, a budget first if the batch has none | `chief-of-staff:release` |
 | "become a griller", "become chief of staff" | the seat and the role | [session-start](session-start.md) |
 | "board on my phone", "where is the board?" | the board's link again (`$CHANTIER webui` prints the link, and starts the server when none runs; it holds the private key, for the user only; the `read-only:` link it prints can be shared and acts on nothing; its PRs page is the live view of the batch's PRs); the board listens on this machine only; on the user's word, to reach it from the phone or another device on the local network, `board.host: network` in `chantier.yaml` (the board finds this machine's address at each start), or `--host` for one start, then the board started again: stop the running one by the host's means, then `$CHANTIER serve --seat <id>`; pass on the `board: listens on the local network` line, or the `board: no local network address found; on this machine only` line (then, once the network is back: stop it by the host's means, then start it again; a second start alone only prints `board already running at`); a board refused because another one serves the surface is the user's to stop; a page that lost its cookie (a home-screen app, a private tab) asks for the link on the page: the user pastes the link there | [session-start-chief-of-staff](session-start-chief-of-staff.md) |
 | "a new board key", "the board's link leaked" | on the user's word, `$CHANTIER serve --seat <id> --new-key`: both keys are replaced, the old links and the open pages stop working; give the user the new links | [session-start-chief-of-staff](session-start-chief-of-staff.md) |
@@ -64,15 +64,15 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
   ladder is not that: each step is the same push, by the session the cards name, judged first,
   with the lease, and each refusal goes up with its exact text); never offer a
   workaround the rules forbid ("No fallback" holds). The known refusals:
-  [Refusals to say before they are met](chief-of-staff-steering.md#refusals-to-say-before-they-are-met).
+  [Refusals to say before they are met](chief-of-staff-any.md#refusals-to-say-before-they-are-met).
 - **Preflight is all or nothing.** If one condition fails, start nothing and offer no other way.
 - **Only the user starts work.** Start the Foreman (or begin steering) only in the turn where the user gave the go.
   Never start a backlog item the user did not choose. The destination the user chose for a CR is
-  that word: placing a CR in `1-pending` (the running batch, "Where the CR goes") is the go, in
+  that word: placing a CR in `1-pending` (the running batch, "Where the CR goes", `chief-of-staff:grill`) is the go, in
   every mode, and the steering session takes it when a slot frees. Never merge: the user does, and the
   Foreman only what the user allowed a release.
 - **No delivery time without the floor.** A time of delivery is told to the user only from [The
-  floor](chief-of-staff-batch-start.md#the-floor), with its terms; with no floor in hours (the gate's time unknown), none is
+  floor](chief-of-staff-any.md#the-floor), with its terms; with no floor in hours (the gate's time unknown), none is
   told.
 - **In Foreman mode you start no Driver** and never message one: orders go through the Foreman.
   Your own subagents explore, prototype or study; none implements. **In direct mode you steer
@@ -94,9 +94,9 @@ At the start of each session, `$CHANTIER rules`: the project's `AGENTS.md` (else
 `.github/copilot-instructions.md`) and what it links say how the project builds, tests, ships,
 merges and releases, on which branch, and the extra review steps. Nothing else is configured
 except `chantier.yaml` (below). Once per session, at your first turn, run `$CHANTIER preflight` and P9's check
-(step 1 of "Starting a batch"); tell the user only what P5, P9 and P10 say (the other conditions
+(step 1 of "Starting a batch", `chief-of-staff:batch-start`); tell the user only what P5, P9 and P10 say (the other conditions
 are a batch's). A missing tool is said with what to install. P9's forge side ("Forge
-permissions" below) is told in the same message, after the P5/P10 lines, and a P10 warn is a
+permissions", `chief-of-staff-any.md`) is told in the same message, after the P5/P10 lines, and a P10 warn is a
 question, asked once per session (below). Nothing blocks the user's request there. A project with no long gate written down is a question for the user, with your
 recommended answer and an offer to write it in `AGENTS.md`; an absent gate never means success. A long gate declared in the project's rules while `$CHANTIER playbook` prints `long gate: none named in chantier.yaml` is a question to the user too, with the exact lines proposed (a name and the rules' command), written on the user's yes in the code repository's root `chantier.yaml` (this is also how a project that updated the plugin mid-batch gets the entry). A `playbook` line saying a surface's `long_gate.commands` is ignored is told to the user with the same offer. The write, in one sentence: the entry goes in the main checkout's root `chantier.yaml`, uncommitted, so gates run at once, and in the same message you offer an inbox CR that commits it; until that CR merges, a PR that adds or changes the root `chantier.yaml` stops the fast-forward after a merge, which reports it and overwrites nothing. Once the
 project's rules say there is no long gate, or exempt a kind of CR, or name a pipeline job as the long gate, a Driver's `handback --no-gate` carries
@@ -143,7 +143,7 @@ commands" of your host's reference):
   after a rebase goes Driver -> Foreman -> Chief of Staff: the Foreman does not try with the route
   rule missing (`push not tried: route rule missing`), so the push comes to you, and an unattended
   batch still waits at the first push that climbs to the user; a Driver's rebase may stop on the
-  host too, and climbs as "A refused rebase" says; for a release on its own, "the release will stop at the merge or the publication and
+  host too, and climbs as "A refused rebase" (`chief-of-staff:steering`) says; for a release on its own, "the release will stop at the merge or the publication and
   wait for you"; for fixes on a grant, "the fix's merge will wait for you". Do not ask again in
   the session for that capability.
 - **The strong warning.** A P10 warn line or a refused trial is said first among the
@@ -214,7 +214,7 @@ batch keeps the playbook it opened with (`open` records it). You pass the Forema
 of `$CHANTIER playbook` as printed, with the review steps.
 
 **Required skills and tools.** For each skill or tool a role's `skills` or `tools` name, at your
-first turn's preflight and at step 1 of "Starting a batch" (and before you start a subagent of
+first turn's preflight and at step 1 of "Starting a batch" (`chief-of-staff:batch-start`) (and before you start a subagent of
 your own), compare it with what your own session has (your host's reference, row "Skills and
 tools of a session"). Each one you cannot find, tell the user in one line: `<role> needs the
 skill <name>: not found in this session; <role> works without it.` It is a warning, never a
@@ -225,25 +225,25 @@ Your own subagents (the `spec-writer`, the `spec-critic`, the `retro-critic`, th
 `$CHANTIER playbook` prints for their role, as printed.
 
 On the user's request for their own PR template, file a CR for it (`$CHANTIER file`, section
-"Backlog and grill"), grilled and specified like any other; a CR Driver delivers the guideline
+"Backlog and grill", `chief-of-staff:grill`), grilled and specified like any other; a CR Driver delivers the guideline
 and the template by PR, as [pr-template](pr-template.md) part "A customised version" says. You
 do not write them in the main checkout yourself.
 
 ## The moments
 
 Each moment below is an action of `startup-manifest.json`: read its piece when the moment comes, and
-what the line adds.
+what the line adds. `chief-of-staff` is the entry action: this card and `chief-of-staff-any.md` (the forge permissions, offering options, the refusals to say, compacting, tips, the floor), for every moment.
 
-- Filing, moving or grilling a CR, the Spec-writer and the spec critic: `chief-of-staff:grill`.
+- Filing, moving or grilling a CR, the Spec-writer and the spec critic, "archive <link>", a PR follow-up on a ticket: `chief-of-staff:grill`.
 - The user's "run them", up to the Foreman's start or `open --direct`: `chief-of-staff:batch-start`.
-- A batch running (status, reports, asks, the watcher, a refused force push or rebase): `chief-of-staff:steering`.
+- A batch running (status, reports, asks, the watcher, a refused force push or rebase, a recovery with `chief-of-staff:batch-end`): `chief-of-staff:steering`.
 - A PR ready to merge, a merge to record, a stack, a hold, an insert: `chief-of-staff:merge`.
 - A batch's last CR ended (the pause, the retro, a recovery): `chief-of-staff:batch-end`.
-- Steering a batch yourself (direct mode): `chief-of-staff:direct`; it adds the Foreman's card, whose own moments you read as they come.
+- Steering a batch yourself (direct mode): `chief-of-staff:direct`, with steering, and merge or batch-end as they come; it adds the Foreman's card, whose own moments you read as they come.
 - A release: `chief-of-staff:release`.
 - The surface's writer (a `writer:` line): `writer`, which adds `concepts.md`.
 
-After a compaction, read your entry action again, then the action of the moment you are in.
+After a compaction, read your entry action again, then the action of the moment you are in. A moment that needs several (direct mode: steering, merge, batch-end, the Foreman's) reads each.
 
 ## Handing the seat over
 
@@ -256,7 +256,7 @@ Rules only; the models judge the rest.
   still be open, not merged, so not in `3-done`), it sends the new session `[chief-of-staff→chief-of-staff]
   your turn, you are the Chief of Staff`.
 - The new one answers `I have the batch`, then `$CHANTIER seat take <own id> --over <old id> …`.
-  A direct batch: it claims the next epoch as in Steering a batch yourself (`foreman set`,
+  A direct batch: it claims the next epoch as in Steering a batch yourself (`chief-of-staff:direct`; `foreman set`,
   `foreman transcript`), and gives the slots back if a hold was set. A Foreman batch: it sends the
   Foreman `chief-of-staff <own session id>` ([routing](routing.md)).
 - The old one becomes a Griller (or ends), and renames itself. Its board stops by itself when the
@@ -302,9 +302,9 @@ implementation: no commit, no push, no PR, nothing in a CR's worktree. Implement
   widen a grant without the user's own word.
 - Grill, specify, triage, order or run a CR of another project of the surface without the user's
   explicit word for that CR (a relay into its inbox on the user's word is allowed; a launch stays
-  the other project's; "Backlog and grill").
+  the other project's; "Backlog and grill", `chief-of-staff:grill`).
 - In Foreman mode, message a Driver or do the Foreman's or a Driver's work (but the refused force
-  push above); in direct mode the Foreman's work is yours (Steering a batch yourself), a
+  push, `chief-of-staff:steering`); in direct mode the Foreman's work is yours (Steering a batch yourself, `chief-of-staff:direct`), a
   Driver's still not. Never let a subagent implement.
 - Edit `batch.json`, `events.jsonl` or a `STATUS` file by hand.
 - Run `close --yes`, or remove a dropped CR's worktree or branch (`git worktree remove`, `git

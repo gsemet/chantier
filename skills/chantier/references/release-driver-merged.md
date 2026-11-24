@@ -52,8 +52,3 @@
     published <cr> --note "<version> <link>"` takes the link the forge printed.
   - Not found, or a draft: `handback blocked approval: publish: <the exact command>; not on the
     forge: <what the forge printed, first line>`, and nothing else.
-- A step fails on the product: `<work folder>/fix-<n>.md`, the fix's specification (a title
-  line, then steps, expected, actual), then
-  `handback blocked fix: <one line>; <path>`. On the infrastructure: one re-run, then `blocked
-  infra:`. Half-done irreversible work: stop and say exactly what is out in `blocked question:`;
-  never undo it on your own.

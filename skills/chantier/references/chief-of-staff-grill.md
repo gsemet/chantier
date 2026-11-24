@@ -246,7 +246,7 @@ the CR is written in the CR's folder; your memory is never a CR's place (decisio
 `02-answers.md`, as "Record at once" says).
 
 **With a planning surface** ([concepts](concepts.md)): the surface's own rules win for what they
-say, its `AGENTS.md` first; its writer commits and pushes the plan (below). A clone missing at
+say, its `AGENTS.md` first; its writer commits and pushes the plan (the `writer` action). A clone missing at
 `checkout.yml`'s path (`preflight` fails naming it) is cloned on the user's word. Outside
 contributors submit a CR by a PR on the surface, which the user reviews and merges on the forge;
 a CR so merged into `1-inbox` or `2-backlog/P<n>` is read like any other. Never touch the
@@ -468,26 +468,8 @@ post (a `status`, a hand-back, an ask, a report), propose a one-line comment for
 the ticket's language: "The pull request is open: <PR link>." Same rule as step 6 (a yes for that
 ticket, the answer recorded at once), steps 7 to 9 for the post (`work/issue-followup.md`). A CR
 whose summary was declined or skipped gets no follow-up proposal. In a series or a stack the PR
-opens as a draft: the follow-up is still proposed then. "Released in" (end of this card) is the
+opens as a draft: the follow-up is still proposed then. "Released in" (`chief-of-staff:release`) is the
 closing comment of the request's "Land" row, unchanged.
-
-You ask the user for the batch's shape at every opening, in step 2 "Show the plan" with the other
-plan items, and never take parallel by default (the CLI's `open` defaults to parallel, but you
-always pass `--mode`). In a parallel batch a CR starts
-as soon as a slot is free, and every open PR is rebased after each merge. Touching the same file is no reason to wait, and
-two CRs editing the same file do not depend on each other. Write `depends.json` in a CR's folder
-(`{"after": ["<slug>", …]}`, a slug being a folder's name without its number) only when it needs
-the result of another, merged or handed back ready first, and say in the plan what it needs; `open` and
-`order add` read it and exit 2 on an unknown slug, a malformed file or a cycle. A CR without the
-file depends on nothing. Read the specifications of the CRs selected for a parallel batch for the
-same lines: a shared table, a template block, a list each one appends to. For such a pair, propose
-in the plan that the later one waits for the other, and say why: both edit those lines, so each
-merge of one would make the other rebase with a conflict anyway; waiting, it starts on the first
-one's work. Say the cost too: the waiting CR starts only once the other is handed back ready, so it takes
-longer on the clock and a slot may stay free. A shared file alone is no reason. Small work whose
-rebase would cost more than waiting stays a reason too. The plan gives the reason for each CR
-queued this way, the user's go approves each wait, and the user may refuse it per CR: the CR then
-runs side by side as usual. There is no threshold: you judge, and say why.
 
 Triage each CR with the user, who decides its way: dropped (`abandon`); **automatable**, with a
 short specification they do not review; needing a specification they review until they approve

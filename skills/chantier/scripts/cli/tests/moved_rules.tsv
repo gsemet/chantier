@@ -7,7 +7,7 @@ The specification, whole or by part	driver.md	driver.md#Means: the specification
 - **Closing:** `--yes` only on	chief-of-staff.md#While it runs	chief-of-staff-batch-end.md#While it runs: the pause and what follows	chief-of-staff:batch-end
 - **Recovery:** a stale heartbeat	chief-of-staff.md#While it runs	chief-of-staff-batch-end.md#While it runs: the pause and what follows	chief-of-staff:batch-end
 - **Putting back:** on the	chief-of-staff.md#While it runs	chief-of-staff-batch-end.md#While it runs: the pause and what follows	chief-of-staff:batch-end
-At your first turn of a session	chief-of-staff.md#Forge permissions (P9)	chief-of-staff-batch-start.md#Forge permissions (P9)	chief-of-staff:batch-start
+At your first turn of a session	chief-of-staff.md#Forge permissions (P9)	chief-of-staff-any.md#Forge permissions (P9)	chief-of-staff
 At step 1 of "Starting a batch",	chief-of-staff.md#The trials before the go	chief-of-staff-batch-start.md#The trials before the go	chief-of-staff:batch-start
 Only in the turn where the	chief-of-staff.md#Starting a batch	chief-of-staff-batch-start.md#Starting a batch	chief-of-staff:batch-start
 In direct mode no Foreman	chief-of-staff.md#Steering a batch yourself	chief-of-staff-direct.md#Steering a batch yourself	chief-of-staff:direct
@@ -24,7 +24,12 @@ In direct mode no Foreman	chief-of-staff.md#Steering a batch yourself	chief-of-s
 - **Inserting a CR into a	chief-of-staff.md#While it runs	chief-of-staff-merge.md#While it runs: merging	chief-of-staff:merge
 A release is a CR a Release	chief-of-staff.md#Releases	chief-of-staff-release.md#Releases	chief-of-staff:release
 - **Status:** `$CHANTIER status [--notes]`,	chief-of-staff.md#While it runs	chief-of-staff-steering.md#While it runs	chief-of-staff:steering
-Before you offer the user	chief-of-staff.md#Offering options	chief-of-staff-steering.md#Offering options	chief-of-staff:steering
+Before you offer the user	chief-of-staff.md#Offering options	chief-of-staff-any.md#Offering options	chief-of-staff
+- **Compacting:** once per session	chief-of-staff.md#While it runs	chief-of-staff-any.md#Compacting and tips	chief-of-staff
+- **Tips:** a tip comes only at four key moments	chief-of-staff.md#While it runs	chief-of-staff-any.md#Compacting and tips	chief-of-staff
+This applies the Hard rule "A refusal is said before it is met"	chief-of-staff.md#Offering options	chief-of-staff-any.md#Offering options	chief-of-staff
+The least time the batch can take, counted from facts	chief-of-staff.md#Starting a batch	chief-of-staff-any.md#The floor	chief-of-staff
+You ask the user for the batch's shape at every opening	chief-of-staff.md#Backlog and grill	chief-of-staff-batch-start.md#Starting a batch	chief-of-staff:batch-start
 - **conflict:** in the surface's	chief-of-staff.md#Backlog and grill	chief-of-staff-writer.md#The surface's writer	writer
 - **blocked:** the way out	chief-of-staff.md#Backlog and grill	chief-of-staff-writer.md#The surface's writer	writer
 - **offline, or late:** tell	chief-of-staff.md#Backlog and grill	chief-of-staff-writer.md#The surface's writer	writer
@@ -81,4 +86,7 @@ Once the release is out (the	driver.md#Release driver	release-driver-end.md#Rele
 **Making the stack.** Once two	driver.md#Stack driver	stack-driver-make.md#Stack driver: making the stack	stack-driver:make
 **The local gate at the mergeable	driver.md#Stack driver	stack-driver-make.md#Stack driver: making the stack	stack-driver:make
 **The five checks,** read on	driver.md#Stack driver	stack-driver-make.md#Stack driver: the five checks	stack-driver:make
-The stack is what your prompt	driver.md#Stack driver	stack-driver-restack.md#Stack driver: the restack pass	stack-driver:restack
+The stack is what your prompt	stack-driver-restack.md#Stack driver: the restack pass	driver.md#Stack driver	stack-driver
+The release CR is the top piece	stack-driver-restack.md#Stack driver: the restack pass	driver.md#Stack driver	stack-driver
+A release with no PR yet is no anomaly	stack-driver-restack.md#Stack driver: the restack pass	driver.md#Stack driver	stack-driver
+A step fails on the product	release-driver-merged.md#Release driver: after the merge	driver.md#Release driver	release-driver
