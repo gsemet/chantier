@@ -3,11 +3,12 @@
 //   render(state) returns the view's markup; mount(root, state) returns a cleanup.
 
 import { delegate, html } from '../core/dom.js';
-import { age, safeUrl, title, usd } from '../core/format.js';
+import { age, hhmm, prNumber, safeUrl, title, usd } from '../core/format.js';
 import { t, tf } from '../model/words.js';
 import { card } from '../ui/card.js';
-import { empty, live, mark, meter } from '../ui/parts.js';
+import { empty, live, mark, meter, stateIcon, tag } from '../ui/parts.js';
 import { pathsOf, projectsOf, sharedForge } from '../ui/picker.js';
+import { VARIANT } from './history-filter.js';
 import { surfaceBlock } from './home-project.js';
 
 const none = '—';
@@ -73,11 +74,53 @@ const projectCard = (p) =>
     meta: html`<div class="apth">${pathsOf(p)}</div><div class="aps">${sums(p).map((s) => html`<span>${s}</span>`)}</div>`,
   });
 
+// The open PRs of every project, from the project lines (`open_prs`): ready to merge and red CI
+// first, in the merge order. The state chip is the state chip's own look and words.
+const PR_CHIP = {
+  ready: ['ready', 'state.ready'],
+  red: ['blocked', 'pv.checks.failing'],
+  working: ['working', 'state.working'],
+};
+
+const prState = (s) => {
+  const [variant, word] = PR_CHIP[s] ?? PR_CHIP.working;
+  return tag(`st ${variant}`, html`${stateIcon(variant)}${t(word)}`);
+};
+
+function prRow(p, c) {
+  const url = safeUrl(c.pr);
+  const number = url
+    ? html`<a class="prlink r" href="${url}" target="_blank" rel="noopener" data-key="ovp-${p.id}-${c.cr}">${prNumber(c.pr)}</a>`
+    : html`<span class="r">${prNumber(c.pr)}</span>`;
+  return html`<div class="x" data-project="${p.id}" tabindex="0" data-key="ovr-${p.id}-${c.cr}">${prState(c.state)}${mark(p.id)}<b>${c.cr}</b><span class="ell" title="${title(c.title)}">${title(c.title)}</span>${number}</div>`;
+}
+
+function prsBlock(projects) {
+  const rows = projects.flatMap((p) => (p.open_prs ?? []).map((c) => prRow(p, c)));
+  const list = rows.length ? rows : html`<div class="none">${t('home.none')}</div>`;
+  return html`<section class="block side"><h2>${t('home.open_prs')} <span class="sub">${rows.length}</span></h2><div class="list">${list}</div></section>`;
+}
+
+// The newest events of every project (the History's own: opened, merged, dropped, releases).
+function eventRow(e) {
+  const variant = VARIANT[e.kind] ?? 'queued';
+  const chip = tag(`st ${variant}`, html`${stateIcon(variant)}${t(`history.kind.${e.kind}`)}`);
+  return html`<li data-project="${e.project}" tabindex="0" data-key="ova-${e.project}-${e.cr}-${e.kind}"><span class="t at">${e.at.slice(5, 10)} ${hhmm(e.at)}</span>${mark(e.project)}${chip}<b>${e.cr}</b><span class="ell" title="${title(e.title)}">${title(e.title)}</span></li>`;
+}
+
+function activityBlock(events) {
+  const body = events.length
+    ? events.map(eventRow)
+    : html`<li class="none">${t('overview.no_events')}</li>`;
+  const more = html`<button type="button" class="btn" data-go="history" data-key="ova-history">${t('overview.history_link')}</button>`;
+  return html`<section class="block wide"><h2>${t('home.activity')} <span class="sub">${events.length}</span></h2><ul class="feed">${body}</ul><div class="foot">${more}</div></section>`;
+}
+
 export function render(state) {
   const projects = projectsOf(state);
   if (!projects.length) return empty(t('stats.loading'));
   const forge = sharedForge(projects);
-  return html`<div class="overview"><div class="tbl wide"><table><thead><tr>${head(forge)}</tr></thead><tbody>${projects.map((p) => row(p, state.now))}</tbody></table></div><div class="cards">${projects.map(projectCard)}</div><p class="note">${tf(forge, 'overview.note')}</p><div class="blocks">${surfaceBlock(state)}</div></div>`;
+  return html`<div class="overview"><div class="tbl wide"><table><thead><tr>${head(forge)}</tr></thead><tbody>${projects.map((p) => row(p, state.now))}</tbody></table></div><div class="cards">${projects.map(projectCard)}</div><p class="note">${tf(forge, 'overview.note')}</p><div class="home"><div class="blocks">${prsBlock(projects)}${activityBlock(state.board?.activity ?? [])}${surfaceBlock(state)}</div></div></div>`;
 }
 
 // A PR link opens the PR only: the click does not reach the line that opens the project.

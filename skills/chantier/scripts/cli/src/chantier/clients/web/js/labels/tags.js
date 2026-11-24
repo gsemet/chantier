@@ -1,5 +1,5 @@
 // The labels of an item as small tags. A label's colour is its place in the project's sorted list
-// of labels (model/triage.js), one of six tokens. Shared by Triage's post-its and Kanban's cards.
+// of labels (model/triage.js), one of six tokens. Shared by Triage's post-its.
 import { html, vars } from '../core/dom.js';
 import { labelColor } from '../model/triage.js';
 

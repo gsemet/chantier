@@ -90,7 +90,6 @@ export default {
   'home.written_none': 'nothing since your last ‘rescan’',
 
   'new.button': '+ New',
-  'new.kanban': '+ New: a new idea',
   'new.title': 'A new idea',
   'new.idea': 'Your new idea',
   'new.heading': 'Title',

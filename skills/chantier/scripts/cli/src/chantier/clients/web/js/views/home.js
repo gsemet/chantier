@@ -38,7 +38,7 @@ const waitingTile = (state) => {
   });
 };
 
-// What is being grilled or specified, the Kanban's Grill column.
+// What is being grilled or specified, the Triage columns that hold them.
 const grillTile = (state) => {
   const backlog = state.data.backlog;
   const n = grillItems(backlog).length;
@@ -47,7 +47,7 @@ const grillTile = (state) => {
     label: t('home.grill'),
     value: n,
     sub: t('home.grill_sub', { n: specifiedCount(backlog) }),
-    go: 'kanban',
+    go: 'triage',
   });
 };
 
@@ -58,7 +58,7 @@ const nextTile = (state) => {
     label: t('home.next'),
     value: n,
     sub: t('home.next_sub'),
-    go: 'kanban',
+    go: 'triage',
   });
 };
 

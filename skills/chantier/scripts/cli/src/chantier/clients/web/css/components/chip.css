@@ -1,7 +1,7 @@
 /* The one chip: tags, labels and the state icons, neutral grey, no border. The exceptions: a state
    chip, on its state's tint with the state's colour in its icon, and a priority chip, on its
-   priority's teal; the CR id and 3-ready keep the accent. The priority chip is also the Kanban's
-   priority toggle, a button: filled when on, outlined grey (`off`) when off, the same size. */
+   priority's teal; the CR id and 3-ready keep the accent. A chip drawn as a toggle (`button`) is filled
+   when on and outlined grey (`off`) when off, the same size. */
 .tag {
   display: inline-flex;
   align-items: center;
@@ -273,7 +273,6 @@ button.tag {
 }
 
 /* a PR page's filter button carries no label square */
-.lbtn[data-pf]::before,
 .lbtn[data-pvf]::before,
 .lbtn[data-pvs]::before {
   content: none;

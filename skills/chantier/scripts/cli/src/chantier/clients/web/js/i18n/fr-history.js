@@ -12,6 +12,9 @@ export default {
   'history.dropped': 'CR abandonnées',
   'history.opened': 'PR ouvertes',
   'history.releases': 'Releases',
+  'history.filter_kinds': 'Événements',
+  'history.filter_projects': 'Projets',
+  'history.project_open': 'ouvrir le projet {project}',
   'history.cost': 'Coût des CR terminées',
   'history.cost_note':
     "Les coûts de pilotage et de grill d'un batch ne sont pas répartis sur les jours.",

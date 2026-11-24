@@ -247,8 +247,6 @@ def views(page: Page, url: str, size: str) -> None:
         )
         settle(page)
         shot(page, "batch-" + tab, size)
-    goto(page, url, "kanban", "shop-api")
-    shot(page, "kanban", size)
     goto(page, url, "triage", "shop-api")
     shot(page, "triage", size)
     goto(page, url, "costs", "mobile-app")
@@ -291,7 +289,7 @@ def writer(page: Page, url: str, size: str) -> None:
 
 
 def editor(page: Page, url: str, size: str) -> None:
-    goto(page, url, "kanban", "shop-api")
+    goto(page, url, "triage", "shop-api")
     page.locator('[data-open^="i:"][data-open*="saved-addresses"]').locator(
         "visible=true"
     ).first.click()

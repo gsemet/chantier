@@ -1,5 +1,5 @@
 // The one column of the board, the only module that writes the class `column` and the `column-*`
-// classes (DESIGN.md). Pure: `column(parts)` returns the markup of a Triage or a Kanban column,
+// classes (DESIGN.md). Pure: `column(parts)` returns the markup of a Triage or a Batch column,
 // `lane(parts)` that of a Backlog lane, which sits in a column's body.
 //   key      the paint key (`data-key`), `drop` a drop target's name (`data-col`), `label` its aria-label
 //   name     the head's title, `color` its dot's token, `count` the figure after it, `hint` a line in the

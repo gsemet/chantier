@@ -12,8 +12,9 @@ const visible = () => document.visibilityState === 'visible';
 // The browser's IANA time zone, what the server counts the local day in.
 export const zone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-// What a feed is told: the period and the date (null: today). The answer is kept with it.
-export const askedKey = (period, date) => `${period}|${date ?? ''}`;
+// What a feed is told: the project (or All), the period and the date (null: today). The answer is
+// kept with it, so a change of project shows no answer of the other.
+export const askedKey = (project, period, date) => `${project ?? ''}|${period}|${date ?? ''}`;
 
 // The answer to show after a read that failed: the last one, with the error.
 // With no good read yet, `unread` says the page knows no answer at all.
@@ -23,7 +24,7 @@ const failed = (last, error) => ({ unread: !last, ...last, error, failed: true }
 // It returns the function that stops it.
 export function startFeed(period, date = null) {
   const project = snapshot().project;
-  const key = askedKey(period, date);
+  const key = askedKey(project, period, date);
   const args = { project, period, ...(date ? { date } : {}), tz: zone() };
   let stopped = false;
   let off = null;

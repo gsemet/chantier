@@ -5,7 +5,8 @@ from __future__ import annotations
 
 import hashlib
 import os
-from typing import Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from chantier.board import costs, writer_api
 from chantier.board.address import local_url
@@ -13,7 +14,12 @@ from chantier.board.context import Context
 from chantier.board.projects import Project
 from chantier.board.state import origin_of, project_line, project_paths, project_state
 from chantier.core import clock
+from chantier.core.files import rel_in
 from chantier.core.origin import normalize_origin
+from chantier.hub import journal as forge_journal
+
+if TYPE_CHECKING:
+    from chantier.store import PlanStore
 
 UNREADABLE = "the record could not be read just now"
 
@@ -48,6 +54,18 @@ def state_of(ctx: Context, project: Project, ask: bool) -> tuple[dict[str, Any],
     if ask and not last:
         live.ask(bool(state["batch"] and state["batch"]["state"] == "running"))
     return state, print_
+
+
+def journal_entries(ctx: Context, store: PlanStore, changes: Path) -> list[dict[str, Any]]:
+    """The forge journal's lines, read again only when the file's size or time moved."""
+    path = changes / forge_journal.FILE
+    mark = store.stat(rel_in(store.root, path))
+    if mark is None:
+        return []
+    kept = ctx.journal_seen.get(path)
+    if kept is None or kept[0] != mark:
+        kept = ctx.journal_seen[path] = (mark, forge_journal.read(store, changes)[0])
+    return kept[1]
 
 
 def found(ctx: Context, project_id: str) -> Project | None:

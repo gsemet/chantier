@@ -60,3 +60,14 @@ def test_only_the_transport_opens_the_feed() -> None:
     api = _read("js", "api", "griller.js")
     assert "from '../core/transport.js'" in api
     assert "WebSocket" not in api and "fetch(" not in api
+
+
+def test_with_the_constant_off_the_panel_draws_no_grill_button() -> None:
+    code = _read("js", "panel", "griller.js")
+    assert re.search(r"^export const GRILL_BUTTON = false;$", code, re.M)
+    body = code.split("export function grillAction(", 1)[1].split("\n}\n", 1)[0]
+    guard = body.index("if (!GRILL_BUTTON || !grillable(target)) return '';")
+    assert body.count("data-grill") == 1 and guard < body.index("data-grill")
+    panel = _read("js", "panel", "panel.js")
+    assert "grillAction(state, target)" in panel  # the one caller draws what the function returns
+    assert "data-grill" not in panel

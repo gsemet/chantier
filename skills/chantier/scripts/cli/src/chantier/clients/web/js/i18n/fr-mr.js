@@ -21,8 +21,6 @@ export default {
     "La stack n'est pas encore prête à merger : MR en draft, rien à merger. Les numéros sont des places dans la stack.",
   'mr.state.draft': 'MR en draft',
   'mr.gate.open': 'ouvrir la MR du CR qui valide la gate',
-  'mr.kanban.handed_sub':
-    'rendu : prête à merger quand la MR est sortie de draft sur {branch} ou sur un CR prêt à merger',
   'mr.mode.stack.text':
     'chaque MR repose sur la précédente, la release en haut ; une fois la stack vérifiée sur le forge, tu la merges en une action depuis sa MR du haut.',
   'mr.mode.series.text':

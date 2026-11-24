@@ -19,7 +19,6 @@ import * as help from './help.js';
 import * as history from './history.js';
 import * as home from './home.js';
 import * as inbox from './inbox.js';
-import * as kanban from './kanban.js';
 import * as overview from './overview.js';
 import * as prs from './prs.js';
 import * as triage from './triage.js';
@@ -36,22 +35,12 @@ export const VIEWS = [
     countAll: inboxCount,
     badge: true,
   },
-  { id: 'help', icon: 'help', word: 'nav.help', module: help, overview: help, offline: true },
   {
     id: 'triage',
     icon: 'triage',
     word: 'nav.triage',
     module: triage,
     count: (state) => itemsOf(state.data?.backlog).length,
-  },
-  {
-    id: 'kanban',
-    icon: 'kanban',
-    word: 'nav.kanban',
-    module: kanban,
-    count: (state) =>
-      itemsOf(state.data?.backlog).length +
-      crsOf(state.data?.batch).filter((c) => c.state !== 'merged').length,
   },
   {
     id: 'batch',
@@ -67,7 +56,7 @@ export const VIEWS = [
     module: prs,
     count: (state) => (state.data?.batch ? crsOf(state.data.batch).filter(openPr).length : null),
   },
-  { id: 'history', icon: 'history', word: 'nav.history', module: history },
+  { id: 'history', icon: 'history', word: 'nav.history', module: history, overview: history },
   {
     id: 'costs',
     icon: 'costs',
@@ -77,6 +66,7 @@ export const VIEWS = [
   },
   { id: 'dashboard', icon: 'dashboard', word: 'nav.dashboard', module: dashboard },
   { id: 'config', icon: 'config', word: 'nav.config', module: config },
+  { id: 'help', icon: 'help', word: 'nav.help', module: help, overview: help, offline: true },
 ];
 
 export const ids = () => VIEWS.map((v) => v.id);

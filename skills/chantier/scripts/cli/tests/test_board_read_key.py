@@ -9,7 +9,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from api_client import settled
+from batch_helpers import changes, record, write_record
 from conftest import PLUGIN_ROOT, Chantier
+from test_board_history import entry
 from test_board_prs import Board, served
 
 from chantier.board import address, guard, reads, routes
@@ -227,3 +230,29 @@ def test_shipped_texts_name_the_two_keys(tmp_path: Path) -> None:
     prepared = tmp_path / "old.md"
     prepared.write_text("holders of the board's key; --new-key revokes the key", encoding="utf-8")
     assert all(w in prepared.read_text(encoding="utf-8") for w in OLD_WORDS)
+
+
+def test_the_read_key_sees_the_activity_and_the_open_prs_with_no_cost_and_no_round(
+    board: Board,
+) -> None:
+    data = record(board.repo)
+    for c in data["crs"]:
+        c.update(cost_usd=9.87, cost_unpriced={"opus": 4}, round=3)
+    write_record(board.repo, data)
+    archives = changes(board.repo) / "5-archives" / "batches"
+    archives.mkdir(parents=True, exist_ok=True)
+    done = entry("CR-9", ended="2026-11-20T10:00:00Z", cost_usd=7.77, rounds=5)
+    done["cost_unpriced"] = {"sonnet": 3}
+    closed = {"schema": 1, "batch": "batch-00", "state": "closed", "crs": [done]}
+    (archives / "batch-00.json").write_text(json.dumps(closed), encoding="utf-8")
+    settled(board.ctx)
+    seen: list[dict[str, Any]] = []
+    sub = board.ctx.push.subscribe("board", {}, seen.append, access="read")
+    assert not isinstance(sub, ops.Result) and seen
+    shown = seen[0]["data"]
+    line = next(p for p in shown["projects"] if p["id"] == board.id)
+    assert shown["activity"] and line["open_prs"]  # the check below is not empty
+    for part in (shown["activity"], line["open_prs"]):
+        text = json.dumps(part)
+        for word in ("cost", "rounds", "round", "unpriced", "7.77", "9.87"):
+            assert word not in text, word

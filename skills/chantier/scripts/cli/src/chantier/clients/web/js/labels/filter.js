@@ -1,6 +1,6 @@
 // The label filter row: "Labels", one toggle per label of the project, "show all" when a filter is
 // on. The filter is the page's state for the session (`labelFilter` in the store), written nowhere.
-// Triage and Kanban draw it and share it.
+// Triage draws it.
 import { delegate, html } from '../core/dom.js';
 import { snapshot, update } from '../core/store.js';
 import { findItem, labelsOf, passes } from '../model/triage.js';

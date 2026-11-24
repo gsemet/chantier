@@ -150,3 +150,25 @@
     margin-top: var(--space-3);
   }
 }
+
+/* All projects' feed and PR rows: they open their project, and take the Home blocks' look (home.css) */
+.overview .feed li[data-project],
+.overview .x[data-project] {
+  cursor: pointer;
+}
+
+.overview .feed li[data-project]:hover {
+  background: var(--hover);
+}
+
+.overview .x[data-project]:hover {
+  background: var(--row-hover);
+}
+
+.overview .feed .t.at {
+  width: auto;
+}
+
+.overview .block .foot {
+  margin-top: var(--space-2);
+}

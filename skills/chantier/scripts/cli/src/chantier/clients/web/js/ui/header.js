@@ -35,7 +35,7 @@ function overall(state) {
   ];
 }
 
-// The figures of one project, each the count of the Kanban column of the same name (the filters of
+// The figures of one project, each the count of the Triage column of the same name (the filters of
 // the page do not change them): its inbox, its grill, and its batch.
 function of(data) {
   const backlog = data.backlog ?? {};

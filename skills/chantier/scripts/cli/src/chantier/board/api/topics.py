@@ -7,10 +7,9 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Callable
-from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from chantier.board import costs, history_page, journal, prs, reads
+from chantier.board import costs, history_page, journal, overview, prs, reads
 from chantier.board.api import ops, times
 from chantier.board.context import Context
 from chantier.board.projects import Project
@@ -18,9 +17,6 @@ from chantier.core import clock
 from chantier.core.files import rel_in
 from chantier.hub import journal as forge_journal
 from chantier.hub import schemas
-
-if TYPE_CHECKING:
-    from chantier.store import PlanStore
 
 Reading = tuple[str, dict[str, Any] | None] | None
 Read = Callable[[Context, Any, str | None], Reading]
@@ -48,8 +44,9 @@ def _on_project(read: Callable[[Context, Project, Any, str | None], Reading]) ->
 
 
 def _board(ctx: Context, a: Any, last: str | None) -> Reading:
-    data = reads.board_data(ctx)
-    return _unchanged(_hash(data["projects"], data["seats"], data["writer"]), last, lambda: data)
+    data = overview.board_data(ctx)
+    rev = _hash(data["projects"], data["seats"], data["writer"], data["activity"])
+    return _unchanged(rev, last, lambda: data)
 
 
 def _project(ctx: Context, project: Project, a: Any, last: str | None) -> Reading:
@@ -91,8 +88,16 @@ def _prs(ctx: Context, project: Project, a: Any, last: str | None) -> Reading:
     return _unchanged(rev, last, lambda: found)
 
 
-def _history(ctx: Context, project: Project, a: Any, last: str | None) -> Reading:
-    found = history_page.answer(ctx, project, a.period, a.date, a.tz)
+def _history(ctx: Context, a: Any, last: str | None) -> Reading:
+    """The History page's reading; `*` asks for every project of the surface at once."""
+    if a.project == history_page.ALL:
+        ctx.projects.refresh()
+        found = history_page.answer(ctx, ctx.projects.all(), a.period, a.date, a.tz)
+    else:
+        project = reads.found(ctx, a.project)
+        if project is None:
+            return None
+        found = history_page.answer(ctx, project, a.period, a.date, a.tz)
     rev = _hash({k: v for k, v in found.items() if k != "now"})
     return _unchanged(rev, last, lambda: found)
 
@@ -102,18 +107,6 @@ def _journal(ctx: Context, project: Project, a: Any, last: str | None) -> Readin
     info = store.stat(rel_in(store.root, project.repo.changes / journal.FILE))
     rev = "-" if info is None else f"{info[0]}:{info[1]}"
     return _unchanged(rev, last, lambda: ops.journal_data(project))
-
-
-def _entries(ctx: Context, store: PlanStore, changes: Path) -> list[dict[str, Any]]:
-    """The forge journal's lines, read again only when the file's size or time moved."""
-    path = changes / forge_journal.FILE
-    mark = store.stat(rel_in(store.root, path))
-    if mark is None:
-        return []
-    kept = ctx.journal_seen.get(path)
-    if kept is None or kept[0] != mark:
-        kept = ctx.journal_seen[path] = (mark, forge_journal.read(store, changes)[0])
-    return kept[1]
 
 
 def _told(entry: dict[str, Any]) -> dict[str, Any]:
@@ -130,7 +123,7 @@ def _told(entry: dict[str, Any]) -> dict[str, Any]:
 
 
 def _events(ctx: Context, project: Project, a: Any, last: str | None) -> Reading:
-    entries = _entries(ctx, project.repo.store, project.repo.changes)
+    entries = reads.journal_entries(ctx, project.repo.store, project.repo.changes)
     if last is not None and last.isdigit():
         cursor = int(last)
     else:
@@ -160,7 +153,7 @@ READS: dict[str, Read] = {
     "project": _on_project(_project),
     "costs": _on_project(_costs),
     "prs": _on_project(_prs),
-    "history": _on_project(_history),
+    "history": _history,
     "journal": _on_project(_journal),
     "events": _on_project(_events),
     "griller": _on_project(_griller),

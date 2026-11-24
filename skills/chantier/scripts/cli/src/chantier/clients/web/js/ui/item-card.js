@@ -1,4 +1,4 @@
-// The card of an item of the backlog, the same markup for the Kanban and for Triage: the bucket's
+// The card of an item of the backlog, drawn by Triage: the bucket's
 // priority chip, the slug, the title, the labels, the description, the files and the stage word.
 // A view adds what is its own through `extra`: `classes`, `variants` and `attrs` on the card,
 // `picked` (the check mark), `badges` in the top row, `foot` after the stage word, `note` in the meta line. Pure.

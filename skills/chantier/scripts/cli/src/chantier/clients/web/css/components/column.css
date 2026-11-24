@@ -1,4 +1,4 @@
-/* The one column of the board (DESIGN.md): Triage's and Kanban's, built by js/ui/column.js. A light
+/* The one column of the board (DESIGN.md): Triage's, built by js/ui/column.js. A light
    area, a hairline, a plain head (dot, name, count), a one-line grey sub-line, the body; a lane is
    a part of the column (Triage's Backlog holds four). Pages set its width and place only. */
 .column {
