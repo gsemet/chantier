@@ -19,7 +19,7 @@ from chantier.commands.crs import (
     last_verdict,
     short_head,
 )
-from chantier.commands.forge_base import stacked_read
+from chantier.commands.forge_base import is_stacked, stacked_read
 from chantier.commands.forge_stack_gitlab import GITLAB_LINK
 from chantier.core import leases
 from chantier.core.heads import gate_passed
@@ -60,15 +60,31 @@ def _ref(repo: Repo, branch: str) -> str:
     )
 
 
+def _place_base(
+    d: BatchRecord, c: CrEntry, repo: Repo, landed: frozenset[str] = frozenset()
+) -> str:
+    """The branch of the CR's place: in a stack batch, for a CR of the chain (the release too, a
+    fix not), the base its row in `stack` prints (`stack_base`, planned); any other CR,
+    `start_base`."""
+    if is_stacked(d, c):
+        return stack_base(d, c, repo, planned=True, landed=landed)
+    return start_base(d, c, repo, landed)
+
+
 def _base_of(d: BatchRecord, c: CrEntry, repo: Repo, landed: frozenset[str]) -> str:
-    """The `base <ref>` a CR's `worktree:` line ends with: the ref its branch starts on (the
-    remote's default branch, or the branch of its last open dependency); for a stacked CR with a
-    PR, the PR's base read from the forge, or `base ? (not read from <link>: …)`."""
+    """The `base <ref>` a CR's `worktree:` line ends with: the ref of the CR's place (the remote's
+    default branch, or the branch it stands on). For a stacked CR with a PR, the PR's base read
+    from the forge follows after `; `: nothing when equal, `PR on <ref>` when it differs, `PR base
+    ? (not read from <link>: …)` when the read failed."""
+    place = _place_base(d, c, repo, landed)
+    line = f"base {_ref(repo, place)}"
     read = stacked_read(d, c)
-    if read is not None:
-        branch, unread = read
-        return f"base {_ref(repo, branch)}" if branch else unread
-    return f"base {_ref(repo, start_base(d, c, repo, landed))}"
+    if read is None:
+        return line
+    branch, unread = read
+    if branch is None:
+        return f"{line}; PR {unread}"
+    return line if branch == place else f"{line}; PR on {_ref(repo, branch)}"
 
 
 def _record_alone(d: BatchRecord, c: CrEntry, landed: frozenset[str]) -> CrEntry:
@@ -85,11 +101,11 @@ def _record_alone(d: BatchRecord, c: CrEntry, landed: frozenset[str]) -> CrEntry
 def _landed_line(d: BatchRecord, c: CrEntry, repo: Repo, landed: frozenset[str]) -> list[str]:
     """The `base:` line, only when the CRs the forge shows merged changed the CR's start base: the
     branch the record alone gives is no base, its PR is merged, not recorded yet."""
-    if not landed or stacked_read(d, c) is not None:
+    if not landed:
         return []
     # the record alone: a start base `take` fixed from the record is looked at again too
-    plain = start_base(d, _record_alone(d, c, landed), repo)
-    if plain == start_base(d, c, repo, landed):
+    plain = _place_base(d, _record_alone(d, c, landed), repo)
+    if plain == _place_base(d, c, repo, landed):
         return []
     owner = next((x for x in d.crs if x.branch == plain), None)
     if owner is None or owner.id not in landed:

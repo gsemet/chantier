@@ -12,6 +12,12 @@ from chantier.commands.opening import declare_dependencies
 from chantier.commands.orders_after import after
 from chantier.commands.orders_drop import drop
 from chantier.commands.orders_hold import hold, unhold
+from chantier.commands.orders_merged import (
+    chain_above,
+    check_merged,
+    open_ids,
+    restack_line,
+)
 from chantier.commands.orders_release import (
     add_release,
     check_release_open,
@@ -42,13 +48,6 @@ def _need_note(w: Word, usage: str) -> str:
     if not w.note.strip():
         raise ChantierError(usage, EXIT_USAGE)
     return w.note.strip()
-
-
-def _open_ids(b: Batch, cr_id: str) -> list[str]:
-    """The CRs, other than this one and its fixes, neither merged nor cancelled."""
-    return [
-        x.id for x in b.record.crs if x.id != cr_id and x.kind != "fix" and x.status not in ENDED
-    ]
 
 
 def _add(w: Word) -> list[str]:
@@ -113,20 +112,6 @@ def _note(w: Word) -> list[str]:
     return out
 
 
-def check_merged(b: Batch, c: CrEntry) -> bool:
-    """The refusals of `order merged`, changing nothing; True when the CR is already merged."""
-    if c.status == "merged":
-        return True
-    if c.status == "cancelled":
-        raise ChantierError(f"cannot mark cancelled {c.id} merged")
-    open_ = _open_ids(b, c.id) if c.kind == "release" else []
-    if open_:
-        raise ChantierError(
-            f"order merged: {', '.join(open_)} not merged or cancelled: the release PR merges last"
-        )
-    return False
-
-
 def _merged(w: Word) -> list[str]:
     b, c, cr_id = w.b, target(w), w.cr_id
     if check_merged(b, c):
@@ -135,10 +120,11 @@ def _merged(w: Word) -> list[str]:
     # or a stale lock is stopped now, while the CR's folder and its log are in place
     stopped = w.stopped or _stop_gate(b, cr_id)
     if c.kind != "release":
+        above = chain_above(b.record, c)  # read before the CR is marked merged
         c.unset("held")  # merged on the default branch: no longer held
         lines = merge_done(b, c)
         w.ended = True  # `end_of_batch` pauses the batch, or says what keeps it open
-        return [lines[0], *stopped]
+        return [lines[0], *restack_line(b.record, cr_id, above), *stopped]
     release_merged(b, c)
     return [f"merged {cr_id}: the procedure goes on with a new Release driver", *stopped]
 
@@ -209,7 +195,7 @@ def _confirm(w: Word) -> list[str]:
     )
     if c.status in ENDED:
         raise ChantierError(f"order confirm: {cr_id} is {c.status}")
-    open_ = _open_ids(b, cr_id)
+    open_ = open_ids(b, cr_id)
     if open_:
         raise ChantierError(
             f"order confirm: {', '.join(open_)} not merged yet: the word to "

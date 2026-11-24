@@ -8,8 +8,9 @@ from typing import TYPE_CHECKING
 
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.records import BatchRecord, CrEntry
+from chantier.core.repo import Repo
 from chantier.core.waits import hhmm, open_counted, what
-from chantier.rails import ENDED, apart, apart_owner, is_parked, out_of_order
+from chantier.rails import ENDED, apart, apart_owner, is_held, is_parked, out_of_order
 
 if TYPE_CHECKING:
     from chantier.core.batch import Batch
@@ -108,3 +109,28 @@ def parked_lines(b_data: BatchRecord) -> list[str]:
             f"out of the slots{place}{with_it}"
         )
     return [*cleared, *waiting]
+
+
+def held_lines(b_data: BatchRecord, repo: Repo) -> list[str]:
+    """One `status` line per held CR, in order: a ready CR held in a stack (where it sits and how
+    it comes back), or a CR held while it was live (out of the slots, with the CRs that wait with
+    it). An unheld CR still `blocked` is not held: its row says so."""
+    default: str = repo.config["default_branch"]
+    lines = []
+    for c in sorted(b_data.crs, key=lambda x: x.order):
+        if not is_held(c):
+            continue
+        if c.status == "ready" and b_data.mode == "stack":
+            lines.append(
+                f"held: {c.id} (order {c.held}) out of the stack, PR {c.shown_pr() or '-'} on "
+                f"{default}: `order unhold {c.id}` puts it back"
+            )
+            continue
+        waiting = [x.id for x in dependents(b_data.crs, c, b_data.mode)]
+        tail = f"; waiting with it: {', '.join(waiting)}" if waiting else ""
+        where = " and the stack" if b_data.mode == "stack" else ""
+        lines.append(
+            f"held: {c.id} (order {c.held}), was working, out of the slots{where}: only the "
+            f"user's `order unhold {c.id}` brings it back{tail}"
+        )
+    return lines

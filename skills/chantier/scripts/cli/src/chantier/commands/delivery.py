@@ -237,7 +237,7 @@ def ship(args: argparse.Namespace) -> list[str]:
     holds a merge commit of its own (`merge_check.py`). No flag skips any."""
     repo = Repo.find()
     batch, d, c = batch_cr(repo, args.cr, args.batch)
-    leases.require(d, c.id, args.lease, f"ship {c.id}", ended_ok=True)
+    leases.require(repo, d, c.id, args.lease, f"ship {c.id}", ended_ok=True)
     wt = cr_worktree(c)
     if "://" not in args.pr:
         raise ChantierError("ship <cr> <pr link>", EXIT_USAGE)

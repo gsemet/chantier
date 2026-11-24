@@ -151,10 +151,10 @@ def _readable(wt: Path, ref: str) -> None:
         )
 
 
-def _patch_ids(wt: Path, base: str, head: str) -> list[str]:
-    """The exact patch-ids (`git patch-id --verbatim`) of `base..head`'s commits, oldest first.
-    Git computes them; the diff text is never compared here. A failing git call raises a
-    ChantierError naming it, never an empty list."""
+def _patch_pairs(wt: Path, base: str, head: str) -> list[tuple[str, str]]:
+    """The exact patch-ids (`git patch-id --verbatim`) of `base..head`'s commits with their
+    SHAs, oldest first. Git computes them; the diff text is never compared here. A failing git
+    call raises a ChantierError naming it, never an empty list."""
     log = subprocess.run(
         ["git", "log", "--reverse", "-p", "--no-merges", "--format=commit %H", f"{base}..{head}"],
         cwd=wt,
@@ -175,9 +175,13 @@ def _patch_ids(wt: Path, base: str, head: str) -> list[str]:
         raise ChantierError(
             f"git could not read the patch-ids of {short_head(base)}..{short_head(head)}: {first}"
         )
-    return [
-        ln.split()[0] for ln in ids.stdout.decode("utf-8", "replace").splitlines() if ln.strip()
-    ]
+    pairs = [ln.split() for ln in ids.stdout.decode("utf-8", "replace").splitlines() if ln.strip()]
+    return [(p[0], p[1]) for p in pairs]
+
+
+def _patch_ids(wt: Path, base: str, head: str) -> list[str]:
+    """The exact patch-ids of `base..head`'s commits, oldest first."""
+    return [pid for pid, _ in _patch_pairs(wt, base, head)]
 
 
 def _merges(wt: Path, base: str, head: str) -> bool:
@@ -201,10 +205,16 @@ def _unproved(g: Judged, head: str, head_base: str | None, what: str) -> str | N
 
 
 def _changed(wt: Path, g: Judged, head: str, head_base: str) -> str | None:
-    """Why the CR's own commits at `head` (above `head_base`) are not the judged ones (above
-    `g.base`), or None when their exact patch-ids are the same, in order."""
+    """Why the CR's own commits at `head` (above `head_base`) are not the judged ones, or None
+    when their exact patch-ids are the same, in order. Both lists are counted against the new
+    base: the judged own commits are those of `g.base..g.head` that `head_base` does not hold by
+    SHA (`head_base..g.head`), less each one whose exact patch-id is among `g.head..head_base`,
+    which the new base holds as rewritten copies (a rebase merge, a restacked CR below)."""
     try:
-        judged = _patch_ids(wt, str(g.base), g.head)
+        seen = _patch_pairs(wt, str(g.base), g.head)
+        above = {sha for _, sha in _patch_pairs(wt, head_base, g.head)}
+        held = set(_patch_ids(wt, g.head, head_base))
+        judged = [pid for pid, sha in seen if sha in above and pid not in held]
         now = _patch_ids(wt, head_base, head)
     except ChantierError as e:
         return str(e)

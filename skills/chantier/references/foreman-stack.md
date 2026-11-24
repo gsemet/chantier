@@ -178,7 +178,8 @@ view --json mergeable`, `glab mr view`) and send back with `--note "rebase: …"
 - **Stack:** a choice you make per recorded merge (or per group of merges recorded in one
   message), never fixed at the go:
   - **A restack** (once every CR that one action of the user merged is recorded, one `take
-    stack` for what remains and one stack driver, or the note `merged:` to the one that runs)
+    stack` for what remains and one stack driver, or the note `merged:` to the one that runs; `order merged` prints
+    `restack owed: …` when one is owed)
     whenever a native stack of the batch is on the forge (on GitLab, a chain made by
     `forge-stack create` or `rebuild` and read back by `show`).
   - **A folded CR** (GitLab): on the Chief of Staff's `order merged <k>` with the note `folded:
