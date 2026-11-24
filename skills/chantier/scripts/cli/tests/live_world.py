@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 from chantier.clients.tui import screen
 from chantier.clients.tui.link import Event, Linked
 from chantier.clients.tui.model import Model
+from chantier.clients.tui.view import View
 
 CAP = 2000
 
@@ -60,4 +61,23 @@ def fed(clock: list[float]) -> Model:
 def drawn(m: Model, width: int) -> str:
     out = io.StringIO()
     screen.plain(m, width, HIGH, out)
+    return out.getvalue()
+
+
+def journal(m: Model, lines: list[dict[str, Any]]) -> None:
+    m.feed(Event("events:p", "events", {"lines": lines}, NOW))
+
+
+def numbered(start: int, stop: int, minute: int = 30, prefix: str = "line") -> list[dict[str, Any]]:
+    return [
+        {"seq": i, "t": f"2029-12-31T23:{minute}:{i % 60:02d}Z", "source": "hub",
+         "text": f"{prefix} {i:02d}"}
+        for i in range(start, stop)
+    ]  # fmt: skip
+
+
+def keyed(m: Model, view: View) -> str:
+    out = io.StringIO()
+    view.keys = True
+    screen.plain(m, WIDE, HIGH, out, view)  # 15 rows of Flow
     return out.getvalue()

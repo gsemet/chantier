@@ -269,3 +269,80 @@ def test_once_prints_with_the_prs_not_read_but_exits_4_for_any_other_missing_ans
         feeds = [Feed(_first_answers("events"))]
         live_command.once(feeds, [Model(zone=PARIS)])
     assert e.value.code == EXIT_EXTERNAL
+
+
+def _many(panel: str) -> Model:
+    """A board with more Ready rows (12) or more Tasks lines (16) than their box holds."""
+    m = _lone()
+    if panel == "ready":
+        rows = [{**crs()[1], "cr": f"CR-{i}", "title": f"Title {i:02d}"} for i in range(1, 13)]
+    else:
+        rows = [{**crs()[2], "cr": f"CR-{i}", "title": f"Title {i:02d}"} for i in range(1, 9)]
+    _state(m, crs=rows, merge_order=[r["cr"] for r in rows])
+    _with_prs(m)
+    m.feed(Event("events:p", "events", {"lines": [{"seq": i, "t": "2029-12-31T23:30:00Z",
+              "source": "hub", "text": f"flow {i:02d}"} for i in range(1, 6)]}, NOW))  # fmt: skip
+    return m
+
+
+def _text(m: Model, view: View, width: int = WIDE) -> str:
+    out = io.StringIO()
+    screen.plain(m, width, HIGH, out, view)
+    return out.getvalue()
+
+
+@pytest.mark.parametrize(
+    ("panel", "tabs", "first", "last"),
+    [("ready", 1, "Title 01", "Title 12"), ("tasks", 2, "Title 01", "Title 08")],
+)
+def test_a_panel_with_more_rows_than_its_box_scrolls_alone_and_keeps_its_offset(
+    panel: str, tabs: int, first: str, last: str
+) -> None:
+    m, view = _many(panel), View()
+    start = _text(m, view)
+    assert first in start and last not in start
+    for _ in range(tabs):
+        view.press("tab")
+    assert view.active == panel
+    view.press("down")
+    one = _text(m, view)
+    assert first not in one and "Title 02" in one and "flow 05" in start and "flow 05" in one
+    view.press("pgdn")
+    assert last in _text(m, view)
+    view.press("pgdn"), view.press("pgdn")  # clamped to the last full page
+    assert last in _text(m, view)
+    view.press("home")
+    assert first in _text(m, view)
+    view.press("end"), view.press("btab")  # the offset stays with the panel
+    for _ in range(tabs):
+        view.press("tab")
+    assert last in _text(m, view) and first not in _text(m, view)
+    view.press("/"), view.press("x"), view.press("enter")  # a new filter starts every box again
+    assert view.offsets == {}
+
+
+def test_a_panel_whose_content_fits_does_not_move() -> None:
+    m, view = fed([0.0]), View()
+    view.press("tab")
+    before = _text(m, view)
+    for key in ("down", "pgdn", "end", "up"):
+        view.press(key)
+        assert _text(m, view) == before
+
+
+def _title_seen(text: str) -> int:
+    return max(len(x) for x in re.findall(r"A long title[a-zA-Z ]*", text))
+
+
+def test_a_maximized_ready_row_shows_a_title_cut_later_than_at_the_boxs_width() -> None:
+    m, view = _lone(), View()
+    title = "A long title of a CR that the narrow box cuts " * 2
+    _state(m, crs=[{**crs()[1], "title": title}])
+    _with_prs(m, error="gh: " + "no network " * 5)
+    view.press("tab")
+    normal = _text(m, view)
+    view.press("m")
+    full = _text(m, view)
+    assert _title_seen(full) > _title_seen(normal) and "gh: no network no network" in full
+    assert "forge: gh: no network no network no network no network" in full
+    assert "Ready  forge" in normal and "no network no network no network no network" not in normal
