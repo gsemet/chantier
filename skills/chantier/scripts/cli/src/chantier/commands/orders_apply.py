@@ -8,7 +8,8 @@ from collections.abc import Callable
 from chantier.commands.crs import filed_fix, fix_folder, grant_line
 from chantier.commands.gate_run import stop_gate, stopped_line
 from chantier.commands.joining import add_cr, check_joins, join_cr, join_paths
-from chantier.commands.opening import check_cycles, declare_dependencies
+from chantier.commands.opening import declare_dependencies
+from chantier.commands.orders_after import after
 from chantier.commands.orders_drop import drop
 from chantier.commands.orders_hold import hold, unhold
 from chantier.commands.orders_release import (
@@ -25,7 +26,7 @@ from chantier.core.batch import Batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.records import CrEntry
 from chantier.gate_slots import slot_of
-from chantier.rails import ENDED, is_release
+from chantier.rails import ENDED
 from chantier.rails_release import (
     check_grant,
     check_granted_fix,
@@ -93,59 +94,6 @@ def _waive(w: Word) -> list[str]:
     if w.cr_id == "stack":
         return waive_stack(w.b, note, w.follow_up, w.order_id)
     return waive_cr(w.b, target(w), note, w.follow_up, w.order_id)
-
-
-def _after_ids(w: Word) -> list[str]:
-    """The CR ids `order after` names, checked: known, not the release CR, not itself."""
-    b, cr_id, note = w.b, w.cr_id, w.note
-    ids: list[str] = []
-    for dep in [] if note.strip() == "-" else [s.strip() for s in note.split(",")]:
-        if not any(x.id == dep for x in b.record.crs):
-            raise ChantierError(f"order after: unknown CR {dep!r} in batch {b.id}")
-        if is_release(b.cr(dep)):
-            raise ChantierError(
-                f"order after: {dep} is the release CR, which waits for every "
-                f"other CR: {cr_id} waiting for it is a cycle"
-            )
-        if dep == cr_id:
-            raise ChantierError(f"order after: {cr_id} cannot wait for itself")
-        if b.cr(dep).status != "merged" and dep not in ids:  # merged: met, not recorded
-            ids.append(dep)
-    return ids
-
-
-def _after(w: Word) -> list[str]:
-    b, c, cr_id = w.b, target(w), w.cr_id
-    _need_note(w, 'order after <cr> --note "<CR ids, comma separated, or - for none>"')
-    if is_release(c):
-        raise ChantierError(
-            f"order after: {cr_id} is the release CR: the CLI keeps what it "
-            "waits for (every other CR of the batch)"
-        )
-    if c.status != "queued":
-        stack = "; in a stack, its place and base are set by `stack`"
-        raise ChantierError(
-            f"cannot change what {cr_id} waits for: it is {c.status}, not queued"
-            + (stack if b.record.mode == "stack" else "")
-        )
-    ids = _after_ids(w)
-    previous = c.after
-    _set_after(c, ids)
-    try:
-        check_cycles(b)
-    except ChantierError:
-        _set_after(c, previous)
-        raise
-    b.touch(c)
-    b.log("depends", cr_id, after=ids)
-    return [f"{cr_id} now waits for {', '.join(ids)}" if ids else f"{cr_id} waits for nothing"]
-
-
-def _set_after(c: CrEntry, ids: list[str]) -> None:
-    if ids:
-        c.after = ids
-    else:
-        c.unset("after")
 
 
 def _note(w: Word) -> list[str]:
@@ -330,7 +278,7 @@ def _qa(w: Word) -> list[str]:
 
 HANDLERS: dict[str, Callable[[Word], list[str]]] = {
     "add": _add,
-    "after": _after,
+    "after": after,
     "drop": drop,
     "note": _note,
     "merged": _merged,

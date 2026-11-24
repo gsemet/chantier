@@ -192,9 +192,8 @@ Only in the turn where the user gave the go:
    `brief.md`: complete it from the grill (the team, autonomous decisions allowed, questions to
    bring back). Right after `open`, before the first `take` (direct mode) or before starting the
    Foreman, record each wait the go approved: `$CHANTIER order after <cr> --note "<cr>"`, then
-   `$CHANTIER order note <cr> --note "chain: <reason>"`, as in "A chain" (`chief-of-staff:steering`). `order after`
-   replaces the CR's whole `after`: when the CR already waits for a real dependency, list it
-   too, comma separated. `order after` carries no `--epoch`.
+   `$CHANTIER order note <cr> --note "chain: <reason>"`, as in "A chain" (`chief-of-staff:steering`). `order after <cr> --add <cr>`
+   adds a wait and keeps the others; `--note` replaces the whole list. `order after` carries no `--epoch`.
 4. **Foreman mode: start the Foreman. Direct mode: steer it yourself**
    ([Steering a batch yourself](chief-of-staff-direct.md#steering-a-batch-yourself)); `open --direct` refuses when your
    own session id is unknown. Starting the Foreman: `<n>` its number as Foreman of the batch, the value of its `--epoch` (`1`, else `$CHANTIER foreman get` plus one; a new

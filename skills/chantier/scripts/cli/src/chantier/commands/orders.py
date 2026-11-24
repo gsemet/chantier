@@ -6,6 +6,8 @@ import argparse
 from dataclasses import dataclass
 
 from chantier.commands.endpause import end_of_batch
+from chantier.commands.orders_after import USAGE as AFTER_USAGE
+from chantier.commands.orders_after import resolve_ref
 from chantier.commands.orders_apply import (
     CR_ORDERS,
     HANDLERS,
@@ -31,7 +33,7 @@ from chantier.rails import check_budget, check_slot
 
 ORDER_KINDS = {*HANDLERS, "done"}
 
-_cr_arg = normalize_cr  # `order after`'s list is split here; every other argument is read by `main`
+_cr_arg = normalize_cr  # `order after`'s refs are resolved against the batch, in the lock
 
 
 def _check_args(args: argparse.Namespace, note: str, new_release: bool) -> None:
@@ -53,6 +55,7 @@ def _check_args(args: argparse.Namespace, note: str, new_release: bool) -> None:
         )
     if kind == "qa" and not note.strip():
         raise ChantierError('order qa --note "<what to test>"', EXIT_USAGE)
+    _check_after_flags(args)
     if args.follow_up and kind != "waive":
         raise ChantierError("--follow-up goes with `order waive <cr>` alone", EXIT_USAGE)
     if kind == "waive" and (not args.cr or args.cr == "-"):
@@ -62,6 +65,18 @@ def _check_args(args: argparse.Namespace, note: str, new_release: bool) -> None:
             "order rounds <cr> --note <n>" if kind == "rounds" else f"order {kind} <cr>",
             EXIT_USAGE,
         )
+
+
+def _check_after_flags(args: argparse.Namespace) -> None:
+    """`order after` takes one of --note, --add and --remove; no other kind takes the last two."""
+    add, remove = getattr(args, "add", None), getattr(args, "remove", None)
+    if args.kind != "after":
+        if add is not None or remove is not None:
+            raise ChantierError("--add and --remove go with `order after <cr>` alone", EXIT_USAGE)
+        return
+    given = [v for v in (args.note, add, remove) if v is not None]
+    if len(given) != 1 or not given[0].strip():
+        raise ChantierError(AFTER_USAGE, EXIT_USAGE)
 
 
 def _check_own(args: argparse.Namespace, own: bool) -> None:
@@ -159,9 +174,9 @@ class _Req:
 
 
 def _word(b: Batch, args: argparse.Namespace, req: _Req) -> Word:
+    if args.kind == "after":
+        req.cr = resolve_ref(b, req.cr).id
     cr = req.cr
-    if args.kind == "after" and not any(x.id == cr for x in b.record.crs):
-        raise ChantierError(f"order after: unknown CR {cr} in batch {b.id}")
     has_cr = (
         args.kind in CR_ORDERS
         or (args.kind == "note" and cr != "-")
@@ -178,6 +193,8 @@ def _word(b: Batch, args: argparse.Namespace, req: _Req) -> Word:
         req.own,
         req.new_release,
         follow_up=args.follow_up,
+        add=getattr(args, "add", None) or "",
+        remove=getattr(args, "remove", None) or "",
         order_id=req.oid,
         stopped=req.stopped,
     )
@@ -258,8 +275,6 @@ def _normalise_args(args: argparse.Namespace, note: str) -> str:
     ):
         args.cr = _cr_arg(args.cr)
     args.fix_for = _cr_arg(args.fix_for)
-    if args.kind == "after" and note.strip() != "-":
-        note = ", ".join(_cr_arg(s.strip()) for s in note.split(","))
     return note
 
 
@@ -300,6 +315,9 @@ def _ordered(repo: Repo, args: argparse.Namespace, note: str, new_release: bool)
         req = _Req(cr, note, own, new_release, f"O-{len(b.record.orders) + 1}", stopped)
         w = _word(b, args, req)
         effect = reopened + apply_order(w)
+        if w.recorded is not None:  # `after`: the resulting list, as ids
+            req.note = note = w.recorded
+        cr = req.cr
         oid = _record_order(b, args, req)
         skeleton = _qa_skeleton(repo, b, qa_row, req) if qa_row else []
         batch_id = b.id

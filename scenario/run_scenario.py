@@ -10444,6 +10444,15 @@ def dependencies(w: World) -> None:
     code, _ = w.chantier("order", "after", y, "--note", "CR-999", expect=2)
     check("`order after` refuses an unknown dependency, and keeps the old one",
           code == 2 and "CR-999" in w.last_stderr and w.cr(y).get("after") == [x], w.last_stderr)
+    x_slug = re.sub(r"^\d+-", "", Path(w.cr(x)["path"]).name)
+    _, out = w.chantier("order", "after", y, "--remove", x)
+    check("`order after --remove` takes one wait out, and keeps the rest",
+          "after" not in w.cr(y) and out[0].startswith(f"[chief-of-staff→foreman] order O-3: after {y} -"),
+          str(out))
+    _, out = w.chantier("order", "after", y, "--add", x_slug)
+    check("`order after --add` adds a wait named by its folder slug",
+          w.cr(y).get("after") == [x]
+          and out[0].startswith(f"[chief-of-staff→foreman] order O-4: after {y} {x}"), str(out))
     w.chantier("take", x, "--epoch", 0)
     code, _ = w.chantier("order", "after", x, "--note", "-", expect=2)
     check("`order after` refuses a CR that is not queued", code == 2 and "queued" in w.last_stderr,

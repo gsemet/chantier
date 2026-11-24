@@ -370,7 +370,8 @@ At startup, identify the role, batch, project and parent session.
   Foreman decided, or the plan proposed and the user's go approved, for a queued CR; it ends with `order after <cr> --note -` while the CR is
   queued. `stack` refuses an order that puts a CR below one of its
   `after`. `order after <cr> --note "<ids|->"` replaces the `after` of a queued CR (exit 2 on a CR
-  not queued, an unknown CR or a cycle). `depends.json` is written only when a CR needs the
+  not queued, an unknown CR or a cycle); `--add` and `--remove` change one entry and keep the
+  rest; a ref is a CR's id, its folder slug or its path. `depends.json` is written only when a CR needs the
   result of another: CRs that touch the same file do not depend on each other.
 - **Release CR:** a CR of its batch that releases the batch's work by the project's own
   procedure. It waits for every other CR (its `after`, which the CLI writes, the CRs added later
