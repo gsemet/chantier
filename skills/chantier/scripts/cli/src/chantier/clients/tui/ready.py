@@ -58,13 +58,27 @@ def ready_rows(
     return out
 
 
+def _empty(models: list[Model], view: View) -> str:
+    if not any(m.has_batch() for m in models):
+        return "no batch"
+    if view.text and any(m.review() for m in models):
+        return f"no PR matches {view.text}"
+    return "no PR ready"
+
+
 def ready_height(models: list[Model]) -> int:
     """The lines Ready's table needs under its header row, no filter."""
     return max(sum(len(m.review()) for m in models), 1)
 
 
-def ready(models: Model | list[Model], view: View | None = None) -> Any:
-    """The CRs to review or to merge with their PR, state, age and title, in merge order."""
+def ready(
+    models: Model | list[Model],
+    view: View | None = None,
+    width: int = RIGHT_W,
+    visible: int | None = None,
+) -> Any:
+    """The CRs to review or to merge with their PR, state, age and title, in merge order; `width`
+    is the box's, `visible` the lines it shows from the view's offset (all when None)."""
     from rich.console import Group
     from rich.style import Style
     from rich.text import Text
@@ -80,7 +94,7 @@ def ready(models: Model | list[Model], view: View | None = None) -> Any:
         fit=True,
     )
     rows = ready_rows(models, view)
-    for m, p, r, pr in rows:
+    for m, p, r, pr in view.page("ready", rows, visible):
         number, url = _pr_number(pr, r)
         cell = Text(number, no_wrap=True, overflow="ellipsis")
         if url:
@@ -94,15 +108,11 @@ def ready(models: Model | list[Model], view: View | None = None) -> Any:
             dim(age(r.get("handed_back_at"), m.now())),
             str(r.get("title") or ""),
         )
-    body: Any = t
-    if not rows:
-        if not any(m.has_batch() for m in models):
-            empty = "no batch"
-        elif view.text and any(m.review() for m in models):
-            empty = f"no PR matches {view.text}"
-        else:
-            empty = "no PR ready"
-        body = Group(t, Text(empty, no_wrap=True, overflow="ellipsis"))
+    body: Any = (
+        t if rows else Group(t, Text(_empty(models, view), no_wrap=True, overflow="ellipsis"))
+    )
     error = next((m.prs_error() for m in models if m.prs_error()), "")
-    title = f"Ready  forge: {error}"[: RIGHT_W - 4] if error else "Ready"
+    title = view.title("ready", f"Ready  forge: {error}" if error else "Ready")
+    if error:
+        title = title[: width - 4]
     return panel(body, title)

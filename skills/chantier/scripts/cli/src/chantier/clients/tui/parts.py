@@ -35,9 +35,10 @@ def grid(*widths: int | None) -> Any:
     return t
 
 
-def table(*columns: tuple[str, int | None], fit: bool = False) -> Any:
+def table(*columns: tuple[str, int | None], fit: bool = False, right: tuple[str, ...] = ()) -> Any:
     """A table with a bold header row; each cell is cut with `…`; a None width takes the rest.
-    With `fit`, a width is the most the column takes: it is as wide as its cells."""
+    With `fit`, a width is the most the column takes: it is as wide as its cells. The columns named
+    in `right` are right-aligned."""
     from rich.table import Table
 
     t = Table(
@@ -51,12 +52,13 @@ def table(*columns: tuple[str, int | None], fit: bool = False) -> Any:
         header_style="bold",
     )
     for name, w in columns:
+        side: Any = "right" if name in right else "left"
         if w is None:
-            t.add_column(name, ratio=1, no_wrap=True, overflow="ellipsis")
+            t.add_column(name, ratio=1, no_wrap=True, overflow="ellipsis", justify=side)
         elif fit:
-            t.add_column(name, max_width=w, no_wrap=True, overflow="ellipsis")
+            t.add_column(name, max_width=w, no_wrap=True, overflow="ellipsis", justify=side)
         else:
-            t.add_column(name, width=w, no_wrap=True, overflow="ellipsis")
+            t.add_column(name, width=w, no_wrap=True, overflow="ellipsis", justify=side)
     return t
 
 

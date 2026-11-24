@@ -14,7 +14,20 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
-from live_world import CAP, HIGH, NARROW, NOW, WIDE, drawn, fed, lease, project, record
+from live_world import (
+    CAP,
+    NARROW,
+    NOW,
+    WIDE,
+    drawn,
+    fed,
+    journal,
+    keyed,
+    lease,
+    numbered,
+    project,
+    record,
+)
 
 from chantier.clients.tui import screen
 from chantier.clients.tui.link import Event, Idle, Linked
@@ -91,45 +104,27 @@ def test_the_screen_shows_the_counts_the_tasks_and_the_flow_and_drops_the_left_c
 # keys, scroll, filter, several boards
 
 
-def _press(view: View, keys: list[str], page: int = 1) -> bool:
+def _press(view: View, keys: list[str], page: int | None = None) -> bool:
     return any([view.press(k, page) for k in keys])
-
-
-def _journal(m: Model, lines: list[dict[str, Any]]) -> None:
-    m.feed(Event("events:p", "events", {"lines": lines}, NOW))
-
-
-def _lines(start: int, stop: int, minute: int = 30, prefix: str = "line") -> list[dict[str, Any]]:
-    return [
-        {"seq": i, "t": f"2029-12-31T23:{minute}:{i % 60:02d}Z", "source": "hub",
-         "text": f"{prefix} {i:02d}"}
-        for i in range(start, stop)
-    ]  # fmt: skip
-
-
-def _keyed(m: Model, view: View) -> str:
-    out = io.StringIO()
-    view.keys = True
-    screen.plain(m, WIDE, HIGH, out, view)  # 15 rows of Flow
-    return out.getvalue()
 
 
 @pytest.mark.parametrize(
     ("keys", "arrive", "shown", "hidden"),
     [
-        (["up"], 3, ["line 29", "Flow  paused, 3 new"], ["took CR-1", "late 01"]),
-        (["pgup"], 0, ["line 02", "line 16", "paused, 0 new"], ["line 01", "line 17"]),
-        (["home"], 3, ["line 01", "line 15", "paused, 3 new"], ["line 16", "late"]),
-        (["home", "end"], 3, ["late 03", "took CR-1"], ["paused", "line 01"]),
-        (["up", "down"], 3, ["late 03", "took CR-1"], ["paused"]),
-        (["pgup", "pgdn", "pgdn"], 1, ["late 01"], ["paused"]),
+        (["down"], 3, ["line 29", "Flow  paused, 3 new"], ["took CR-1", "late 01"]),
+        (["pgdn"], 0, ["line 02", "line 16", "paused, 0 new"], ["line 01", "line 17"]),
+        (["end"], 3, ["line 01", "line 15", "paused, 3 new"], ["line 16", "late"]),
+        (["end", "home"], 3, ["late 03", "took CR-1"], ["paused", "line 01"]),
+        (["down", "up"], 3, ["late 03", "took CR-1"], ["paused"]),
+        (["pgdn", "pgup", "pgup"], 1, ["late 01"], ["paused"]),
+        (["up", "tab", "btab"], 0, ["took CR-1", "line 29"], ["paused"]),  # at the top already
         (["x", "\x00"], 0, ["took CR-1", "line 29"], ["paused"]),  # unbound keys
         (["/", "C", "R", "-", "2", "enter"], 0, ["filter: CR-2", "cr-2 note", "Ready one"],
          ["took CR-1", "Working one", "line 29"]),
         (["/", "x", "backspace", "enter"], 0, ["took CR-1", "Working one"], ["filter:"]),
         (["/", "c", "r", "enter", "esc"], 0, ["took CR-1", "Working one"], ["filter:"]),
         (["/", "z", "enter"], 0, ["no task matches z", "working 1"], ["took CR-1"]),
-        (["/", "c"], 0, ["? keys  / filter  t time  q quit  /c"], ["filter:"]),
+        (["/", "c"], 0, [f"{screen.KEYS_FOOTER}  /c"], ["filter:"]),
         (["t"], 0, ["Ago", "10 min"], ["Time"]),
         (["t", "t"], 0, ["Time", "took CR-1"], ["Ago"]),
         (["/", "t", "enter"], 0, ["filter: t", "Time"], ["Ago"]),
@@ -143,12 +138,12 @@ def test_keys_scroll_pause_filter_and_help_change_what_the_screen_prints(
 ) -> None:
     m = fed([0.0])
     note = {"seq": 90, "t": "2029-12-31T23:31:00Z", "source": "hub", "text": "cr-2 note"}
-    _journal(m, [*_lines(1, 30), note])  # 31 lines with the record's one
+    journal(m, [*numbered(1, 30), note])  # 31 lines with the record's one
     view, wanted = View(), m.wanted()
     assert not _press(view, keys, page=15)
-    _keyed(m, view)  # the keys are applied to the lines the screen holds
-    _journal(m, _lines(1, arrive + 1, minute=55, prefix="late"))
-    text = _keyed(m, view)
+    keyed(m, view)  # the keys are applied to the lines the screen holds
+    journal(m, numbered(1, arrive + 1, minute=55, prefix="late"))
+    text = keyed(m, view)
     for x in shown:
         assert x in text, (x, text)
     for x in hidden:
@@ -189,20 +184,20 @@ def _board(label: str, start: datetime, n: int, offset: int) -> Model:
     return m
 
 
-def test_each_board_keeps_2000_lines_and_home_shows_the_oldest_of_the_merged_view() -> None:
+def test_each_board_keeps_2000_lines_and_end_shows_the_oldest_of_the_merged_view() -> None:
     start = datetime(2029, 1, 1, tzinfo=UTC)
     a, b = _board("a", start, FLOW + 100, 0), _board("b", start, FLOW + 100, 1)
     assert len(a.flow) == len(b.flow) == FLOW == CAP
     both = merged([a, b])
     assert len(both) == 2 * FLOW and [x.t for x in both] == sorted(x.t for x in both)
     view, rows = View(), 15
-    view.press("home", rows)
+    view.press("end", rows)
     shown, title = view.window(both, rows)
-    assert shown[0] is both[0] and shown[0].text == "a 100" and title == "Flow  paused, 0 new"
+    assert shown[-1] is both[0] and shown[-1].text == "a 100" and title == "Flow  paused, 0 new"
     a._add(Line("2030-01-01T00:00:00Z", "p", "hub", "a new", board="a"))  # drops "a 100"
     both = merged([a, b])
     shown, _ = view.window(both, rows)
-    assert shown[0] is both[0] and shown[0].text == "b 100" and len(shown) == rows
+    assert shown[-1] is both[0] and shown[-1].text == "b 100" and len(shown) == rows
 
 
 def _key(ucs: str = "", code: int | None = None, name: str | None = None) -> Any:
@@ -219,6 +214,8 @@ def _key(ucs: str = "", code: int | None = None, name: str | None = None) -> Any
         ("\x1b[B", 258, "KEY_DOWN", "down"),
         ("\x1b[6~", 338, "KEY_PGDOWN", "pgdn"),
         ("\x1b[H", 262, "KEY_HOME", "home"),
+        ("\t", 512, "KEY_TAB", "tab"),
+        ("\x1b[Z", 353, "KEY_BTAB", "btab"),
         ("\x1b", 361, "KEY_ESCAPE", "esc"),
         ("\n", 343, "KEY_ENTER", "enter"),
         ("\x7f", 263, "KEY_BACKSPACE", "backspace"),
@@ -240,7 +237,9 @@ def test_the_footer_says_which_keys_there_are() -> None:
     assert screen.footer(m).plain == "Ctrl-C to quit"
     keyed = View()
     keyed.keys = True
-    assert screen.footer(m, keyed).plain == "? keys  / filter  t time  q quit"
+    shipped = screen.footer(m, keyed).plain
+    assert shipped == screen.KEYS_FOOTER
+    assert "Tab" in shipped and "m max" in shipped
 
 
 class Term:

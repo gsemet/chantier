@@ -93,10 +93,12 @@ What it shows, redrawn once a second:
   paused batch lists no Foreman and no Driver. QA drivers are not shown; the server's `project`
   topic does not carry them;
 - in the centre, the flow, a table (`Time`, `Who`, `Event`): the record's events and the journal's
-  lines of every project watched, newest at the bottom; it keeps the last 2000 lines of each
-  board, merged by time. Each line's time reads `MM-DD HH:MM:SS` in the local zone (the year is in
-  the header); the key `t` switches the column to `Ago`, the time since the event, rounded down:
-  `46 s`, `2 min`, `1 h`, `1 day`, `3 days`. It starts on the date and time at every start;
+  lines of every project watched, newest first (the live end is the top); it keeps the last 2000
+  lines of each board, merged by time. Each line's time reads `MM-DD HH:MM:SS` in the local zone
+  (the year is in the header); the key `t` switches the column to `Ago`, the time since the event,
+  rounded down: `46 s`, `2 min`, `1 h`, `1 day`, `3 days`. The `Ago` column is as wide as the
+  widest time drawn (3 to 8 columns) and right-aligned, and the columns it frees go to `Event`.
+  It starts on the date and time at every start;
 - on the right, Ready above Tasks;
   - Ready is a table (`PR`, `CR`, `State`, `Age`, `Title`) of the CRs the record says are to
     review or to merge, in the batch's merge order, in a running or a paused batch. The PR is `#<n>`
@@ -145,22 +147,35 @@ How to start it:
   missing first answer exits 4. Without it, a stdout that is not a terminal is
   refused. `q` or Ctrl-C leaves the screen.
 
+One panel is active: Projects, Agents, Flow, Ready or Tasks. Its title starts with `▸` (readable
+without colour, also in `--once`). The Flow is active at the start.
+
 Keys:
 
 | Key | Effect |
 |---|---|
-| Up / Down | the Flow one line older / newer |
-| PgUp / PgDn | the Flow one page older / newer |
-| Home | the oldest kept line of the merged Flow |
-| End | back to the live end (follows again) |
+| Tab / Shift-Tab | the next / previous panel drawn, wrapping (under 100 columns: Flow, Ready, Tasks) |
+| Up / Down | the active panel one line up / down (the Flow: one line newer / older) |
+| PgUp / PgDn | the active panel one page up / down (its own page) |
+| Home | the first line of the active panel (the Flow: the newest, follows live again) |
+| End | the last line of the active panel (the Flow: the oldest kept line of the merged Flow) |
+| `m` | maximize the active panel over the whole body (the header and the footer stay); `m` again restores the layout |
 | `t` | the Flow's time: date and time / time since the event |
 | `/` | type a filter: characters add, Backspace removes, Enter applies (empty clears), Esc cancels |
 | `?` | show the keys over the screen; any key closes them |
 | Esc | clear the filter; leave the help |
 | `q`, Ctrl-C | quit, exit 0 |
 
-- Only the Flow scrolls. Scrolled back, it does not move when lines arrive and its title reads
-  `Flow  paused, <n> new`, until End, or Down or PgDn reaching the newest line, follows live again.
+- The scroll keys move the active panel only; each panel keeps its own place when another one
+  becomes active. Projects, Agents, Ready and Tasks scroll by line, from their first line to their
+  last full page, and a box whose content fits does not move. The Flow scrolled away from its
+  top does not move when lines arrive and its title reads `Flow  paused, <n> new`, until Home, or
+  Up or PgUp reaching the newest line, follows live again. A new filter takes every box back to
+  its start.
+- Tab does nothing while a filter is typed. When a resize hides the active panel, the Flow is
+  active. While a panel is maximized, Tab shows the next panel maximized; `?` opens the help over
+  it and any key returns to it; Esc does not restore the layout. `--once` prints the normal
+  layout.
 - The filter is one text, matched without case against a Flow line's board label, project, CR,
   who and text, a task's board label, project, CR, title and phase, and a Ready row's board
   label, project, CR, title and PR number. It narrows the Flow, Ready and the Tasks, not the left
@@ -178,12 +193,12 @@ Europe/Paris):
 ```text
 chantier live  /work/demo  v0.15.1  ws  live  2026-11-23 12:26:25 UTC+01:00
 working 1  ready 2  held 1  done 0
-╭─ Projects ───────────────╮╭─ Flow ───────────────────────────────────────╮╭─ Ready ──────────────────────────────────╮
+╭─ Projects ───────────────╮╭─ ▸ Flow ─────────────────────────────────────╮╭─ Ready ──────────────────────────────────╮
 │ demo  batch-01 running … ││ Time           Who        Event              ││ PR  CR     State          Age Title      │
-│   inbox 0 backlog 2      ││ 11-22 18:40:12 chief-of-… open               ││ #13 CR-103 ready to merge 35m Add the a… │
-╰──────────────────────────╯│ 11-23 10:02:31 foreman    take CR-101        ││ #12 CR-102 checks running 12m Fix the l… │
-╭─ Agents ─────────────────╮│ 11-23 11:51:00 foreman    handback CR-103    │╰──────────────────────────────────────────╯
-│ Chief of Staff (seat)  … ││ 11-23 12:14:00 foreman    handback CR-102    │╭─ Tasks ──────────────────────────────────╮
+│   inbox 0 backlog 2      ││ 11-23 12:14:00 foreman    handback CR-102    ││ #13 CR-103 ready to merge 35m Add the a… │
+╰──────────────────────────╯│ 11-23 11:51:00 foreman    handback CR-103    ││ #12 CR-102 checks running 12m Fix the l… │
+╭─ Agents ─────────────────╮│ 11-23 10:02:31 foreman    take CR-101        │╰──────────────────────────────────────────╯
+│ Chief of Staff (seat)  … ││ 11-22 18:40:12 chief-of-… open               │╭─ Tasks ──────────────────────────────────╮
 │ Foreman  beat 3 min ago  ││                                              ││ State   Task                             │
 │ Driver CR-101 coder r1   ││                                              ││ working CR-101  Export the report as CSV │
 │                          ││                                              ││         lease 08:55  round 1/3  coder r1 │
