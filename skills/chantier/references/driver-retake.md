@@ -22,7 +22,7 @@ records (`carried:`). Mark each proof of
 evidence captions) as `at <new head7> (carried from <sha7>)`, as `ship`'s `off: pr-body.md line <n> names …`
 lines guide, and attach the image files `ship` names as the evidence bullet says (no long gate, no
 Verifier: the rule above stands), run the pre-post audit and post the file. With a conflict resolved, run the long
-gate at the new head (`ship --conflict`, above) with the early push: the PR goes to draft and is pushed at once, the long
+gate at the new head (`ship --conflict`, `driver:conflicts`) with the early push: the PR goes to draft and is pushed at once, the long
 gate and the CI watch run side by side by the rules of the "CI" bullet, and the PR leaves draft
 once both passed at that head. The `verifier`, given the move, judges again what it touched
 before `handback ready`: only after a resolved conflict or a refused carry. Green, no conflict, on
@@ -38,7 +38,7 @@ notes came since your last push: one rebase, onto the latest default branch (for
 branch's notes only; see the next paragraph for `stacked on`). With a long gate of
 the CR running, stop it (`gate <cr> --stop`) before that rebase. After a clean rebase run no
 new long gate and no new `verifier` (the pass and the verdict carry, recorded at `ship`); after one with a conflict
-resolved (`ship --conflict`, above), run the long gate at the new head with the early push (the "Early push" rule above);
+resolved (`ship --conflict`, `driver:conflicts`), run the long gate at the new head with the early push (the "Early push" rule, `driver:conflicts`);
 CI runs at the new head either way. A note `rebase: stacked on <cr below>, without <dropped cr>`
 changes the rebase command only: `git -C <worktree> rebase --onto <base> <the dropped CR's branch>`, so the
 dropped commits leave the branch; the rest is the rule above. A series CR's PR opens, as a draft,
