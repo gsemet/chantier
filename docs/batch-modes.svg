@@ -14,8 +14,8 @@
   <text x="24" y="76" font-size="16.5" fill="#475569">Three ways to relate the pull requests of one batch: who starts when, on which base, and who merges what, when.</text>
   <rect x="24" y="100" width="1152" height="232" rx="14" fill="#ffffff" stroke="#15803d" stroke-width="1.5"/>
   <text x="44" y="130" font-size="20" fill="#0f172a" font-weight="700">Parallel</text>
-  <text x="148.0" y="130" font-size="14" fill="#475569">(the default)</text>
-  <text x="44" y="158" font-size="12.5" fill="#0f172a" font-weight="700">Ask: nothing, it is the default.</text>
+  <text x="148.0" y="130" font-size="14" fill="#475569">(open's default)</text>
+  <text x="44" y="158" font-size="12.5" fill="#0f172a" font-weight="700">Ask: the Chief of Staff asks you.</text>
   <text x="44" y="180" font-size="12.5" fill="#334155">Every CR starts at once,</text>
   <text x="44" y="197" font-size="12.5" fill="#334155">from the default branch.</text>
   <text x="44" y="214" font-size="12.5" fill="#334155">The first one ready to merge wins: you</text>

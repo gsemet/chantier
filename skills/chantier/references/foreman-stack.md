@@ -91,8 +91,8 @@ printed only while no CR of the batch was ever stacked).
   gets: send the `stack-ready-to-merge … to come: …` ask of the stack as it stands if it is not complete
   and none was sent for it, with the local-gate clause as the hand-back gives it (`not run` or
   `failed` included: the time overrides the condition above). Then the batch goes on toward the complete stack.
-  In a batch with no stack, the same order note sends the batch's top's ask as it stands at the
-  time, with its local-gate clause (`not run` or `failed` included), as [foreman](foreman.md), "The user's boundaries"
+  In a parallel or series batch, the same order note sends the ask of each CR that owes the
+  run as it stands at the time, with its local-gate clause (`not run` or `failed` included), as [foreman](foreman.md), "The user's boundaries"
   says.
 
 ## The stack driver

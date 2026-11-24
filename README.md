@@ -95,7 +95,7 @@ what, when. You never merge through chantier: you merge, and the steering sessio
 
 ![Batch modes: parallel, series and stack](docs/batch-modes.svg)
 
-- **Parallel** (the default; ask for nothing): every CR starts from the default branch at once and
+- **Parallel** (`open`'s default; the Chief of Staff asks you for the shape at the opening, with its recommendation): every CR starts from the default branch at once and
   its PR is on the default branch. The first one ready to merge wins: you merge in the order things become
   ready to merge, unless you say otherwise. After each merge, every PR still open is rebased onto the
   default branch and its checks run again, conflict or not.

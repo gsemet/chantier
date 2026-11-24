@@ -230,8 +230,8 @@ At startup, identify the role, batch, project and parent session.
   after its retro critic has handed back. A held agent that stopped without its hand-back passes
   only on the user's word (`close --stopped <name>`, a held agent only), recorded in the batch's
   record. A batch has one of three **modes**, set by
-  `open --mode parallel|series|stack` and shown by `status`. **Parallel** (the default, when the
-  user names none): every CR with no open dependency starts from the default branch at once and
+  `open --mode parallel|series|stack` and shown by `status`. **Parallel** (the CLI's default, when the
+  user names none; the Chief of Staff always asks the user and passes `--mode`): every CR with no open dependency starts from the default branch at once and
   its PR is on the default branch; a CR with a dependency starts only once that dependency is
   `ready` (`take` refuses it until then), on the branch of its last dependency still open, else on
   the default branch (see **Dependencies**), and its PR stays a draft on that branch until the
