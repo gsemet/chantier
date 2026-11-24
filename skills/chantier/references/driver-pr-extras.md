@@ -32,7 +32,9 @@
   when a Verifier is due anyway (a conflict, a refused carry). Every image is given the look before it
   is kept or uploaded, below.
 - A Driver never opens an image file (`.png`, `.jpg`, `.gif`, `.webp`): it attaches the images the Verifier
-  or the Demo explorer names, by path and caption, and judges them from their reply.
+  or the Demo explorer names, by path and caption, and judges them from their reply. One exception:
+  the Release Driver reads each image it produced, as [release-template](release-template.md)
+  "Visible evidence" says.
 - No image shows the user's username or home folder; every image you keep or upload shows made-up
   paths. Terms: the *user's username* is both the login name of the machine you run on
   (`$env:USERNAME` on Windows, `$USER` on Linux and macOS) and the last part of the home folder's
