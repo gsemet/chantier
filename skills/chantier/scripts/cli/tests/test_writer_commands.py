@@ -143,7 +143,7 @@ def test_status_has_the_writer_line_and_tells_an_episode_only_while_it_lasts(
     (folder / journal.FILE).write_text(json.dumps(line) + "\n", encoding="utf-8")
     put(surface, "conflict", conflict={"files": ["projects/demo/a.md"]})
     shown = chantier("status")[1]
-    assert shown[1].startswith("writer: conflict")  # right after the batch line
+    assert shown[2].startswith("writer: conflict")  # right after the two batch lines
     assert any(x.startswith("writer: conflict with the remote") for x in shown)
     assert any("writer saw a conflict with the remote on projects/demo/a.md" in x for x in shown)
     put(surface, "synced")

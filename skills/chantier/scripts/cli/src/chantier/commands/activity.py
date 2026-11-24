@@ -40,7 +40,7 @@ def stopped_agents(repo: Repo, d: BatchRecord, events: list[EventRecord]) -> set
     with no `agent` event is not asked. Nothing is written."""
     if d.host == "copilot":
         return set()
-    asked = {c.agent for c in d.crs if c.status == "working" and c.agent}
+    asked = {c.agent for c in d.crs if c.status in ("working", "ready") and c.agent}
     asked |= {a for a in (d.stack_agent, *(o.agent for o in d.orders if not o.done)) if a}
     starts: dict[str, datetime] = {}
     for e in events:
