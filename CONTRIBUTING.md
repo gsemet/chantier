@@ -20,7 +20,7 @@ It keeps the backlog, asks you the questions a change needs, and starts work onl
    restates the CR and asks whether it is grilled enough; on your word a **spec-writer** agent
    writes `03-change-spec.md` in the background, and the Chief of Staff reviews it against your
    answers before showing it to you; on an impactful CR a **spec critic** agent checks it first.
-3. **You start a batch** ("run the P1s"; four slots; the CRs run in parallel unless you ask for a [series or a stack](README.md#batch-modes)). After a preflight and your go, the
+3. **You start a batch** ("run the P1s"; four slots; the Chief of Staff asks you whether the CRs run in parallel, as a series or as a stack, and recommends one: [batch modes](README.md#batch-modes)). After a preflight and your go, the
    Chief of Staff starts one **Foreman** in a nested session. In **direct mode** (used under Remote
    Control, where the host cannot start a Foreman session, or when you force it) no Foreman starts: the Chief of
    Staff steers the batch from its own session, with the same limits, folders and reports, and a

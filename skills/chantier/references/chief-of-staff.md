@@ -718,8 +718,9 @@ whose summary was declined or skipped gets no follow-up proposal. In a series or
 opens as a draft: the follow-up is still proposed then. "Released in" (end of this card) is the
 closing comment of the request's "Land" row, unchanged.
 
-A batch is parallel unless the user asks for a series or a stack, or a selected CR depends on
-another: then the plan proposes a series or a stack, and says why. In a parallel batch a CR starts
+You ask the user for the batch's shape at every opening, in step 2 "Show the plan" with the other
+plan items, and never take parallel by default (the CLI's `open` defaults to parallel, but you
+always pass `--mode`). In a parallel batch a CR starts
 as soon as a slot is free, and every open PR is rebased after each merge. Touching the same file is no reason to wait, and
 two CRs editing the same file do not depend on each other. Write `depends.json` in a CR's folder
 (`{"after": ["<slug>", …]}`, a slug being a folder's name without its number) only when it needs
@@ -880,9 +881,20 @@ Only in the turn where the user gave the go:
    numbered them, else the slug, the file and the lines both edit, for instance "README.md, the
    Routes table", and in plain words "a rebase with a conflict that would happen anyway"); how many CRs start at once, on how many slots (the `batch slots` of the `limits:` line of `$CHANTIER playbook`: 4 unless a `chantier.yaml` or the board's Configuration page sets it, or you say
    otherwise; `open` takes it when you pass no `--slots`, and refuses a configured 0), and, on a surface, the other batches of P14 (project, batch, steering, Drivers), so
-   the user picks the slots knowing the machine's load (no cap is proposed or applied); mode (parallel unless the user asked for a series or a stack, or a CR depends on another; for a series, the order), budget, the floor ([The floor](#the-floor)) with its two terms and the critical path, and the delivery time it gives ("not before <time>") or "unknown" with the reason, the team (what `$CHANTIER playbook` printed: each role's agent and model); and who steers
-   the batch. A go given before any CR is ready makes an **empty batch**: its plan shows the
-   mode, slots, budget, the team and who steers, and says for the floor and the delivery time
+   the user picks the slots knowing the machine's load (no cap is proposed or applied); the mode, asked as a question (below), budget, the floor ([The floor](#the-floor)) with its two terms and the critical path, and the delivery time it gives ("not before <time>") or "unknown" with the reason, the team (what `$CHANTIER playbook` printed: each role's agent and model); and who steers
+   the batch. **The mode question:** a batch question in the format of "Asking the user: a series" (it carries
+   no `<short name>-Q<n>` reference). It offers parallel, series (with the order) and stack, and
+   marks your recommendation `(recommended)`, weighing three things: whether the CRs are linked (a
+   CR's `depends.json`, or one CR building on another's change); the overlap of the files their
+   `03-change-spec.md` names (CRs that edit the same files, or are linked, point to a stack;
+   independent CRs with disjoint files point to parallel); and the cost of the project's
+   local-gate rule by shape (a parallel or series batch runs it once per covered PR, a stack once
+   on its top: the floor's "gates" term shows it). It names the shared files behind the
+   recommendation, as the plan names a wait on the same lines. A word the user gave earlier (for
+   instance "run the P1s as a stack") answers it, and none is asked. Pass `open --mode` with the
+   answer; `order mode --note …` still switches the shape on the user's word during the batch.
+   A go given before any CR is ready makes an **empty batch**: its plan asks the shape too, and
+   shows the slots, budget, the team and who steers, and says for the floor and the delivery time
    "none yet: no CR"; no cut is proposed. When the user asks for a stack (or the plan proposes one) on GitHub, recommend
    installing the `gh stack` extension (github/gh-stack) and say why: the stack driver then makes
    one native stack the user may merge in one action from its top PR, or one PR at a time from
@@ -959,7 +971,9 @@ Only in the turn where the user gave the go:
    ```
 
    The batch has no name: `open` numbers it and prints its id, `batch-<n>` (`<batch>` below). It
-   makes the mode you name: `parallel` (the default), independent CRs, each on the default branch;
+   makes the mode you name, always passed with `--mode` as the user answered (`parallel` is only
+   the CLI's default for `open`, never the Chief of Staff's): `parallel`, independent CRs, each on
+   the default branch;
    `series`, one CR after the other, in the order given, each on the previous one's branch; `stack`,
    independent CRs that the stack driver then stacks. It exits 2 while a batch is not closed. With
    no folder it opens an ordinary batch **paused, with no CR**, which waits for its CRs in
@@ -1043,8 +1057,9 @@ prints none.
   whatever the slots. A CR whose project rules exempt it from the long gate (`handback
   --no-gate`) does not count, nor does a CR covered by a waiver (`order waive`); under a stack
   waiver the stack's top counts, once.
-  Under a rule that asks the top for a local run, the batch's top (or the stack's top) counts,
-  once, whatever its exemption or waiver, unless a waiver's words name that gate.
+  Under a rule that asks a local run, every CR of a parallel or series batch that owes the run
+  counts, and the stack's top counts once in a stack, whatever its exemption or waiver (a CR
+  the rules exempt owes none in parallel or series), unless a waiver's words name that gate.
 - **The two terms, and the floor.** The **lock term** is the gates times the long gate's time.
   The **chain term** is the depth times (the long gate's time plus one CI run's time), since a
   level cannot start before the one under it is handed back ready. The floor is the larger of the two; the
@@ -1237,8 +1252,8 @@ CR-222 → CR-225 → CR-226 → CR-228."
   for <what> gaps: …`):** when you tell the user the PR is ready to merge, quote each
   gap of the ask next to the PR's link, in the user's language; with none, say nothing about
   gaps.
-  In a project whose rules ask the stack's top for a local run, the ask of a batch's top with no
-  stack carries `local gate <cr> at <sha7>: …`: quote it in the user's language before you say the
+  In a project whose rules ask a local run, the ask of each CR that owes the run, in a parallel
+  or series batch, carries `local gate <cr> at <sha7>: …`: quote it in the user's language before you say the
   PR can be merged. `passed`: say the local gate ran and passed at that head. `not run` or
   `failed` (a `deliver by` time): say the project's rule asks that gate at that head before the
   merge and it has not passed there; merging anyway is the user's choice, recorded as any merge
@@ -1253,7 +1268,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   image>"`: the Foreman turns it into `take <cr> --epoch <n> --note "evidence: <path>"`, and a Driver
   attaches the image in Deliverables, removes the gap, runs the description pass and hands back
   ready again. In every mode, a `ready-to-merge` ask is offered to the
-  user as mergeable now, on its own, with its gaps as above (for the release PR, the same message asks the post-merge word, Releases) (except that, under that rule, once the last open non-release CRs are all ready together and the last of them in `status`'s order is the batch's top, offer the others as mergeable only together with that top or before it, and say so); a `pr-in-draft … on <base>: waits for
+  user as mergeable now, on its own, with its gaps as above (for the release PR, the same message asks the post-merge word, Releases); a `pr-in-draft … on <base>: waits for
   <cr>` ask is not: say it is a PR in draft, do not merge, and what it waits for. Say "you can merge" (or any equivalent) about a PR only
   after its `ready-to-merge` line (or the `stack-ready-to-merge` line for a stack) has reached you, never on a
   Driver's progress, a green CI or the PR's look on the forge. When the user merges a PR before
@@ -1268,7 +1283,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   a line that ends `not landed …` is not one to record: do not run `order merged`; tell the user
   where the PR went (into `<other cr>`'s PR, not the default branch) and wait until the PR under
   it lands (the hub or the board then writes a second line, `landed with`); the line keeps printing until
-  the CR is recorded merged. When the user merges several PRs of a batch with no stack in one action (or several `forge saw merged` lines come at one `status` or one watcher's end), record `order merged` for the others first and the batch's top last.
+  the CR is recorded merged. When the user merges several PRs of a batch with no stack in one action (or several `forge saw merged` lines come at one `status` or one watcher's end), record `order merged` for each.
   A CR taken out of a batch whose PR the user merges later, outside any batch (its folder is in the
   backlog or the next batch, `3-ready`, with `formerly.json`), has a route of its own: on "I
   merged #n" for it, run `order add --note <folder>`, which brings back its number and its PR,

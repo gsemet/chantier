@@ -107,36 +107,17 @@ running again, until the user's close.
   ask a local run on the stack's top, the stack's top handed back with `--no-gate` goes back with
   `take <cr> --note "long gate: the stack's top runs <command> locally"`, with no ask; the Copilot
   host's path is unproved. The ask is then `ready-to-merge <cr> <link> no long gate: <reason>` (or `pr-in-draft …`).
-  In a batch with no stack on the forge, the top is the batch's last open CR other than a release
-  CR (every other non-release CR merged or cancelled; a fix CR counts; a one-CR batch's CR from
-  the start), or, when the last open non-release CRs are all handed back ready and no other CR is
-  working or queued, the last of them in `status`'s order; the same holds for it, checked at two
-  moments:
-    - at each ready hand-back: read a plain `$CHANTIER status`; when the top, as that hand-back
-      leaves the batch, handed back with `--no-gate`, or the record holds no passed or carried
-      long gate at its head (`log <cr>`), it goes back with `take <cr> --note "long gate: the
-      batch's top runs <command> locally"`, with no ask (the top may be a CR handed back earlier:
-      the last in `status`'s order of ready CRs that all wait together);
-    - when it becomes the top later: on each merge, drop or cancel you record or receive (`order
-      merged`, `order drop`, `cancel`) that leaves one non-release CR open, or leaves only ready
-      non-release CRs open with none working or queued, read a plain `$CHANTIER status`; the top
-      handed back `ready` with no passed or carried long gate at its head goes back with the gate
-      note. After a merge, the rebase `take` that the `order merged` bullet sends it (parallel or
-      series) carries the gate note in the same `take`, never a second one: `take <cr> --note
-      "rebase: <merged cr> merged; long gate: the batch's top runs <command> locally"`; its Driver
-      rebases, and its hand-back check (the long-gate bullet of `driver.md`) runs the gate at the
-      rebased head. After a drop or a cancel (no rebase take), it goes back with `take <cr> --note
-      "long gate: the batch's top runs <command> locally"` (its Driver turns the PR back to draft
-      first, as for any CR sent back). A `working` CR needs nothing (it gets the rebase `note`
-      line as today), its Driver checks at its hand-back; a `blocked` or queued one is checked at
-      its ready hand-back. A CR added by `order add` is open: the top moves to it when it is the
-      top by the definition, and the earlier top's pass stays valid but no longer counts as the
-      top's.
+  In a stack, the stack's top handed back `--no-gate` by an exemption such as docs only still goes
+  back with the stack's-top note. In a parallel or series batch, a CR that owes the local run (the
+  rules ask it, and none exempts it, checked as the `--no-gate` check does) goes back with `take
+  <cr> --note "long gate: this CR runs <command> locally"`, with no ask, when it is handed back
+  ready with `--no-gate`, or when its record holds no passed or carried long gate at its head
+  (`log <cr>`). An exempt CR does not go back.
   The Copilot host's path is unproved (as for the stack's top above). A fix CR you merge under the
-  grant is merged as the top only with a passed or carried long gate at its head. The top's
-  `ready-to-merge` ask (or `pr-in-draft` ask) carries the clause after its gaps: `ready-to-merge
+  grant is merged only with a passed or carried long gate at its head when it owes the local run. The
+  `ready-to-merge` ask (or `pr-in-draft` ask) of each CR that owes the run carries the clause after its gaps: `ready-to-merge
   <cr> <link>[ gaps: …] local gate <cr> at <sha7>: passed`, and goes only with `passed`. At a
-  `deliver by <time>` time (the order note, in any mode), a top not yet passed is not sent back:
+  `deliver by <time>` time (the order note, in any mode), a CR not yet passed is not sent back:
   its ask goes as it stands, with `local gate <cr> at <sha7>: not run` (or `failed`), after `no
   long gate: <reason>` when it has one; a gate still running is not stopped. With no such rule, no
   clause.
@@ -150,14 +131,14 @@ running again, until the user's close.
   `long gate waived: validated by CR-<top>` or `long gate waived: follow-up <folder>`, as it
   carries `no long gate: <reason>`. A hand-back that says it with no such order on the CR goes
   back to its Driver with `take <cr> --note "long gate: no waiver recorded for this CR"`, with
-  no ask. Under a rule that asks the top for a local run, a waiver does not waive the top's local run
+  no ask. Under a rule that asks a local run, a waiver does not waive a CR's local run
   unless its words name that gate: read them in `status`'s order list (`O-<k> waive <cr> <note>`),
   or, when the order is no longer listed or its note is cut, in the CR's `STATUS.json`
-  (`gate.waiver`). A waived top (the stack's top, or the batch's top as above) whose record holds
+  (`gate.waiver`). A waived CR that owes the local run whose record holds
   no passed or carried long gate at its head (`log <cr>`; `status` shows the CR `waived`, not its
-  pass) goes back with `take <cr> --note "long gate: the batch's top runs <command> locally"`
-  (`the stack's top` for a stack), with no ask, at the same two moments; its ask then carries both
-  `long gate waived: …` and the clause. A top whose waiver names the gate owes no local run and
+  pass) goes back with `take <cr> --note "long gate: this CR runs <command> locally"`
+  (`the stack's top runs` for a stack), with no ask; its ask then carries both
+  `long gate waived: …` and the clause. A CR whose waiver names the gate owes no local run and
   its ask carries no clause. Nothing about a waiver goes in a Driver's brief except what `take` prints (its
   `gate:` line). A release PR is never yours to merge,
   except under the grant, once every other CR is merged or cancelled and its base is the default
@@ -492,16 +473,16 @@ running again, until the user's close.
     Driver); a `working` one gets `[foreman→driver <cr>] note rebase:
     <merged cr> merged`; it rebases once, before its next push. Conflict or not, its checks run again at the new head. A queued CR needs
     nothing.
-    When the CR this rebase `take` goes to is now the batch's top (as "The user's boundaries"
-    says) and holds no passed or carried long gate at its head, the same `take` carries the gate
-    note: `take <cr> --note "rebase: <merged cr> merged; long gate: the batch's top runs <command>
+    When the CR this rebase `take` goes to owes the local run (as "The user's boundaries" says)
+    and holds no passed or carried long gate at its new head, the same `take` carries the gate
+    note: `take <cr> --note "rebase: <merged cr> merged; long gate: this CR runs <command>
     locally"`; no separate gate `take`.
   - **Series:** the CR whose predecessor merged goes back to a Driver with `take <cr> --note
     "rebase: <cr> merged"` (or the `note` line, by the state from the `status` read just before
     sending, as above) and turns ready to merge on the default branch.
-    When the CR this rebase `take` goes to is now the batch's top (as "The user's boundaries"
-    says) and holds no passed or carried long gate at its head, the same `take` carries the gate
-    note: `take <cr> --note "rebase: <merged cr> merged; long gate: the batch's top runs <command>
+    When the CR this rebase `take` goes to owes the local run (as "The user's boundaries" says)
+    and holds no passed or carried long gate at its new head, the same `take` carries the gate
+    note: `take <cr> --note "rebase: <merged cr> merged; long gate: this CR runs <command>
     locally"`; no separate gate `take`.
     Whenever a CR's branch moves (a
     rebase, a new round after review), the started CR above it goes back to a Driver with

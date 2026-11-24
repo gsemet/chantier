@@ -1,6 +1,6 @@
 # Batch modes: parallel, series and stack
 
-A batch has one of three modes. Parallel, the default: every CR starts from the default branch at once and every PR is on the default branch; the first one ready to merge wins and the user merges in the order things become ready to merge; after each merge, every PR still open is rebased onto the default branch and checked again. Series: the CRs have a precise order; the next CR starts once the previous one is handed back, from the previous CR's pushed branch, and its PR is a draft; once the previous one is merged, the next one is rebased onto the default branch and turns ready to merge; the Chief of Staff guides the user merge by merge; on request a series switches to a stack. Stack: parallel with a stack driver; every CR starts at once, the PRs go each on the previous one and the stack driver makes one native stack on the forge as soon as two PRs are handed back ready, and the CRs started afterwards are built on it; the user merges it in one action from the top PR or one PR at a time from the bottom, the release last. A change inserted into a stack ready to merge: the PRs above go back to draft, insert, restack, update the stack on the forge, verify, then the PRs turn ready to merge.
+A batch has one of three modes. Parallel, `open`'s default (the Chief of Staff asks you for the shape at the opening and recommends one): every CR starts from the default branch at once and every PR is on the default branch; the first one ready to merge wins and the user merges in the order things become ready to merge; after each merge, every PR still open is rebased onto the default branch and checked again. Series: the CRs have a precise order; the next CR starts once the previous one is handed back, from the previous CR's pushed branch, and its PR is a draft; once the previous one is merged, the next one is rebased onto the default branch and turns ready to merge; the Chief of Staff guides the user merge by merge; on request a series switches to a stack. Stack: parallel with a stack driver; every CR starts at once, the PRs go each on the previous one and the stack driver makes one native stack on the forge as soon as two PRs are handed back ready, and the CRs started afterwards are built on it; the user merges it in one action from the top PR or one PR at a time from the bottom, the release last. A change inserted into a stack ready to merge: the PRs above go back to draft, insert, restack, update the stack on the forge, verify, then the PRs turn ready to merge.
 
 ## Header
 
@@ -13,8 +13,8 @@ Three ways to relate the pull requests of one batch: who starts when, on which b
 
 ```md
 Parallel
-(the default)
-Ask: nothing, it is the default.
+(`open`'s default)
+Ask: the Chief of Staff asks you.
 Every CR starts at once,
 from the default branch.
 The first one ready to merge wins: you

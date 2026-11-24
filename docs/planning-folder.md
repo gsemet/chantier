@@ -36,7 +36,7 @@ branch and its PR; only the trash closes the PR, the others keep it as a draft. 
 number, in `<number>-<slug>/`, and a `formerly.json` records where it came from. A batch has no name, only a
 number, and `--batch` takes it (`4` or `batch-04`). One batch at a time, from `open` to your `close`: new work joins it
 through the Foreman (in direct mode, once it is paused). Its CRs run in one of three [modes](../README.md#batch-modes), `open --mode parallel|series|stack`
-(parallel unless you ask otherwise). While a CR runs, the team writes its notes, gate logs and PR body in the CR's own
+(the Chief of Staff asks you for the shape, parallel being `open`'s default). While a CR runs, the team writes its notes, gate logs and PR body in the CR's own
 `work/` folder.
 
 External layout, beside it:
