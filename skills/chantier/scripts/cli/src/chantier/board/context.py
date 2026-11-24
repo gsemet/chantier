@@ -49,6 +49,7 @@ class Context:
         default_factory=dict[str, tuple[str, dict[str, Any]]]
     )
     griller: Any = None  # the board's Griller `Registry` (`griller.py`), made at start
+    claim: Any = None  # the surface's claim: the held `hub.lock` (`claim.py`), kept for its life
     push: Any = None  # the API's `PushLoop` (typed there: it imports this module), set when serving
     # the API's open WebSockets, those still waiting for their `hello` too (each has `welcomed`,
     # `credential` and a thread-safe `drop(code)`); changed in the event loop's thread only

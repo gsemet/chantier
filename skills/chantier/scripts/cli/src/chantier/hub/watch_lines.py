@@ -34,6 +34,11 @@ NOT_STARTED = (
     "watch: the board did not start within 20 s: for the Chief of Staff, start it with {cli} "
     "serve --seat {session} and read its error"
 )
+STRAY = (
+    "watch: the link reached the server of PID {stray}, but server.json records PID {pid} (the "
+    "one that holds the forge hub) and this watcher is not subscribed to it; ended: for the "
+    "Chief of Staff, stop the stray server ({stop}), then start again: {watch}"
+)
 BAD_KEY = (
     "watch: the board at {where} refused the key of server.json: for the Chief of Staff, restart "
     "it: stop it ({stop}), then start again: {watch}"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import errno
+import ipaddress
 import socket
 import sys
 from collections.abc import Callable
@@ -14,6 +15,7 @@ TAKES_PORT = "board: port {port} is held by {holder}: this one takes port {free}
 NO_FREE_PORT = "no free port from {port} to {last} on {host}: pass --port <n> (0: any free port)"
 WSAEADDRINUSE = 10048  # Windows' "address in use"
 WSAEACCES = 10013  # Windows' "access denied": a port in a reserved range, or held exclusively
+PROBE_S = 0.2  # how long the held-anywhere check waits for a listener to accept
 
 
 def _held(e: OSError) -> bool:
@@ -25,12 +27,41 @@ def not_started(reason: object) -> ChantierError:
     return ChantierError(f"board not started: {' '.join(str(reason).split())}", EXIT_EXTERNAL)
 
 
+def _held_elsewhere(host: str, port: int) -> bool:
+    """A listener on this port at any address of the host's family: a connect to the loopback
+    (and to the host, when it is a specific address) is accepted. A bind alone does not tell:
+    whether a specific address may share a port with a wildcard one differs on Windows, macOS and
+    Linux. A name that is no address (a test's) is never held here."""
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    loopback = "::1" if isinstance(address, ipaddress.IPv6Address) else "127.0.0.1"
+    where = [loopback] + ([] if address.is_unspecified or str(address) == loopback else [host])
+    for each in where:
+        probe = socket.socket(
+            socket.AF_INET6 if isinstance(address, ipaddress.IPv6Address) else socket.AF_INET
+        )
+        probe.settimeout(PROBE_S)
+        try:
+            if probe.connect_ex((each, port)) == 0:
+                return True
+        except (OSError, OverflowError):
+            pass
+        finally:
+            probe.close()
+    return False
+
+
 def _open(host: str, port: int) -> socket.socket:
     """One socket, bound and listening, or the OSError of its bind. On Windows SO_REUSEADDR lets a
-    second socket take a port in use: never there."""
+    second socket take a port in use: never there, where the socket is exclusive instead (no
+    other process shares its port, whatever address it binds)."""
     sock = socket.socket(socket.AF_INET6 if ":" in host else socket.AF_INET, socket.SOCK_STREAM)
     try:
-        if sys.platform != "win32":
+        if sys.platform == "win32":
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        else:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((host, port))
         sock.listen(socket.SOMAXCONN)
@@ -70,6 +101,8 @@ def bind(
     none_free = NO_FREE_PORT.format(port=port, last=MAX_PORT, host=host)
     while True:
         try:
+            if _held_elsewhere(host, last):
+                raise OSError(errno.EADDRINUSE, "address already in use")
             sock = _open(host, last)
         except (OSError, OverflowError) as e:
             _stop_or_walk(e, last, held, holder is not None, none_free)

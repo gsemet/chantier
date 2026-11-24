@@ -65,11 +65,12 @@ class Refused:
 @dataclass(frozen=True)
 class Linked:
     """The link's state: `transport` (`ws` or `http`) while it is live, None while it is lost;
-    `reason` why it was lost."""
+    `reason` why it was lost; `pid` the process that answered, from its `welcome` (WebSocket)."""
 
     transport: str | None
     now: str | None = None
     reason: str = ""
+    pid: int | None = None
 
 
 @dataclass(frozen=True)
@@ -288,7 +289,8 @@ class Link:
 
     def _socket(self, welcome: dict[str, Any]) -> Iterator[Item]:
         self.used = "ws"
-        yield Linked("ws", welcome.get("now"))
+        pid = (welcome.get("server") or {}).get("pid")
+        yield Linked("ws", welcome.get("now"), pid=pid if isinstance(pid, int) else None)
         for w in list(self.wants.values()):
             self._sub(w)
         heard = time.monotonic()

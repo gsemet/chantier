@@ -169,6 +169,7 @@ def test_the_outputs_end_with_the_line_when_no_watcher_of_this_session_runs(
         monkeypatch.setenv(VAR, ME if who == "mine" else OTHER)
         w = Watch(found, 0, board=served(found))
         w.start()
+        state.write_hub(found.git_dir, state.hub_record(__version__))  # the hub observes it
         watchers.append(w)
         monkeypatch.setenv(VAR, ME)
     out = run()

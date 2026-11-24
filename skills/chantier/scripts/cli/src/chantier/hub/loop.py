@@ -22,9 +22,12 @@ JOIN_S = 5.0
 
 
 class HubLoop:
-    def __init__(self, repo: Repo, version: str = __version__) -> None:
+    def __init__(
+        self, repo: Repo, version: str = __version__, held: lock.HubLock | None = None
+    ) -> None:
+        """`held`: the lock the server took at its start (the surface's claim), kept for life."""
         self.repo, self.version = repo, version
-        self.lock = lock.HubLock(repo.git_dir)
+        self.lock = held or lock.HubLock(repo.git_dir)
         self.hub: Hub | None = None
 
     def poll(self, now: float, observed: Callable[[], bool]) -> None:

@@ -265,6 +265,14 @@ def reassert_server(git_dir: Path, key: str, read_key: str = "") -> None:
     modify(git_dir, put)
 
 
+def recorded_other(git_dir: Path) -> int | None:
+    """The PID of the live server that `server.json` records when it is not this process, else
+    None: this process is then a stray, and never edits that entry."""
+    entry = live_entry(git_dir, SERVER)
+    pid = None if entry is None else entry.get("pid")
+    return pid if isinstance(pid, int) and pid != os.getpid() else None
+
+
 def set_server_files(git_dir: Path, mode: str) -> None:
     """The server's file watch moved to `mode` (a dying notification watch: `check`)."""
 

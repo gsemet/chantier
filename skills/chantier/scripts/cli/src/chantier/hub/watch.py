@@ -19,7 +19,6 @@ path: it prints the journal's lines past SEQ, takes no lock, reaches no server, 
 from __future__ import annotations
 
 import contextlib
-import re
 import sys
 import time
 from typing import Any
@@ -34,6 +33,7 @@ from chantier.core.repo import Repo
 from chantier.core.seat import read_seat
 from chantier.hub import arrival_mark, autostart, batch_prs, journal, lock, state
 from chantier.hub import times as hub_times
+from chantier.hub import watch_confirm as confirm
 from chantier.hub.feed import Board, Feed, Got, passed_on, serve_argv
 from chantier.hub.lines import foreign_build_clause
 from chantier.hub.watch_lines import (
@@ -44,16 +44,13 @@ from chantier.hub.watch_lines import (
     FOREMAN_NO_SERVER,
     IDLE_END,
     NO_BOARD,
-    NO_KEY,
-    NO_SEAT,
-    NO_TRANSCRIPT,
     NOT_SERVED,
     NOT_STARTED,
     OTHER_VERSION,
     REFUSED,
     SEAT_LINE,
+    STRAY,
     STREAM_TOLD,
-    UNREADABLE_SEAT,
     Ended,
     told,
 )
@@ -65,6 +62,7 @@ from chantier.hub.watch_reads import (
     seat_moved,
     subscription,
 )
+from chantier.hub.watch_seat import seat_rule
 from chantier.plugin_files import cli_command
 
 EVENTS, SEAT, IDLE, END = "events", "seat", "idle", "end"
@@ -112,7 +110,11 @@ class Watch:
         self.feed: Feed | None = None
         self.entry: dict[str, Any] = {}
         self.lost_at: float | None = None
-        self.unlinked_since: float | None = None  # links opened that no transport answered yet
+        self.unlinked_since: float | None = None  # links opened, none answered by the server
+        self.key, self.pid = "", None  # the recorded server this link is for: its key and PID
+        self.stray: int | None = None  # the PID of another process that answered the link
+        self.checked_at: float | None = None  # the last look at the record, while linked
+        self.spawned: int | None = None  # the PID of the process this watcher spawned
         self.end: Ended | None = None
 
     # the board
@@ -133,22 +135,8 @@ class Watch:
         }
 
     def seat_rule(self) -> str:
-        """With no server running: the seat's session it starts the board for, else the end that
-        says why, in this order: no session key, no seat, a seat with no transcript, another's."""
-        texts = self._texts()
-        if self.session == autostart.NONE:
-            raise Ended(NO_KEY.format(**texts))
-        try:
-            seat = read_seat(self.repo)
-        except ChantierError as e:
-            raise Ended(UNREADABLE_SEAT.format(**texts, error=e)) from e
-        if seat is None:
-            raise Ended(NO_SEAT.format(**texts))
-        if not re.sub(r"[^A-Za-z0-9-]", "", seat.transcript or ""):
-            raise Ended(NO_TRANSCRIPT.format(**texts))
-        if seat.session and autostart.holds_seat(seat.transcript):
-            return seat.session
-        raise Ended(SEAT_LINE.format(**texts), 0)
+        """With no server running: the seat's session it starts the board for, else the end."""
+        return seat_rule(self.repo, self.session, self._texts())
 
     def start_board(self) -> tuple[dict[str, Any], str] | None:
         """Start the board for this session's seat, detached, and wait for `server.json` to name
@@ -159,7 +147,7 @@ class Watch:
         session = self.seat_rule()
         if autostart.other_dev_build(self.repo, self.build) is not None:
             return None
-        self.board.spawn(serve_argv(self.repo, session), self.repo.root)
+        self.spawned = self.board.spawn(serve_argv(self.repo, session), self.repo.root)
         deadline = self.board.clock() + START_S
         while True:
             found = self.board.recorded(self.repo.git_dir)
@@ -201,10 +189,13 @@ class Watch:
                 self.waiting, self.lost_at = True, now
                 return None
             started = int(found[0]["pid"])
+            if not confirm.started_by(started, self.spawned):
+                started = None  # another start won the surface: this one joins its board
             self.unlinked_since = None
         else:
             self.register(*found)
-        self.entry = found[0]
+        self.entry, self.key, self.pid = found[0], found[1], found[0].get("pid")
+        self.checked_at = now
         self.feed = self.board.link(found[0], found[1], self.project, self.cursor)
         self.lost_at = None
         if self.unlinked_since is None:
@@ -239,7 +230,15 @@ class Watch:
             raise Ended(NOT_SERVED.format(**self._where(), error=f"{item.status} {item.error}"))
         if isinstance(item, Linked):
             if item.transport is not None:
-                self.unlinked_since = None
+                answered = confirm.answering_pid(self.board, self.entry, self.key, item)
+                self.stray = confirm.other_than_recorded(
+                    self.board, self.repo.git_dir, answered, self.pid
+                )
+                if self.stray is None:
+                    self.unlinked_since = None
+                elif self.feed is not None:  # not the server that holds the hub: not linked
+                    self.feed.close()
+                    self.feed, self.lost_at = None, now
             elif self.feed is not None:
                 self.feed.close()
                 self.feed, self.lost_at = None, now
@@ -271,8 +270,20 @@ class Watch:
             self.connect(now)
         for item in self.feed.drain() if self.feed is not None else []:
             self._take(item, now)
+            if self.feed is None:  # lost, or not the recorded server: what follows is dropped
+                break
+        if self.feed is not None and now - (self.checked_at or 0.0) >= RETRY_S:
+            self.checked_at = now
+            if confirm.moved(self.board, self.repo.git_dir, self.pid):  # a restart: link again
+                self.feed.close()
+                self.feed = None
+                self.connect(now)
         if self.unlinked_since is not None and now - self.unlinked_since >= SILENT_S:
-            raise Ended(f"watch: {running.silent_text(self.entry)}")
+            if self.stray is None:
+                raise Ended(f"watch: {running.silent_text(self.entry)}")
+            stop = running.stop_command(self.stray)
+            text = {**self._where(), "stray": self.stray, "pid": self.pid, "stop": stop}
+            raise Ended(STRAY.format(**text))
 
     def _flight(self, now: float) -> None:
         """The batch in flight, read at most every `SEAT_CHECK_S`; the last moment it was seen."""

@@ -265,3 +265,34 @@ def test_webui_prints_the_link_and_starts_a_server_when_none_runs(
     else:
         assert code == EXIT_EXTERNAL and err.startswith("error: webui: a chantier board")
         assert "then run serve again" in err and not fake.spawned
+
+
+@pytest.mark.parametrize(
+    ("listening", "asked"),
+    [("0.0.0.0", "127.0.0.1"), ("127.0.0.1", "0.0.0.0"), ("127.0.0.1", "127.0.0.1")],
+)
+def test_a_port_held_on_any_address_is_held_for_every_other_address(
+    listening: str, asked: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Real sockets: whether a specific address may share a port with the wildcard one differs on
+    Windows, macOS and Linux, and a board that shared it would serve beside another."""
+    held, port = _hold_on(listening)
+    try:
+        with pytest.raises(ChantierError) as stopped:
+            binding.bind(asked, port, lambda: "held here", None)
+        assert "held here" in str(stopped.value)
+        walked = binding.bind(asked, port, None, lambda: "another program")
+        try:
+            assert walked.getsockname()[1] > port
+            assert f"port {port} is held by another program" in capsys.readouterr().out
+        finally:
+            walked.close()
+    finally:
+        held.close()
+
+
+def _hold_on(host: str) -> tuple[socket.socket, int]:
+    sock = socket.socket()
+    sock.bind((host, 0))
+    sock.listen(socket.SOMAXCONN)  # a connect that is never accepted must not fill the queue
+    return sock, sock.getsockname()[1]
