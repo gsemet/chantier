@@ -101,13 +101,15 @@ def loopback_base(host: str, port: int) -> str:
     return _base(host, port) + "/"
 
 
-def _call(base: str, key: str, method: str, route: str, body: Any = None) -> Any:
+def _call(  # noqa: PLR0913, PLR0917 - the address, the key, the request, its body and its wait
+    base: str, key: str, method: str, route: str, body: Any = None, timeout: float = 2
+) -> Any:
     address = f"{base}{route}"
     data = json.dumps(body).encode("utf-8") if body is not None else None
     headers = {HEADER: key, **({"Content-Type": "application/json"} if data else {})}
     request = urllib.request.Request(address, data, headers, method=method)
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    with opener.open(request, timeout=2) as r:
+    with opener.open(request, timeout=timeout) as r:
         return json.loads(r.read(5_000_000))
 
 
@@ -148,3 +150,15 @@ def register_seat(host: str, port: int, key: str, project: str, session: str) ->
     except (OSError, ValueError):
         return False
     return True
+
+
+def call_op(host: str, port: int, key: str, op: str, timeout: float) -> tuple[int, dict[str, Any]]:
+    """One op with no arguments, over HTTP, on the board there: the HTTP status and the answer's
+    body (`ok`, `data`, `error`). An OSError or a ValueError when nothing answers in `timeout`
+    seconds or the answer is not JSON."""
+    try:
+        data = _call(_base(host, port), key, "POST", f"/api/v1/call/{op}", {}, timeout)
+        status: int = HTTPStatus.OK
+    except urllib.error.HTTPError as e:
+        status, data = e.code, json.loads(e.read(100_000).decode("utf-8", "replace") or "null")
+    return status, data if isinstance(data, dict) else {}

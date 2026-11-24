@@ -36,6 +36,11 @@ class Runs:
             self._running -= 1
             self._ended = self.clock()
 
+    def running(self) -> bool:
+        """A command runs now (the idle stop's grace after the last one's end is not counted)."""
+        with self._lock:
+            return self._running > 0
+
     def busy(self) -> bool:
         with self._lock:
             if self._running:

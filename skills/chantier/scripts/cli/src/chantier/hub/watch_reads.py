@@ -4,6 +4,7 @@ reads the journal and nothing else."""
 
 from __future__ import annotations
 
+import argparse
 import re
 from dataclasses import dataclass, field
 
@@ -80,3 +81,23 @@ def once(repo: Repo, after: int, audiences: list[str] | tuple[str, ...] = ()) ->
         f"watch: cursor {last}; next, at the user's next message: "
         f"{autostart.pull_command(repo, last)}",
     ]
+
+
+def checked(repo: Repo, args: argparse.Namespace) -> int:
+    """The arguments of `watch`, refused in one line when they do not go together; the journal's
+    last sequence number."""
+    for value in args.audience or []:
+        if not journal.audience_ok(value):
+            raise ChantierError(
+                f'watch: --for "{value}": one of {journal.AUDIENCE_FORMS}', EXIT_USAGE
+            )
+    if args.once and args.stream:
+        raise ChantierError("watch: --stream and --once do not go together", EXIT_USAGE)
+    if args.once and args.after is None:
+        raise ChantierError("watch --once needs --after SEQ", EXIT_USAGE)
+    last = journal.last_seq(journal.read(repo.store, repo.changes)[0])
+    if args.after is not None and args.after > last:
+        raise ChantierError(
+            f"watch: --after {args.after} is past the journal's end ({last})", EXIT_USAGE
+        )
+    return last

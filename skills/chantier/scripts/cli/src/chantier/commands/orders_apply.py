@@ -30,7 +30,6 @@ from chantier.commands.orders_waive import USAGE, stack_waiver, waive_cr, waive_
 from chantier.commands.orders_word import Word, target
 from chantier.core.batch import Batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.core.records import CrEntry
 from chantier.gate_slots import slot_of
 from chantier.rails import ENDED
 from chantier.rails_release import (

@@ -4,6 +4,7 @@ the same functions the routes do (`reads`, `write_api`, `config_api`, `writer_ap
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
 from http import HTTPStatus
 from typing import Any
@@ -34,6 +35,7 @@ from chantier.core.files import inside, rel_in
 from chantier.playbook import edit
 
 NOT_FOUND = "not found"
+COMMAND_RUNS = "refused: a client's command runs on this board; try again when it ends"
 BINARY = "binary: read it over HTTP"
 READ_ONLY = "refused: the read-only key acts on nothing: use the private link"
 # What the public read-only key may call: every other op, today's and any added later, needs the
@@ -204,6 +206,15 @@ def _sync(ctx: Context, a: Any) -> Result:
     return _of(status, body)
 
 
+def _server_stop(ctx: Context, a: Any) -> Result:
+    """The board's clean stop (Ctrl-C's path: the `finally` of `serve` runs, the writer's last
+    cycle included), refused while a client's command runs, so none is cut."""
+    if ctx.runs.running():
+        return fail(409, COMMAND_RUNS)
+    ctx.stop()
+    return Result(200, {"stopping": True, "pid": os.getpid()})
+
+
 HANDLERS: dict[str, Handler] = {
     "board.get": _board,
     "project.state": _on_project(_state),
@@ -219,6 +230,7 @@ HANDLERS: dict[str, Handler] = {
     "config.get": _on_project(_config),
     "config.put": _writes(*config_api.WRITE),
     "writer.sync": _sync,
+    "server.stop": _server_stop,
     "cli.run": _cli_run,
     "griller.get": _griller(_griller_get),
     "griller.send": _griller(_griller_send),

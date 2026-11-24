@@ -6,6 +6,7 @@ watcher lock gets one line, the last of the output."""
 
 from __future__ import annotations
 
+import json
 import os
 import re
 
@@ -33,6 +34,42 @@ def holds_seat(transcript: str | None) -> bool:
     """The seat's transcript, kept as the watcher's key is, is this CLI run's own key."""
     kept = re.sub(r"[^A-Za-z0-9-]", "", transcript or "")
     return bool(kept) and kept == session_key()
+
+
+DEV_PROJECT = "chantier"  # the project folder of chantier's own project in a planning surface
+
+
+def dev_build(repo: Repo) -> tuple[str, str] | None:
+    """The chantier dev session that holds its seat on this planning surface now, as (its session,
+    its build): the surface's `chantier` project's `seat.json` names a session and a `build`, and
+    that session's watcher lock is held now (a seat an ended session left behind claims nothing).
+    None off a planning surface, and with no such seat."""
+    if not repo.external:
+        return None
+    try:
+        data = json.loads(
+            (repo.surface_root / "projects" / DEV_PROJECT / "changes" / "seat.json").read_text(
+                encoding="utf-8"
+            )
+        )
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    session, build = data.get("session"), data.get("build")
+    transcript = re.sub(r"[^A-Za-z0-9-]", "", str(data.get("transcript") or ""))
+    if not (isinstance(session, str) and session and isinstance(build, str) and build):
+        return None
+    if not transcript or transcript not in lock.watchers(repo.git_dir, DEV_PROJECT):
+        return None
+    return session, build
+
+
+def other_dev_build(repo: Repo, own: str) -> tuple[str, str] | None:
+    """`dev_build` when its build is not `own` (this process's `state.build_source()`): the guard
+    that keeps another build from serving a surface a chantier dev session holds."""
+    found = dev_build(repo)
+    return found if found is not None and found[1] != own else None
 
 
 STREAM_HOSTS = frozenset({"claude"})  # the hosts whose reference runs the watcher streaming

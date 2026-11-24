@@ -271,9 +271,14 @@
     printed command as is: no flag added. A watcher that ends with `the seat of <project> is
     another session's now` is not started again: the seat moved. The `board:` line of `status`
     and the start line's `board is chantier <v>: restart it to run this version`: say it once to
-    the user with the restart; never stop or restart the board yourself. A `board runs another
+    the user with the offer of the restart
+    ([session-start-chief-of-staff](session-start-chief-of-staff.md), "Restart the board"); the
+    board is stopped only by that restart, on the user's yes. A `board runs another
     build` or `board runs a build of chantier <v> older than this notice` line (on `status`, the
-    start line or `serve`): say it once to the user as printed; never stop or restart the board.
+    start line or `serve`): say it once to the user as printed, with the offer of the restart. The
+    watcher's `; no board started: a chantier dev session holds its seat and its build serves
+    this surface; linking when its board runs` clause: pass it on once; the watcher links by
+    itself when the board runs.
     The watcher's other lines (its `started the board (PID <n>)` clause, the board's lines it
     passes on, the lines of a board that does not come up or of a seat it cannot start one for):
     as [session-start-chief-of-staff](session-start-chief-of-staff.md), "The watcher", says.

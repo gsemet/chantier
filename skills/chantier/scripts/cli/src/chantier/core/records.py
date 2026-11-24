@@ -281,6 +281,7 @@ class SeatRecord(Record):
     env: str | None = None
     title: str | None = None
     link: str | None = None
+    build: str | None = None  # the dev mode's build (`state.build_source()`) of the session's CLI
 
 
 class RunRecord(Record):

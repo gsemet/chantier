@@ -139,10 +139,12 @@ STALE_BUILD = (
     "it changes at each version bump. The board server, its writer and the forge hub, started "
     "from another project's session, run that build and serve every project of the surface, "
     "chantier included, with no notice while the version is equal, until the next version bump "
-    "or until stopped by hand and started again from a chantier session; but a chantier session "
-    "in the dev mode is told, on `status`, the watcher's start line and `serve`, when the board "
-    "runs another build than its checkout's, even at the same version string (`server.json` "
-    "records each entry's `source`)."
+    "or until replaced; while a chantier dev session holds its seat (its `seat.json` names a "
+    "`build`, its watcher's lock is held) its checkout's build serves the surface and other "
+    "projects' watchers start no board, and a board of another build is replaced by `serve "
+    "--restart` on the user's yes; a chantier session in the dev mode is told, on `status`, the "
+    "watcher's start line and `serve`, when the board runs another build than its checkout's, "
+    "even at the same version string (`server.json` records each entry's `source`)."
 )
 
 
@@ -243,12 +245,12 @@ def test_the_cards_and_hosts_state_the_exception_the_row_and_the_for_you_item() 
             "chief-of-staff-steering.md",
             "A `board runs another build` or `board runs a build of chantier <v> older than this "
             "notice` line (on `status`, the start line or `serve`): say it once to the user as "
-            "printed; never stop or restart the board.",
+            "printed, with the offer of the restart.",
         ),
         (
             "session-start-chief-of-staff.md",
             "and an added `board runs another build` line: say it once to the user as printed, "
-            "never stop or restart the board",
+            'with the offer of the restart ("Restart the board", below)',
         ),
     ],
 )

@@ -132,12 +132,17 @@
   answers "Tout" (2026-11-21) and board-griller-Q4 B and Q20, with no measured cost; a fifth, a client's command: for a client logged in with `chantier login`, the `cli.run` op runs one chantier command (any but `serve`, `webui`, `watch`, `live`, `login`, `logout` and `gate`) as a child process of the server's own build, never forwarded again, in its planning folder on the server's machine (its worktrees, transcripts and paths), with the client's arguments and its batch, host and session variables, behind the private key, and returns its output, its exit code and its launch form; that command edits the batch and the planning folder exactly as when run locally, but prints no watcher line; built on the user's answers remote-cli-Q2, Q5, Q10, Q12 and Q15 (2026-11-22), with no measured cost; it takes its
   dependencies like the rest of the CLI and knows no role but the board's Griller. The same process is the
   forge hub while it runs (one per planning surface and machine, started by a session's watcher,
-  detached, when none runs and the session holds the seat, on the user's one yes for the watcher
+  detached, when none runs and the session holds the seat and no chantier dev session of the
+  surface holds its seat with another build (its `seat.json`'s `build`, its watcher's lock held:
+  such a watcher waits and links when the board runs, board-restart-Q2), on the user's one yes for the watcher
   and the board, or by the Chief of Staff on a host that cannot run the watcher, or by
   `chantier webui` when none runs (the user's typing it is the yes; that server has no seat and
   stops by itself 30 minutes after its last client); one a watcher or `webui`
   started stops by itself when its seat leaves or 30 minutes after its last subscribed client,
-  after its writer's last cycle): it holds the OS file lock in the git folder
+  after its writer's last cycle, and any board, whoever started it, stops on a private-key
+  client's `server.stop` (refused while a client's command runs), after its writer's last cycle:
+  `chantier serve --restart` sends it, then serves on its own build, run by the Chief of Staff on
+  the user's yes each time, board-restart-Q1): it holds the OS file lock in the git folder
   (`chantier/hub.lock`). The hub reads the forge, read-only, with the user's
   own `gh` or `glab`, on its own (no agent asks it), and needs the network for that: at most once
   every 20 s while at least one client is subscribed to the server (a board page, a session's
@@ -231,10 +236,12 @@
   chantier from its checkout in plugin mode, a build uv caches by version: it changes at each
   version bump. The board server, its writer and the forge hub, started from another project's
   session, run that build and serve every project of the surface, chantier included, with no
-  notice while the version is equal, until the next version bump or until stopped by hand and
-  started again from a chantier session; but a chantier session in the dev mode is told, on
-  `status`, the watcher's start line and `serve`, when the board runs another build than its
-  checkout's, even at the same version string (`server.json` records each entry's `source`).
+  notice while the version is equal, until the next version bump or until replaced; while a chantier
+  dev session holds its seat (its `seat.json` names a `build`, its watcher's lock is held) its
+  checkout's build serves the surface and other projects' watchers start no board, and a board of
+  another build is replaced by `serve --restart` on the user's yes; a chantier session in the dev mode
+  is told, on `status`, the watcher's start line and `serve`, when the board runs another build than
+  its checkout's, even at the same version string (`server.json` records each entry's `source`).
   A dependency ships wheels for Linux, macOS
   and Windows and replaces hand-written code. The CLI stays portable (POSIX and Windows, UTF-8
   everywhere).
