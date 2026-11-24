@@ -34,8 +34,10 @@ class JournalFeed:
     """A link that answers at the first drain, then gives the journal's new lines each drain;
     `extra` items are given at the next drain, before the lines."""
 
-    def __init__(self, repo: Repo, after: int, transport: str | None = "ws") -> None:
-        self.repo, self.after, self.transport = repo, after, transport
+    def __init__(
+        self, repo: Repo, after: int, transport: str | None = "ws", pid: int | None = None
+    ) -> None:
+        self.repo, self.after, self.transport, self.pid = repo, after, transport, pid
         self.extra: list[Got] = []
         self.answered = False
         self.closed = False
@@ -43,7 +45,7 @@ class JournalFeed:
     def drain(self) -> list[Got]:
         out: list[Got] = []
         if not self.answered and self.transport is not None:
-            out.append(Linked(self.transport))
+            out.append(Linked(self.transport, pid=self.pid))
             self.answered = True
         out += self.extra
         self.extra = []
@@ -77,6 +79,7 @@ class FakeBoard(Board):
         transport: str | None = "ws",
     ) -> None:
         self.repo, self.running, self.transport = repo, running, transport
+        self.answers: int | None = None  # who answers a link: the recorded PID if None
         self.answer = {"protocol": 1} if answer is None else answer
         self.starts = starts
         self.now = 0.0
@@ -95,14 +98,16 @@ class FakeBoard(Board):
         return True
 
     def link(self, entry: dict[str, Any], key: str, project: str, after: int) -> Feed:
-        feed = JournalFeed(self.repo, after, self.transport)
+        pid = self.answers or (self.running or {}).get("pid")
+        feed = JournalFeed(self.repo, after, self.transport, pid)
         self.feeds.append((after, feed))
         return feed
 
-    def spawn(self, argv: list[str], cwd: Path) -> None:
+    def spawn(self, argv: list[str], cwd: Path) -> int:
         self.spawned.append(argv)
         if self.starts is not None:
             self.starts(self)
+        return PID
 
     def clock(self) -> float:
         return self.now

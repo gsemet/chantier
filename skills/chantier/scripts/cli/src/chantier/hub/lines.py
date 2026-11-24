@@ -24,9 +24,15 @@ def watch_lines(repo: Repo, d: BatchRecord) -> list[str]:
     project = project_name(repo)
     if autostart.session_key() in lock.watchers(repo.git_dir, project):
         last = journal.last_seq(journal.read(repo.store, repo.changes)[0])
-        lines.append(
-            f"watch: this session's watcher runs; pull path: {autostart.pull_command(repo, last)}"
-        )
+        pull = f"pull path: {autostart.pull_command(repo, last)}"
+        if why := unsubscribed(repo):
+            lines.append(
+                f"watch: this session's watcher runs but is not subscribed to the forge hub "
+                f"({why}); for the Chief of Staff: stop the stray server if one runs, run serve "
+                f"--restart, then start the watcher again; {pull}"
+            )
+        else:
+            lines.append(f"watch: this session's watcher runs; {pull}")
     if (f := foreman_line(repo, d)) is not None:
         lines.append(f)
     lines += [
@@ -34,6 +40,21 @@ def watch_lines(repo: Repo, d: BatchRecord) -> list[str]:
         for s in autostart.other_sessions(repo, project)
     ]
     return lines + board_lines(repo)
+
+
+def unsubscribed(repo: Repo) -> str | None:
+    """Why a watcher that runs is not what the forge hub observes, from the record alone: no hub
+    runs, the hub sees no subscriber (the watcher is linked to another process), or the recorded
+    server is not the hub's process. None when the hub observes."""
+    hub = state.live_entry(repo.git_dir, state.HUB)
+    if hub is None:
+        return "no forge hub runs"
+    server = state.live_entry(repo.git_dir, state.SERVER)
+    if server is not None and server.get("pid") != hub.get("pid"):
+        return f"the recorded server is PID {server.get('pid')}, the hub's is PID {hub.get('pid')}"
+    if hub.get("idle"):
+        return f"the hub, PID {hub.get('pid')}, sees no subscriber"
+    return None
 
 
 def foreman_line(repo: Repo, d: BatchRecord) -> str | None:

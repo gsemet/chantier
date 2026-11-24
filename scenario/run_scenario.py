@@ -118,9 +118,9 @@ UNITS = {
     "direct": (220, ["github"], ["direct_batch", "seat_handover", "foreman_in_a_worktree",
                                  "empty_batch", "running_batch"]),
     "surface-board": (
-        735,
+        780,
         ["github"],
-        ["remote_board", "forge_hub", "restart_board", "serve_and_webui", "several_boards", "remote_cli", "outside_poller", "typed_waits", "surface_server",
+        ["remote_board", "forge_hub", "restart_board", "one_board", "serve_and_webui", "several_boards", "remote_cli", "outside_poller", "typed_waits", "surface_server",
          "external_surface", "surface_writer", "cr_summary"],
     ),
     "qa-driver": (255, ["github"], ["lost_messages", "qa_on_head", "driver_liveness", "restore_cr"]),
@@ -2980,6 +2980,111 @@ def restart_board(w: World) -> None:
     finally:
         for each in held:
             each.release()
+        surface_kill(sw)
+        for proc in reversed(procs):
+            proc.stop()
+
+
+def one_board(w: World) -> None:
+    """CR-484: a board started by hand and a watcher that spawns one, started together, leave one
+    serving process; the hub entry is not idle; a merge is journalled and told; after
+    `serve --restart` the same watcher is told the next merge once."""
+    note("\n## 16d1d. One board per surface: `serve` and a spawning watcher started together")
+    sw = SurfaceWorld(w.root / "oneboard")
+    sw.root.mkdir()
+    sw.build()
+    url = "https://github.com/acme/demo/pull/{}".format
+    quick = {"CHANTIER_HUB_TEST_TIMES": "1:4"}
+    procs: list[BoardProc] = []
+    changes = sw.surface / "projects" / "demo" / "changes"
+
+    def until(then, timeout: float = 40) -> bool:
+        end = time.monotonic() + timeout
+        while not (found := then()) and time.monotonic() < end:
+            time.sleep(0.25)
+        return bool(found)
+
+    def merges() -> list[dict]:
+        path = changes / "forge-journal.jsonl"
+        lines = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
+        found = []
+        for x in lines:
+            with contextlib.suppress(ValueError):
+                found.append(json.loads(x))
+        return [e for e in found if e.get("type") == "merged@1"]
+
+    def servers() -> list[int]:
+        """The live processes whose command line is a `serve` of this surface."""
+        out = []
+        for proc in psutil.process_iter(["pid", "cmdline"]):
+            argv = proc.info.get("cmdline") or []
+            with contextlib.suppress(psutil.Error):
+                if "serve" in argv and "chantier" in argv and Path(proc.cwd()) == sw.surface:
+                    out.append(proc.info["pid"])
+        return out
+
+    sw.chantier("init")
+    items = [sw.prepare(f"One board {n}") for n in (1, 2)]
+    sw.chantier("open", *items, "--direct", "--slots", 2, *FROM_AGENTS_MD)
+    batch_file = changes / "4-batch" / "batch.json"
+    data = json.loads(batch_file.read_text(encoding="utf-8"))
+    for cr, number in zip(data["crs"], (930, 931)):
+        cr["pr"] = url(number)
+    batch_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    sw.chantier("foreman", "set", "uuid-chief", "--epoch", 1, "--batch", data["id"])
+    sw.chantier("seat", "take", "sess-a")
+    board_port(sw)
+    try:
+        by_hand = BoardProc(sw, "--project", "demo", "serve", "--host", "127.0.0.1", cwd=sw.surface)
+        procs.append(by_hand)
+        watch = BoardProc(sw, "--project", "demo", "watch", cwd=sw.surface, env=quick)
+        procs.append(watch)
+        link = Link(by_hand.line(60))
+        start = watch.line(60) or ""
+        check("both start in the same turn: the board prints its link and the watcher its start line",
+              link.ok and start.startswith("watch: demo from cursor"), f"{link} {start}")
+        pid = surface_pid(sw)
+        check("one process serves the surface: `server.json`'s `server` PID lives and no second "
+              "`serve` of this surface runs",
+              pid is not None and surface_alive(sw) and len({p for p in servers() if p != pid
+                                                             and p != by_hand.p.pid}) == 0,
+              f"{pid} {servers()}")
+        until(lambda: surface_entry(sw).get("hub", {}).get("pid") is not None
+               and not surface_entry(sw).get("hub", {}).get("idle"))
+        hub = surface_entry(sw).get("hub", {})
+        _, out = sw.chantier("status", expect=None)
+        check("the hub entry names a PID and `status` does not say idle beside a running watcher",
+              isinstance(hub.get("pid"), int) and not any(x.startswith("forge hub:") and "idle" in x
+                                                          for x in out), f"{hub} {out}")
+        forge_pr(sw, url(930), state="MERGED", mergedAt="2026-11-16T10:00:00Z")
+        got = []
+        while (x := watch.line(30)) is not None:
+            got.append(x)
+            if x.startswith("forge saw merged:"):
+                break
+        check("a merge is journalled once and the watcher is told it",
+              until(lambda: len(merges()) == 1) and any(x.startswith("forge saw merged:") for x in got),
+              f"{merges()} {got}")
+        after = max((e["seq"] for e in merges()), default=0)
+        again = BoardProc(sw, "--project", "demo", "watch", "--after", after, cwd=sw.surface, env=quick)
+        procs.append(again)
+        started(again)
+        new = BoardProc(sw, "--project", "demo", "serve", "--restart", "--host", "127.0.0.1",
+                        "--port", link.port, cwd=sw.surface)
+        procs.append(new)
+        new.line(60)
+        new.line(60)
+        until(lambda: surface_pid(sw) not in (None, pid))
+        forge_pr(sw, url(931), state="MERGED", mergedAt="2026-11-16T10:05:00Z")
+        told = []
+        while (x := again.line(40)) is not None:
+            told.append(x)
+            if x.startswith("forge saw merged:"):
+                break
+        check("after `serve --restart` the same watcher is told the next merge, once",
+              len([x for x in told if x.startswith("forge saw merged:")]) == 1
+              and until(lambda: len(merges()) == 2), f"{told} {merges()}")
+    finally:
         surface_kill(sw)
         for proc in reversed(procs):
             proc.stop()
@@ -11889,6 +11994,7 @@ CASES = {
     "remote_board": remote_board,
     "forge_hub": forge_hub,
     "restart_board": restart_board,
+    "one_board": one_board,
     "serve_and_webui": serve_and_webui,
     "several_boards": several_boards,
     "remote_cli": remote_cli,

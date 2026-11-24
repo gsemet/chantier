@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, TypeVar
 
 from chantier import __version__
-from chantier.board import running
+from chantier.board import claim, running
 from chantier.board.address import (
     is_loopback,
     local_url,
@@ -35,10 +35,23 @@ from chantier.board.options import extra_of, options_of
 from chantier.board.projects import Projects, check_planning, open_projects
 from chantier.board.restart import restart_with_key
 from chantier.board.seats import Seats
-from chantier.board.watch_files import NOTIFY, FileWatchThread
+from chantier.board.start_lines import (
+    BEYOND,
+    CHECKS,
+    FORGE_WHEN_OBSERVED,
+    NO_NETWORK,
+    NOT_APPLIED,
+    READ_ONLY,
+    STOPS_IDLE,
+    WATCHES,
+    files_line,
+    read_only_lines,
+)
+from chantier.board.start_lines import running_lines as _running_lines
+from chantier.board.watch_files import FileWatchThread
 from chantier.core.errors import ChantierError
 from chantier.declare.serve import SHIPPED_UI
-from chantier.hub import state
+from chantier.hub import lock, state
 from chantier.hub.lines import foreign_build_clause
 from chantier.hub.loop import HubLoop, HubThread
 from chantier.playbook.layers import load_board
@@ -46,42 +59,21 @@ from chantier.writer import lines as writer_lines
 from chantier.writer import record as writer_record
 from chantier.writer.loop import WriterLoop, WriterThread
 
+# the start lines moved to `start_lines`; what other modules and the tests read here stays here
+__all__ = [
+    "BEYOND",
+    "CHECKS",
+    "FORGE_WHEN_OBSERVED",
+    "NOT_APPLIED",
+    "NO_NETWORK",
+    "READ_ONLY",
+    "STOPS_IDLE",
+    "WATCHES",
+    "_running_lines",
+    "files_line",
+    "read_only_lines",
+]
 T = TypeVar("T")
-NOT_APPLIED = (
-    "--ui not applied: a board already serves this surface; stop it to change what it serves"
-)
-BEYOND = (
-    "board: listens on the local network ({host}); the private link acts: give it to the user "
-    "only, plain HTTP"
-)
-READ_ONLY = "read-only: {link} (it shows the board and acts on nothing; it can be shared)"
-LOCAL_READ_ONLY = "on this machine, read-only: {link}"
-NO_NETWORK = "board: no local network address found; on this machine only"
-WATCHES = "board: watches the planning files"
-CHECKS = "board: no file notifications here; checks every 5 s"
-STOPS_IDLE = "board: stops by itself after 30 min with no client (a watcher started it)"
-FORGE_WHEN_OBSERVED = (
-    "board: the running board reads the forge only while a client is subscribed (a watcher "
-    "started it); the pull path gets no forge event until one is"
-)
-
-
-def read_only_lines(host: str, port: int, read_key: str) -> list[str]:
-    """The public read-only link, and its 127.0.0.1 form when it differs; none for a file with
-    no read-only key."""
-    if not read_key:
-        return []
-    lines = [READ_ONLY.format(link=url(host, port, read_key))]
-    if local := local_url(host, port, read_key):
-        lines.append(LOCAL_READ_ONLY.format(link=local))
-    return lines
-
-
-def files_line(mode: object) -> str | None:
-    """The start line of the file watch's mode (`server.json`'s `files`); None for none."""
-    return WATCHES if mode == NOTIFY else CHECKS if mode else None
-
-
 WAY_OUT = "pass --port <n> (0: any free port)"
 
 
@@ -186,13 +178,13 @@ def _run(
     ctx.seats.arm(stop)
     loop = ctx.push = PushLoop(ctx)
     observed = _observer(args, loop)
-    hub = HubThread(HubLoop(projects.home), stop, observed)
+    hub = HubThread(HubLoop(projects.home, held=ctx.claim), stop, observed)
     hub.start()
     git_dir = projects.home.git_dir
     push = PushThread(
         loop,
         stop,
-        lambda: state.reassert_server(git_dir, ctx.key.current(), ctx.key.read_current()),
+        claim.tick(git_dir, ctx, stop),
     )
     push.start()
 
@@ -289,34 +281,6 @@ def _announce(  # noqa: PLR0913, PLR0917 - the address, the link's keys, then wh
         print(line, flush=True)
 
 
-def _running_lines(  # noqa: PLR0913, PLR0917 - the address, the keys and the running entry
-    there: tuple[str, int],
-    key: str,
-    ui_given: bool,
-    entry: dict[str, Any] | None = None,
-    forge_always: bool = False,
-    read_key: str = "",
-) -> list[str]:
-    """The lines of a board already running: its link, its exposure, its file watch (from its
-    `server` entry), what this start could not apply, and last its idle stop."""
-    entry = entry or {}
-    lines = [f"board already running at {url(*there, key)}"]
-    if local := local_url(*there, key):
-        lines.append(f"on this machine: {local}")
-    lines.extend(read_only_lines(*there, read_key))
-    if not is_loopback(there[0]):
-        lines.append(BEYOND.format(host=there[0]))
-    if found := files_line(entry.get("files")):
-        lines.append(found)
-    if ui_given:
-        lines.append(NOT_APPLIED)
-    if forge_always and entry.get("forge") != "always":
-        lines.append(FORGE_WHEN_OBSERVED)
-    if entry.get("stop_idle"):
-        lines.append(STOPS_IDLE)
-    return lines
-
-
 def _listen(
     args: argparse.Namespace, projects: Projects, host: str, port: int, key: str
 ) -> socket.socket:
@@ -335,6 +299,26 @@ def _migrated(projects: Projects, args: argparse.Namespace, host: str, port: int
         restart_with_key(projects, host, port)
 
 
+def _joined(projects: Projects, args: argparse.Namespace, key: str, won: bool) -> list[str] | None:
+    """The lines of the board that already serves this surface, this start's seat registered on
+    it; None when none does. A start that did not win the claim waits for the winner's board."""
+    host, port, _ = settings(projects.home, args.host, args.port)
+    git_dir = projects.home.git_dir
+    run = state.live_entry(git_dir, state.SERVER)
+    if run is None and not won:
+        run = claim.wait_for_board(git_dir, key)
+    there = _recorded(projects, run, key) if run else _answering(projects, host, port, key)
+    if there is None:
+        return None
+    if args.seat and not register_seat(*there, key, projects.home_id, args.seat):
+        raise _not_started("the board already running there did not take the seat")
+    ui_given, read = args.ui != SHIPPED_UI, public_key(projects.home)
+    lines = _running_lines(there, key, ui_given, run, args.forge_always, read)
+    if run and projects.chosen and (found := foreign_build_clause(projects.home, __version__, run)):
+        lines.append(found)
+    return lines
+
+
 def board(args: argparse.Namespace) -> list[str]:
     ui = options_of(args)
     projects = open_projects()
@@ -342,31 +326,31 @@ def board(args: argparse.Namespace) -> list[str]:
         check_planning(projects)
     except ChantierError as e:
         raise _not_started(e) from e
-    host, port, no_network = settings(projects.home, args.host, args.port)
-    git_dir = projects.home.git_dir
+    host, port, _ = settings(projects.home, args.host, args.port)
     _migrated(projects, args, host, port)
     key = _writing(lambda: load_or_create(projects.home, args.new_key))
+    held = lock.HubLock(projects.home.git_dir)
+    try:  # the claim: held for the whole life of the serving process (the hub loop keeps it)
+        return _start(args, projects, key, held, ui)
+    finally:
+        held.release()
+
+
+def _start(
+    args: argparse.Namespace, projects: Projects, key: str, held: lock.HubLock, ui: Path | None
+) -> list[str]:
+    host, port, no_network = settings(projects.home, args.host, args.port)
+    git_dir = projects.home.git_dir
     seats = Seats(projects, follows=bool(args.seat))
     if args.seat:
         seats.add(projects.home_id, args.seat)
-    run = state.live_entry(git_dir, state.SERVER)
-    there = _recorded(projects, run, key) if run else _answering(projects, host, port, key)
-    if there:
-        if args.seat and not register_seat(*there, key, projects.home_id, args.seat):
-            raise _not_started("the board already running there did not take the seat")
-        ui_given, read = args.ui != SHIPPED_UI, public_key(projects.home)
-        lines = _running_lines(there, key, ui_given, run, args.forge_always, read)
-        if (
-            run
-            and projects.chosen
-            and (found := foreign_build_clause(projects.home, __version__, run))
-        ):
-            lines.append(found)
-        return lines
+    if (joined := _joined(projects, args, key, held.acquire())) is not None:
+        return joined
     _writing(lambda: state.check_writable(git_dir))  # a refused write: known before any bind
     sock = _listen(args, projects, host, port, key)
     bound, served = sock.getsockname()[1], projects.served.as_posix()
     ctx = _context(projects, seats, sock, ui)
+    ctx.claim = held
     files = _watch_files(ctx)  # the mode is known before the start line
     try:
         extra = extra_of(args, files)

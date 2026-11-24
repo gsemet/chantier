@@ -9,6 +9,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -40,6 +41,11 @@ from chantier.plugin_files import cli_command
 
 ME, OTHER, SESSION = "abc-1", "xyz-2", "s-seat"
 BOARD = {"type": "board@1", "action": "move", "items": ["x"], "text": "x", "wakes": True}
+
+
+def _popen(got: list[dict[str, Any]], kw: dict[str, Any]) -> SimpleNamespace:
+    got.append(kw)
+    return SimpleNamespace(pid=PID)
 
 
 def seat(repo: Path, transcript: str | None) -> None:
@@ -119,8 +125,8 @@ def test_the_start_is_detached_on_each_system(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     got: list[dict[str, Any]] = []
-    monkeypatch.setattr(subprocess, "Popen", lambda argv, **kw: got.append(kw))
-    feed.spawn(["board"], tmp_path)
+    monkeypatch.setattr(subprocess, "Popen", lambda argv, **kw: _popen(got, kw))
+    assert feed.spawn(["board"], tmp_path) == PID  # the process's PID, for the watcher's start line
     (kw,) = got
     devnull = subprocess.DEVNULL
     assert (kw["stdin"], kw["stdout"], kw["stderr"], kw["close_fds"]) == (devnull,) * 3 + (True,)

@@ -62,7 +62,7 @@
   remote-cli-Q9, 2026-11-22), through one published API over a WebSocket, and over HTTP as the same
   protocol for a network where a WebSocket does not pass, behind a proxy for instance (not a
   fallback): two surfaces' servers on one machine never clash: each keeps its key and record in its own git
-  folder, and one that finds the default port held (by another chantier board or any program) takes the next free port above it
+  folder, and one that finds the default port held on any address (by another chantier board or any program, a connect check before the bind everywhere and an exclusive bind on Windows) takes the next free port above it; one surface has one serving process per machine: a start takes the surface's `chantier/hub.lock`, held for the process's life (no new file), and a start that does not win it waits briefly for the board the winner starts and joins it (`board already running`), or refuses with the silent-board text, and a server that finds `server.json`'s `server` entry naming another live PID stops itself, cleanly, without writing that entry
   and prints it (the user's answer remote-cli-Q17, 2026-11-22); it serves the record and the planning folder's files (it alone reads the planning
   files for the live clients, told of changes by the system's file notifications (inotify,
   FSEvents, ReadDirectoryChangesW), or, on a system where none works, by a check every 5 s (the
@@ -131,7 +131,7 @@
   and `chantier serve --new-key` replaces both keys; built on the user's direction of 2026-11-17 and
   answers "Tout" (2026-11-21) and board-griller-Q4 B and Q20, with no measured cost; a fifth, a client's command: for a client logged in with `chantier login`, the `cli.run` op runs one chantier command (any but `serve`, `webui`, `watch`, `live`, `login`, `logout` and `gate`) as a child process of the server's own build, never forwarded again, in its planning folder on the server's machine (its worktrees, transcripts and paths), with the client's arguments and its batch, host and session variables, behind the private key, and returns its output, its exit code and its launch form; that command edits the batch and the planning folder exactly as when run locally, but prints no watcher line; built on the user's answers remote-cli-Q2, Q5, Q10, Q12 and Q15 (2026-11-22), with no measured cost; it takes its
   dependencies like the rest of the CLI and knows no role but the board's Griller. The same process is the
-  forge hub while it runs (one per planning surface and machine, started by a session's watcher,
+  forge hub while it runs (one per planning surface and machine, holding the same `chantier/hub.lock` the claim above takes, started by a session's watcher,
   detached, when none runs and the session holds the seat and no chantier dev session of the
   surface holds its seat with another build (its `seat.json`'s `build`, its watcher's lock held:
   such a watcher waits and links when the board runs, board-restart-Q2), on the user's one yes for the watcher
@@ -160,7 +160,7 @@
   paused batch records as its Foreman (it reads only that batch's `merged@1`, `checks-red@1` and
   `wait-cleared@1` lines), subscribes to the surface server's `events` topic for
   its project (the hub's lines, the board's, the writer's and an outside poller's `issue@1`
-  lines), never reads the journal file or the forge, and starts the server, detached, when none
+  lines), never reads the journal file or the forge, confirms that the process answering its link is the one `server.json` records (a link answered by another PID is no link: it links again from its cursor after a restart, and after 20 s it ends with a line naming both PIDs and the remedy), and starts the server, detached, when none
   runs and its session holds the seat (the Foreman's watcher starts none: with none running it ends
   at once with a line), and, 20 s after the last new event for it that wakes and no
   sooner than `events.wake_every` after its start or its last telling, tells the events it

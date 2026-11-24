@@ -385,6 +385,13 @@ does a unit that is not in `UNITS` and a test that does not exist.
     `status` (unit: surface-board) (test:
     test_forge_hub.py::test_status_and_the_start_line_name_the_journal_the_hub_and_its_version);
   - `order merged <cr>` twice: the second answers `<cr> already merged` (unit: surface-board);
+  - CR-484, one board per surface: `serve` started by hand and a watcher that spawns a board,
+    started together, leave one serving process (`server.json`'s `server` PID lives, no second
+    `serve` of the surface runs), a `hub` entry that names a PID and no `idle` beside the running
+    watcher, a merge journalled once and told, and, after `serve --restart`, the next merge told
+    once to a watcher subscribed before it (unit: surface-board) (test:
+    test_board_claim.py::test_a_start_that_loses_the_claim_joins_the_board_that_won_it,
+    test_watch_confirm.py::test_a_restarted_server_gets_the_watchers_link_again_from_its_cursor);
   - with every watcher ended and no page open, the board still runs, its `hub` entry says `idle`,
     `status` prints `forge hub: PID <n>, the surface server, idle (no client subscribed)` and the
     fake `gh` is called no more (unit: surface-board) (test:

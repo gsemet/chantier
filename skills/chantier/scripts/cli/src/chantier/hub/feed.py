@@ -85,14 +85,14 @@ def serve_argv(repo: Repo, session: str) -> list[str]:
     return [*shlex.split(cli_command(repo)), "serve", "--seat", session, "--stop-idle"]
 
 
-def spawn(argv: list[str], cwd: Path) -> None:
+def spawn(argv: list[str], cwd: Path) -> int:
     """Start the board detached, never waited on: it outlives the watcher, its output goes
     nowhere. Windows: a new process group and a hidden console of its own, which its children
     (`git`, `gh`) inherit; never `DETACHED_PROCESS`, under which Windows ignores
     `CREATE_NO_WINDOW` and each child would open a console window."""
     if sys.platform == "win32":
         flags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
-        subprocess.Popen(
+        return subprocess.Popen(
             argv,
             cwd=cwd,
             stdin=subprocess.DEVNULL,
@@ -100,9 +100,9 @@ def spawn(argv: list[str], cwd: Path) -> None:
             stderr=subprocess.DEVNULL,
             close_fds=True,
             creationflags=flags,
-        )
+        ).pid
     else:
-        subprocess.Popen(
+        return subprocess.Popen(
             argv,
             cwd=cwd,
             stdin=subprocess.DEVNULL,
@@ -110,7 +110,7 @@ def spawn(argv: list[str], cwd: Path) -> None:
             stderr=subprocess.DEVNULL,
             close_fds=True,
             start_new_session=True,
-        )
+        ).pid
 
 
 class Board:
@@ -132,8 +132,8 @@ class Board:
         link.client = CLIENT
         return LinkFeed(link, project, after)
 
-    def spawn(self, argv: list[str], cwd: Path) -> None:
-        spawn(argv, cwd)
+    def spawn(self, argv: list[str], cwd: Path) -> int | None:
+        return spawn(argv, cwd)
 
     def clock(self) -> float:
         return time.monotonic()

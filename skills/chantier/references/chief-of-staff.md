@@ -259,11 +259,11 @@ Rules only; the models judge the rest.
   A direct batch: it claims the next epoch as in Steering a batch yourself (`chief-of-staff:direct`; `foreman set`,
   `foreman transcript`), and gives the slots back if a hold was set. A Foreman batch: it sends the
   Foreman `chief-of-staff <own session id>` ([routing](routing.md)).
-- The old one becomes a Griller (or ends), and renames itself. Its board stops by itself when the
+- The old one becomes a Griller (or ends), and renames itself. Its board stops when the
   seat moves (or 30 minutes after its last client); the new one's watcher, started from the line
   of its `seat take` on its yes, registers its seat on a board still running, or starts one (on a
-  host that cannot run the watcher, its own `serve --seat <id> --forge-always`). The old one's watcher ends by itself
-  once the new session takes the seat; the new one starts its own from the line of its `seat take`
+  host that cannot run the watcher, its own `serve --seat <id> --forge-always`); a hand-started board joins, no race. The old one's watcher ends
+  once the new session takes the seat; the new one starts its own from that line
   or `status` (another session's watcher, the old one's included, does not count; its `status`
   names it).
 - With no batch active, the hand-over is the seat alone: `seat take --over` on the user's word.
