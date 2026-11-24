@@ -68,6 +68,7 @@
   ```bash
   $CHANTIER order add --note "<prepared-folder or a release's fix file>" [--fix-for <release-cr> | --release]
   $CHANTIER order after CR-104 --note "CR-102,CR-103"   # what a queued CR waits for; "-" for none (not a release's)
+  $CHANTIER order after CR-104 --add CR-105   # one more wait, the rest kept; --remove takes one out; a ref: id, slug or path
   $CHANTIER order drop CR-104 --note trash|ready|P1..P4   # where it goes, with its work; never the inbox; a release or fix CR: trash only
   $CHANTIER order note CR-102 --note "<one line: a change, an answer, a priority>"
   $CHANTIER order merged CR-101               # the user merged its PR: to 3-done
