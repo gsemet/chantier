@@ -116,7 +116,10 @@ yes, at once on that line; run the printed command as is: no flag added. On a ho
 says a watcher's end does not wake the session, or is not proved to (Copilot today), say once, in
 the user's language: "This host may not wake me: what you do in the board reaches me at your next
 message." A host that cannot run a background command: one line with the reason, then go on, no
-workaround. Its lines:
+workaround. In Foreman mode the Foreman runs a watcher of its own for its batch's merge, red-CI
+and wait-met lines (the Foreman's card, "Your watcher"), with no question to the user; this
+watcher stays the Chief of Staff's, and `status` says `foreman watch: running` or `not running`.
+Its lines:
 
 - `watch: <project> from cursor <n> for ...; started the board (PID <n>)`: say once that the board
   was started, with its link from `status` or `serve --seat`. The `board: listens on the local

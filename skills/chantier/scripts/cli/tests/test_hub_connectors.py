@@ -168,7 +168,7 @@ def test_a_gitlab_batch_is_read_in_one_query_and_told_as_before(
     assert shape([line]) == [(1, "hub", "merged@1", "CR-1", None)]
     assert journal.event_text(line) == (
         f"forge saw merged: CR-1 {GL_LINK.format(10)} into main at {T1}; "
-        "for the Chief of Staff: order merged CR-1"
+        "for the steering session: order merged CR-1"
     )
     assert hub_error(world) is None
 

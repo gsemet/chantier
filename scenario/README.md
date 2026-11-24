@@ -342,7 +342,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
 - the merge the forge signals (CR-303, CR-358): the read that sees a PR merged on the fake forge and
   not in the record leaves one line in `forge-journal.jsonl` (once, `source: board`, ignored by git,
   the only file the page writes); `status` prints `forge saw merged: <cr> <pr> into <branch> at
-  <time>; for the Chief of Staff: order merged <cr>`, and so does the Foreman's heartbeat form
+  <time>; for the steering session: order merged <cr>`, and so does the Foreman's heartbeat form
   (`status --refresh --batch --epoch`) with the batch's orders unchanged; after `order merged` the
   line no longer prints (unit: surface-board);
 - the forge hub and `chantier watch` (CR-358, CR-429), on a two-project surface with the fake `gh`,
@@ -425,6 +425,16 @@ does a unit that is not in `UNITS` and a test that does not exist.
     test_watch_stream.py::test_a_streaming_watcher_tells_each_block_and_runs_on_until_the_seat_moves,
     test_watch_stream.py::test_the_idle_end_waits_for_no_batch_in_flight,
     test_forge_hub.py::test_the_hub_reads_a_paused_batch_while_one_of_its_prs_is_open);
+  - the Foreman's watcher (CR-479), on the same third project, its batch running with a recorded
+    Foreman session and another session's seat: its `watch --stream` subscribes to the running board
+    and starts none; on a CR's merge it prints the `forge saw merged ... for the steering session`
+    block and stays alive; the Foreman's `order merged <cr> --epoch 1` records it and the Chief of
+    Staff's `status` shows the CR merged and `foreman watch: running`; the batch paused with one PR
+    open, a board write in the same window is not printed and the forge's merge of that PR gives a
+    second block; a record naming another Foreman ends it with its line (unit: surface-board)
+    (test:
+    test_watch_foreman.py::test_the_foremans_watcher_tells_its_batchs_three_kinds_and_runs_on,
+    test_watch_foreman.py::test_the_foremans_watcher_ends_with_its_line_when_the_batch_no_longer_records_it);
   - the journal is ignored by git (`git check-ignore`), the record (`batch.json`, `events.jsonl`)
     is unchanged by the hub, a forge error lands in the `hub` entry and not in the journal, and no `gh`
     call is made but read-only `api graphql` queries (unit: surface-board) (test:

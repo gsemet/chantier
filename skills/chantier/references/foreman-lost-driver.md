@@ -25,7 +25,7 @@
     `question:` answered to it) is not concerned: that is the note's answer.
   - **Suspect:** a working CR (or the stack driver, or an open QA order) whose `activity` line
     shows no activity, no `gate running` and no `gate queued` for one full heartbeat interval (the
-    steering wake, 30 minutes by default). A line
+    steering wake, 55 minutes by default). A line
     `not measured` or a row `no Driver recorded` is read for what it says, never as activity. A
     project's `AGENTS.md` ranks above this threshold.
   - **Proof of death**, one of three: the host refuses a message to the agent because it no

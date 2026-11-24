@@ -112,20 +112,21 @@ def merged_text(e: dict[str, Any]) -> str:
     if e.get("into_cr") and e.get("landed_with"):
         return (
             f"{head} into {e['into_cr']}'s branch at {at}, landed with {e['landed_with']} "
-            f"at {e.get('landed_at')}; for the Chief of Staff: order merged {cr}"
+            f"at {e.get('landed_at')}; for the steering session: order merged {cr}"
         )
     if e.get("into_cr"):
         return (
-            f"{head} into {e['into_cr']}'s branch at {at}; for the Chief of Staff: not "
+            f"{head} into {e['into_cr']}'s branch at {at}; for the steering session: not "
             f"landed, tell the user, record nothing until {e['into_cr']} lands"
         )
-    return f"{head} into {e.get('into')} at {at}; for the Chief of Staff: order merged {cr}"
+    return f"{head} into {e.get('into')} at {at}; for the steering session: order merged {cr}"
 
 
 def red_text(e: dict[str, Any]) -> str:
     return (
         f"forge saw checks red: {e.get('cr')} {e.get('pr')} at {str(e.get('head'))[:SHA_SHOWN]}, "
-        "ready to merge in the record; for the Chief of Staff: tell the user, record nothing"
+        "ready to merge in the record; for the steering session: tell the user and note the "
+        "CR's live Driver, record nothing"
     )
 
 

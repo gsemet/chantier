@@ -16,15 +16,18 @@ HELP = (
     "tells the events it gathered and ends, or with --stream prints them with a still watching "
     "line and runs on; it ends when the project's seat is another session's, and, while no batch "
     "runs and none is paused with an open PR, 2 h after the latest of its start, its last event "
-    "that wakes and the last moment such a batch ran or was paused so; the server alone reads "
-    "the forge, every 20 s while observed; --once --after SEQ prints the journal's lines for it "
-    "past SEQ and exits"
+    "that wakes and the last moment such a batch ran or was paused so; run by the session that "
+    "the running or paused batch records as its Foreman, it is the Foreman's watcher: it reads "
+    "only that batch's merge, red-CI and wait-met lines, starts no server (it ends at once when "
+    "none runs), and never ends on the seat but when the batch records another Foreman or "
+    "closes; the server alone reads the forge, every 20 s while observed; --once --after SEQ "
+    "prints the journal's lines for it past SEQ and exits"
 )
 
 
 def register(sub: Subparsers) -> None:
     """Declare this module's commands."""
-    s = add_command(sub, "watch", "chantier.hub.watch:watch", HELP, NO_BATCH)
+    s = add_command(sub, "watch", "chantier.hub.watch_cmd:watch", HELP, NO_BATCH)
     s.add_argument(
         "--after",
         type=int,

@@ -17,7 +17,7 @@ from chantier.playbook import edit, layers, timing
 from chantier.plugin_files import plugin_roles
 
 DEFAULTS = PLUGIN_ROOT / "config" / "chantier.defaults.yml"
-WAKE, SHIPPED_WAKE = 12, 30  # minutes
+WAKE, SHIPPED_WAKE = 12, 55  # minutes
 LINES_WITH_WARNING, WAKE_20M, WAKE_10M = 3, 1200, 600
 
 
@@ -92,7 +92,7 @@ def test_the_timing_lines_are_printed_recorded_and_kept_by_a_running_batch(
     host(monkeypatch)
     assert _printed(chantier("playbook")[1]) == [
         "timing: Claude Code subagent: cache TTL 5 min, CI re-runs 1",
-        "timing: Claude Code session: steering wake 30 min, cache TTL 60 min",
+        "timing: Claude Code session: steering wake 55 min, cache TTL 60 min",
     ]
     file = repo / "chantier.yaml"
     file.write_text(T_CLAUDE + "      session:\n        steering_wake: 20m\n", encoding="utf-8")
@@ -144,6 +144,15 @@ def test_the_board_view_state_and_flat_list_carry_the_timing(surface: Surface) -
     assert (
         steering_wake_min(BatchRecord(host="claude")) == SHIPPED_WAKE
     )  # no timing: the shipped defaults
+
+
+CONFIGURED = [("30m", 30), ("20m", 20), ("58m", 58), ("60m", 60)]
+
+
+@pytest.mark.parametrize("text,minutes", CONFIGURED, ids=[c[0] for c in CONFIGURED])
+def test_a_configured_claude_code_wake_wins_up_to_the_bound(text: str, minutes: int) -> None:
+    got = _timing([("repository", T_CLAUDE + f"      steering_wake: {text}\n")])
+    assert steering_wake_min(BatchRecord(host="claude", timing=got["claude"])) == minutes
 
 
 REFUSALS = [

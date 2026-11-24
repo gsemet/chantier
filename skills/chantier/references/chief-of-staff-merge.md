@@ -58,7 +58,9 @@
   line, in `status` or in a watcher's notification or end, is a merge the user made: record it like any merge, at
   the `status` that shows it or at the watcher's notification or end, once the forge confirms it ([The
   watcher](session-start-chief-of-staff.md#the-watcher)): `order merged <cr>`, then, in Foreman mode, send its line to the
-  Foreman as for any order. A line that says `landed with <other cr>` is a merge to record, like
+  Foreman as for any order. With `foreman watch: running` (a Foreman's watcher), the Foreman hears
+  the line itself and records it: tell the user, record nothing, send nothing; a Foreman's
+  `unconfirmed <cr> <pr>: …` line is checked on the forge by you. A line that says `landed with <other cr>` is a merge to record, like
   the `into <branch>` one: the hub (or the board) read the PR merged into `<other cr>`'s branch and that CR's PR on the default branch
   at the same time or later, or the PR's own merge on the default branch (a native stack merged in one go) (`order merged <cr>`, then the Foreman's line in Foreman mode). Only
   a line that ends `not landed …` is not one to record: do not run `order merged`; tell the user

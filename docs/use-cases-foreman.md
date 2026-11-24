@@ -31,7 +31,7 @@ others go on. A CR that waits on something outside the batch (your trial or answ
 
 Parallel is `open`'s default, but the Chief of Staff asks you for the shape at the opening and recommends one. Every CR starts from the default branch at once and its
 PR is on the default branch. The first one ready to merge wins: you merge in the order things become ready to merge,
-unless you say otherwise. After each merge you report, every PR still open is rebased onto the
+unless you say otherwise. The Foreman hears each merge from its own watcher, so it records it and goes on without waiting for its next wake. After each merge you report, every PR still open is rebased onto the
 default branch and its checks run again, conflict or not. When two CRs edit the same lines, the
 plan may propose that one waits for the other, with its reason; you approve or refuse it at the
 go.

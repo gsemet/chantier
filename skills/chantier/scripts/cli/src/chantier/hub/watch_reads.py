@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import re
 from dataclasses import dataclass, field
+from typing import Any
 
 from chantier.core.errors import EXIT_USAGE, ChantierError
 from chantier.core.files import rel_in
@@ -14,6 +15,7 @@ from chantier.core.records import read_batch_json
 from chantier.core.repo import Repo
 from chantier.core.seat import read_seat
 from chantier.hub import arrival_mark, autostart, journal
+from chantier.hub.watch_lines import FOREMAN_CLOSED, FOREMAN_OTHER, FOREMAN_TYPES, Ended
 
 
 @dataclass
@@ -39,6 +41,22 @@ def seat_moved(repo: Repo, session: str) -> bool:
         return False
     kept = re.sub(r"[^A-Za-z0-9-]", "", (held.transcript if held else None) or "")
     return bool(kept) and kept != session
+
+
+def foreman_lines(lines: list[dict[str, Any]], batch: str) -> list[dict[str, Any]]:
+    """The Foreman's watcher reads only the lines of its batch that the Foreman acts on."""
+    return [e for e in lines if e.get("type") in FOREMAN_TYPES and e.get("batch") == batch]
+
+
+def foreman_end(repo: Repo, batch: str, session: str) -> Ended | None:
+    """The line the Foreman's watcher ends with when `batch` is closed or no longer records
+    `session` as its Foreman, else None. It never looks at the seat."""
+    d = autostart.open_record(repo)
+    if d is None or d.id != batch:
+        return Ended(FOREMAN_CLOSED.format(batch=batch), 0)
+    if not autostart.records_foreman(d, session):
+        return Ended(FOREMAN_OTHER.format(batch=batch), 0)
+    return None
 
 
 def subscription(session: str, audiences: list[str] | tuple[str, ...] = ()) -> list[str]:

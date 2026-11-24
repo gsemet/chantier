@@ -256,7 +256,8 @@
   record holds neither merged nor cancelled), 2 h after the latest of its start, its last event
   for it that wakes and the last moment a batch was in flight (the `no event for <name> in 2 h`
   line: start it again at once, nothing to tell the user). Its notification, or its end, starts
-  your turn.
+  your turn. In Foreman mode the Foreman runs a watcher of its own (the Foreman's card, "Your
+  watcher"); `status` shows it as `foreman watch: running` or `foreman watch: not running`.
   - *When it starts:* whatever the batch, running, paused or none, the CLI prints `watch: not
     running: for the Chief of Staff, start in the background: <command>` when no watcher of this
     session runs (after `open`, `seat take`, `seat`, the `take` or `order qa` that sets a paused
@@ -282,7 +283,12 @@
     The watcher's other lines (its `started the board (PID <n>)` clause, the board's lines it
     passes on, the lines of a board that does not come up or of a seat it cannot start one for):
     as [session-start-chief-of-staff](session-start-chief-of-staff.md), "The watcher", says.
-  - *A watcher's notification or end:* read its output, each line handled the same way. A `forge saw merged … order merged <cr>` line, on this
+  - *A watcher's notification or end:* read its output, each line handled the same way. In Foreman
+    mode with `foreman watch: running`, a `forge saw merged`, `forge saw checks red` or `forge saw
+    <type> met` line is the Foreman's: tell the user, record nothing, send the Foreman nothing (it
+    hears the line from its own watcher). With `foreman watch: not running`, handle each as below.
+    A Foreman's `unconfirmed <cr> <pr>: …` line: check the forge yourself, as below, and tell the user.
+    Direct mode is unchanged. A `forge saw merged … order merged <cr>` line, on this
     path and at the next `status`, is checked on the forge first (`gh pr view <pr> --json
     state,baseRefName,mergedAt`, `glab mr view <iid>` on GitLab): merged, into the default
     branch, or, for a `landed with` line, its base's PR merged into the default branch. Then
@@ -291,7 +297,7 @@
     the forge does not confirm is not recorded: tell the user what the forge shows. A `not
     landed` line: tell the user where the PR went, record nothing. The GitLab fold rule keeps its
     precedence. A `forge saw checks red` line: tell the user (the CR, the PR, the head), record
-    nothing; in Foreman mode send the Foreman `checks red <cr> <pr> at <head7>`. Then one message
+    nothing; in Foreman mode with `foreman watch: not running`, send the Foreman `checks red <cr> <pr> at <head7>`. Then one message
     to the user with what was recorded and told (the report format), and, when the watcher ended
     (its last line is not `still watching`), start it again from its last line. A `config changed on the board: batch.slots <old> -> <new>; <batch> keeps <n> until an
     order slots` line (also in `status`, until an `order slots` follows it): the user changed the

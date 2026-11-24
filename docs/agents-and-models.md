@@ -92,7 +92,7 @@ the Chief of Staff: reads `steering_wake` and `cache_ttl`); Copilot's are `claud
 model family, each reading all three, and the general value serves every other model. A setting
 under a column that does not read it is refused. Bounds: on Claude Code `steering_wake` is at most
 60 minutes; on Copilot a duration is whole minutes. The shipped defaults are today's behaviour:
-Claude Code `steering_wake` 30m, `cache_ttl` 1h for a session and 5m for a subagent, `ci_reruns` 1;
+Claude Code `steering_wake` 55m, `cache_ttl` 1h for a session and 5m for a subagent, `ci_reruns` 1;
 Copilot `steering_wake` 4m, `cache_ttl` 5m, `ci_reruns` 1. A column's value beats the general one
 within a layer, and a stronger layer beats a weaker one, whatever the key. `chantier playbook`
 prints the result as `timing:` lines; a running batch keeps the timing it opened with. The
