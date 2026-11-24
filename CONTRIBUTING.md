@@ -180,7 +180,8 @@ chantier is four things in one repository:
    writes it can see; what it cannot see, such as an interpreter's inline code, is left to the
    cards); `types/index.d.ts`
    (named in `plugin.json`) is its contract. It writes nothing and runs no process but
-   `git rev-parse`. Copilot has no such thing: its manifest names no hooks. The mod reads
+   `git rev-parse`; besides `STATUS.json` it reads one file, the git folder's `chantier/server.json`,
+   for the web board's key (the links of its Services section), and writes what it reads there nowhere. Copilot has no such thing: its manifest names no hooks. The mod reads
    `STATUS.json` (`schema` 3) as `status.py` writes it: change both together. The CR board pane
    reads `STATUS.json` (`schema` 3); the web board reads the server's API, which the views of
    `status.py` feed: change them together (protocol 1, `docs/server-api.md`: an addition only; a change is protocol 2).

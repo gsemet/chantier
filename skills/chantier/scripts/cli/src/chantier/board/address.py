@@ -84,12 +84,12 @@ def _loopback_of(host: str) -> str:
     return {"0.0.0.0": "127.0.0.1", "": "127.0.0.1", "::": "::1"}.get(host, host)
 
 
-def local_url(host: str, port: int, key: str) -> str | None:
-    """The 127.0.0.1 (or `[::1]`) link, with the key, when the board listens on every address
-    and its main link is not already a loopback one; None otherwise."""
+def local_url(host: str, port: int, key: str | None = None) -> str | None:
+    """The 127.0.0.1 (or `[::1]`) link, with the key when one is given, when the board listens
+    on every address and its main link is not already a loopback one; None otherwise."""
     if host not in EVERYWHERE or is_loopback(reachable(host)):
         return None
-    return f"{_base(host, port)}/?k={key}"
+    return f"{_base(host, port)}/?k={key}" if key else f"{_base(host, port)}/"
 
 
 def _base(host: str, port: int) -> str:

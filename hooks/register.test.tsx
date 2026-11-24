@@ -862,7 +862,7 @@ test('Backlog, Merged and Trashed are folded and open when pressed', async ($, o
 
   await skill($)
   const ui = await board($)
-  expect(await label(ui, 'fold-backlog')).toContain('Backlog (2)')
+  expect(await label(ui, 'fold-backlog')).toContain('Backlog (2, 1 ready)')
   expect(await label(ui, 'fold-merged')).toContain('Merged (1 of 12)')
   expect(await label(ui, 'fold-trashed')).toContain('Trashed (1 of 3)')
   const closed = await words(ui)
@@ -1427,4 +1427,196 @@ test('a guard that throws lets the call pass, with the note', async ($, on) => {
   const out = await write($, agentId, 'Write', `${ROOT}/a.py`)
   expect(out.deny).toBeUndefined()
   expect(await said($)).toContain(`could not judge the Write call of agent ${agentId}`)
+})
+
+// ---- the batch's CRs by state, the figures, the Services section and the board's links ----
+
+const merged = (cr: string, usd: number | null, when: string) => ({
+  cr, title: `${cr} merged title`, state: 'merged', batch: 'demo', pr: `https://forge.example/pr/${cr.slice(3)}`, cost_usd: usd, when, path: `4-batch/3-done/${cr}`,
+})
+const SERVER_JSON = `${ROOT}/.git/chantier/server.json`
+const KEY = 'private-key-aaaa'
+const READ_KEY = 'public-key-bbbb'
+const services = (over = {}) => ({
+  at: '2026-11-06T09:30:00Z',
+  server: {
+    pid: 4242, version: '0.15.1', source: '/x', started: '2026-11-06T08:00:00Z', host: '0.0.0.0', port: 8765,
+    url: 'http://192.168.1.5:8765/', local_url: 'http://127.0.0.1:8765/', build_note: null,
+  },
+  hub: { pid: 4242, version: '0.15.1', started: '2026-11-06T08:00:00Z', idle: false },
+  writer: { pid: 4242, state: 'synced', text: '' },
+  watchers: ['sess-1'],
+  ...over,
+})
+/** Opens the Services fold unless a fold turned earlier in the test (the atom keeps it) left it open. */
+const openServices = async (ui: any) => {
+  if ((await label(ui, 'fold-services'))?.startsWith('▸')) await ui.press({ key: 'fold-services' })
+}
+const links = async (ui: any) => (await ui.findAll({ type: 'Link' })).map((l: any) => l.props.href as string)
+const NEW = { created: '2026-11-06T06:40:00Z', counts: { merged: 2, ready: 1, working: 1, queued: 1, cancelled: 1 }, crs_total: 6 }
+
+test('a batch whose active CRs are all merged shows its merged CRs, never an empty batch', async ($, on) => {
+  mock.clock(on, { now: Date.parse('2026-11-06T10:00:00Z') })
+  const w = world(on)
+  w.put(INDEX, index({
+    batches: [batch({ ...NEW, crs: [], counts: { merged: 2 }, crs_total: 2, merged: [merged('CR-2', 3, '2026-11-06T09:00:00Z'), merged('CR-1', 1, '2026-11-05T09:00:00Z')] })],
+    active_crs: 0,
+  }))
+  await skill($)
+  const ui = await board($)
+  const text = await words(ui)
+  expect(text).toContain('CR-2 merged title')
+  expect(text).toContain('CR-1 merged title')
+  expect(text).toContain('Merged (2)')
+  expect(text).not.toContain('No other live CR.')
+  expect(text).not.toContain('No CR in this batch yet.')
+  await ui.unmount()
+})
+
+test('each state of the batch is shown with the batch section open, no other fold turned', async ($, on) => {
+  mock.clock(on, { now: Date.parse('2026-11-06T10:00:00Z') })
+  const w = world(on)
+  w.put(INDEX, index({
+    batches: [batch({
+      ...NEW,
+      crs: [
+        row({ cr: 'CR-3', title: 'queued one', state: 'queued', label: 'queued', folder: '1-pending/c3' }),
+        row({ cr: 'CR-4', title: 'working one', state: 'working', folder: '4-batch/2-actives/c4' }),
+        row({ cr: 'CR-5', title: 'ready one', state: 'ready', readiness: 'PR in draft', label: 'PR in draft', folder: '4-batch/2-actives/c5' }),
+      ],
+      merged: [merged('CR-1', 1, '2026-11-05T09:00:00Z')],
+    })],
+  }))
+  await skill($)
+  const ui = await board($)
+  const text = await words(ui)
+  for (const x of ['Pending (1)', 'Working (1)', 'Ready to merge (1)', 'Merged (1)', 'queued one', 'working one', 'ready one', 'CR-1 merged title']) expect(text).toContain(x)
+  expect(text).not.toContain('In progress')
+  await ui.press({ key: `fold-batch-${BATCH}-queued` })
+  expect(await words(ui)).not.toContain('queued one')
+  expect(await words(ui)).toContain('working one')
+  await ui.unmount()
+})
+
+test('the figures line shows the CRs per state out of the total, the time since the start and the spend per merged CR', async ($, on) => {
+  mock.clock(on, { now: Date.parse('2026-11-06T10:00:00Z') })
+  const w = world(on)
+  w.put(INDEX, index({ batches: [batch({ ...NEW, merged: [merged('CR-1', 1, '2026-11-05T09:00:00Z'), merged('CR-2', 3, '2026-11-05T10:00:00Z')] })] }))
+  await skill($)
+  const ui = await board($)
+  const text = await words(ui)
+  expect(text).toContain('6 CRs: 2 merged, 1 ready, 1 working, 1 queued, 1 cancelled')
+  expect(text).toContain('started 3 h 20 min ago')
+  expect(text).toContain('$2.00 per merged CR')
+  await ui.unmount()
+})
+
+test('Backlog, Merged and Services are folded by default, and Backlog says how many CRs are ready', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  w.put(INDEX, index({
+    backlog: [
+      { priority: '3-ready', item: 'a', title: 'A', path: '3-ready/a', files: 1 },
+      { priority: '3-ready', item: 'b', title: 'B', path: '3-ready/b', files: 1 },
+      { priority: 'P1', item: 'c', title: 'C', path: '2-backlog/P1/c', files: 1 },
+    ],
+    services: services(),
+  }))
+  await skill($)
+  const ui = await board($)
+  expect(await label(ui, 'fold-backlog')).toContain('Backlog (3, 2 ready)')
+  for (const k of ['fold-backlog', 'fold-merged', 'fold-services']) expect(await label(ui, k)).toContain('▸')
+  expect(await label(ui, 'fold-services')).toContain('Services (server running, watcher running)')
+  expect(await words(ui)).not.toContain('Server: running')
+  await ui.unmount()
+})
+
+test("the Services fold shows the server, the hub, the writer and this session's watcher, as of a snapshot age", async ($, on) => {
+  mock.clock(on, { now: Date.parse('2026-11-06T10:00:00Z') })
+  const w = world(on)
+  w.put(INDEX, index({ services: services({ server: { ...services().server, build_note: 'server runs another build of chantier 0.15.1 (/y)' } }) }))
+  await skill($)
+  const ui = await board($)
+  await openServices(ui)
+  const text = await words(ui)
+  expect(text).toContain('As of 30 min ago')
+  expect(text).toContain('Server: running, PID 4242, chantier 0.15.1, server runs another build of chantier 0.15.1 (/y), http://192.168.1.5:8765/')
+  expect(text).toContain('Hub: running, PID 4242')
+  expect(text).toContain('Writer: synced, PID 4242')
+  expect(text).toContain('Watcher: running for this session')
+  await ui.unmount()
+
+  w.put(INDEX, index({ services: services({ server: null, hub: null, writer: null, watchers: ['other'] }) }))
+  await skill($)
+  const again = await board($)
+  expect(await label(again, 'fold-services')).toContain('Services (server off, watcher other session)')
+  await openServices(again)
+  const off = await words(again)
+  expect(off).toContain('Server: not running')
+  expect(off).toContain('Watcher: running for another session (other)')
+  expect(await links(again)).toEqual([])
+  await again.unmount()
+})
+
+test('the board links carry the keys read from server.json, each named; no read_key gives the private link alone', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  w.put(INDEX, index({ services: services() }))
+  w.put(SERVER_JSON, { key: KEY, read_key: READ_KEY, server: { pid: 1 } })
+  await skill($)
+  const ui = await board($)
+  await openServices(ui)
+  expect(await links(ui)).toEqual([
+    `http://192.168.1.5:8765/?k=${KEY}`,
+    `http://127.0.0.1:8765/?k=${KEY}`,
+    `http://192.168.1.5:8765/?k=${READ_KEY}`,
+    `http://127.0.0.1:8765/?k=${READ_KEY}`,
+  ])
+  const text = await words(ui)
+  expect(text).toContain('Private link (reads and acts)')
+  expect(text).toContain('Read-only link')
+  expect(text).not.toContain('No key could be read')
+  await ui.unmount()
+
+  w.put(SERVER_JSON, { key: KEY })
+  await skill($)
+  const alone = await board($)
+  await openServices(alone)
+  expect(await links(alone)).toEqual([`http://192.168.1.5:8765/?k=${KEY}`, `http://127.0.0.1:8765/?k=${KEY}`])
+  expect(await words(alone)).not.toContain('Read-only link')
+  await alone.unmount()
+})
+
+test('with no readable server.json the links carry no key and one line says so', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  w.put(INDEX, index({ services: services({ server: { ...services().server, local_url: null } }) }))
+  await skill($)
+  const ui = await board($)
+  await openServices(ui)
+  expect(await links(ui)).toEqual(['http://192.168.1.5:8765/'])
+  expect(await words(ui)).toContain('No key could be read')
+  await ui.unmount()
+
+  w.put(SERVER_JSON, 'not json')
+  await skill($)
+  const bad = await board($)
+  await openServices(bad)
+  expect(await links(bad)).toEqual(['http://192.168.1.5:8765/'])
+  expect(await words(bad)).toContain('No key could be read')
+  await bad.unmount()
+})
+
+test('an index of the older shape (no merged, counts or services) draws as it did', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  w.put(INDEX, index())
+  await skill($)
+  const ui = await board($)
+  const text = await words(ui)
+  expect(text).toContain('In progress (1)')
+  expect(text).not.toContain('CRs:')
+  expect(await ui.find({ key: 'fold-services' })).toBeUndefined()
+  expect(await ui.find({ key: REST })).toBeDefined()
+  await ui.unmount()
 })

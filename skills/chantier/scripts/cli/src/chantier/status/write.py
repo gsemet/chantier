@@ -6,9 +6,13 @@ import json
 from pathlib import Path
 from typing import Any
 
+from chantier import __version__
+from chantier.board.address import local_url, url
+from chantier.core import clock
 from chantier.core.files import rel_in, write_file
 from chantier.core.records import BatchRecord, EventRecord, read_events
 from chantier.core.repo import Repo
+from chantier.hub import lock, state
 from chantier.status.markdown import batch_markdown, cr_markdown, dashboard_markdown
 from chantier.status.views import batch_view, cr_view, dashboard_view
 
@@ -56,7 +60,46 @@ def write_final_pages(repo: Repo, d: BatchRecord, folder: Path) -> None:
             _write(cr_folder, cr_markdown(v), v)
 
 
+def _build_note(entry: dict[str, Any]) -> str | None:
+    """One clause when the server runs another version or another build than this CLI."""
+    if found := state.other_version(entry, __version__):
+        return f"server is chantier {found}, this is chantier {__version__}"
+    if found := state.other_build(entry, __version__, state.build_source()):
+        return f"server runs another build of chantier {__version__} ({found})"
+    return None
+
+
+def _picked(entry: dict[str, Any] | None, names: tuple[str, ...]) -> dict[str, Any] | None:
+    return None if entry is None else {n: entry.get(n) for n in names}
+
+
+def services_view(repo: Repo) -> dict[str, Any]:
+    """A snapshot of this machine's chantier processes for the planning surface, taken now. It
+    holds no key: the keys stay in `server.json`."""
+    git_dir = repo.git_dir
+    server = state.live_entry(git_dir, state.SERVER)
+    if server is not None:
+        host, port = server["host"], server["port"]
+        server = {
+            **{n: server.get(n) for n in ("pid", "version", "source", "started", "host", "port")},
+            "url": url(host, port),
+            "local_url": local_url(host, port),
+            "build_note": _build_note(server),
+        }
+    writer = state.live_entry(git_dir, state.WRITER)
+    hub = _picked(state.live_entry(git_dir, state.HUB), ("pid", "version", "started", "idle"))
+    if hub is not None:
+        hub["idle"] = bool(hub["idle"])
+    return {
+        "at": clock.now(),
+        "server": server,
+        "hub": hub,
+        "writer": _picked(writer, ("pid", "state", "text")),
+        "watchers": lock.watchers(git_dir, (repo.project_dir or repo.root).name),
+    }
+
+
 def write_dashboard(repo: Repo, paths: dict[str, Path]) -> None:
-    v = dashboard_view(repo, paths)
+    v = {**dashboard_view(repo, paths), "services": services_view(repo)}
     repo.changes.mkdir(parents=True, exist_ok=True)
     _write(repo.changes, dashboard_markdown(v), v)

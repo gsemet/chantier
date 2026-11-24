@@ -11,7 +11,8 @@ the projects whose seat or current batch, as its Foreman or Chief of Staff, name
 every project under a line saying no seat names it). It shows the live batches, the backlog (and `3-ready`), and the
 merged and trashed CRs. Nothing of it on Copilot, and the pane is not shown in a Remote Control view
 ([anthropics/claude-code#99217](https://github.com/anthropics/claude-code/issues/99217)). It writes
-nothing and runs no process but `git rev-parse`, to find the main checkout from a worktree.
+nothing and runs no process but `git rev-parse`, to find the main checkout from a worktree. Besides the index it reads one
+file, the git folder's `chantier/server.json`, for the web board's key (the links of the Services section).
 
 ### How to open it
 
@@ -22,9 +23,9 @@ nothing and runs no process but `git rev-parse`, to find the main checkout from 
 
 At the top, a header line: `5 live · 0 waiting for you · checked 3s ago, every 15 s`: when the pane last checked, and its period. Under it, each batch has a
 line (its id, its cost against its budget, a gauge, and how old that cost is: `12 min old`), its unread asks, its slots and its shape (`Slots 3/3, 0
-free · parallel`). Then "Waiting for you" and "In progress", with the columns CR, Subject, State, Step, PR and Cost. The Step is what a working CR's Driver is doing (`coder r2`, `gate scenario`, `CI`), or "waits for the user" on a blocked one; the web board also marks the next CR to start.
+free · parallel`). Then "Waiting for you" and the batch's CRs by state, each group open: Pending (`queued`), Working, Ready to merge and Merged (all the batch's merged CRs, newest first, so a batch whose CRs have all merged is not empty), with a figures line (CRs per state out of the batch's total, the time since the batch started, the spend per merged CR). An index written by an older CLI shows "In progress" instead. The tables have the columns CR, Subject, State, Step, PR and Cost. The Step is what a working CR's Driver is doing (`coder r2`, `gate scenario`, `CI`), or "waits for the user" on a blocked one; the web board also marks the next CR to start.
 The state says the state, the step and the round: `working Round 1/3`, `working CI 2/3`,
-`🟢 ready to merge Notify 1/3`, `🟤 PR in draft, waits for …`, `🟣 ready locally Notify 1/3`, `queued`. Then Backlog, Merged (n of m) and Trashed (n of m). Press a CR for its
+`🟢 ready to merge Notify 1/3`, `🟤 PR in draft, waits for …`, `🟣 ready locally Notify 1/3`, `queued`. Then, folded by default: Backlog (`Backlog (54, 2 ready)`: how many are in `3-ready`), Merged (n of m, all batches), Trashed (n of m) and Services. Services says, as of the CLI's last write of the index (`as of 12 min ago`: the pane cannot tell a live process itself), whether the surface server, the forge hub, the surface's writer and this session's watcher run (PID, version, build); its fold label carries the server's and the watcher's one word, `Services (server running, watcher off)`. When a server runs, it holds the board's links, the private one (reads and acts) and the read-only one, each with its key read from the git folder's `chantier/server.json` (no key readable: the links carry none, and a line says so; no read-only key: no read-only link). The index holds no key. Press a CR for its
 sheet and its documents. The pane checks every 15 seconds while open and reads a file again only when it changed. A **Refresh** button at the top of the pane (in every view) checks at once: it reads the files again, even unchanged ones, and looks for the planning folders again (a project added to a surface, a `.agents/changes/` created after opening), and for the projects that name this session again (a seat taken after opening; the 15 s check looks too), keeping the page shown and the folds. It does not refresh the batch's cost or record: that moves when the steering session refreshes the status.
 
 ### A batch in pictures

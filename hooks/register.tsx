@@ -1,7 +1,9 @@
 // The CR board: a read-only pane over the planning folder's `STATUS.json`: the project's
 // `.agents/changes/`, or, in a planning surface, the `projects/<name>/changes/` whose seat or current
 // batch names this session, else one section per project.
-// It writes nothing and runs no process but `git rev-parse`. See README.md.
+// It writes nothing and runs no process but `git rev-parse`. Besides the index it reads one file, the git
+// folder's `chantier/server.json`, for the web board's key (the board's links in the Services section);
+// what it reads there is drawn, never written anywhere. See README.md.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface as Engine, Register } from 'claude-code'
 
@@ -12,6 +14,7 @@ import type {
   ChantierPast,
   ChantierGate,
   ChantierRow,
+  ChantierServices,
   ChantierSheet,
 } from '../types'
 
@@ -30,6 +33,9 @@ const MAX_DOC_BYTES = 200 * 1024
 const INDEX = 'STATUS.json'
 const CHANGES = '.agents/changes'
 
+/** One state of a batch's CRs, drawn as a section: its rows, or the batch's merged CRs. */
+type Group = { name: string; title: string; rows: ChantierRow[]; merged: ChantierPast[] | null }
+
 /** A planning folder: the project's own (no name), or one project of a planning surface. */
 type Base = { name: string | null; dir: string }
 type View = {
@@ -46,7 +52,7 @@ const newView = (b: Base): View => ({ dir: b.dir, name: b.name, index: null, mti
 
 // Change a tag when the shape of its value changes: it declines what an earlier
 // version stored, which outlives a reload.
-const site = atom({ plugin: 'chantier', key: 'site' } as const, { root: null, bases: [], error: null, unseated: null, sid: null }, { shape: 'site-4' })
+const site = atom({ plugin: 'chantier', key: 'site' } as const, { root: null, common: null, bases: [], error: null, unseated: null, sid: null }, { shape: 'site-5' })
 const feed = atom({ plugin: 'chantier', key: 'feed' } as const, { views: [], note: null }, { shape: 'feed-2' })
 const pages = atom({ plugin: 'chantier', key: 'pages' } as const, [], { shape: 'pages-1' })
 const turned = atom({ plugin: 'chantier', key: 'turned' } as const, [], { shape: 'turned-1' })
@@ -113,6 +119,53 @@ const message = (err: unknown) =>
 
 function money(n: number | null | undefined): string {
   return n === null || n === undefined ? '-' : '$' + n.toFixed(2)
+}
+
+/** Minutes as `45 min`, `3 h 20 min` or `2 d 4 h`. */
+function span(min: number): string {
+  const m = Math.max(0, min)
+  if (m < 60) return `${m} min`
+  if (m < 1440) return `${Math.floor(m / 60)} h ${m % 60} min`
+  return `${Math.floor(m / 1440)} d ${Math.floor((m % 1440) / 60)} h`
+}
+
+const COUNT_ORDER = ['merged', 'ready', 'working', 'blocked', 'queued', 'cancelled']
+
+/** The batch's CRs per state, out of all its CRs: `18 CRs: 15 merged, 1 ready, 2 working`. */
+function countsText(b: ChantierBatch): string {
+  const counts = b.counts ?? {}
+  const names = [...COUNT_ORDER.filter(k => k in counts), ...Object.keys(counts).filter(k => !COUNT_ORDER.includes(k)).sort()]
+  const total = b.crs_total ?? names.reduce((n, k) => n + (counts[k] ?? 0), 0)
+  return `${total} CRs: ${names.filter(k => (counts[k] ?? 0) > 0).map(k => `${counts[k]} ${k}`).join(', ') || 'none'}`
+}
+
+/** The mean cost of the batch's merged CRs that have one; null when none is priced. */
+function perMerged(b: ChantierBatch): number | null {
+  const costs = (b.merged ?? []).flatMap(p => (p.cost_usd === null || p.cost_usd === undefined ? [] : [p.cost_usd]))
+  return costs.length === 0 ? null : costs.reduce((a, c) => a + c, 0) / costs.length
+}
+
+/** The board's keys, read from the git folder's `chantier/server.json`; both null when it cannot be read or holds none. */
+type BoardKeys = { key: string | null; readKey: string | null }
+
+async function readBoardKeys($: Engine, common: string | null): Promise<BoardKeys> {
+  if (common === null) return { key: null, readKey: null }
+  try {
+    const d = (await readJson($, common + '/chantier/server.json')) as { key?: unknown; read_key?: unknown } | null
+    const text = (v: unknown) => (typeof v === 'string' && v !== '' ? v : null)
+    return { key: text(d?.key), readKey: text(d?.read_key) }
+  } catch {
+    return { key: null, readKey: null }
+  }
+}
+
+/** The Services fold's one-word states: the server, and the watcher of the session `sid`. */
+function servicesWords(s: ChantierServices, sid: string | null): { server: string; watcher: string } {
+  const mine = sid !== null && s.watchers.includes(sid)
+  return {
+    server: s.server === null ? 'off' : 'running',
+    watcher: mine ? 'running' : s.watchers.length > 0 ? 'other session' : 'off',
+  }
 }
 
 function gauge(spent: number | null, budget: number | null): string {
@@ -247,7 +300,8 @@ async function choose($: Engine, bases: Base[], sid: Sid | null, force: boolean)
   }
 }
 
-type Site = { root: string | null; bases: Base[]; error: string | null; unseated: string | null; sid: Sid | null }
+// `common` is the git common dir `findRoot` found (where `chantier/server.json` is), null outside a repository.
+type Site = { root: string | null; common: string | null; bases: Base[]; error: string | null; unseated: string | null; sid: Sid | null }
 
 async function findRoot($: Engine): Promise<{ site: Site; kept: Base[] }> {
   const cwd = slash(await $.session.cwd())
@@ -255,14 +309,15 @@ async function findRoot($: Engine): Promise<{ site: Site; kept: Base[] }> {
   try {
     out = await $.process.run(['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'], { cwd })
   } catch (err) {
-    return { site: { root: null, bases: [], error: `Cannot look for the main checkout: ${message(err)}`, unseated: null, sid: null }, kept: [] }
+    return { site: { root: null, common: null, bases: [], error: `Cannot look for the main checkout: ${message(err)}`, unseated: null, sid: null }, kept: [] }
   }
   // Not a repository: the session's folder.
-  const root = out.exitCode !== 0 ? clean(cwd) : parentOf(out.stdout.trim())
+  const common = out.exitCode !== 0 ? null : clean(out.stdout.trim())
+  const root = common === null ? clean(cwd) : parentOf(common)
   const bases = await findBases($, root)
-  const sid = bases.some(b => b.name !== null) ? await readSessionId($) : null
+  const sid = await readSessionId($) // also for a project's own folder: the Services section names this session's watcher
   const { kept, unseated } = await choose($, bases, sid, true)
-  return { site: { root, bases, error: null, unseated, sid }, kept }
+  return { site: { root, common, bases, error: null, unseated, sid }, kept }
 }
 
 const isMissing = (err: unknown) => /ENOENT|ENOTDIR|no such file|not found|does not exist/i.test(message(err))
@@ -936,6 +991,8 @@ export const register: Register = on => {
     }
 
     const root = where.root
+    // The board's keys, read again at each drawing (a new key replaces both); only when a server runs.
+    const keys: BoardKeys | null = views.some(v => v.index?.services?.server) ? await readBoardKeys($, where.common) : null
     const note = f.note === null ? null : <Text italic>{f.note}</Text>
 
     // The planning folder and the fold-key prefix of the project being drawn: set before each
@@ -1001,13 +1058,13 @@ export const register: Register = on => {
         key,
         PAST_COLUMNS,
         rows.map(p => [
-          crCell(p.path, p.cr ?? p.path.split('/').pop() ?? p.path),
+          crCell(p.path === '' ? null : p.path, p.cr ?? p.path.split('/').pop() ?? p.path),
           cell(p.title),
           p.state ?? '-',
           prCell(p.pr),
           money(p.cost_usd),
         ]),
-        rows.map(p => p.path),
+        rows.map(p => (p.path === '' ? null : p.path)),
       )
 
     /** A section: its fold, then what it holds while open. */
@@ -1034,6 +1091,26 @@ export const register: Register = on => {
       const shown = b.state !== 'paused' // a paused batch is folded, its cost still on the title line
       const why = waiting.filter(r => r.blocked !== null)
       const spentAge = minutesSince(b.spent_at ?? null, now)
+      // An index with the batch's `counts` or `merged` draws its CRs by state; an older one, as it did.
+      const states = b.counts !== undefined || b.merged !== undefined
+      const merged = b.merged ?? []
+      const groups = ([
+        { name: 'queued', title: 'Pending', rows: b.crs.filter(r => r.state === 'queued'), merged: null },
+        { name: 'working', title: 'Working', rows: b.crs.filter(r => r.state !== 'queued' && r.state !== 'ready'), merged: null },
+        { name: 'ready', title: 'Ready to merge', rows: b.crs.filter(r => r.state === 'ready'), merged: null },
+        { name: 'merged', title: 'Merged', rows: [], merged },
+      ] as Group[])
+        .map(g => ({ ...g, count: g.merged !== null ? g.merged.length : g.rows.length }))
+        .filter(g => g.count > 0)
+      const started = minutesSince(b.created ?? null, now)
+      const mean = perMerged(b)
+      const figures = [
+        countsText(b),
+        started === null ? null : `started ${span(started)} ago`,
+        mean === null ? 'no merged CR priced yet' : `${money(mean)} per merged CR`,
+      ]
+        .filter(x => x !== null)
+        .join(' · ')
       const spentOld = b.spent_usd == null ? '' : spentAge === null ? ' · age unknown' : ` · ${spentAge} min old`
       return Section(key, shown, `${b.batch}  ${spent}${budget}${noCr ? ' · paused, no CR yet' : ' ' + gauge(b.spent_usd, b.budget_usd)}${spentOld}`, () => noCr ? (
         <Box flexDirection="column" paddingLeft={2}>
@@ -1060,9 +1137,65 @@ export const register: Register = on => {
             Section(key + '-why', false, `Why (${why.length})`, () => (
               <Markdown key={key + '-why-text'} text={why.map(r => `- **${r.cr}:** ${r.blocked}`).join('\n')} />
             ))}
-          {Section(key + '-rest', true, `In progress (${rest.length})`, () =>
+          {!states && Section(key + '-rest', true, `In progress (${rest.length})`, () =>
             rest.length === 0 ? <Text dimColor>No other live CR.</Text> : Crs(key + '-rest-table', rest),
           )}
+          {states && <Text key={key + '-figures'}>{figures}</Text>}
+          {states &&
+            groups.map(g =>
+              Section(key + '-' + g.name, true, `${g.title} (${g.count})`, () =>
+                g.merged !== null ? Pasts(key + '-' + g.name + '-table', g.merged) : Crs(key + '-' + g.name + '-table', g.rows),
+              ),
+            )}
+          {states && groups.length === 0 && <Text dimColor>No CR in this batch yet.</Text>}
+        </Box>
+      ))
+    }
+
+    /** The Services section (folded): the processes of this machine as the CLI saw them when it wrote the index, and the board's links. */
+    const Services = (s: ChantierServices) => {
+      const mine = where.sid?.id ?? null
+      const w = servicesWords(s, mine)
+      const ago = minutesSince(s.at, now)
+      const server = s.server
+      const hub = s.hub
+      const writer = s.writer
+      const watcher = mine === null && s.watchers.length > 0 ? `running (this session's id cannot be read: ${s.watchers.join(', ')})` : w.watcher === 'running' ? 'running for this session' : w.watcher === 'other session' ? `running for another session (${s.watchers.join(', ')})` : 'not running'
+      const links: { name: string; href: string }[] = []
+      if (server !== null) {
+        const addresses = [server.url, ...(server.local_url ? [server.local_url] : [])]
+        const withKey = (a: string, k: string | null) => (k === null ? a : `${a}?k=${k}`)
+        for (const a of addresses) {
+          const here = a === server.url ? '' : ' on this machine'
+          links.push({ name: `Private link${here} (reads and acts)`, href: withKey(a, keys?.key ?? null) })
+        }
+        if (keys?.readKey) {
+          for (const a of addresses) {
+            const here = a === server.url ? '' : ' on this machine'
+            links.push({ name: `Read-only link${here}`, href: withKey(a, keys.readKey) })
+          }
+        }
+      }
+      return Section('services', false, `Services (server ${w.server}, watcher ${w.watcher})`, () => (
+        <Box flexDirection="column" paddingLeft={2}>
+          <Text dimColor>{`As of ${ago === null ? 'an unknown time' : `${span(ago)} ago`} (the CLI's snapshot when it wrote this index).`}</Text>
+          <Text>
+            {server === null
+              ? 'Server: not running'
+              : `Server: running, PID ${server.pid}, chantier ${server.version}${server.build_note ? `, ${server.build_note}` : ''}, ${server.url}`}
+          </Text>
+          <Text>{hub === null ? 'Hub: not running' : `Hub: running, PID ${hub.pid}, chantier ${hub.version}${hub.idle ? ', idle' : ''}`}</Text>
+          <Text>
+            {writer === null ? 'Writer: not running' : `Writer: ${writer.state ?? 'running'}, PID ${writer.pid}${writer.text ? `, ${writer.text}` : ''}`}
+          </Text>
+          <Text>{`Watcher: ${watcher}`}</Text>
+          {server !== null && keys !== null && keys.key === null && <Text dimColor>No key could be read from the git folder's chantier/server.json: the links carry none.</Text>}
+          {links.map(l => (
+            <Box key={'link-' + l.name} flexDirection="row">
+              <Text>{l.name + ': '}</Text>
+              <Link href={l.href} label={l.href} />
+            </Box>
+          ))}
         </Box>
       ))
     }
@@ -1175,7 +1308,7 @@ export const register: Register = on => {
         {viewNote}
         {index.batches.map(Batch)}
         {index.batches.length === 0 && <Text dimColor>No open batch.</Text>}
-        {Section('backlog', false, `Backlog (${index.backlog.length})`, () =>
+        {Section('backlog', false, `Backlog (${index.backlog.length}, ${index.backlog.filter(r => r.priority === '3-ready').length} ready)`, () =>
           Table(
             'backlog-table',
             ['Priority', 'Item', 'Title', 'Spec', 'Files'],
@@ -1189,6 +1322,7 @@ export const register: Register = on => {
         {Section('trashed', false, `Trashed (${index.trashed.length} of ${index.trashed_total})`, () =>
           Pasts('trashed-table', index.trashed),
         )}
+        {index.services !== undefined && Services(index.services)}
       </Box>
     )
     }
