@@ -50,6 +50,7 @@ def test_a_clean_restack_carries_when_the_judged_base_is_below_the_cr_below(
     else:  # A's commit cherry-picked onto main: origin/main moved, A recorded merged
         git_at(wa, "branch", "mainline", main)
         git_at(wa, "switch", "-q", "mainline")
+        commit(wa, "m.txt", "m\n", "main moved")  # a new parent: the copy never equals A's tip
         git_at(wa, "cherry-pick", a_tip)
         new_base = sh("git", "rev-parse", "HEAD", cwd=wa)
         git_at(wa, "switch", "-q", a["branch"])
