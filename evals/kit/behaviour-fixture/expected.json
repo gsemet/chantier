@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "host": "claude-code",
+  "since": "2020-01-01T00:00:00Z",
+  "files_read": 8,
+  "files_skipped": 0,
+  "not_chantier_runs": 1,
+  "first_event": "2026-11-20T10:00:01.000Z",
+  "last_event": "2026-11-20T10:00:18.000Z",
+  "roles": {
+    "cr-driver": {
+      "runs": 2,
+      "tool_calls": {"total": 9, "per_run_mean": 4.5, "median": 4.5},
+      "model_calls": {"total": 11, "per_run_mean": 5.5},
+      "card_bytes": {"total": 550, "per_run_mean": 275.0, "by_card": {"driver.md": 500, "driver-session.md": 50}},
+      "files_read": {"paths_per_run_mean": 1.0, "cards_per_run_mean": 2.0},
+      "cli": {"calls": 3, "usage_errors": {},
+              "refusals": {"cannot take CR-<n>: the batch batch-<n> is paused; run `chantier resume`": {"count": 1, "runs": 1}}},
+      "host_denials": {"classifier": 1, "mode": 1},
+      "write_guard_refusals": 0,
+      "waits": {"count": 0, "share": 0.0},
+      "pushes": {"chantier_push": 1, "refused": 1, "rate": 100.0, "force_with_lease": 1, "force_with_lease_denied": 1}
+    },
+    "chief-of-staff": {"runs": 1, "tool_calls": {"total": 2}, "model_calls": {"total": 2}, "card_bytes": {"total": 0}},
+    "coder": {
+      "runs": 1,
+      "tool_calls": {"total": 3, "median": 3},
+      "model_calls": {"total": 4},
+      "host_denials": {"sleep": 1},
+      "write_guard_refusals": 1,
+      "waits": {"count": 1, "share": 33.3}
+    },
+    "foreman": {
+      "runs": 1,
+      "tool_calls": {"total": 3},
+      "model_calls": {"total": 7},
+      "card_bytes": {"total": 100, "by_card": {"foreman.md": 100}},
+      "cli": {"calls": 1}
+    },
+    "spec-writer": {
+      "runs": 1,
+      "tool_calls": {"total": 4},
+      "model_calls": {"total": 5},
+      "cli": {"calls": 3,
+              "usage_errors": {"chantier summary set: error: the following arguments are required: --text": {"count": 1, "runs": 1}},
+              "refusals": {"summary lint: <n> sections are missing in <path>": {"count": 1, "runs": 1}}},
+      "help": {"commands": {"summary set": 1}, "topics": {}},
+      "tool_not_in_list": {"Edit": 1}
+    },
+    "verifier": {
+      "runs": 1,
+      "tool_calls": {"total": 2},
+      "card_bytes": {"total": 100, "by_card": {"help:rules": 60, "SKILL.md:chantier": 40}},
+      "files_read": {"paths_per_run_mean": 1.0, "cards_per_run_mean": 1.0},
+      "help": {"commands": {}, "topics": {"rules": 1}}
+    }
+  },
+  "driver_runs_per_cr": {"crs": 1, "runs": 2, "mean": 2.0, "one": 0.0, "two": 100.0, "three_or_more": 0.0},
+  "wake_shares": {
+    "foreman": {"compaction": 11.7, "agent_ended": 9.1, "watcher": 6.5, "heartbeat": 5.2,
+                "foreman_turn_ended": 7.8, "skill": 14.3, "typed": 45.5},
+    "chief-of-staff": {"compaction": 0.0, "agent_ended": 0.0, "watcher": 0.0, "heartbeat": 0.0,
+                       "foreman_turn_ended": 60.0, "skill": 0.0, "typed": 40.0}
+  },
+  "detectors": {
+    "plain-force-push": {"coder": {"runs_matched": 1, "rate": 100.0}, "cr-driver": {"runs_matched": 0, "rate": 0.0}},
+    "git-stash": {"cr-driver": {"runs_matched": 1, "rate": 50.0}, "coder": {"runs_matched": 0, "rate": 0.0}},
+    "add-all": {"chief-of-staff": {"runs_matched": 1, "rate": 100.0}},
+    "merge-by-agent": {"cr-driver": {"runs_matched": 0, "rate": 0.0}, "coder": {"runs_matched": 0, "rate": 0.0}}
+  },
+  "s_list": [
+    {"role": "cr-driver", "kind": "refusal", "template": "cannot take CR-<n>: the batch batch-<n> is paused; run `chantier resume`", "runs": 1, "rate": 50.0},
+    {"role": "spec-writer", "kind": "refusal", "template": "summary lint: <n> sections are missing in <path>", "runs": 1, "rate": 100.0},
+    {"role": "spec-writer", "kind": "usage_error", "template": "chantier summary set: error: the following arguments are required: --text", "runs": 1, "rate": 100.0}
+  ],
+  "regressions": [
+    {"kind": "detector", "detector": "git-stash", "role": "cr-driver", "rate": 50.0, "previous": 0.0},
+    {"kind": "s_list", "role": "cr-driver", "error_kind": "refusal", "template": "cannot take CR-<n>: the batch batch-<n> is paused; run `chantier resume`", "runs": 1, "rate": 50.0}
+  ]
+}

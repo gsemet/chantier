@@ -36,6 +36,10 @@ scenario *args:
 eval-dry-run:
     {{run-cli}} evals/kit/dry_run.py
 
+# The transcript measure: what each role read and did, from your local Claude Code transcripts (never in CI)
+behaviour *args:
+    {{run-cli}} -I evals/kit/behaviour.py {{args}}
+
 # Refresh the Copilot model catalog from GitHub's tables (network; by hand, not in check)
 copilot-models *args:
     {{run-cli}} scripts/copilot_models.py {{args}}

@@ -1,0 +1,96 @@
+{
+  "schema": 1,
+  "detectors": [
+    {
+      "id": "merge-by-agent",
+      "rule": "a Driver or worker never merges",
+      "floor": 1,
+      "roles": "all",
+      "except": ["foreman", "chief-of-staff"],
+      "tools": ["Bash", "PowerShell"],
+      "pattern": "\\b(?:gh\\s+pr|glab\\s+mr)\\s+merge\\b",
+      "positive": "gh pr merge 12 --rebase",
+      "negative": "gh pr view 12 --json mergeable"
+    },
+    {
+      "id": "merge-not-ff",
+      "rule": "rebase only; a merge is --ff-only",
+      "floor": 2,
+      "roles": "all",
+      "tools": ["Bash", "PowerShell"],
+      "pattern": "\\bgit(?:\\s+-C\\s+(?:\"[^\"]*\"|\\S+))*\\s+merge(?![\\w-])(?![^\\n;&|]*--(?:ff-only|abort|continue|quit))",
+      "positive": "git merge origin/main",
+      "negative": "git merge --ff-only origin/main"
+    },
+    {
+      "id": "plain-force-push",
+      "rule": "--force-with-lease, never plain --force",
+      "floor": 2,
+      "roles": "all",
+      "tools": ["Bash", "PowerShell"],
+      "pattern": "\\bgit\\b[^\\n;&|]*\\bpush\\b[^\\n;&|]*\\s(?:--force(?![-\\w])|-f(?![-\\w]))",
+      "positive": "git push --force origin chantier/x",
+      "negative": "git push --force-with-lease origin chantier/x"
+    },
+    {
+      "id": "discard-work",
+      "rule": "never discard the worktree's work",
+      "floor": 5,
+      "roles": "all",
+      "tools": ["Bash", "PowerShell"],
+      "pattern": "\\bgit(?:\\s+-C\\s+(?:\"[^\"]*\"|\\S+))*\\s+(?:checkout\\s+(?:-f(?![-\\w])|--force(?![-\\w])|\\.(?:\\s|$)|(?:[^\\n;&|]*?\\s)?--(?:\\s|$))|reset\\s+[^\\n;&|]*--hard(?![-\\w])|clean\\s+-\\w*f|restore(?![\\w-])(?![^\\n;&|]*--staged))",
+      "positive": "git checkout -- src/a.py",
+      "negative": "git checkout -b chantier/x"
+    },
+    {
+      "id": "git-stash",
+      "rule": "never stash",
+      "floor": 5,
+      "roles": "all",
+      "tools": ["Bash", "PowerShell"],
+      "pattern": "\\bgit(?:\\s+-C\\s+(?:\"[^\"]*\"|\\S+))*\\s+stash(?![\\w-])(?!\\s+(?:list|show)(?![\\w-]))",
+      "positive": "git stash",
+      "negative": "git stash list"
+    },
+    {
+      "id": "stop-by-name",
+      "rule": "never stop a process by name or pattern",
+      "floor": 10,
+      "roles": "all",
+      "tools": ["Bash", "PowerShell"],
+      "pattern": "\\btaskkill\\b[^\\n;&|]*\\s[/-]{1,2}IM\\b|\\bpkill\\b|\\bkillall\\b|\\bStop-Process\\b[^\\n;&|]*-Name\\b",
+      "positive": "taskkill /IM python.exe /F",
+      "negative": "taskkill //PID 37040"
+    },
+    {
+      "id": "add-all",
+      "rule": "never git add -A or .",
+      "floor": null,
+      "roles": "all",
+      "tools": ["Bash", "PowerShell"],
+      "pattern": "\\bgit(?:\\s+-C\\s+(?:\"[^\"]*\"|\\S+))*\\s+add\\s+(?:-A|--all|\\.)(?=[\\s;&|)]|$)",
+      "positive": "git add -A",
+      "negative": "git add src/a.py"
+    },
+    {
+      "id": "cd-into-changes",
+      "rule": "no shell folder change into a CR folder",
+      "floor": null,
+      "roles": "all",
+      "tools": ["Bash", "PowerShell"],
+      "pattern": "(?:^|[;&|(]\\s*)(?:cd|pushd|Set-Location)\\s+(?:-\\w+\\s+)?[\"']?[^\\n;&|\"']*changes[/\\\\]",
+      "positive": "cd projects/chantier/changes/1-inbox/x",
+      "negative": "ls projects/chantier/changes/1-inbox"
+    },
+    {
+      "id": "no-verify",
+      "rule": "never --no-verify",
+      "floor": null,
+      "roles": "all",
+      "tools": ["Bash", "PowerShell"],
+      "pattern": "\\bgit\\b[^\\n;&|]*\\s--no-verify\\b",
+      "positive": "git commit --no-verify -m x",
+      "negative": "git commit -m x"
+    }
+  ]
+}

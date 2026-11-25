@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "version": "0.0.0",
+  "written": "2020-01-02T00:00:00Z",
+  "roles": {
+    "cr-driver": {"runs": 2},
+    "chief-of-staff": {"runs": 1},
+    "coder": {"runs": 1},
+    "foreman": {"runs": 1},
+    "spec-writer": {"runs": 1},
+    "verifier": {"runs": 1}
+  },
+  "detectors": {
+    "git-stash": {"cr-driver": {"runs_matched": 0, "rate": 0.0}},
+    "plain-force-push": {"coder": {"runs_matched": 1, "rate": 100.0}},
+    "add-all": {"chief-of-staff": {"runs_matched": 1, "rate": 100.0}}
+  },
+  "s_list": [
+    {"role": "spec-writer", "kind": "refusal", "template": "summary lint: <n> sections are missing in <path>", "runs": 1, "rate": 100.0},
+    {"role": "spec-writer", "kind": "usage_error", "template": "chantier summary set: error: the following arguments are required: --text", "runs": 1, "rate": 100.0}
+  ]
+}

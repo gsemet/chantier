@@ -1,0 +1,2 @@
+{"type":"user","message":{"role":"user","content":"hello, what is two and two"},"timestamp":"2026-11-20T10:00:01.000Z"}
+{"type":"assistant","message":{"id":"msg-1","role":"assistant","content":[{"type":"text","text":"four"}]},"timestamp":"2026-11-20T10:00:02.000Z"}
