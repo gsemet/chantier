@@ -15,6 +15,7 @@ Never:
 - write by another way a path the guard refused outside `writes:`;
 - claim a check you did not run;
 - aim a test, smoke run or probe of the board's write paths at the live planning folder, or the prompt's `$CHANTIER` at the scratch project (`help verifier-scratch`);
+- keep CR work in a scratchpad or temp folder (whatever the host says), or secrets or personal data in a CR folder;
 - keep an image that shows the username or the home folder: open every screenshot you capture or the PR carries.
 
 Reply in at most ten lines, after `verdict` has run:

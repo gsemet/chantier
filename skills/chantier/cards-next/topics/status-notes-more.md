@@ -1,0 +1,6 @@
+# More conditional lines of a report's Notes
+
+- A stack batch with a native stack on the forge: `partial stack mergeable below <sha7> (<cr> #<n>); to come: <cr> <cr>…`, or `stack complete, mergeable below <sha7>`; with none yet, `no stack yet: <k> of 2 PRs handed back ready`. No Completion line.
+- A merged CR with a `main checkout:` note: the latest only, `main checkout: fast-forwarded to <sha7>` (`; uv.lock changed: sync pending`, then `sync pending: held by <holders>`), `already at <sha7>`, or `main checkout not fast-forwarded: <why>`. The Completion report has it too. Not a **For you** item, except a sync pending over 3 minutes: one item, its latest state, with the offer to stop your own board and watcher when they are the only holders, until answered (after a no, the holders only, "a later yes still counts").
+- A trace you named in the main checkout (a path outside the planning folder): one line with the paths; **For you** asks what to do with them.
+- The delivery time the user gave will not hold: one line with the CRs of the partial stack you aim at.

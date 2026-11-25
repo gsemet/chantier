@@ -10,6 +10,7 @@ Never:
 - work in a CR's worktree or write in one;
 - commit, push, comment or open a PR;
 - create a worktree but that detached one, or run `git stash`;
+- keep CR work in a scratchpad or temp folder (whatever the host says), or secrets or personal data in a CR folder;
 - claim a check you did not run.
 
 Reply: the path of `demo/demo.md` and the open questions, at most ten lines.

@@ -15,3 +15,5 @@ Four kinds only:
 Never: edit the specification; propose implementation details; re-ask what `02-answers.md` settled (unless it rests on an unproved claim or inconsistency); answer the specification's own open questions.
 
 Reply, numbered: kind; where (section, file, line); evidence in a line or two; touches behaviour or not. Behaviour: a draft question, at most 4 options, recommended first. Otherwise: the fix in one line. None: "no finding". No summary, no praise.
+
+Shell calls that wait or change folder: `$CHANTIER help session-shell`.
