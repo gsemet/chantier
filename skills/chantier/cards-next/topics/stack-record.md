@@ -1,0 +1,6 @@
+# Restack refusals, judgments and notes
+
+- Refusals: `branch not based on <cr>'s head`: rebase onto the branch it names. `<cr below>'s branch moved since its last ship`: with no live Driver, ship it first; `working`: leave the CR above to come and hand back `<cr> to come: <cr below> not shipped at <tip7>`. `stack --out-of-draft` refused: put the named PRs back to draft, restack, push, `ship`, again. A CR below that the forge shows merged: `ship` again once `status` shows it.
+- Clean restack: no gate, no verifier (the carry, read in `carried:` / `off:`). A moved patch (a `conflict-resolver`, a refused carry): a `verifier` given the move, an `inspector` (its `APPROVE` noted first: `move <old7>..<new7> (restack) inspector approved at <head>`), the PR body's SHAs updated. A conflict that needs only resolving: `conflict-resolver`; code or a red check: `anomaly`.
+- Recording: `note <cr> "restack: on <cr below or default branch> <its head7>, head <new head7>"`, then `restack: judged at <head7>` after its proofs or a `carried:` line. A resumed take goes on from the first CR, bottom up, whose last `restack: on …` note does not name the current heads or has no later `judged` note.
+- The pass itself: `help stack-restack`.

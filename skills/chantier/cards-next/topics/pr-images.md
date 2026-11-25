@@ -1,0 +1,9 @@
+# The look at an image
+
+No image shows the user's username or home folder; every image you keep or upload shows made-up paths.
+- The *user's username* is both the machine's login name (`$env:USERNAME`, `$USER`) and the last part of the home folder's path; they can differ, check both. The *home folder* is its full path (`C:\Users\<name>`, `/Users/<name>`, `/home/<name>`) in any form (either slash, `~` expanded, inside a longer path such as a temporary folder). A *made-up path* holds neither, wherever the image shows a local path (planning folder, worktree, file, prompt, window title): a made-up folder name, `~`, `user`; a scratch project under `work/scratch` sits under the home folder, so rewrite its paths in the capture or do not keep it.
+- The look: open the image as an image (not its file name) and look for both. It passes once neither shows.
+- *Keeping* is writing it anywhere in the planning folder (a CR's `evidence/` or `work/`, a QA folder's `evidence/`). An *upload* is any way an image leaves the machine (`gh pr edit --attach`, another forge CLI's attach, a release asset, a push of a commit that adds or changes an image). Look before you keep and again before each upload.
+- Yours that fails: capture again with made-up paths. The Verifier's that fails: ask the Verifier again. None is kept or uploaded meanwhile.
+- The user's own screenshot (`evidence: <path>`) that fails: do not upload or copy it, keep its Known gap, and say why in a `note` and in the hand-back report.
+- A leak found after an upload: replace the image in the description with a clean capture and say in a `note` and the report that the old one was uploaded (PR, which image, which SHA); a removed attachment can stay reachable, so the user is told. The user's own screenshot: remove it from the description, put the Known gap back, say so. Nothing about the leak goes in the public PR.
