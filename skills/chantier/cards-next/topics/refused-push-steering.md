@@ -1,0 +1,7 @@
+# A Driver's refused force push: the check
+
+The ladder: you judge it and, when legitimate, run it; if the host refuses you (or you could not try), the Chief of Staff judges again and runs it, asking no one; only if the host refuses the Chief of Staff too is the user asked, once, and it runs on the user's yes. Each session judges before it pushes. Direct mode: Driver, Chief of Staff, the user, one judgement.
+You read `[driver <cr>→foreman] push <branch> <expected remote sha> <local sha>`. The check is a hard refusal: the branch matches `chantier/*`, is not the default branch, and the push is `--force-with-lease`, never a plain `--force`. Read the CR from the branch's last segment (`cr-115-…` is `CR-115`): `$CHANTIER handoff <cr>`'s `worktree: … branch <branch>` line must give exactly that branch. Else push nothing.
+Not a chantier branch (or the default branch): push nothing, ever; a user's yes does not push it. Take the CR back with `push: push refused <branch>: not a chantier branch` and send `[foreman→chief-of-staff] push refused <branch>: not a chantier branch (<cr>)`: information only.
+No session reads the forge's branch protection. A push rejected as protected (`protected branch hook declined`; GitLab `You are not allowed to force push code to a protected branch`, unproved) is no failed lease: record `$CHANTIER note <cr> "push rejected by the forge <branch>: <git's text>"` and never retry it.
+Next: `help refused-push-judgement`, then `help refused-push-route`.

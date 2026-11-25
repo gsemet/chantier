@@ -1,0 +1,6 @@
+# The retro critic
+
+Draft the points of this pause without writing them. With no point, write the retro's one untagged line (`help retro`); no critic runs. With one point or more, start one `retro-critic`, its agent, model and first line copied from `$CHANTIER playbook --batch <batch>`, and wait for its reply. Its brief numbers the points as drafted and names, per point, the evidence it cites (the CRs' `work/` notes, `events.jsonl`, `4-batch/STATUS.md`, `cost --explain` when a point rests on a cost): never your argument, ranking or preference. A release CR done in `4-batch/3-done/` whose `work/retro.md` has not been through a critic: its points go in the same brief, numbered after yours; that file stays as the release Driver wrote it.
+- The critic ends early or answers out of format: restart it once. It fails again: write no point but `- retro not checked: <cause>`, keep your drafted points in `retro-dropped.md`, and say so in your `final`.
+- The critic runs after the pause and before `final`, and counts in the batch's cost. The same critic checks any other list of changes you propose on your own; a change the user asked for does not go through it.
+The section it writes: `help retro-critic-write`.

@@ -1,0 +1,4 @@
+# A release CR: the tag, a stale release, a fix
+
+- Handed back `blocked waits: the steering session runs <step> in the main checkout`: run it at once in the checkout the fast-forward uses (the main checkout, or the project's clone); for chantier, `just --justfile <that checkout>/justfile tag`, one command with nothing chained (your fast-forward already ran). On success copy its `main checkout: ...` line word for word into `$CHANTIER note <release-cr> "<the line>"` (a `uv.lock changed: sync pending` in it reaches the Chief of Staff), then `take <release-cr> --note "tag done: steering session, <YYYY-MM-DD>: v<X.Y.Z> pushed"`. It refuses (a `just tag:` line), or the host refuses: change nothing, no other way, never force; send `[foreman→chief-of-staff] release <cr>: <step> refused: <the exact line>` (direct mode: tell the user yourself). Run nothing the Driver did not hand back.
+A waiting release, a stale one, a fix: `help release-stale`.

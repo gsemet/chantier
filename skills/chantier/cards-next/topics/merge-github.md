@@ -1,0 +1,3 @@
+# Merging on GitHub: a stack's lowest PR
+
+4. One, the PR the lowest open: `gh api -X PUT repos/<owner>/<repo>/pulls/<pr>/merge-async -f merge_method=<the project's method> -f merge_action=direct_merge -f sha=<head SHA>`. `merged`: go on. `pending`: wait at most 30 s, once, then `gh api -X GET repos/<owner>/<repo>/pulls/<pr>/merge-async/<details.uuid>`; still `pending`: no new `PUT`, `note <cr> "merge: <pr> pending on GitHub's asynchronous merge after <s> s"` and send `[foreman→chief-of-staff] release <cr>: merge of PR <pr> still pending on GitHub`. Before any later try read `gh pr view <pr> --json state,mergedAt`: a merged PR is recorded, never merged again.
