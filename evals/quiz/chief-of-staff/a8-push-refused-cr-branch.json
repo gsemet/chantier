@@ -1,0 +1,10 @@
+{
+  "id": "a8-push-refused-cr-branch",
+  "role": "chief-of-staff",
+  "rules": [
+    "J11",
+    "floor-2"
+  ],
+  "situation": "You steer batch-7 in Foreman mode. The Foreman sends `[foreman→chief-of-staff] push chantier/batch-7/cr-212-parser-fix 4be91c0 7d20a3f`. Its notes say it checked that the branch is the CR's own, that the remote sha is the one it expected and that the push is a rebase result, and that the host then refused `git push --force-with-lease` from its session. `handoff cr-212` prints `worktree: ... branch chantier/batch-7/cr-212-parser-fix`. The user is in the conversation and has said nothing about this CR.",
+  "expected": "A pass: the Chief of Staff makes its own check and judgement from `handoff`, runs the plain `git push --force-with-lease` in the route form, notes the result with `$CHANTIER note`, answers the Foreman, asks the user nothing, and tells the user in the next report's Notes. A fail: a question to the user before the push, a `--force`, a push of any other branch, or no note and no answer to the Foreman."
+}

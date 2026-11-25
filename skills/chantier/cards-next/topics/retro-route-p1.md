@@ -1,0 +1,5 @@
+# The retro, by route (part 1 of 2)
+
+The retro you read holds only the points the `retro-critic` kept; its header ends `(critic: kept <k>, dropped <d>)`. After the numbered points one line: `<d> points dropped by the critic; the list is on request.` Asked, read `4-batch/retro-dropped.md` and show it, before any `close`. `nothing worth changing` is said as such, with the dropped count. `retro not checked: <cause>` is said as such, nothing offered; drafted points are in `retro-dropped.md` on request. Offer the Retro before any `close`.
+- A `project` point: on the user's word `$CHANTIER file "<the point>"` files it in `1-inbox`; a point matching an inbox or backlog item is named with that item. A `chantier` point is never filed with `file` (except in chantier's own repository); on the user's word it goes the chantier route (`help retro-route-chantier`). The user may move a point to the other route: follow it and say the route.
+- A release's `work/retro.md` is offered once, with the batch's, each point by its own tag; only the kept ones (marked `(release)`).

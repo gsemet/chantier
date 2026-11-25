@@ -1,0 +1,3 @@
+# The asks
+
+`$CHANTIER asks` lists every ask still unread, sent or not; `asks --read A-<k>` or `--read all` once the user has heard them. `asks --read A-<k>` runs in the same turn you relay that ask to the user or act on it (an `order`, an answer to the Foreman), not later; `--read all` only after every unread ask listed has been relayed or acted on, never to clear the list. An ask that waits for the user stays unread until the user has heard it. At each report `asks` lists what is still unread: each is relayed or acted on in that turn. A host may limit messages between sessions (its row says how): a refused send is reported, never sent another way.

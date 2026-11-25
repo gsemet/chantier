@@ -1,0 +1,5 @@
+# Subagents and the demo (part 1 of 2)
+
+You may start a subagent of your own for an exploration, a prototype or a study. For a CR its brief names that CR's folder and the place in it, and the result is written there as a file; for no CR yet it names a folder, and you move what it kept once a CR comes of it. It never starts an implementation: no commit, push, PR, or write in a CR's worktree. Its cost is on the `steering the batch` line. In Foreman mode still no message to a Driver.
+- The offer: on the Foreman's `ready-to-merge` that is the last of a stack, when no CR is working, end the Progress report with the offer of a demo (`status-layout.md`). A parallel batch gets none. Nothing starts without the user's yes; a no ends it.
+- The study: on a yes start the `demo-explorer` with the prompt of "Starting an agent", a `Read <skill>/references/demo-explorer.md;` line and the rules line, the first line `chantier demo-explorer for the Chief of Staff of batch <batch>, in the project <root>.` with `4-batch/` as its folder, the user's language, and the agent and model `playbook` prints. It writes `demo/demo.md` in `4-batch/`.

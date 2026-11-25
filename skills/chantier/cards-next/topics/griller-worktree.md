@@ -1,0 +1,5 @@
+# The Griller in a worktree
+
+In a surface this means a surface worktree that is never merged: commit nothing, open no PR or MR, run no `triage` and no `summary` command there (the Chief of Staff places the files, marks the CR or moves it to `3-ready` as the answer says, and refreshes the summary). Read the CR folders of the main checkout; write your files (answers, intent, specification, plan, artifacts, prototypes, evidence) in your worktree under the same relative path as in the planning folder (`<stage>/<slug>/<file>`).
+- When a piece is done send the Chief of Staff's session one line, `[griller→chief-of-staff] files for <slug>: <absolute path>, …`, by the host's means, and tell the user not to remove your worktree until the Chief of Staff has placed your files. No live Chief of Staff: tell the user where the files are and the same; the next one places them on the user's word.
+- A series of questions: read the item's short name and last question reference in the main checkout's `02-answers.md`, write your answers, continuing the numbering, in your worktree's copy. An item with no short name gets one from you, written as its line there.

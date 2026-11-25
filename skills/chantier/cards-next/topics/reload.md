@@ -1,0 +1,3 @@
+# Reload
+
+Trigger: "chantier reload", a skill's argument `reload`, the host's auto reload. With no role it starts the router. Read `$CHANTIER seat`, which names this session: the Chief of Staff, else the Griller; if that is not the called skill's, load the other with `reload` (one hop). Ask no role question, give no introduction, change no batch. Read only (`seat`, `status`): no order, `take`, heartbeat, Driver, message or `uv sync`; repeat no grant, start no service twice. Say: rules reloaded, batch status, a free seat. In direct mode with `shape stack` in `status`, also read `help stack` before the next act. After a compaction read your card again, then the topic of your moment. The board survives a compaction; at the next invocation `serve` is a reuse.

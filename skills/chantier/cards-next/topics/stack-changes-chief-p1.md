@@ -1,0 +1,3 @@
+# Changing a stack: a drop, a hold, an insert (part 1 of 2)
+
+- Dropping a CR from a stack, on the user's word: `order drop <cr> --note <destination>`; the Foreman removes it with `take stack --epoch <n> --note "drop: <cr> to <destination>"`. Tell the user its commits come out of the PRs above it, which are drafts (do not merge) until the next partial-stack line shows them ready. Trash: its PR is closed and its branch stays until `close`. Backlog or `3-ready`: its PR goes to draft, its branch and worktree stay and are not offered for removal at `close`, its folder keeps its number. A held CR: nothing to rebuild.

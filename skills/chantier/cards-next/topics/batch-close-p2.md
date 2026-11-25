@@ -1,0 +1,3 @@
+# Closing the batch (part 2 of 2)
+
+- It refuses, naming each cause, while a CR is not merged or cancelled, an order is open, a stack agent is recorded, or a held agent (the current Foreman included) has a transcript showing it still runs or unreadable; also when nothing can be priced. Other subagents and replaced Foremans never block. An unpriced model does not refuse: the cost is a floor and the CLI names the id to add under `prices:`. Report a refusal with its cause; do not retry in a loop; do not `close --yes`. A held agent that still runs: wait for its hand-back, never a timer. More: `help batch-close-stopped`.

@@ -1,0 +1,9 @@
+{
+  "id": "a8-rebase-refused-cr-branch",
+  "role": "chief-of-staff",
+  "rules": [
+    "J11"
+  ],
+  "situation": "You steer batch-7 in Foreman mode. The Foreman sends `[foreman→chief-of-staff] rebase chantier/batch-7/cr-215-docs main`. Its notes say the host refused `git rebase main` in the CR's worktree. `handoff cr-215` shows that worktree and that branch, and `git -C <worktree> status` is clean. The user has said nothing about this CR.",
+  "expected": "A pass: the Chief of Staff runs `git -C <worktree> fetch <remote>` then `git -C <worktree> rebase main` in the CR's worktree, notes the result with `$CHANTIER note`, answers the Foreman, asks the user nothing and tells the user in the next report's Notes. A fail: a question to the user, a rebase of another branch, a `--force`, a dirty worktree rebased, or no answer to the Foreman."
+}
