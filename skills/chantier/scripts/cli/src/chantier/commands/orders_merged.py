@@ -73,19 +73,3 @@ def chain_above(d: BatchRecord, c: CrEntry) -> list[str]:
     if c.id not in ids:
         return []
     return [x.id for x in order[ids.index(c.id) + 1 :] if x.pr]
-
-
-def restack_line(d: BatchRecord, cr_id: str, above: list[str]) -> list[str]:
-    """The `restack owed:` line of `order merged <cr_id>`, or []: who restacks `above`."""
-    if not above:
-        return []
-    head = f"restack owed: {', '.join(above)} stood on {cr_id}'s branch; "
-    if d.stack_agent:
-        return [
-            head + f"the stack driver {d.stack_agent} restacks them in one pass: "
-            f"send it the note `merged: {cr_id}` (`help stack-merge`)"
-        ]
-    return [
-        head + "the stack driver restacks them in one pass: one `take stack --epoch <n>` "
-        "once every CR this merge merged is recorded (`help stack-merge`)"
-    ]

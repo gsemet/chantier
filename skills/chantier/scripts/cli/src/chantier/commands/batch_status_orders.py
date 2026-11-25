@@ -8,6 +8,7 @@ from chantier.core import leases
 from chantier.core.errors import ChantierError
 from chantier.core.records import BatchRecord, OrderRecord
 from chantier.core.repo import Repo
+from chantier.status.due import order_words
 
 
 def ended_unrecorded(repo: Repo, d: BatchRecord, agent: str | None) -> bool:
@@ -35,10 +36,9 @@ def order_lines(d: BatchRecord, repo: Repo) -> list[str]:
             lines.append(
                 head
                 + "; ".join(
-                    f"{o.id} {o.kind}{' ' + o.cr if o.cr != '-' else ''}"
-                    f"{' ' + o.note[:40] if o.note else ''}"
-                    f"{' follow-up ' + o.follow_up if o.follow_up else ''}"
-                    f"{_late_suffix(repo, o)}"
+                    order_words(o)
+                    + f"{' follow-up ' + o.follow_up if o.follow_up else ''}"
+                    + _late_suffix(repo, o)
                     for o in group
                 )
             )

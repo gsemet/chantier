@@ -28,6 +28,7 @@ from chantier.declare import (
     interests,
     journal,
     live,
+    next,
     opening,
     orders,
     park,
@@ -62,6 +63,7 @@ FULL_OUTPUT = {
     "handback",
     "cancel",
     "rules",
+    "next",  # the due list, one line each
     "host",
     "help",
     "log",
@@ -109,6 +111,7 @@ _MODULES = (
     brief,
     driver,
     access,
+    next,
     host,
     rules,
     help,
@@ -168,24 +171,35 @@ def _one_spelling_of_a_cr(args: argparse.Namespace) -> None:
         args.crs = [normalize_cr(x) for x in args.crs]
 
 
+TAIL = ("next: ", "watch: not running:")  # the last lines a cut and the writer's notes keep last
+
+
+def _tail(lines: list[str]) -> int:
+    """How many of the last two lines are a `next:` or a `watch: not running:` line."""
+    n = 0
+    while n < min(2, len(lines)) and lines[-1 - n].startswith(TAIL):
+        n += 1
+    return n
+
+
 def cut(lines: list[str]) -> list[str]:
-    """Past `MAX_LINES`, the output is cut from the end, but a last `watch: not running:` line
-    (the Chief of Staff's trigger) stays last."""
+    """Past `MAX_LINES`, the output is cut from the end, but a last `next:` line and a last
+    `watch: not running:` line (the Chief of Staff's trigger) stay last."""
     if len(lines) <= MAX_LINES:
         return lines
-    if lines[-1].startswith("watch: not running:"):
-        keep = MAX_LINES - 2
-        return [*lines[:keep], f"… {len(lines) - keep - 1} more lines", lines[-1]]
+    if tail := _tail(lines):
+        keep = MAX_LINES - 1 - tail
+        return [*lines[:keep], f"… {len(lines) - keep - tail} more lines", *lines[-tail:]]
     return [*lines[: MAX_LINES - 1], f"… {len(lines) - MAX_LINES + 1} more lines"]
 
 
 def with_notes(lines: list[str]) -> list[str]:
     """The `writer: <state>: not pushed yet (...)` lines of a command that wrote to a surface,
-    before a last `watch: not running:` line."""
+    before a last `next:` line and a last `watch: not running:` line."""
     notes = writer_lines.notes()
     if not notes:
         return lines
-    at = len(lines) - 1 if lines and lines[-1].startswith("watch: not running:") else len(lines)
+    at = len(lines) - _tail(lines)
     return [*lines[:at], *notes, *lines[at:]]
 
 

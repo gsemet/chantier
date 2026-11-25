@@ -42,7 +42,7 @@ def register(sub: Subparsers) -> None:
     s = add_command(
         sub,
         "round",
-        "chantier.commands.driver:round_",
+        "chantier.commands.next_lines:round_",
         "count a round of the CR (exit 5 past the budget or the limit); its facts",
         BATCH,
     )
@@ -77,7 +77,7 @@ def _register_record(sub: Subparsers) -> None:
     s = add_command(
         sub,
         "handback",
-        "chantier.commands.driver:handback",
+        "chantier.commands.next_lines:handback",
         "a Driver's end: ready <link> or blocked <reason>",
         BATCH,
     )

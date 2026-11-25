@@ -10,7 +10,7 @@ def register(sub: Subparsers) -> None:
     s = add_command(
         sub,
         "gate",
-        "chantier.commands.gate:gate",
+        "chantier.commands.next_lines:gate",
         "run the long gate, by the names chantier.yaml's long_gate.commands gives, in the CR "
         "worktree, as many at once as chantier.yaml's "
         "long_gate.parallel (1 by default), the others wait their turn: the next "

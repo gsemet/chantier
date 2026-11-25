@@ -226,6 +226,13 @@
   `access`: read-only, it explains why a session may or may not write the planning folder, claim
   a CR or push its branch, and changes nothing; built on the user's answer of 2026-11-20 ("tout":
   all five of Vercel Board's ideas, planning-server-Q9), with no measured cost.
+  `next`: read-only advice: the steering session's due list (`next --epoch`), a CR's next step
+  (`next <cr> --lease`) and the Chief of Staff's view (plain `next`), and the one `next:` line
+  that `round`, `gate`, `push`, `ship`, `verdict`, `handback`, `order merged` and `order done`
+  print from the same function; it records nothing, renews no lease, reads no forge, and never
+  decides a merge or a take-back (a safety step stays a refusal); built on the user's answer
+  simplify-cards-Q11 and on study-behaviour 3.5 (the Foreman's heartbeat, 37 to 64 % of its
+  weighted tokens), its measured cost.
   `brief`: writes one role's start brief (its card, the floor, its unit's facts, its host rows) in
   the git folder and prints the short prompt that points at it; it reads the record and the
   planning folder only and records nothing; built on the user's answer simplify-cards-Q22 (F1,

@@ -13,7 +13,7 @@ import pytest
 from conftest import Chantier
 
 from chantier.core.errors import EXIT_USAGE
-from chantier.core.records import BatchRecord, CrEntry, EventRecord, Lease, OrderRecord
+from chantier.core.records import AskRecord, BatchRecord, CrEntry, EventRecord, Lease, OrderRecord
 from chantier.core.repo import Repo
 from chantier.status.due import due
 from chantier.status.state_line import STATE, state_line
@@ -150,6 +150,7 @@ def event(kind: str, cr: str) -> EventRecord:
 
 
 READY = {"status": "ready", "pr": "https://github.com/o/r/pull/1"}
+ASK = AskRecord(id="A-1", text="pr-in-draft CR-1 waits", sent=PAST)
 # (the batch's fields, its CRs, the events, the due (kind, unit) list)
 DUE: list[Any] = [
     ({}, [{"status": "queued"}], [], [("take", "CR-1")]),
@@ -158,10 +159,10 @@ DUE: list[Any] = [
         {"mode": "stack"},
         [READY, READY],
         [],
-        [("take", "stack"), ("judge", "CR-1"), ("judge", "CR-2")],
+        [("take", "stack"), ("judge", "stack")],
     ),
     ({}, [READY], [event("handback", "CR-1")], [("judge", "CR-1")]),
-    ({}, [READY], [event("handback", "CR-1"), event("ask", "CR-1")], []),
+    ({"asks": [ASK]}, [READY], [event("handback", "CR-1")], []),
     ({"orders": [OrderRecord(id="O-1", kind="note")]}, [], [], [("order", "O-1")]),
     ({}, [{"status": "working", "lease": lease(PAST)}], [], [("reclaim", "CR-1")]),
     ({}, [{"status": "working", "lease": lease(FUTURE)}], [], []),
@@ -183,7 +184,9 @@ def test_each_due_kind_shows_in_due_and_in_the_state_lines_count(
     items = due(found, d, events)
     assert [(x.kind, x.unit) for x in items] == want
     if want and want[-1][0] == "reclaim":
-        assert items[-1].text.endswith("take CR-1 --reclaim ...")
+        assert items[-1].text.endswith(
+            'take CR-1 --reclaim --note "resume: lease not confirmed" --epoch 0`'
+        )
     line = state_line(found, d, events)
     assert line.endswith(f"| due {len(want)}")
     assert line.startswith(STATE.split("{batch}")[0] + BATCH)

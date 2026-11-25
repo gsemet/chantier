@@ -80,7 +80,7 @@ OPENED: dict[str, str] = {}  # the PR the scripted Driver opened for a CR
 # fails the run. A case is a function of CASES at the end of this file. `parallel`'s first case is
 # the main batch's sections; GitLab runs only the `gitlab` unit.
 UNITS = {
-    "parallel": (350, ["github"], ["scenario", "close_batch", "retro_cases"]),
+    "parallel": (380, ["github"], ["scenario", "close_batch", "retro_cases", "next_advice"]),
     "stack": (
         750,
         ["github"],
@@ -1350,7 +1350,7 @@ def scenario(w: World) -> None:
     ship(w, "CR-101", "feat: login")
     check("`ship` records the Driver's PR with its head, and nothing off",
           w.cr("CR-101")["pr"].startswith(PR_LINK[ARGS.forge]) and w.cr("CR-101")["head"]
-          and len(w.last_out) == 1, str(w.last_out))
+          and len(w.last_out) == 2 and w.last_out[1].startswith("next: "), str(w.last_out))
     (wt / "login.py").write_text("TIMEOUT_S = 31\n")
     _, out = w.chantier("ship", "CR-101", w.cr("CR-101")["pr"])
     check("`ship` reports an uncommitted change the PR does not hold",
@@ -1438,7 +1438,8 @@ def scenario(w: World) -> None:
           and "⚪ dropped" in (w.state / w.cr("CR-103")["path"] / "STATUS.md").read_text("utf-8"))
     check("the freed slot goes to CR-104", "CR-104" in fm.started)
     _, out = w.chantier("order", "done", "O-1", "--epoch", 1)
-    check("an order read twice is done once", out == ["O-1 already done"])
+    check("an order read twice is done once", out[0] == "O-1 already done"
+          and len(out) == 2 and out[1].startswith("next: "), str(out))
     _, added = prepare_cr(w, "Rate limit the login endpoint")
     _, out = w.chantier("order", "add", "--note", str(added))
     check("an added item becomes CR-105 at once", out[1] == "added CR-105, queued", str(out))
@@ -6268,7 +6269,8 @@ def push_own_branch(w: World) -> None:
           "`push` event names the branch and the head, the line says new branch",
           code == 0 and remote_tip() == [head] and len(pushes()) == 1
           and pushes()[0]["branch"] == branch and pushes()[0]["head"] == head
-          and out == [f"pushed {branch} at {head[:7]} (new branch on origin)"], str(out))
+          and out[0] == f"pushed {branch} at {head[:7]} (new branch on origin)"
+          and len(out) == 2 and out[1].startswith("next: "), str(out))
     _, out = w.chantier("ship", a, "https://example.invalid/pr/0")
     check("`ship` then prints no `not pushed` line", not any("is not pushed" in ln for ln in out),
           str(out))
@@ -6278,6 +6280,116 @@ def push_own_branch(w: World) -> None:
           code == 2 and "commit first" in w.last_stderr and len(pushes()) == 1
           and remote_tip() == [head], w.last_stderr)
     (wt / "loose.txt").unlink()
+
+
+def next_advice(w: World) -> None:
+    note("\n## 19d. `next`: the steering session's due list, and a Driver that follows `next:`")
+    items = [prepare_cr(w, f"Next {k}")[1] for k in ("one", "two")]
+    w.reset()
+    w.start(*map(str, items), "--slots", 1, "--budget", 1, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman_next", "--epoch", 1)
+    w.sync_gates()  # chantier.yaml names the long gate: the steps run it
+    one, two = (c["id"] for c in w.batch()["crs"])
+    record = [w.folder() / "batch.json", w.folder() / "events.jsonl"]
+    changed: list[str] = []
+
+    def advice(*args) -> list[str]:
+        before = [p.read_bytes() if p.exists() else None for p in record]
+        _, out = w.chantier("next", *args, lease=False)
+        after = [p.read_bytes() if p.exists() else None for p in record]
+        changed.extend(" ".join(map(str, args)) for x, y in zip(before, after) if x != y)
+        return out
+
+    out = advice("--epoch", 1)
+    check("`next --epoch` just after `open`, a slot free: one line, it names the first CR's take",
+          len(out) == 1 and out[0].startswith("due: a free slot (0 of 1 held)")
+          and out[0].endswith(f"(`take {one} --epoch 1`)"), str(out))
+    fm = Foreman(w, epoch=1)
+    fm.take(one)
+    out = advice("--epoch", 1)
+    check("every slot held, nothing else due: exactly `nothing due: wait`",
+          out == ["nothing due: wait"], str(out))
+
+    n = w.leases[unit_name(one)]
+    steps, lines, link, ended = [], [], "", ""
+    line = advice(one, "--lease", n)[0]
+    while line.startswith("next: ") and len(steps) < 10:
+        text = line.removeprefix("next: ")
+        out = None
+        if text.startswith(f"`round {one} "):
+            steps.append("round")
+            _, out = w.chantier("round", one, "--note", "edit next_one.py")
+        elif text.startswith("the round's Coder"):
+            steps.append("in-round")
+            commit(w, one, "next_one.py", "NEXT = 1\n")
+        elif text.startswith("the long gate at "):
+            steps.append("gate")
+            _, out = w.chantier("gate", one, GATE, "--lease", n)
+        elif text.startswith(f"`push {one} "):
+            steps.append("push")
+            _, out = w.chantier("push", one)
+        elif text.startswith("open the PR, then `ship"):
+            steps.append("ship")
+            body = w.at(w.cr(one)["path"]) / "work" / "pr-body.md"
+            body.parent.mkdir(exist_ok=True)
+            body.write_text(BODY.format(title=w.cr(one)["title"], cr=one))  # `open_pr` reads it
+            link = OPENED.setdefault(one, open_pr(w, one, "feat: next one"))
+            _, out = w.chantier("ship", one, link)
+        elif text.startswith("CI on "):
+            steps.append("ci")
+            w.chantier("phase", one, "verifier")
+        elif text.startswith(f"the Verifier's `verdict {one}"):
+            steps.append("verdict")
+            _, out = w.verified(one)
+        elif text.startswith(f"`handback {one} ready "):
+            steps.append("handback")
+            _, out = w.chantier("handback", one, "ready", link)
+            ended = out[-1]
+            break
+        else:
+            break
+        line = advice(one, "--lease", n)[0]
+        if out is not None:
+            lines.append((out[-1], line))
+    check("a Driver that runs only what the last `next:` line names: round, in the round, gate, "
+          "push, ship, ci, verdict, handback, with no refusal, and the CR ends ready",
+          steps == ["round", "in-round", "gate", "push", "ship", "ci", "verdict", "handback"]
+          and w.cr(one)["status"] == "ready", f"{steps} {line}")
+    check("each command's `next:` line is what `next <cr> --lease <n>` prints at that moment "
+          "(the hand-back's: send its line to the Foreman)",
+          len(lines) == 5 and all(a == b for a, b in lines)
+          and ended.startswith("next: send the hand-back line above to the Foreman"),
+          f"{lines} {ended}")
+
+    fm.take(two)
+    _, out = w.chantier("order", "note", one, "--note", "look")
+    order = re.search(r"order (O-\d+)", out[0]).group(1)
+    pr_word = "ready-to-merge" if w.cr(one).get("pr_draft") is False else "pr-in-draft"
+    out = advice("--epoch", 1)
+    check("a hand-back ready with no ask and a pending order: both, the hand-back first",
+          len(out) == 2 and out[0].startswith(f"due: {one} handed back {pr_word}, no ask yet")
+          and out[1].startswith(f"due: order {order} note {one}"), str(out))
+    w.chantier("asks", "--", pr_word, one, link)
+    out = advice("--epoch", 1)
+    check("after the ask, only the order is left", len(out) == 1
+          and out[0].startswith(f"due: order {order} "), str(out))
+    w.chantier("order", "done", order, "--epoch", 1)
+    out = advice("--epoch", 1)
+    check("after `order done`, nothing is due", out == ["nothing due: wait"], str(out))
+
+    n2 = w.leases[unit_name(two)]
+    short = {"CHANTIER_LEASE_TEST_TTL": "3", "CHANTIER_LEASE_TEST_MINUTE": "3"}  # a minute is 3 s
+    w.chantier("lease", two, "hold", "--lease", n2, "--minutes", 1, env=short)  # ends in 3 s
+    out = advice("--epoch", 1)
+    check("a live lease is never named", not any("--reclaim" in ln for ln in out), str(out))
+    wait_past(w.cr(two)["lease"]["expires"])
+    out = advice("--epoch", 1)
+    check("a lease not confirmed: `next --epoch` names its reclaim",
+          any(ln.startswith(f"due: {two}: lease not confirmed since")
+              and f"`take {two} --reclaim " in ln for ln in out), str(out))
+    check("`next` writes nothing: batch.json and events.jsonl keep their bytes across every run",
+          not changed, str(changed))
 
 
 def rails(w: World) -> None:
@@ -7137,7 +7249,8 @@ def handback_proofs(w: World) -> None:
           w.cr(cr)["status"] == "ready" and not w.cr(cr).get("blocked_reason")
           and "ready after blocked: question: x" in w.cr(cr)["notes"]
           and any(" handback " in ln and "from_blocked=question: x" in ln for ln in events)
-          and out[-1].endswith("; it was blocked: question: x"), str(out))
+          and out[-2].endswith("; it was blocked: question: x")
+          and out[-1].startswith("next: send the hand-back line above to "), str(out))
     # the user merges the PR while its Driver is still finishing
     w.chantier("agents", "set", cr, "-", "--epoch", 1)
     w.chantier("take", cr, "--epoch", 1, "--note", "answer: go")
@@ -8011,6 +8124,9 @@ def stack_batch(w: World) -> None:
           w.cr(one)["status"] == "merged" and "/3-done/" in w.cr(one)["path"]
           and (w.state / w.cr(two)["path"]).is_dir() and d["status"] == "running"
           and all(w.cr(c)["status"] == "ready" for c in (two, three, four)), str(out))
+    _, out = w.chantier("next", "--epoch", 1)
+    check("after the bottom's merge `next --epoch` holds the restack owed",
+          any(ln.startswith("due: restack owed: ") for ln in out), str(out))
     check("after the step records a merge the trigger line stays absent: a stack was made once",
           not trigger(), str(trigger()))
     _, out = w.chantier("take", "stack", "--epoch", 1)
@@ -9365,7 +9481,7 @@ def release(w: World) -> None:
     w.chantier("order", "grant", rel, "--note", "releases=0 fixes=on budget=20")
     w.chantier("handback", rel, "ready", w.cr(rel)["pr"])
     check("the release PR is prepared: `ready`, no verdict asked, and not red",
-          w.cr(rel)["status"] == "ready" and "waits for its merge" in w.last_out[-1]
+          w.cr(rel)["status"] == "ready" and "waits for its merge" in w.last_out[-2]
           and not any("🔴" in lb for lb in drawn(w, rel)[0]), str(w.last_out))
     events = [json.loads(e) for e in (w.folder() / "events.jsonl").read_text().splitlines()]
     check("the release PR, in a parallel batch, sits on the default branch",
@@ -9728,7 +9844,7 @@ def release_on_stack(w: World) -> None:
     check("6. the release PR is shipped on the top CR's branch and handed back `ready`, with "
           "no verdict; its STATUS icon is not red",
           code == 0 and [e["base"] for e in events if e["kind"] == "ship" and e["cr"] == r][-1] == top
-          and w.cr(r)["status"] == "ready" and "waits for its merge" in out[-1]
+          and w.cr(r)["status"] == "ready" and "waits for its merge" in out[-2]
           and not any(e["kind"] == "verdict" and e["cr"] == r for e in events)
           and not any("🔴" in lb for lb in drawn(w, r)[0]), str(out))
     extra = prepare_cr(w, "Late piece")[1]
@@ -12093,6 +12209,7 @@ CASES = {
     "handback_proofs": handback_proofs,
     "gate_proof": gate_proof,
     "push_own_branch": push_own_branch,
+    "next_advice": next_advice,
     "gate_next_merge": gate_next_merge,
     "gate_carry": gate_carry,
     "gate_carry_stack": gate_carry_stack,
