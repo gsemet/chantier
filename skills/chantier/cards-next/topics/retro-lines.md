@@ -1,0 +1,5 @@
+# The retro: its problems and its rules
+
+- A problem: an ask, a block, a refusal, a restarted Driver, a red gate or CI, a round past the first, cache expiries or a cost far over the others, an infrastructure failure, a command the host refused (`- [chantier] refused `<command>` (<capability>): <the row or rule to fix>`, one line per distinct command). Read `status --notes`, `events.jsonl`, the CRs' `work/` notes and `cost --explain`. An escalation takes the tag of its cause. A batch with no problem gets one untagged line saying so.
+- Never rewrite an earlier section (an untagged line of an earlier pause reads `project`). A release's own `work/retro.md` is named ("see the release retro"), not copied. The Chief of Staff offers each `project` point as an inbox item and each `chantier` point as an issue on chantier's repository.
+- An order that adds work leaves the paused batch paused: your first `take` sets it running. A batch born paused with no CR: after your claim, brief and rules, send `ready <batch>` and wait; no retro, no `final`, no `pause`.

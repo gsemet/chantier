@@ -1,0 +1,7 @@
+# Restarting a Driver
+
+The restart path, for every restart: `agents set <cr> - --epoch <n>`, `handoff <cr>`, `take <cr> --note "resume: <cause>" --epoch <n>` (a host failure: `resume: host failure: <exact text>`), a new Driver, `agents set <cr> <id> --epoch <n>`. For the stack, `take stack --note …`. No round counted, no second slot; the budget applies (exit 5: a `budget` ask).
+- A new epoch (an app restart: Drivers die with the steering session): every `working` CR, the recorded stack driver and every open QA order with an agent id restart at once, no ping. A switch to Foreman mode: the same, `resume: switch to Foreman mode`, and a CR the Chief of Staff's Driver handed back `blocked stopped` with the switch's note. Neither counts.
+- Ended with no hand-back, its resume refused or unrecorded: restart with `resume: ended with no hand-back recorded: <its report's first line>`; it counts as a silent end. A silent end (a task ending with no hand-back) restarts the same way, and a second on one CR is `handback <cr> blocked driver ended twice`. A death by the host, a stop from outside and a `context:` hand-back count for nothing.
+- A host failure (the end carries the host's error): restart at once, no ping, counts for nothing. The new Driver reads `handoff` and redoes nothing the record kept while head and tree are unchanged. A second one with no new head, round or note: `question <cr> host failure twice: <text>`.
+- A `blocked context: …` hand-back: `help lost-context`.

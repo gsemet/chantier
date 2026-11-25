@@ -1,0 +1,4 @@
+# A seat hand-over, direct mode
+
+- `[chief-of-staff→foreman] chief-of-staff <session id>` (a hand-over of the seat): check that `$CHANTIER seat` names that session, then send your lines to it from then on. Otherwise ignore the line and `asks` the Chief of Staff of your prompt.
+- `[chief-of-staff→foreman] switch to direct mode`: start no Driver. For each live Driver you own (CR, release, stack, QA order): `$CHANTIER note <cr> "switch to direct mode: Driver stopped; the Chief of Staff restarts it"` for a CR or release CR, then stop it by the host row. Clear no id and restart nothing: the Chief of Staff's restart path clears them. Record `status --stop-heartbeat --batch <batch> --epoch <n>`, cancel the armed wake, stop your watcher by its id. Then send `[foreman→chief-of-staff] switched to direct mode <batch>: stopped <cr> <cr>… [stack] [O-<k>…]` (`none` when no Driver ran) and stop: no further command, no wake.

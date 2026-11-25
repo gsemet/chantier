@@ -1,0 +1,5 @@
+# A refused force push: the gate check and the refusals
+
+Skip the gate check when `handoff` prints `ci: beside the long gate`, when the record holds the branch's PR (the early-push rule), or when the project's rules name a pipeline job as the long gate (the steering session checks that job at the PR's head; GitLab: unproved). A branch with no PR yet keeps the check. The stack driver's restack follows its own card.
+Two refusals: a covered branch that `handoff` ties to no CR of this batch, and no long gate at the local head (outside the skips). Push nothing, and take the CR back with `take <cr> --note "push: push refused <branch>: <reason>"` (`not a branch of this batch`, or `no long gate passed at <local sha>`), with no hop to the Chief of Staff and no question to the user.
+Not legitimate otherwise: push nothing; `$CHANTIER asks "<the CR>: push <branch> <expected> <local> not legitimate: <what you found>"`. The CR keeps waiting; the answer is `pushed <branch>` or `push refused <branch>: <the user's reason>`.

@@ -100,25 +100,35 @@
     },
     "lease": {
       "readings": [
-        "topics/lease.md"
+        "topics/lease.md",
+        "topics/lease-steering.md"
       ],
       "roles": [
         "cr-driver",
         "stack-driver",
         "qa-driver",
-        "release-driver"
+        "release-driver",
+        "foreman",
+        "chief-of-staff"
       ],
       "trigger": "a `--lease` refusal, `claim lost`, a lease `not confirmed`, a wait over 3 minutes"
     },
     "refused-push": {
       "readings": [
         "topics/refused-push.md",
-        "topics/refused-push-answer.md"
+        "topics/refused-push-answer.md",
+        "topics/refused-push-steering.md",
+        "topics/refused-push-judgement.md",
+        "topics/refused-push-gate.md",
+        "topics/refused-push-route.md",
+        "topics/refused-push-run.md"
       ],
       "roles": [
         "cr-driver",
         "stack-driver",
-        "release-driver"
+        "release-driver",
+        "foreman",
+        "chief-of-staff"
       ],
       "trigger": "`push <cr>` exit 4, a force push or rebase the host refuses"
     },
@@ -574,6 +584,595 @@
         "stack-driver"
       ],
       "trigger": "the local gate at the top, the stack hand-back"
+    },
+    "merge": {
+      "readings": [
+        "topics/merge.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "an `order merged`, a CR ready to merge, a merge recorded"
+    },
+    "take-back": {
+      "readings": [
+        "topics/take-back.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a CR to take back: a note, a round, a hand-back that sends it back"
+    },
+    "main-checkout": {
+      "readings": [
+        "topics/main-checkout.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "the main checkout after a merge, a sync of the checkout"
+    },
+    "sync": {
+      "readings": [
+        "topics/main-checkout.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a merge recorded, the main checkout behind"
+    },
+    "merge-under-grant": {
+      "readings": [
+        "topics/merge-under-grant.md",
+        "topics/merge-github.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "the user's grant to merge a CR or a release"
+    },
+    "long-gate": {
+      "readings": [
+        "topics/long-gate.md",
+        "topics/long-gate-waiver.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a CR that owes the long gate, a gate to run or read"
+    },
+    "local-gate": {
+      "readings": [
+        "topics/local-gate.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a ready ask, a local-gate clause, a `judge` that names it"
+    },
+    "orders": {
+      "readings": [
+        "topics/orders.md",
+        "topics/orders-queue.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "an open order of the Chief of Staff"
+    },
+    "drop": {
+      "readings": [
+        "topics/drop.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "an order that drops a CR, a dropped CR's PR"
+    },
+    "cleanup": {
+      "readings": [
+        "topics/cleanup.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "the end of a batch's last CR, a worktree to remove"
+    },
+    "chain": {
+      "readings": [
+        "topics/chain.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a CR that waits on another, a chain, an `after`"
+    },
+    "qa-order": {
+      "readings": [
+        "topics/qa-order.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a QA order of the Chief of Staff"
+    },
+    "escalation": {
+      "readings": [
+        "topics/escalation.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a model to escalate, an escalation order"
+    },
+    "lost-driver": {
+      "readings": [
+        "topics/lost-driver.md",
+        "topics/lost-silent.md",
+        "topics/lost-restart.md",
+        "topics/lost-context.md",
+        "topics/lost-outside.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a `working` CR whose Driver ended or went silent"
+    },
+    "lost-restart": {
+      "readings": [
+        "topics/lost-restart.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a Driver to restart after a loss"
+    },
+    "lost-context": {
+      "readings": [
+        "topics/lost-context.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a Driver's `blocked context:` hand-back"
+    },
+    "lost-outside": {
+      "readings": [
+        "topics/lost-outside.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a Driver stopped from outside",
+      "review_by": "0.16.0"
+    },
+    "hold": {
+      "readings": [
+        "topics/hold.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "an order to hold a CR or the batch"
+    },
+    "park": {
+      "readings": [
+        "topics/park.md",
+        "topics/park-back.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "an order to park a CR"
+    },
+    "mode-switch": {
+      "readings": [
+        "topics/mode-switch.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a switch to direct mode",
+      "review_by": "0.16.0"
+    },
+    "conflict-check": {
+      "readings": [
+        "topics/conflict-check.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a parallel batch's ready CRs with PRs: `conflicts`"
+    },
+    "release": {
+      "readings": [
+        "topics/release-take.md",
+        "topics/release-tag.md",
+        "topics/release-stale.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "the release CR to take, a tag to cut"
+    },
+    "release-take": {
+      "readings": [
+        "topics/release-take.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "the release CR to take"
+    },
+    "release-tag": {
+      "readings": [
+        "topics/release-tag.md",
+        "topics/release-stale.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a release to tag"
+    },
+    "retro": {
+      "readings": [
+        "topics/retro.md",
+        "topics/retro-lines.md",
+        "topics/retro-critic.md",
+        "topics/retro-critic-write.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "the batch's end, a retro to draft"
+    },
+    "retro-critic": {
+      "readings": [
+        "topics/retro-critic.md",
+        "topics/retro-critic-write.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a retro's critic to start"
+    },
+    "wakes": {
+      "readings": [
+        "topics/wakes.md",
+        "topics/wakes-forge.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a wake, a note, a watcher line"
+    },
+    "handover": {
+      "readings": [
+        "topics/handover.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a handover to or from another session",
+      "review_by": "0.16.0"
+    },
+    "writer-off": {
+      "readings": [
+        "topics/writer-off.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "the surface's writer not running or stopped",
+      "review_by": "0.16.0"
+    },
+    "stack": {
+      "readings": [
+        "topics/stack.md",
+        "topics/stack-outside.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a stack batch: `status` shows `shape stack`"
+    },
+    "stack-grows": {
+      "readings": [
+        "topics/stack-grows.md",
+        "topics/stack-takes.md",
+        "topics/stack-deliver.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a take of the stack, a `deliver by` note"
+    },
+    "stack-deliver": {
+      "readings": [
+        "topics/stack-deliver.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a `deliver by <time>` order note"
+    },
+    "stack-run": {
+      "readings": [
+        "topics/stack-run.md",
+        "topics/stack-asks.md",
+        "topics/stack-ends.md",
+        "topics/stack-drop.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a stack driver's hand-back or end"
+    },
+    "stack-drop": {
+      "readings": [
+        "topics/stack-drop.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a drop or a heavy CI in a stack"
+    },
+    "stack-checks": {
+      "readings": [
+        "topics/stack-checks.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "the stack on the forge to check"
+    },
+    "stack-merge": {
+      "readings": [
+        "topics/stack-merge.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a merge recorded in a stack batch"
+    },
+    "refused-answer": {
+      "readings": [
+        "topics/refused-answer.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "the answer to a refused push or rebase"
+    },
+    "refused-rebase": {
+      "readings": [
+        "topics/refused-rebase.md",
+        "topics/refused-rebase-run.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a Driver's `rebase <branch> <base>` line"
+    },
+    "refused-push-judgement": {
+      "readings": [
+        "topics/refused-push-judgement.md",
+        "topics/refused-push-gate.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a refused force push to judge"
+    },
+    "refused-push-route": {
+      "readings": [
+        "topics/refused-push-route.md",
+        "topics/refused-push-run.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a legitimate refused force push to run"
+    },
+    "stack-asks": {
+      "readings": [
+        "topics/stack-asks.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a stack driver's `hand-back ready to merge <stack link>`"
+    },
+    "stack-ends": {
+      "readings": [
+        "topics/stack-ends.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a stack driver ended: blocked context, a local gate failed, a conflict"
+    },
+    "wakes-forge": {
+      "readings": [
+        "topics/wakes-forge.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a `forge saw …` line, a `checks red` line"
+    },
+    "refused-push-run": {
+      "readings": [
+        "topics/refused-push-run.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a refused push judged legitimate, to run"
+    },
+    "refused-push-gate": {
+      "readings": [
+        "topics/refused-push-gate.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a refused push: the gate check, a push not legitimate"
+    },
+    "retro-lines": {
+      "readings": [
+        "topics/retro-lines.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "the retro section to write: its points and tags"
+    },
+    "retro-critic-write": {
+      "readings": [
+        "topics/retro-critic-write.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a retro critic's verdicts to write"
+    },
+    "stack-takes": {
+      "readings": [
+        "topics/stack-takes.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a working CR placed on another, the final-order take"
+    },
+    "lost-silent": {
+      "readings": [
+        "topics/lost-silent.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a Driver with no pong, or ended with no hand-back recorded"
+    },
+    "stack-outside": {
+      "readings": [
+        "topics/stack-outside.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "`--outside-stack`, a ready CR refused behind a draft, a `shape:` note"
+    },
+    "refused-rebase-run": {
+      "readings": [
+        "topics/refused-rebase-run.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a refused rebase judged legitimate, to run"
+    },
+    "release-stale": {
+      "readings": [
+        "topics/release-stale.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a release CR waiting, stale or with a defect found"
+    },
+    "long-gate-waiver": {
+      "readings": [
+        "topics/long-gate-waiver.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "`long gate waived (O-<k>)` in a hand-back"
+    },
+    "orders-queue": {
+      "readings": [
+        "topics/orders-queue.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a queued CR that waits, an order that adds work"
+    },
+    "merge-github": {
+      "readings": [
+        "topics/merge-github.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a merge on GitHub of a PR in a native stack"
+    },
+    "park-back": {
+      "readings": [
+        "topics/park-back.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a parked CR back, or dropped with dependents"
     }
   }
 }

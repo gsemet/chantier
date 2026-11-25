@@ -1,0 +1,6 @@
+# An early conflict check
+
+Parallel batch only: in a series or stack batch the PRs sit on one another, and a conflict is the stack driver's `anomaly <cr> conflict: …`. When a CR is handed back `ready` with a PR (`hand-back ready to merge <link>` or `PR in draft <link>`) and another CR is `ready` with an unmerged PR on the default branch, run once per such hand-back, after that CR's own ask went up unchanged: `$CHANTIER conflicts <cr> --epoch <n>`. A hand-back after a `take <cr> --note` is checked again.
+- The command runs the pairs (the CR against each other ready CR with a PR on the default branch; a chained or already noted pair is skipped), notes each conflicting pair on the CR (`early conflict: with <other cr>: <paths>`), notes a pair it could not run (`early conflict check: not run against <other cr>: <why>`), and prints one `next: asks "conflict <new cr> with <other cr>[, <other cr>…]: <paths>; switch to a stack?"`. Send that ask once, each CR by number and slug. It holds no other proposal.
+- It stops no Driver, sends no `take` or note to a Driver and never switches the mode: only the Chief of Staff's `order mode --note stack` does (`help mode-switch`). The stack driver then rebases the later CR onto the earlier on the `anomaly <cr> conflict: stacked on <cr>: <files>` route.
+- On a real GitLab, the stack it may lead to is unproved.
