@@ -58,7 +58,8 @@ def check_slot(d: BatchRecord, what: str) -> None:
     if not slot_free(d):
         raise ChantierError(
             f"no free slot for {what}: {len(held(d))} of {d.slots} held "
-            f"({', '.join(held(d)) or 'slots 0'})"
+            f"({', '.join(held(d)) or 'slots 0'}); it waits for a hand-back, "
+            "or for an `order slots` from the Chief of Staff"
         )
 
 
@@ -246,12 +247,14 @@ def check_take(d: BatchRecord, c: CrEntry, note: str | None) -> None:
     if c.status in {"ready", "blocked"} and not note:
         raise ChantierError(
             f"{c.id} is {c.status}: a Driver takes it back only with "
-            "`--note` saying why (an answer, a change, a rebase, a red check)"
+            "`--note` saying why (an answer, a change, a rebase, a red check): "
+            f'`take {c.id} --note "<why>" --epoch <n>`'
         )
     if c.status == "working" and not note:
         raise ChantierError(
             f"{c.id} is working: a new Driver resumes it only with `--note` "
-            "saying why (resume: <cause>)"
+            "saying why (resume: <cause>): "
+            f'`take {c.id} --note "resume: <cause>" --epoch <n>`'
         )
     if c.agent:  # one Driver per CR: the recorded one must have ended first
         raise ChantierError(

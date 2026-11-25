@@ -92,6 +92,7 @@ def test_a_guarded_command_needs_the_lease_and_a_stale_one_is_lost(
     argv = [command, *rest.format(cr=one).split()]
     code, _, err = chantier.bare(*argv)
     assert code == EXIT_PRECONDITION and f"{command} " in err and "needs --lease <n>" in err
+    assert f"`lease {one}` prints it" in err
     if command == "ship":
         return
     at(11)

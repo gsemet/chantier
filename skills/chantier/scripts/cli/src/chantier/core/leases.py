@@ -82,11 +82,15 @@ def lease_of(d: BatchRecord, unit: str) -> Lease | None:
     if is_order(unit):
         o = next((x for x in d.orders if x.id == unit), None)
         if o is None:
-            raise ChantierError(f"unknown order {unit}", EXIT_USAGE)
+            raise ChantierError(
+                f"unknown order {unit}: `status` shows the batch's CRs and orders", EXIT_USAGE
+            )
         return o.lease
     c = next((x for x in d.crs if x.id == unit), None)
     if c is None:
-        raise ChantierError(f"unknown CR {unit}", EXIT_USAGE)
+        raise ChantierError(
+            f"unknown CR {unit}: `status` shows the batch's CRs and orders", EXIT_USAGE
+        )
     return c.lease
 
 
@@ -291,7 +295,7 @@ def require(  # noqa: PLR0913 - the record, the unit and the command's words
     held = lease_of(d, unit)
     if number is None and held is not None and not (ended_ok and held.ended):
         raise ChantierError(
-            f"{what} needs --lease <n> (the number take printed)"
+            f"{what} needs --lease <n> (the number take printed); `lease {unit}` prints it"
             + (_late_ship_tail(repo, unit, held) if ended_ok else ""),
             EXIT_PRECONDITION,
         )
@@ -337,7 +341,7 @@ def claim(  # noqa: PLR0913 - the keywords say what each is
     if number is None:
         if required and not (ended_ok and lease.ended):
             raise ChantierError(
-                f"{what} needs --lease <n> (the number take printed)"
+                f"{what} needs --lease <n> (the number take printed); `lease {unit}` prints it"
                 + (_late_ship_tail(b.repo, unit, lease) if ended_ok else ""),
                 EXIT_PRECONDITION,
             )

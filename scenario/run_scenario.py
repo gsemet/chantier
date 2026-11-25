@@ -5427,7 +5427,7 @@ def close_refusals(w: World) -> None:
                "up to now): ")
 
     # the transcripts' ends, never their ages (the files are just written, or aged 10 minutes)
-    hint = "close --stopped <name> for each"
+    hint = "`close --stopped <name>` for each"
     foreman_kept = main.read_text()
     main.write_text(foreman_kept + call_line("Bash"))
     age_sessions(w)

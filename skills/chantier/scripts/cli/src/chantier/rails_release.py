@@ -115,7 +115,9 @@ def check_granted_fix(b: Batch, c: CrEntry) -> None:
     check_budget(b.record)
     if sum(x.fix_for == c.id for x in b.record.crs) >= MAX_GRANTED_FIXES:
         raise ChantierError(
-            f"{MAX_GRANTED_FIXES} fixes under the grant: another one is the user's go", EXIT_BUDGET
+            f"{MAX_GRANTED_FIXES} fixes under the grant: another one is the user's go "
+            f"(`order add --fix-for {c.id}`)",
+            EXIT_BUDGET,
         )
 
 
@@ -135,9 +137,16 @@ def parse_grant(text: str) -> dict[str, Any]:
         elif key == "budget" and re.fullmatch(r"\d+(\.\d+)?", value) and float(value) > 0:
             grant["budget_usd"] = float(value)
         else:
-            raise ChantierError(f"grant: `{GRANT}`, any of them; not {word!r}", EXIT_USAGE)
+            raise ChantierError(
+                f"grant: `{GRANT}`, any of them; not {word!r}; "
+                '`order grant <release-cr> --note "<them>"` sets them',
+                EXIT_USAGE,
+            )
     if not grant:
-        raise ChantierError(f"grant: `{GRANT}`, any of them", EXIT_USAGE)
+        raise ChantierError(
+            f'grant: `{GRANT}`, any of them; `order grant <release-cr> --note "<them>"` sets them',
+            EXIT_USAGE,
+        )
     return grant
 
 
@@ -190,7 +199,7 @@ def check_shape(d: BatchRecord, text: str, outside_stack: str | None) -> str | N
         if hit is None:
             raise ChantierError(
                 "--outside-stack is only for a per-CR ready-to-merge ask that the stack guard "
-                "refuses",
+                'refuses; without it: `asks "<text>"`',
                 EXIT_USAGE,
             )
         m = re.match(r"(O-\d+): \S", outside_stack)
@@ -203,7 +212,8 @@ def check_shape(d: BatchRecord, text: str, outside_stack: str | None) -> str | N
         ):
             raise ChantierError(
                 f'--outside-stack needs a reason "O-<k>: <why>" naming an open order on '
-                f"{hit[0]} that carries the user's word",
+                f"{hit[0]} that carries the user's word: "
+                f'`asks "ready-to-merge {hit[0]}" --outside-stack "O-<k>: <why>"`',
                 EXIT_USAGE,
             )
         return outside_stack

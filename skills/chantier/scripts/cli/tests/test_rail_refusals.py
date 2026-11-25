@@ -101,7 +101,7 @@ def test_slots_zero_holds_and_a_spent_budget_stops_the_next_driver_until_it_is_r
     repo, chantier, (_, two) = rails
     chantier("order", "slots", "--note", "0")
     code, _, err = chantier("take", two, "--epoch", 1)
-    assert code == EXIT_PRECONDITION and "no free slot" in err
+    assert code == EXIT_PRECONDITION and "no free slot" in err and "`order slots`" in err
     code, _, err = chantier("order", "slots", "--note", "none")
     assert code == EXIT_USAGE and "0 holds" in err
     with pytest.raises(SystemExit) as stopped:  # `land` is no longer a command
@@ -128,6 +128,7 @@ def test_a_ready_cr_goes_back_to_a_driver_only_with_a_note_and_cancel_needs_the_
     write_record(repo, data)
     code, _, err = chantier("take", one, "--epoch", 1)
     assert code == EXIT_PRECONDITION and "only with `--note`" in err
+    assert f"`take {one} --note" in err
     code, _, _ = chantier(
         "take", one, "--note", "rebase: main moved; the PR no longer merges", "--epoch", 1
     )
