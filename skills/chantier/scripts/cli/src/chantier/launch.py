@@ -1,15 +1,37 @@
 """The launch text of the CLI and the allow rule text that covers it: one source for what the
 agents type and what P10 recommends (`plugin_files` picks the form by the mode: the install and
-the session's project)."""
+the session's project). Standard library only: the plugin's launcher (`launcher.py`) imports it
+before any dependency is installed."""
 
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from chantier.core.repo import Repo
+
+LAUNCHER = Path("skills/chantier/scripts/chantier.py")  # the launcher, from the plugin root
+
+
+def _manifest_names_chantier(root: Path) -> bool:
+    """Whether `root` holds a plugin manifest (`.claude-plugin/plugin.json` or
+    `.github/plugin/plugin.json`) whose `name` is `chantier`; one that cannot be read or parsed
+    does not."""
+    for manifest in (
+        root / ".claude-plugin" / "plugin.json",
+        root / ".github" / "plugin" / "plugin.json",
+    ):
+        try:
+            data = json.loads(manifest.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(data, dict) and data.get("name") == "chantier":
+            return True
+    return False
 
 
 def is_chantier_project(repo: Repo | None) -> bool:
@@ -22,17 +44,79 @@ def is_chantier_project(repo: Repo | None) -> bool:
         return False
     if repo.external:
         return repo.project_folder.name == "chantier"
-    for manifest in (
-        repo.root / ".claude-plugin" / "plugin.json",
-        repo.root / ".github" / "plugin" / "plugin.json",
-    ):
-        try:
-            data = json.loads(manifest.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            continue
-        if isinstance(data, dict) and data.get("name") == "chantier":
-            return True
-    return False
+    return _manifest_names_chantier(repo.root)
+
+
+def _git_out(cwd: Path, *args: str) -> str | None:
+    """A read-only git call's output, stripped; None when it fails or prints nothing."""
+    try:
+        done = subprocess.run(
+            ["git", *args],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+    except OSError:
+        return None
+    out = done.stdout.strip()
+    return out if done.returncode == 0 and out else None
+
+
+def _surface_projects(root: Path) -> list[str]:
+    """The projects of a planning surface at `root` (as `core.repo.surface_projects`): the folders
+    of `projects/` that hold `checkout.yml` or `changes/`."""
+    base = root / "projects"
+    if not base.is_dir():
+        return []
+    return sorted(
+        d.name for d in base.iterdir() if (d / "checkout.yml").is_file() or (d / "changes").is_dir()
+    )
+
+
+def session_project(cwd: Path, project: str | None) -> tuple[bool, Path | None]:
+    """The launcher's reading of the session's project, with no `Repo`: whether it is chantier
+    (what `is_chantier_project(Repo.find(cwd, project))` answers) and the project's folder in a
+    planning surface (None in-project, or when no single project is found). `CHANTIER_ROOT`, when
+    set, replaces `cwd`, as in `Repo.find`. Read-only git calls only."""
+    cwd = Path(os.environ.get("CHANTIER_ROOT") or cwd)
+    if project:
+        folder = Path(project).expanduser()
+        if not folder.is_absolute():
+            if len(folder.parts) == 1:  # a bare name, in the surface the session is in
+                top = _git_out(cwd, "rev-parse", "--show-toplevel")
+                folder = Path(top or cwd) / "projects" / folder
+            else:
+                folder = cwd / folder
+        folder = folder.resolve()
+        return folder.name == "chantier", folder
+    common = _git_out(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    if common is None:
+        return False, None
+    root = Path(common).resolve().parent
+    names = [] if (root / ".agents" / "changes").is_dir() else _surface_projects(root)
+    if len(names) > 1:  # the CLI refuses with its `--project` line
+        return False, None
+    if names:
+        return names[0] == "chantier", (root / "projects" / names[0]).resolve()
+    return _manifest_names_chantier(root), None
+
+
+def project_is_chantier(cwd: Path, project: str | None) -> bool:
+    """The launcher's half of the mode rule: whether the session's project, from the working
+    folder `cwd` and the `--project` value, is chantier (see `session_project`)."""
+    return session_project(cwd, project)[0]
+
+
+def launcher_line(root: Path) -> str:
+    """The launcher's form, `uv run --script "<root>/skills/chantier/scripts/chantier.py"`."""
+    return f'uv run --script "{(root / LAUNCHER).as_posix()}"'
+
+
+def launcher_rule(root: Path) -> str:
+    """The allow rule text of the launcher, `uv run --script "<launcher>" *`."""
+    return f"{launcher_line(root)} *"
 
 
 def plugin_launch(root: Path, skill: Path) -> str:

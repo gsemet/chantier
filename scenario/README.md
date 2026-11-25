@@ -91,6 +91,12 @@ does a unit that is not in `UNITS` and a test that does not exist.
   with home:, count: and why not code:, a red gate named; nothing written without `--write`;
   `--write` appends after the author's text once and is refused when a draft section exists
   (test: test_retro_draft.py::test_points_are_drafted_whole_from_the_events).
+- the plugin's launcher (`skills/chantier/scripts/chantier.py`), run for real with
+  `uv run --script` and `UV_OFFLINE=1`: `--print` in the sandbox equals the `cli:` fact's form;
+  `--project <surface>/projects/chantier --version` runs the dev form; `--sync` in the sandbox
+  prints the plugin mode's line; the checkout's `.venv` unchanged across the calls; the mode
+  matches the CLI's rule on every cell (unit: parallel)
+  (test: test_launcher.py::test_the_mode_matches_the_cli_rule_and_the_print_and_the_run_keep_the_form).
 - help topics: `help lease` prints a topic whole with no batch; every topic resolves on both hosts
   and every topic a CLI line names exists in pytest (unit: parallel)
   (test: test_help_topics.py::test_every_topic_resolves_on_both_hosts).

@@ -80,7 +80,8 @@ OPENED: dict[str, str] = {}  # the PR the scripted Driver opened for a CR
 # fails the run. A case is a function of CASES at the end of this file. `parallel`'s first case is
 # the main batch's sections; GitLab runs only the `gitlab` unit.
 UNITS = {
-    "parallel": (380, ["github"], ["scenario", "close_batch", "retro_cases", "next_advice"]),
+    "parallel": (380, ["github"], ["scenario", "close_batch", "retro_cases", "next_advice",
+                                   "launcher_modes"]),
     "stack": (
         750,
         ["github"],
@@ -12322,7 +12323,62 @@ def gitlab_ship_merge(w: World) -> None:
     w.reset()
 
 
+def launcher_modes(w: World) -> None:
+    note("\n## 19e. The plugin's launcher, run for real with `uv run --script`, offline")
+    checkout = HERE.parent
+    script = SKILL / "scripts" / "chantier.py"
+    venv = checkout / ".venv"
+    cfg = venv / "pyvenv.cfg"
+
+    def venv_state() -> tuple[int, list[str]] | None:
+        return (cfg.stat().st_mtime_ns, sorted(os.listdir(venv))) if cfg.is_file() else None
+
+    env = {**w.env, "UV_OFFLINE": "1"}
+    env.pop("VIRTUAL_ENV", None)
+
+    def launch(*args: str) -> tuple[int, list[str], str]:
+        p = subprocess.run(["uv", "run", "--script", str(script), *args], cwd=w.work, env=env,
+                           capture_output=True, text=True, encoding="utf-8")
+        note(f"    $ uv run --script <launcher> {' '.join(args)}  → exit {p.returncode}")
+        for ln in p.stdout.strip().splitlines():
+            note(f"      {ln}")
+        return p.returncode, p.stdout.strip().splitlines(), p.stderr.strip()
+
+    before = venv_state()
+    fact = subprocess.run(
+        [sys.executable, "-c", "from chantier.core.repo import Repo; from chantier.plugin_files "
+         "import cli_command; print(cli_command(Repo.find(readonly=True)))"],
+        cwd=w.work, env=w.env, capture_output=True, text=True, encoding="utf-8")
+    code, out, err = launch("--print")
+    check("the launcher's `--print` in the sandbox project (not chantier) is the `cli:` fact's form, "
+          "the plugin form from the checkout",
+          code == 0 and out == [fact.stdout.strip()] and out[0].startswith("uvx --from "),
+          f"{out} {fact.stdout.strip()} {err[:200]}")
+    surface = w.root / "launcher-surface"
+    w.sh("git", "init", "--quiet", str(surface), cwd=w.root)
+    (surface / "projects" / "chantier" / "changes").mkdir(parents=True)
+    version = re.search(r'__version__ = "([^"]+)"',
+                        (SKILL / "scripts" / "cli" / "src" / "chantier" / "__init__.py")
+                        .read_text(encoding="utf-8"))
+    project = str(surface / "projects" / "chantier")
+    code, form, _ = launch("--print", "--project", project)
+    code2, out, err = launch("--project", project, "--version")
+    check("with `--project <surface>/projects/chantier` the launcher runs the dev form and `--version` "
+          "prints the version, exit 0",
+          code == 0 and bool(form) and form[0].startswith("uv run --no-sync --project ")
+          and code2 == 0 and version is not None and out == [f"chantier {version[1]}"],
+          f"{form} {out} {err[:300]}")
+    code, out, err = launch("--sync")
+    check("in the sandbox, `--sync` prints the plugin mode's line and runs nothing, exit 0",
+          code == 0 and out == ["plugin mode: no sync (only chantier's own checkout syncs)"],
+          f"{out} {err[:200]}")
+    after = venv_state()
+    check("the checkout's `.venv` is unchanged across the launcher's calls (it runs from uv's own "
+          "environment)", before is not None and before == after, f"{before} {after}")
+
+
 CASES = {
+    "launcher_modes": launcher_modes,
     "scenario": scenario,
     "close_batch": close_batch,
     "retro_cases": retro_cases,
