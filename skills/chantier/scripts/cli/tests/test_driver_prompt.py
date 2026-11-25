@@ -82,7 +82,7 @@ def _check_rewrites(out: list[str], block: list[str], which: str) -> None:
     else:
         assert len(rewrites) == 1 and block[rewrites[0] + 1].startswith("  Steering: ")
         line = block[rewrites[0]]
-        assert "--force-with-lease" in line and "pre-authorized by the playbook" in line
+        assert "--force-with-lease" not in line and "pre-authorized by the playbook" in line
         assert "never the default branch" in line and "rebase --exec" in line
         assert (block[rewrites[0] - 1].startswith("  writes:")) == (which == "change")
         if which != "stack":
@@ -91,10 +91,14 @@ def _check_rewrites(out: list[str], block: list[str], which: str) -> None:
             branch, base = rest.split(" base ")
             base = base.split(";")[0]
             assert f"git -C {path} rebase {base}, then" in line
-            assert f"push --force-with-lease -u origin {branch}, one command each" in line
+            cr = next(ln for ln in out if ln.startswith("took ")).split()[1]
+            assert f"then $CHANTIER push {cr} --lease <n>, one command each" in line
+            assert "--unit stack" not in line
             assert f"({branch})" in line
         else:
             assert "each CR branch of the stack listed above (chantier/*)" in line
+            assert "then $CHANTIER push <cr> --lease <n> --unit stack, one command per" in line
+            assert "git -C <worktree> rebase <base>, then" in line
 
 
 @pytest.mark.parametrize("which", ["change", "release", "stack", "qa"])

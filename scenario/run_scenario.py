@@ -111,6 +111,7 @@ UNITS = {
             "gate_next_merge",
             "gate_carry",
             "gate_carry_stack",
+            "push_own_branch",
         ],
     ),
     "series-deps": (380, ["github"], ["batch_modes", "dependencies", "early_conflict",
@@ -124,7 +125,8 @@ UNITS = {
          "external_surface", "surface_writer", "cr_summary"],
     ),
     "qa-driver": (255, ["github"], ["lost_messages", "qa_on_head", "driver_liveness", "restore_cr"]),
-    "gitlab": (115, ["gitlab"], ["gitlab_ship_merge", "forge_stack_cli", "typed_waits"]),
+    "gitlab": (130, ["gitlab"], ["gitlab_ship_merge", "forge_stack_cli", "typed_waits",
+                                 "push_own_branch"]),
 }
 JOBS = 4  # units run at once, by default
 HANG_FLOOR_S = 600  # a unit is hung past max(this, 4 times its budget)
@@ -289,7 +291,8 @@ def check_driver_skeleton(w, target: str, out: list[str]) -> None:
         bool(branch)
         and len(rewrites) == 1
         and f"({branch})" in rewrites[0]
-        and "--force-with-lease" in rewrites[0]
+        and "$CHANTIER push " in rewrites[0]
+        and " --lease <n>, one command each" in rewrites[0]
         and bool(writes)
         and block.index(writes[0]) + 1 == block.index(rewrites[0])
         and block[block.index(rewrites[0]) + 1].startswith("  Steering: "),
@@ -461,7 +464,7 @@ class World:
         words = self.words(args)
         if not words or "--epoch" in words or "--lease" in words or "--reclaim" in words:
             return None
-        if words[0] in ("round", "ship", "handback") and len(words) > 1:
+        if words[0] in ("round", "ship", "handback", "push") and len(words) > 1:
             return unit_name(words[1])
         if words[0] == "release" and len(words) > 2 and words[1] in ("start", "go", "published"):
             return unit_name(words[2])
@@ -6167,6 +6170,46 @@ def stop_own_gate(w: World) -> None:
           str(w.last_out))
     w.chantier("gate", two, "--stop")
     other.communicate(timeout=120)
+
+
+def push_own_branch(w: World) -> None:
+    note("\n## 19c. `push`: the Driver publishes its own branch through the CLI")
+    items = [prepare_cr(w, "Push own")[1]]
+    w.reset()
+    w.start(*map(str, items), "--slots", 1, "--budget", 1, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman_push", "--epoch", 1)
+    Foreman(w, epoch=1).turn()
+    (a,) = (x["id"] for x in w.batch()["crs"])
+    wt = Path(w.cr(a)["worktree"])
+    branch = w.cr(a)["branch"]
+
+    def pushes():
+        found = [json.loads(ln) for ln in (w.folder() / "events.jsonl").read_text("utf-8").splitlines()]
+        return [e for e in found if e["kind"] == "push" and e["cr"] == a]
+
+    def remote_tip():
+        return w.sh("git", "ls-remote", "origin", f"refs/heads/{branch}", cwd=wt).split()[:1]
+
+    commit(w, a, "push_one.py", "ONE = 1\n")
+    w.sh("git", "fetch", "--quiet", "origin", cwd=wt)
+    w.sh("git", "rebase", "--quiet", "origin/main", cwd=wt)
+    head = w.sh("git", "rev-parse", "HEAD", cwd=wt)
+    code, out = w.chantier("push", a)
+    check("`push` of the CR's own branch after a rebase pushes it: the remote holds the head, one "
+          "`push` event names the branch and the head, the line says new branch",
+          code == 0 and remote_tip() == [head] and len(pushes()) == 1
+          and pushes()[0]["branch"] == branch and pushes()[0]["head"] == head
+          and out == [f"pushed {branch} at {head[:7]} (new branch on origin)"], str(out))
+    _, out = w.chantier("ship", a, "https://example.invalid/pr/0")
+    check("`ship` then prints no `not pushed` line", not any("is not pushed" in ln for ln in out),
+          str(out))
+    (wt / "loose.txt").write_text("loose\n")
+    code, _ = w.chantier("push", a, expect=None)
+    check("`push` from a dirty worktree is refused (exit 2), runs no push and records nothing",
+          code == 2 and "commit first" in w.last_stderr and len(pushes()) == 1
+          and remote_tip() == [head], w.last_stderr)
+    (wt / "loose.txt").unlink()
 
 
 def rails(w: World) -> None:
@@ -11981,6 +12024,7 @@ CASES = {
     "stop_own_gate": stop_own_gate,
     "handback_proofs": handback_proofs,
     "gate_proof": gate_proof,
+    "push_own_branch": push_own_branch,
     "gate_next_merge": gate_next_merge,
     "gate_carry": gate_carry,
     "gate_carry_stack": gate_carry_stack,

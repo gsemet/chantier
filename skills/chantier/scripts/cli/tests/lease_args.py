@@ -7,13 +7,15 @@ import re
 
 from chantier.core.ids import normalize_cr
 
-GUARDED = ("round", "handback", "ship")
+GUARDED = ("round", "handback", "ship", "push")
 
 
 def _unit(argv: list[str]) -> str | None:
     """The unit a lease-guarded command works on, None for any other command."""
     cmd = argv[0] if argv else ""
     rest = [a for a in argv[1:] if not a.startswith("-")]
+    if cmd == "push" and "--unit" in argv:
+        return argv[argv.index("--unit") + 1]
     if cmd in GUARDED and rest:
         return normalize_cr(rest[0])
     if cmd == "release" and len(rest) > 1:

@@ -218,6 +218,8 @@ def test_gate_and_a_read_only_profile_are_refused_and_stdin_goes_for_a_journal_a
 ) -> None:
     _login(_project(repo))
     assert chantier("gate", "CR-1", "scenario")[0] == 1 and server.calls == []
+    code, _, err = chantier("push", "CR-1", "--lease", "1")
+    assert code == 1 and "not through a profile" in err and server.calls == []
     monkeypatch.setattr(sys, "stdin", type("S", (), {"buffer": _Bytes(b'{"a": 1}')})())
     chantier("journal", "add", "issue@1", "--json", "-")
     assert server.calls[-1][2]["stdin"] == '{"a": 1}'
@@ -280,6 +282,7 @@ def test_a_command_run_by_the_server_runs_here_with_no_loop(
         ({"argv": ["serve"]}, BAD_ARGS),
         ({"argv": ["watch"]}, BAD_ARGS),
         ({"argv": ["login", "x"]}, BAD_ARGS),
+        ({"argv": ["push", "CR-1", "--lease", "1"]}, BAD_ARGS),
         ({"argv": ["status", "--proj=x"]}, BAD_ARGS),
         ({"argv": ["--sk=y", "status"]}, BAD_ARGS),
         ({"argv": ["status"], "env": {"PATH": "x"}}, BAD_ARGS),

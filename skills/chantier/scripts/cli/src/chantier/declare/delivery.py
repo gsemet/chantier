@@ -38,6 +38,8 @@ def register(sub: Subparsers) -> None:
     )
     add_lease(s, required=True)
 
+    _push_command(sub)
+
     s = add_command(
         sub,
         "stack",
@@ -46,6 +48,28 @@ def register(sub: Subparsers) -> None:
         BATCH,
     )
     _stack_arguments(s)
+    add_lease(s, required=True)
+
+
+def _push_command(sub: Subparsers) -> None:
+    """`push`: the CR's own branch, through the CLI."""
+    s = add_command(
+        sub,
+        "push",
+        "chantier.commands.push:push",
+        "push the CR's own recorded `chantier/*` branch from its worktree with `git push "
+        "--force-with-lease`: chantier's own update of the CR's branch after a rebase, declared "
+        "legitimate by this command, with the lease held; never another branch, never "
+        "`--force`, never `--no-verify`, no forge call",
+        BATCH,
+    )
+    s.add_argument("cr")
+    s.add_argument(
+        "--unit",
+        metavar="stack|O-k",
+        help="whose lease the push holds: none, the CR's own; `stack`, the stack's (a CR of a "
+        "stack batch's chain); `O-k`, a QA order of this CR",
+    )
     add_lease(s, required=True)
 
 

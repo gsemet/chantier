@@ -22,7 +22,7 @@ VIA_SERVER = "CHANTIER_VIA_SERVER"
 TAKEN_OVER = ("--profile", "--project", "--skill")
 # Commands that run where they are typed, whatever the profile: they never reach the server, and
 # the server refuses them.
-NEVER_REMOTE = ("serve", "watch", "webui", "live", "login", "logout", "gate")
+NEVER_REMOTE = ("serve", "watch", "webui", "live", "login", "logout", "gate", "push")
 
 
 def options_of(parser: argparse.ArgumentParser, cmd: str | None) -> list[str]:

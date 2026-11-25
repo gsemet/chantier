@@ -174,7 +174,8 @@ def _off_worktree(repo: Repo, c: CrEntry, wt: Path, head: str) -> list[str]:
     if pushed != head:
         where_ = "not pushed" if not pushed else "at " + pushed[:7]
         off.append(
-            f"{ref} is {where_}, not this head: push with --force-with-lease, then ship again"
+            f"{ref} is {where_}, not this head: push it with chantier push {c.id} --lease <n>, "
+            "then ship again"
         )
     return off
 
