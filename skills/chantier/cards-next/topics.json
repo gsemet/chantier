@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "paths": "relative to this folder (cards-next/); a reading: a topics/<name>.md file, or file#heading (a level-2 heading of that file)",
+  "topics": {
+    "worker-shell": {
+      "readings": [
+        "topics/worker-shell.md"
+      ],
+      "roles": [
+        "coder",
+        "conflict-resolver",
+        "debugger",
+        "investigator",
+        "verifier",
+        "demo-explorer",
+        "inspector"
+      ],
+      "trigger": "a shell call that chains, assigns or waits; a file write",
+      "review_by": "0.16.0"
+    },
+    "verifier-scratch": {
+      "readings": [
+        "topics/verifier-scratch.md"
+      ],
+      "roles": [
+        "verifier"
+      ],
+      "trigger": "a scratch project to make; a path too long for Windows",
+      "review_by": "0.16.0"
+    },
+    "verifier-description": {
+      "readings": [
+        "topics/verifier-description.md"
+      ],
+      "roles": [
+        "verifier"
+      ],
+      "trigger": "a PR description to check",
+      "review_by": "0.16.0"
+    },
+    "verifier-review-box": {
+      "readings": [
+        "topics/verifier-review-box.md"
+      ],
+      "roles": [
+        "verifier"
+      ],
+      "trigger": "a Review box to judge",
+      "review_by": "0.16.0"
+    },
+    "verifier-delta-matrix": {
+      "readings": [
+        "topics/verifier-delta-matrix.md"
+      ],
+      "roles": [
+        "verifier"
+      ],
+      "trigger": "a move after a judgment; `matrix probe`",
+      "review_by": "0.16.0"
+    },
+    "verifier-before-after": {
+      "readings": [
+        "topics/verifier-before-after.md"
+      ],
+      "roles": [
+        "verifier"
+      ],
+      "trigger": "a before and after to capture",
+      "review_by": "0.16.0"
+    },
+    "verifier-images": {
+      "readings": [
+        "topics/verifier-images.md"
+      ],
+      "roles": [
+        "verifier"
+      ],
+      "trigger": "a screenshot or video to check",
+      "review_by": "0.16.0"
+    },
+    "inspector-audit": {
+      "readings": [
+        "topics/inspector-audit.md"
+      ],
+      "roles": [
+        "inspector"
+      ],
+      "trigger": "a CR's round: `pr-body.md`, a matrix, a carry",
+      "review_by": "0.16.0"
+    },
+    "spec-writer-extras": {
+      "readings": [
+        "topics/spec-writer-extras.md"
+      ],
+      "roles": [
+        "spec-writer"
+      ],
+      "trigger": "a CI job added or changed, a host or default matrix, an `issue:` line, a prepared-text check",
+      "review_by": "0.16.0"
+    }
+  }
+}
