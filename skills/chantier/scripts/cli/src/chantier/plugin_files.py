@@ -171,7 +171,7 @@ def _agent_files(host: str) -> tuple[Path | None, list[Path]]:
 
 def plugin_roles(host: str) -> list[str]:
     """The roles of the plugin's agents for this host, from the installed files, in their order:
-    the CLI knows no role by itself."""
+    the CLI reads roles only as data (here the agent files; `roles.yaml` for `brief` and `help`)."""
     return [
         p.name.removesuffix(".md").removesuffix(".agent").removeprefix("chantier-")
         if host == "copilot"
@@ -273,7 +273,7 @@ def worker_prompt_lines(root: str, cr: tuple[str, str], batch: str, record: Any)
     `Started by a Driver.`, its first line holds `<cr> "<title>" of batch <batch>` and its body
     names its card. A role the record's playbook starts generic, or that escalates as a generic
     agent (its playbook or its escalation map, the shipped defaults' included), gets its contract
-    lines after them. The CLI knows no role."""
+    lines after them. The CLI reads roles only as data: here the agent files."""
     lines: list[str] = []
     refs = f"{skill_dir().as_posix()}/references"
     resolved, escalated = record.playbook, recorded_escalation(record)
@@ -382,8 +382,8 @@ user_files = layers.user_files
 
 
 def agent_problems(host: str) -> list[str]:
-    """The plugin's agents for this host, all at this version; the CLI knows no role, only that
-    the files the plugin installs match it."""
+    """The plugin's agents for this host, all at this version; the CLI reads roles only as data
+    (the agent files here), and checks only that the files the plugin installs match it."""
     folder, files = _agent_files(host)
     if folder is None:
         return [

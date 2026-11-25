@@ -14,6 +14,7 @@ import pytest
 from conftest import SKILL
 
 import chantier
+from chantier import roles_data
 from chantier.board.cli_run import judge
 from chantier.cli import main
 from chantier.commands.help import load_topics, section
@@ -24,7 +25,7 @@ REFERENCES = SKILL / "references"
 SRC = Path(chantier.__file__).resolve().parent
 MIN_NAMED = 19  # 5 lease refusals, 2 push, 2 restack, 1 handed back, 9 watcher lines, as written
 PIECE = re.compile(r"(driver|foreman|stack-driver|release-driver|chief-of-staff)-[a-z-]+\.md")
-ROLES = list(json.loads((REFERENCES / "startup-manifest.json").read_text("utf-8"))["roles"])
+ROLES = list(roles_data.names())  # the roles `help --for` takes, from roles.yaml
 LEASE_SECTION = section(REFERENCES / "driver-session.md", "Means: the lease")
 
 
@@ -93,6 +94,8 @@ def test_for_a_worker_and_for_an_unknown_role(capsys: pytest.CaptureFixture[str]
     )
     code, _, err = _run(capsys, "help", "--for", "nobody")
     assert code == 1 and "no role nobody; roles: cr-driver" in err
+    code, _, err = _run(capsys, "help", "--for", "router")  # a skill, not a role of roles.yaml
+    assert code == 1 and f"no role router; roles: {', '.join(ROLES)}" in err
 
 
 def test_help_lists_them_all(capsys: pytest.CaptureFixture[str]) -> None:

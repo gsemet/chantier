@@ -1,7 +1,8 @@
 """`chantier brief`: one role's whole start brief, written in the repository's git folder, and the
 short prompt that points at it. It reads the record and the planning folder only: it records
-nothing, renews no lease and appends no journal line. The roles it knows are `brief_roles`'s
-data; the facts come from the builders `take`, `take stack`, `order qa` and `handoff` use."""
+nothing, renews no lease and appends no journal line. The roles it knows are data, read from
+`roles.yaml` (`roles_data`); the facts come from the builders `take`, `take stack`, `order qa` and
+`handoff` use."""
 
 from __future__ import annotations
 
@@ -11,7 +12,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from chantier.board.projects import project_name
-from chantier.brief_roles import DRIVERS, FOLDER, NONE, ORDER, STACK, RoleData, roles
 from chantier.commands.crs import batch_cr
 from chantier.commands.driver import _cr_driver_block, stack_block
 from chantier.commands.facts import cr_facts, cr_facts_head, worker_writes
@@ -46,10 +46,13 @@ from chantier.plugin_files import (
     skill_dir,
 )
 from chantier.role_wrappers import first_line_template, role_contract_lines
+from chantier.roles_data import Role, load_roles
 from chantier.status.views import shown_title
 
 CLOSING = "`$CHANTIER next` says what is due; `$CHANTIER help <topic>` when a line names one."
 STEERING_ROLES = ("foreman", "chief-of-staff")
+DRIVERS = ("cr-driver", "release-driver", "stack-driver", "qa-driver")
+ORDER, STACK, FOLDER, NONE = "order", "stack", "folder", "none"
 SKILL_CARDS = {"chief-of-staff": "chief-of-staff.md", "griller": "griller-skill.md"}
 FOLDERS = ("1-inbox", "2-backlog/P1", "2-backlog/P2", "2-backlog/P3", "2-backlog/P4", "3-ready")
 
@@ -69,14 +72,14 @@ def _refuse(text: str) -> ChantierError:
     return ChantierError(f"brief: {text}", EXIT_PRECONDITION)
 
 
-def _role(name: str) -> RoleData:
-    table = {r.name: r for r in roles()}
+def _role(name: str) -> Role:
+    table = {r.name: r for r in load_roles()}
     if name not in table:
         raise _refuse(f"unknown role '{name}'; roles: {', '.join(table)}")
     return table[name]
 
 
-def _check_words(role: RoleData, args: argparse.Namespace) -> None:
+def _check_words(role: Role, args: argparse.Namespace) -> None:
     """The refusals that need no state: a unit, a lease or an epoch the role does not take."""
     unit = args.unit
     if args.epoch is not None and role.name not in STEERING_ROLES:
@@ -119,7 +122,7 @@ def _base(repo: Repo, batch: str | None) -> list[str]:
 
 
 def _cr_roles(
-    repo: Repo, role: RoleData, args: argparse.Namespace, host: str | None
+    repo: Repo, role: Role, args: argparse.Namespace, host: str | None
 ) -> tuple[Facts, str, str, BatchRecord]:
     """A CR's Driver or worker: `(facts, batch, host, record)`."""
     try:
@@ -170,7 +173,7 @@ def _driver_facts(
 
 
 def _stack_driver(
-    repo: Repo, role: RoleData, args: argparse.Namespace
+    repo: Repo, role: Role, args: argparse.Namespace
 ) -> tuple[Facts, str, str, BatchRecord]:
     batch = resolve_batch(repo, args.batch, paused=True)
     d = read_batch(repo, batch)
@@ -183,7 +186,7 @@ def _stack_driver(
 
 
 def _qa_driver(
-    repo: Repo, role: RoleData, args: argparse.Namespace
+    repo: Repo, role: Role, args: argparse.Namespace
 ) -> tuple[Facts, str, str, BatchRecord]:
     batch = resolve_batch(repo, args.batch, paused=True)
     d = read_batch(repo, batch)
@@ -251,7 +254,7 @@ def _chief_lines(repo: Repo, host: str) -> list[str]:
 
 
 def _facts(
-    repo: Repo, role: RoleData, args: argparse.Namespace
+    repo: Repo, role: Role, args: argparse.Namespace
 ) -> tuple[Facts, str | None, str, Path | None]:
     """`(facts, batch, host, folder)` for the role and its unit; a role-only brief when no unit
     is given."""
@@ -292,7 +295,7 @@ def _read_text(path: Path) -> str:
         raise _refuse(f"cannot read {path.as_posix()}: {e.strerror or e}") from e
 
 
-def _card_files(role: RoleData, cards: str | None) -> tuple[Path, Path]:
+def _card_files(role: Role, cards: str | None) -> tuple[Path, Path]:
     """The card and the floor: the plugin's, or `--cards <folder>`'s."""
     if cards is None:
         refs = skill_dir() / "references"
@@ -302,7 +305,7 @@ def _card_files(role: RoleData, cards: str | None) -> tuple[Path, Path]:
     return folder / name, folder / "floor.md"
 
 
-def _rows(role: RoleData, host: str) -> list[str]:
+def _rows(role: Role, host: str) -> list[str]:
     rows = load_rows(host)
     if role.rows is None:
         chosen = rows
@@ -353,8 +356,9 @@ def brief(args: argparse.Namespace) -> list[str]:
     return _short_prompt(role, host, facts, path)
 
 
-def _short_prompt(role: RoleData, host: str, facts: Facts, path: Path) -> list[str]:
-    template = first_line_template(host, role.name) if role.wrapper else None
+def _short_prompt(role: Role, host: str, facts: Facts, path: Path) -> list[str]:
+    wrapper = role.hosts[host].wrapper is not None
+    template = first_line_template(host, role.name) if wrapper else None
     out: list[str] = []
     if template:
         first = template

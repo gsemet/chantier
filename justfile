@@ -52,6 +52,10 @@ copilot-models *args:
 journal-schemas:
     {{run-cli}} scripts/journal_schemas.py
 
+# Check the hand-written agent files of both hosts against skills/chantier/roles.yaml (writes nothing)
+roles *args:
+    {{run-cli}} scripts/roles_check.py {{args}}
+
 # Write board/api/protocol.json from the protocol's models (by hand, not in check)
 protocol-schema:
     {{run-cli}} scripts/protocol_schema.py

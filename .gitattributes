@@ -7,3 +7,4 @@ config/chantier.defaults.yml text eol=lf
 skills/chantier/scripts/cli/src/chantier/hub/schemas.json text eol=lf
 skills/chantier/scripts/cli/src/chantier/board/api/protocol.json text eol=lf
 skills/chantier/references/floor.md text eol=lf
+skills/chantier/roles.yaml text eol=lf

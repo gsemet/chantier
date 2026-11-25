@@ -13,15 +13,15 @@ from conftest import PLUGIN_ROOT, SKILL, Chantier
 from test_driver_prompt import _skeleton
 from test_plugin_files import agent_file
 
-from chantier.brief_roles import DRIVERS, roles
-from chantier.commands.brief import CLOSING
+from chantier.commands.brief import CLOSING, DRIVERS
 from chantier.core.errors import EXIT_PRECONDITION
 from chantier.host_rows import load_rows
 from chantier.role_wrappers import first_line_template
+from chantier.roles_data import load_roles
 
 ROLE_COUNT, FLOOR_BYTES = 18, 1200
 REFS = SKILL / "references"
-ROLES = {r.name: r for r in roles()}
+ROLES = {r.name: r for r in load_roles()}
 NAMES = list(ROLES)
 WORKERS = ("coder", "conflict-resolver", "debugger", "inspector", "investigator", "verifier")
 FIRST = re.compile(r"Prompt starts with: `(chantier [a-z-]+ for [^`]*)`")
@@ -39,6 +39,10 @@ def _hook(name: str) -> re.Pattern[str]:
     m = re.search(r"= /(.+?)/(m?)\.exec", body)
     assert m is not None
     return re.compile(m[1], re.M if m[2] else 0)
+
+
+def _wrapped(role: str, host_name: str) -> bool:
+    return ROLES[role].hosts[host_name].wrapper is not None
 
 
 def _norm(path: Path) -> str:
@@ -135,7 +139,7 @@ def _check_prompt(out: list[str], role: str, name: str, took: list[str], root: s
     """The short prompt: the filled first line, the hook's own reading of the other lines."""
     writes_re, tree_re, root_re = _hook("writesOf"), _hook("worktreeOf"), _hook("rootOf")
     template = (
-        FIRST.search(agent_file(role, name).read_text("utf-8")) if ROLES[role].wrapper else None
+        FIRST.search(agent_file(role, name).read_text("utf-8")) if _wrapped(role, name) else None
     )
     assert bool(template) == (role not in ("chief-of-staff", "griller", "foreman"))
     if template:
@@ -277,7 +281,7 @@ def test_the_role_table_matches_the_shipped_wrappers_the_manifest_and_the_host_r
         assert manifest[name] == data.card and (REFS / data.card).resolve().is_file()
         for host_name in ("claude", "copilot"):
             file = agent_file(name, host_name)
-            assert file.is_file() == data.wrapper
+            assert file.is_file() == _wrapped(name, host_name)
             if name in WORKERS:
                 assert f"Your card is `{Path(data.card).name}`" in file.read_text("utf-8")
                 found = FIRST.search(file.read_text("utf-8"))
@@ -286,7 +290,7 @@ def test_the_role_table_matches_the_shipped_wrappers_the_manifest_and_the_host_r
             assert set(data.rows or ()) <= known
         assert data.writes in {"none", "worktree", "cr-folder"}
     assert {n for n, r in ROLES.items() if r.unit == "cr"} >= set(WORKERS)
-    assert {n for n, r in ROLES.items() if not r.wrapper} == {
+    assert {n for n in ROLES if not _wrapped(n, "claude")} == {
         "chief-of-staff",
         "griller",
         "foreman",

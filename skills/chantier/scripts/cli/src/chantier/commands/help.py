@@ -1,6 +1,6 @@
 """`help`: the plugin's help topics, read-only. A topic names the readings of `references/` a
 rare case needs; the command prints one whole, or lists them. It reads no batch, no project, no
-git and no network: only the plugin's own cards."""
+git and no network: only the plugin's own cards, and the roles `--for` takes from `roles.yaml`."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 from typing import Any, NamedTuple
 
-from chantier import plugin_files
+from chantier import plugin_files, roles_data
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 
 HOSTS = ("claude", "copilot")
@@ -108,14 +108,6 @@ def _topic(base: Path, name: str, t: Any) -> Topic:
     return Topic(name, readings, roles, trigger, review)
 
 
-def _known_roles() -> list[str]:
-    manifest = plugin_files.skill_dir() / "references" / "startup-manifest.json"
-    try:
-        return list(json.loads(manifest.read_text(encoding="utf-8"))["roles"])
-    except (OSError, ValueError, KeyError) as e:
-        raise ChantierError(f"startup-manifest.json: no roles: {e}", EXIT_PRECONDITION) from None
-
-
 def _print_topic(topic: Topic, explicit: str | None, base: Path) -> list[str]:
     out = [f"topic {topic.name}: {topic.trigger} ({', '.join(topic.roles)})"]
     host: str | None = None
@@ -144,7 +136,7 @@ def show(args: argparse.Namespace) -> list[str]:
             raise ChantierError(f"no topic {topic}{guess}; help lists them all", EXIT_USAGE)
         return _print_topic(topics[topic], args.host, plugin_files.skill_dir() / "references")
     if role:
-        known = _known_roles()
+        known = roles_data.names()
         if role not in known:
             raise ChantierError(f"no role {role}; roles: {', '.join(known)}", EXIT_USAGE)
         mine = [t for t in topics.values() if role in t.roles]

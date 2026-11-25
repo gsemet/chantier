@@ -191,22 +191,17 @@ def test_each_host_ships_one_agent_per_role_and_nothing_else(host: str) -> None:
 
 
 @pytest.mark.parametrize("role", ROLES)
-def test_both_hosts_give_a_role_the_same_body_and_their_own_frontmatter(role: str) -> None:
+def test_each_host_gives_a_role_its_own_frontmatter(role: str) -> None:
+    """The name, the description, the tools, the first line and the bodies' identity are
+    `just roles`'s checks (`scripts/roles_check.py`, against `roles.yaml`); this keeps the rest."""
     for host in ("claude", "copilot"):  # a BOM hides the frontmatter from a host
         assert not agent_file(role, host).read_bytes().startswith(b"\xef\xbb\xbf")
     claude, claude_body = _front(agent_file(role, "claude"))
     copilot, copilot_body = _front(agent_file(role, "copilot"))
-    assert claude_body == copilot_body and f"`chantier {role}`" in claude_body
-    assert claude["name"] == role and copilot["name"] == f"chantier-{role}"
-    assert claude["description"] == copilot["description"]
-    # the description ends with the first line the prompt must start with; the refusal names it
-    # and says a new start is needed; a later message gets the same answer
-    described = claude["description"].strip("'").replace("''", "'")
-    assert described.endswith("`") and f" Prompt starts with: `chantier {role} for " in described
-    first = described.rsplit("Prompt starts with: `", 1)[1][:-1]
-    assert f"My prompt must start with `{first}`" in claude_body
-    assert "a message to me gets this same answer: start a new agent with that line" in claude_body
-    assert "Any later message gets the same answer." in claude_body
+    # the refusal says a new start is needed; a later message gets the same answer
+    for body in (claude_body, copilot_body):
+        assert "a message to me gets this same answer: start a new agent with that line" in body
+        assert "Any later message gets the same answer." in body
     assert claude["model"] in CLAUDE_MODELS
     assert (claude["model"] == "claude-opus-5-5") == (role in CLAUDE_OPUS_ROLES)
     assert ("Opus" in copilot["model"]) == (role in COPILOT_OPUS_ROLES)
@@ -222,18 +217,15 @@ def test_both_hosts_give_a_role_the_same_body_and_their_own_frontmatter(role: st
     assert (claude.get("background") == "true") == (role in DRIVERS)
 
 
-def test_the_board_griller_has_the_same_body_on_both_hosts_and_refuses_another_prompt() -> None:
+def test_the_board_griller_has_its_own_frontmatter_and_its_board_section() -> None:
+    """Its name, description, first line and the bodies' identity are `just roles`'s checks."""
     claude, claude_body = _front(agent_file("board-griller", "claude"))
     copilot, copilot_body = _front(agent_file("board-griller", "copilot"))
-    assert claude_body == copilot_body
-    assert claude["name"] == "board-griller" and copilot["name"] == "chantier-board-griller"
-    assert claude["description"] == copilot["description"]
     assert claude["model"] == "claude-opus-5-5" and "Opus 5.5" in copilot["model"]
     assert copilot["model-policy"] == "required" and copilot["user-invocable"] == "false"
     assert "Agent" not in claude["tools"] and '"agent"' not in copilot["tools"]
-    start = "chantier board-griller for the board, in the project <root>."
-    assert f"My prompt must start with `{start}`" in claude_body
-    assert "## Started from the board" in claude_body
+    for body in (claude_body, copilot_body):
+        assert "## Started from the board" in body
 
 
 @pytest.mark.parametrize("host", ["claude", "copilot"])
