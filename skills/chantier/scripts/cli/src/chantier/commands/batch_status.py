@@ -5,20 +5,22 @@ from __future__ import annotations
 import argparse
 from typing import Any
 
-from chantier.commands import wait_view
-from chantier.commands.activity import activity, stopped_agents, stopped_text
+from chantier.commands.activity import activity, stopped_agents
 from chantier.commands.arrival_line import closing_lines
-from chantier.commands.batch_status_orders import (
-    ended_unrecorded,
-    order_lines,
-    stack_driver_lines,
+from chantier.commands.batch_status_orders import order_lines, stack_driver_lines
+from chantier.commands.batch_status_rows import (
+    _batch_line,
+    _cr_row,
+    _heartbeat_text,
+    _seen_lines,
+    _unpaused_line,
+    age_text,
 )
+from chantier.commands.batch_status_since import check_since, since_lines
 from chantier.commands.cost.breakdown import cost_groups, cost_summary
 from chantier.commands.cost.pricing import TO_DATE, sum_unpriced
 from chantier.commands.cost.sessions import chief_line, cost_rows, foreman_uuid
-from chantier.commands.writer_line import entry as writer_entry
 from chantier.commands.writer_line import writer_lines
-from chantier.core import leases
 from chantier.core.batch import (
     Batch,
     check_epoch,
@@ -27,40 +29,30 @@ from chantier.core.batch import (
     resolve_batch,
 )
 from chantier.core.batch_records import last_closed
-from chantier.core.clock import age_minutes, now
-from chantier.core.endblockers import end_blockers
+from chantier.core.clock import now
 from chantier.core.errors import EXIT_USAGE, ChantierError
 from chantier.core.records import (
     BatchRecord,
-    CrEntry,
-    EventRecord,
+    numbered_events,
     read_events,
-    round_limit,
 )
 from chantier.core.repo import Repo
 from chantier.core.surface_batches import other_batches
 from chantier.history import last_closed_text
-from chantier.hub import journal
 from chantier.hub.lines import watch_lines
 from chantier.lifecycle.running_batch import open_batch_id, running_batch_lines
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock
 from chantier.rails import (
-    all_merged,
-    held,
     not_priced,
     spent_text,
     usd_text,
-    waits_all,
 )
 from chantier.rails_release import record_ask
 from chantier.stack_apart import parked_lines
 from chantier.stack_shape import shape_line
-from chantier.stack_words import state_word
 from chantier.stacks import held_lines, stack_line
-from chantier.status.gate import gate_view
 from chantier.status.ready_line import batch_line, ready_lines
-from chantier.status.words import phase_text, shape_word, steering_word
 
 
 def _stop_heartbeat(repo: Repo, batch: str, epoch: int | None) -> list[str]:
@@ -130,15 +122,6 @@ def refresh_spend(
     return total, sum_unpriced(rows)
 
 
-def age_text(d: BatchRecord) -> str:
-    """How old the spend figure is: `12 min old`, `age unknown` for a record from before
-    `spent_at`, and nothing while the spend is unknown."""
-    if d.spent_usd is None:
-        return ""
-    age = age_minutes(d.spent_at)
-    return "age unknown" if age is None else f"{age:.0f} min old"
-
-
 def refresh_for_check(repo: Repo, batch: str, actor: str) -> list[str]:
     """Before a budget check: with a budget, the spend is read from the transcripts and recorded
     (kept on disk even if the command is then refused). When it cannot be read the check runs on
@@ -172,107 +155,6 @@ def record_costs(repo: Repo, b: Batch, rows: list[dict[str, Any]]) -> float:
     return total
 
 
-def _heartbeat_text(d: BatchRecord, prev: str | None) -> str:
-    hb = age_minutes(d.heartbeat)
-    if d.heartbeat_stopped:
-        return "stopped"
-    if hb is None:
-        return "never"
-    text = f"{hb:.0f} min"
-    since = age_minutes(prev) if prev else None
-    if since is not None:  # a wake's own line: the gap since the wake before
-        text += f" ({since - hb:.0f} min since the last)"
-    return text
-
-
-def _working_tail(repo: Repo, d: BatchRecord, c: CrEntry, stopped: set[str]) -> str:
-    """What the status adds to a working CR's row about its Driver and its lease."""
-    tail = ""
-    if not c.agent:
-        tail = " | no Driver recorded"
-    elif c.agent in stopped:
-        tail = f" | {stopped_text(c.agent)}"
-    elif ended_unrecorded(repo, d, c.agent):
-        tail = f" | Driver {c.agent} ended, no hand-back recorded"
-    if late := leases.not_confirmed(repo, c.id, c.lease):
-        tail += f" | {late}"
-    return tail
-
-
-def _cr_row(
-    repo: Repo, d: BatchRecord, c: CrEntry, notes: bool, seen: tuple[list[EventRecord], set[str]]
-) -> str:
-    events, stopped = seen
-    row = f"{c.id} {state_word(d, c, repo)} r{c.round}/{round_limit(d, c)} {c.shown_pr() or '-'}"
-    row += f" | long gate {gate_view(repo, d, c, events)['text']}"
-    if c.kind == "release":
-        row += f" release{' ' + c.released if c.released else ''}"
-        row += "".join(f" | draft {p}" for p in c.drafts[-2:])
-    elif c.kind == "fix":
-        row += f" fix for {c.fix_for}"
-    if (text := phase_text(c)) is not None:
-        row += f" | step: {text}"
-    waits = waits_all(d.crs, c, d.mode) if c.status == "queued" else []
-    if waits:
-        row += f" | waits for {', '.join(waits)}"
-    row += wait_view.status_segment(repo, c)
-    if c.status == "working":
-        row += _working_tail(repo, d, c, stopped)
-    if c.status == "blocked" and c.blocked_reason:
-        row += f" | blocked: {c.blocked_reason[:70]}"
-    elif c.notes and (notes or c.status == "queued"):
-        row += f" | {c.notes[-1][:60]}"
-    usd = c.cost_usd
-    return f"{row} | {'-' if usd is None else f'${usd:.2f}'}"
-
-
-def _seen_lines(repo: Repo, d: BatchRecord) -> list[str]:
-    """What the forge saw merged that the record does not hold (the hub's and the board's
-    journal): one line per open CR of this batch, then the `batch.slots` change saved on the board
-    and not yet ordered, for the Chief of Staff. Nothing is written; an unreadable line is named."""
-    entries, bad, later, unknown = journal.read(repo.store, repo.changes)
-    lines = [f"{journal.FILE}: line {n} unreadable" for n in bad]
-    lines += [
-        f"{journal.FILE}: line {n} is version {v}, newer than this chantier: update it"
-        for n, v in later
-    ]
-    lines += [
-        f"{journal.FILE}: line {n} is of type {t}, unknown to this chantier: update it"
-        for n, t in unknown
-    ]
-    open_crs = {c.id for c in d.crs if c.status not in ("merged", "cancelled")}
-    lines += journal.lines(entries, d.id, open_crs, d.orders, wait_view.open_keys(d))
-    if repo.external:
-        lines += journal.writer_lines(entries, writer_entry(repo))
-    return lines
-
-
-def _batch_line(d: BatchRecord, hb_text: str) -> str:
-    queued = sum(1 for c in d.crs if c.status == "queued")
-    return (
-        f"{d.id} {d.status} steering {steering_word(d.steering)} "
-        f"shape {shape_word(d.mode)} "
-        f"live {len(held(d))}/{d.slots} queued {queued} "
-        f"foreman {d.foreman or 'none'} e{d.foreman_epoch} "
-        f"heartbeat {hb_text} spent {spent_text(d)}"
-        + (f" of ${d.budget_usd:g}" if d.budget_usd else "")
-        + (f", {age_text(d)}" if age_text(d) else "")
-        + (" (paused, cost to date)" if d.status == "paused" else "")
-        + (", no CR yet" if d.status == "paused" and not d.crs else "")
-    )
-
-
-def _unpaused_line(d: BatchRecord) -> list[str]:
-    """A running batch whose CRs are all merged or cancelled: the automatic pause was blocked."""
-    if d.status != "running" or not d.crs or not all_merged(d):
-        return []
-    causes = end_blockers(d)
-    return [
-        "every CR is merged or cancelled, not paused: "
-        f"{'; '.join(causes) or 'nothing'}; `chantier pause --epoch <n>`"
-    ]
-
-
 def no_cr_lines(d: BatchRecord) -> list[str]:
     """A paused batch that never held a CR: how a CR joins it."""
     if d.status != "paused" or d.crs:
@@ -294,17 +176,32 @@ def _other_batches_lines(repo: Repo) -> list[str]:
     return [line] if line else []
 
 
+def _flags(repo: Repo, batch: str, args: argparse.Namespace) -> tuple[list[str], int, str | None]:
+    """What `--stop-heartbeat` or `--refresh` record and print: their lines, the exit code, the
+    heartbeat a wake overwrote."""
+    if args.stop_heartbeat:
+        return _stop_heartbeat(repo, batch, args.epoch), 0, None
+    if args.refresh:
+        return _refresh(repo, batch, args.epoch)
+    return [], 0, None
+
+
 def status(args: argparse.Namespace) -> tuple[list[str], int]:
     repo = Repo.find()
     batch = _resolve(repo, args)
-    extra, code, prev = [], 0, None
-    if args.stop_heartbeat:
-        extra = _stop_heartbeat(repo, batch, args.epoch)
-    elif args.refresh:
-        extra, code, prev = _refresh(repo, batch, args.epoch)
+    since = getattr(args, "since", None)
+    if since is not None:  # refused before anything is printed or recorded
+        check_since(since, batch, numbered_events(repo.store, repo.batch_dir(batch))[1])
+    extra, code, prev = _flags(repo, batch, args)
     d = read_batch(repo, batch)
     events = read_events(repo.store, repo.batch_dir(batch))
     stopped = stopped_agents(repo, d, events)
+    if since is not None:
+        numbered = numbered_events(repo.store, repo.batch_dir(batch))
+        out = since_lines(
+            repo, d, events, numbered, since, args.notes, stopped, extra=extra, prev=prev
+        )
+        return out, code
     lines = [
         _batch_line(d, _heartbeat_text(d, prev)),
         batch_line(repo, d, events, stopped),

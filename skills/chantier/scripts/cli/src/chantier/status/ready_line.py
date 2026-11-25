@@ -99,6 +99,13 @@ def _line(
     return line + " | `help merge`"
 
 
+def ready_line(
+    repo: Repo, d: BatchRecord, c: CrEntry, events: list[EventRecord], stopped: set[str]
+) -> str:
+    """The `handed back:` line of one CR handed back ready (`status --since`)."""
+    return _line(repo, d, c, events, stopped)
+
+
 def ready_lines(
     repo: Repo, d: BatchRecord, events: list[EventRecord], stopped: set[str]
 ) -> list[str]:

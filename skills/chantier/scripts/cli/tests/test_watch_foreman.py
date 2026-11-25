@@ -108,7 +108,8 @@ def test_the_foremans_watcher_tells_its_batchs_three_kinds_and_runs_on(
             told.append(w.tell(float(t)))
     w.close()
     first, second = told
-    assert first[:2] == [merged_text(MERGED), red_text(RED)] and len(first) == KINDS + 1
+    assert first[:2] == [merged_text(MERGED), red_text(RED)] and len(first) == KINDS + 2
+    assert first[-2].startswith("state: ")
     assert first[2].startswith("forge saw pipeline met: CR-1 w1")
     assert second[0].startswith("forge saw merged: CR-2") and "still watching" in second[-1]
     assert second[-1].endswith(f"{watch_command(found, w.cursor)})") and w.cursor > len(first)

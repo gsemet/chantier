@@ -7,6 +7,7 @@ does not know survives a read and a write, and an absent key stays absent."""
 
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 from pathlib import Path
@@ -385,11 +386,15 @@ def restored_bytes(number: int) -> bytes:
 
 def read_events(store: PlanStore, folder: Path) -> list[EventRecord]:
     """The batch's `events.jsonl`, in order; a half-written last line is skipped."""
+    return [e for _, e in numbered_events(store, folder)[0]]
+
+
+def numbered_events(store: PlanStore, folder: Path) -> tuple[list[tuple[int, EventRecord]], int]:
+    """The events by line number from 1 (the event sequence); a half-written line is skipped."""
     rel = rel_in(store.root, folder / "events.jsonl")
+    lines = store.read_text(rel).splitlines() if store.exists(rel) else []
     out = []
-    for line in store.read_text(rel).splitlines() if store.exists(rel) else []:
-        try:
-            out.append(EventRecord.model_validate_json(line))
-        except ValueError:  # the last line of a process killed while appending
-            continue
-    return out
+    for n, line in enumerate(lines, start=1):
+        with contextlib.suppress(ValueError):
+            out.append((n, EventRecord.model_validate_json(line)))
+    return out, len(lines)
