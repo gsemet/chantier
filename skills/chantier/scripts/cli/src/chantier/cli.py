@@ -28,6 +28,7 @@ from chantier.declare import (
     interests,
     journal,
     live,
+    msg,
     next,
     opening,
     orders,
@@ -64,6 +65,7 @@ FULL_OUTPUT = {
     "cancel",
     "rules",
     "next",  # the due list, one line each
+    "inbox",  # the unread messages, one line each
     "host",
     "help",
     "log",
@@ -112,6 +114,7 @@ _MODULES = (
     driver,
     access,
     next,
+    msg,
     host,
     rules,
     help,

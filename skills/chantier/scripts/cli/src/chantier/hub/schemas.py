@@ -4,7 +4,8 @@
 
 The writer's types are the `sync-*@1` lines and `arrived@1` (a CR that an integration of the
 upstream brought into a project's inbox or backlog, `via: pull`; the `file` and `triage` commands
-of another session write it too, `via: session`).
+of another session write it too, `via: session`). The `cli` source's type is `msg@1`, a Driver's
+message to the batch's steering session (`chantier msg`, `schemas_msg.py`).
 
 A published `name@N` never changes (its fields, their JSON types, which are required, its
 patterns); a change is a new `name@N+1`, published beside it. The shipped `schemas.json` is the
@@ -29,6 +30,7 @@ from pydantic import BaseModel, StringConstraints, ValidationError
 
 from chantier.hub.board_text import board_text
 from chantier.hub.schemas_base import Payload, Sha
+from chantier.hub.schemas_msg import Msg1, msg_text
 from chantier.hub.schemas_sync import (
     Arrived1,
     SyncBlocked1,
@@ -246,6 +248,21 @@ PUBLISHED: dict[str, Entry] = {
             "text": "a comment asks to keep the old column order",
             "wakes": True,
             "folders": ["2-backlog/P2/export-columns"],
+        },
+    ),
+    # a `msg@1` line is its own event: two identical messages are two lines
+    "msg@1": Entry(
+        Msg1,
+        "wakes",
+        msg_text,
+        None,
+        {
+            "batch": "batch-29",
+            "unit": "CR-12",
+            "kind": "blocked",
+            "text": "the base branch moved under the stack",
+            "wakes": True,
+            "steering": "foreman",
         },
     ),
     # an `arrived@1` line is its own event, as a `sync-*@1` line is

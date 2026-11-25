@@ -12,8 +12,8 @@ and runs on. It ends when the seat is another session's, or, while no batch is i
 line and the last moment it saw a batch in flight.
 
 A watch run by the session that the running or paused batch records as its Foreman is the
-Foreman's watcher (`watch_reads.foreman_end`): it reads only that batch's merge, red-CI and
-wait-met lines, starts no server and never ends on the seat. `--once --after SEQ` is the pull
+Foreman's watcher (`watch_reads.foreman_end`): it reads only that batch's merge, red-CI, wait-met
+and message lines, starts no server and never ends on the seat. `--once --after SEQ` is the pull
 path: it prints the journal's lines past SEQ, takes no lock, reaches no server, starts nothing.
 
 At each telling, the steering session's watcher prints its batch's `state:` line just before its

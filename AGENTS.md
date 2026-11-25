@@ -168,7 +168,8 @@
   paused batch records as its Foreman (it reads only that batch's `merged@1`, `checks-red@1` and
   `wait-cleared@1` lines), subscribes to the surface server's `events` topic for
   its project (the hub's lines, the board's, the writer's and an outside poller's `issue@1`
-  lines), never reads the journal file or the forge, confirms that the process answering its link is the one `server.json` records (a link answered by another PID is no link: it links again from its cursor after a restart, and after 20 s it ends with a line naming both PIDs and the remedy), and starts the server, detached, when none
+  lines, and a Driver's `msg@1` lines, each addressed to the batch's steering session's own
+  watcher), never reads the journal file or the forge, confirms that the process answering its link is the one `server.json` records (a link answered by another PID is no link: it links again from its cursor after a restart, and after 20 s it ends with a line naming both PIDs and the remedy), and starts the server, detached, when none
   runs and its session holds the seat (the Foreman's watcher starts none: with none running it ends
   at once with a line), and, 20 s after the last new event for it that wakes and no
   sooner than `events.wake_every` after its start or its last telling, tells the events it
@@ -215,6 +216,19 @@
   poller only); `journal add` is the one entry by which an outside poller appends an `issue@1`
   line to a project's journal; built on the user's answer planning-server-Q24 (2026-11-20: issues
   polled from outside), with no measured cost.
+  `msg` and `inbox`: a Driver's `msg steering <kind> <text> --cr <unit> --lease <n>` appends
+  one `msg@1` line to the project's journal through the one append function, addressed to the
+  batch's steering session (its Foreman, or the Chief of Staff in direct mode), whose watcher
+  wakes on `anomaly` and `blocked` and tells a `note` at its next block; with no watcher of
+  that session subscribed (its watcher lock and a live surface server), it still appends the
+  line, prints `not delivered: no watcher subscribed` and exits non-zero (when no steering
+  session recorded its transcript, the line's audience is `role:steering`, a value no watcher
+  subscribes to, kept for `inbox`: a third named exception to "the CLI knows no role", which
+  CR-497's spec (PART 3) sets); `inbox` lists the
+  batch's unread messages for the steering session and records the ones read in the batch's
+  events; no message goes to the user, to a CR or to another project, and the board and the
+  server send nothing to an agent; built on the user's answers simplify-cards-Q7 and Q22 (F8),
+  with no measured cost.
   `login` and `logout`: `login` stores a server's address and key in a profile of the user's config folder for the projects named, after which every command for those projects but `serve`, `watch`, `webui`, `live`, `login`, `logout` and `help` runs on that server (`gate` and `push` are refused there), and `logout` removes it; built on the user's answers remote-cli-Q4, Q7, Q8 and Q17 (2026-11-22), with no measured cost.
   `webui`: prints the web board's link with its key, and starts the surface server, detached,
   when none runs (with an active profile, it prints the profile's link and starts nothing); built on the user's answers remote-cli-Q1, Q3 and Q14 (2026-11-22), with no

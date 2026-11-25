@@ -124,16 +124,17 @@ object, written by one function (`hub/journal.py`, `append`), under the project'
 | `v` | the line's version, 2 (0 and 1 still read) |
 | `seq` | 1 for the first line, then the highest readable `seq` plus one; a watcher's cursor counts it |
 | `t` | the time of the append |
-| `type` | `name@N`, the published type (`merged@1`, `checks-red@1`, `wait-cleared@1`, `config@1`, `board@1`, `issue@1`, `arrived@1` or `sync-*@1`), then the fields of that type |
-| `source` | who wrote it: `hub` (the forge hub: the surface server), `board` (its PRs page, Configuration page and backlog writes), `writer` (the surface's writer), `cli` (room for a command), `poller` (an outside poller, through `chantier journal add`) |
+| `type` | `name@N`, the published type (`merged@1`, `checks-red@1`, `wait-cleared@1`, `config@1`, `board@1`, `issue@1`, `msg@1`, `arrived@1` or `sync-*@1`), then the fields of that type |
+| `source` | who wrote it: `hub` (the forge hub: the surface server), `board` (its PRs page, Configuration page and backlog writes), `writer` (the surface's writer), `cli` (`chantier msg`, and `file` and `triage`, which write `arrived@1`), `poller` (an outside poller, through `chantier journal add`) |
 | `audience` | whom it is for: one or more of `project`, `role:<name>`, `cr:<id>`, `session:<key>`, `user` |
 
 A published `name@N` never changes; a change is a new `name@N+1`, and every type's JSON Schema
 ships in `hub/schemas.json`.
 
-Every line written today is for `["project"]`: `merged@1` and `checks-red@1` by the hub or the
+Every line is for `["project"]` except `msg@1`, which is for the batch's steering session
+(`session:<key>`, or `role:steering` when no steering session recorded its transcript): `merged@1` and `checks-red@1` by the hub or the
 board's PRs page, `wait-cleared@1` by the hub, `config@1` by the Configuration page, `board@1` by the backlog writes, `issue@1` by an outside poller, `arrived@1` by the writer (a pull) and by `file` and `triage` (another session), `sync-*@1` by the writer. The CLI
-checks an audience value's form, never what it names, and routes to no role, CR or user yet.
+checks an audience value's form, never what it names.
 
 | Type | Written by | Wakes a watcher |
 |---|---|---|
@@ -144,6 +145,7 @@ checks an audience value's form, never what it names, and routes to no role, CR 
 | `board@1` | the board's backlog writes and its Griller's turns (action `grill`) | when `wakes`: true for `new`, `move`, `edit` and `running-batch` |
 | `arrived@1` | the writer (a pull brought a CR into the inbox or the backlog), `file` and `triage` (run by a session that is not the Chief of Staff's) | yes |
 | `issue@1` | an outside poller, through `chantier journal add`, only for an issue a CR's `issue:` line names | when `wakes` (default true) |
+| `msg@1` | a Driver, through `chantier msg steering` | when `wakes`: true for `anomaly` and `blocked` |
 | `sync-conflict@1` | the writer | yes |
 | `sync-blocked@1` | the writer | yes |
 | `sync-late@1` | the writer | yes |

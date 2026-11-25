@@ -88,7 +88,8 @@ FOREMAN_IDLE_END = (
     "watch: no event for {name} in 2 h; the Foreman's watcher ended: for the Foreman, start "
     "again in the background now: {watch}"
 )
-FOREMAN_TYPES = ("merged@1", "checks-red@1", "wait-cleared@1")  # the lines the Foreman acts on
+# the lines the Foreman acts on: the forge's merges, red CI and waits met, and its Drivers' messages
+FOREMAN_TYPES = ("merged@1", "checks-red@1", "wait-cleared@1", "msg@1")
 
 
 class Ended(Exception):

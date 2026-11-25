@@ -3,18 +3,19 @@ line per event (the name is historical: the file holds every event of the projec
 and the board's). It is local (ignored by git) and append-only; chantier never truncates it.
 `append` is its one writer path (the forge hub, `source: "hub"`; the board, `"board"`: its PRs
 page, its backlog writes and its Configuration page; `"writer"`: the surface's writer, its
-`sync-*` lines; an outside poller, `"poller"`, through `chantier journal add`; `"cli"` is
-room for a command); `read` its
-one reader, for `chantier status` and `chantier watch`. `source` says who wrote a line, never
+`sync-*` lines; an outside poller, `"poller"`, through `chantier journal add`; `"cli"`: the
+`msg` command's `msg@1` lines, and the `arrived@1` lines of `file` and `triage`); `read` its one
+reader, for `chantier status` and `chantier watch`. `source` says who wrote a line, never
 what it is: every reader dispatches on the line's type. Nothing here records anything in a batch:
 a line is a signal for whom it is addressed.
 
 A version 2 line carries, in this order, `v` (2), `seq` (1 for the first line, then the highest
 readable `seq` plus one), `t`, `type`, `source`, `audience` (a list of `project`, `role:<name>`,
-`cr:<id>`, `session:<key>` or `user`; every writer of today writes `["project"]`), then the
-payload of its type. The type is `name@N`: the name and the published version of the payload. The
-published types and their payloads are `hub/schemas.py`'s `PUBLISHED` (`merged@1`,
-`checks-red@1`, `wait-cleared@1`, `config@1`, `board@1`, `issue@1`, and the writer's
+`cr:<id>`, `session:<key>` or `user`; every line is for `["project"]` but `msg@1`, which is for
+the batch's steering session), then the payload of its type. The type is `name@N`: the name and
+the published version of the payload. The published types and their payloads are
+`hub/schemas.py`'s `PUBLISHED` (`merged@1`, `checks-red@1`, `wait-cleared@1`, `config@1`,
+`board@1`, `issue@1`, `msg@1`, and the writer's
 `sync-conflict@1`, `sync-blocked@1`, `sync-late@1`, `sync-resumed@1`, and `arrived@1`, a CR that
 reached the inbox or the backlog: `via: pull` by the writer, `via: session` by `file` and `triage`),
 each with its model, wake rule, text, duplicate key and example. A published `name@N` never
