@@ -23,6 +23,7 @@ EPOCH_COMMANDS = (
     "order",
     "park",
     "pause",
+    "retro",
     "status",
     "take",
     "wait",

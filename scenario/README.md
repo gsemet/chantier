@@ -87,6 +87,10 @@ does a unit that is not in `UNITS` and a test that does not exist.
   recorded without `--record`, the recorded ask equal to the printed one with the steering
   session's sentence, shown in `status` and `asks`; a CR not handed back refused
   (test: test_judge.py::test_the_ask_is_worded_whole_and_drops_no_gap_or_owed_item).
+- `retro draft` (unit: parallel): the retro's draft points from the paused batch's events, each
+  with home:, count: and why not code:, a red gate named; nothing written without `--write`;
+  `--write` appends after the author's text once and is refused when a draft section exists
+  (test: test_retro_draft.py::test_points_are_drafted_whole_from_the_events).
 - help topics: `help lease` prints a topic whole with no batch; every topic resolves on both hosts
   and every topic a CLI line names exists in pytest (unit: parallel)
   (test: test_help_topics.py::test_every_topic_resolves_on_both_hosts).

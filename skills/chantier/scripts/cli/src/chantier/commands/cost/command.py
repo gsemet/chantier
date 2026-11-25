@@ -20,6 +20,7 @@ from chantier.commands.cost.pricing import hints, spend, sum_unpriced
 from chantier.commands.cost.sessions import chief_line, cost_rows, foreman_uuid
 from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import ChantierError
+from chantier.core.records import BatchRecord
 from chantier.core.repo import Repo
 from chantier.plugin_files import read_playbook
 from chantier.rails import not_priced
@@ -130,12 +131,9 @@ def _explain_notes(rows: list[dict[str, Any]], repo: Repo, host: str) -> list[st
     ]
 
 
-def cost(args: argparse.Namespace) -> list[str]:
-    """The batch's spend, read from the Foreman's transcript on the batch's host; `status
-    --refresh`, `pause` and the budget checks record it."""
-    repo = Repo.find()
-    batch = resolve_batch(repo, args.batch, paused=True)
-    d = read_batch(repo, batch)
+def batch_rows(repo: Repo, d: BatchRecord) -> list[dict[str, Any]]:
+    """The batch's spend rows, read from the steering session's transcripts on the batch's host;
+    refused when no steering transcript is recorded (`cost` and `retro draft` read them)."""
     if not (d.foreman_transcripts or d.foreman_transcript):
         var = "$COPILOT_AGENT_SESSION_ID" if d.host == "copilot" else "$CLAUDE_CODE_SESSION_ID"
         who = "Chief of Staff" if d.steering == "direct" else "Foreman"
@@ -144,7 +142,16 @@ def cost(args: argparse.Namespace) -> list[str]:
             f"no {what} transcript recorded: the {who} runs "
             f"`chantier foreman transcript {var} --epoch <n>`"
         )
-    rows = cost_rows(repo, d, d.host, foreman_uuid(d))
+    return cost_rows(repo, d, d.host, foreman_uuid(d))
+
+
+def cost(args: argparse.Namespace) -> list[str]:
+    """The batch's spend, read from the Foreman's transcript on the batch's host; `status
+    --refresh`, `pause` and the budget checks record it."""
+    repo = Repo.find()
+    batch = resolve_batch(repo, args.batch, paused=True)
+    d = read_batch(repo, batch)
+    rows = batch_rows(repo, d)
     total = sum(r["usd"] for r in rows)
     un = sum_unpriced(rows)
     chief = chief_line(repo, d)
