@@ -11,5 +11,6 @@ say what is off, and no forge command but `ship`'s, `take`'s, `round`'s and `han
 PR's base (`forge_base.py`) and `forge-stack`'s stacks and bases. One named exception, in
 `board/`: `chantier serve`, the web board's server, for the user in remote; it writes only its key
 file in the git folder, takes its dependencies (starlette, uvicorn) from the root
-pyproject.toml, and knows no role.
+pyproject.toml, and reads roles only as data (the agent files, or `roles.yaml` for `brief` and
+`help`).
 """

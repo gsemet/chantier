@@ -329,15 +329,15 @@
   start, after a merge that changes `uv.lock`); it checks first, and a sync that chantier's own
   processes block names them and waits, never stopping or killing one but the session's own board
   and watcher on the user's yes (the cards), then `uv run --no-sync --project` runs the local
-  code, live; The plugin ships one launcher, `skills/chantier/scripts/chantier.py`, run as
+  code, live; the plugin ships one launcher, `skills/chantier/scripts/chantier.py`, run as
   `uv run --script "<plugin root>/skills/chantier/scripts/chantier.py" …` from uv's own
-  environment, never the checkout's `.venv`. It picks the mode by this rule and runs the CLI by
-  this one method, adding `--skill` in the plugin mode. With `--sync`, in the dev mode only, it
-  runs the checked sync: the check, the holders named read-only, the sync when there are none,
-  else `sync pending: held by …`. It stops no process, installs nothing, has no dependency of
-  its own, and runs no `uv sync` but under `--sync`. It is built on study-fable-v2's measure
-  (the `$CHANTIER` paragraph, about 2.3 KB in each of the four skills) and the user's answers
-  simplify-cards-Q18 and Q22. chantier's own sessions never run `uvx --from <checkout>`; other projects run the
+  environment, never the checkout's `.venv`, which picks the mode by this rule and runs the CLI by
+  this one method, adding `--skill` in the plugin mode, and, with `--sync` in the dev mode only,
+  runs the checked sync (the check, the holders named read-only, the sync when there are none,
+  else `sync pending: held by …`); it stops no process, installs nothing, has no dependency of
+  its own and runs no `uv sync` but under `--sync` (built on study-fable-v2's measure, the
+  `$CHANTIER` paragraph of about 2.3 KB in each of the four skills, and the user's answers
+  simplify-cards-Q18 and Q22); chantier's own sessions never run `uvx --from <checkout>`; other projects run the
   plugin mode, `uvx --from <plugin root>`, even from chantier's checkout. Another project runs
   chantier from its checkout in plugin mode, a build uv caches by version: it changes at each
   version bump. The board server, its writer and the forge hub, started from another project's

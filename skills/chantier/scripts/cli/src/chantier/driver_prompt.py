@@ -202,7 +202,7 @@ def driver_prompt_lines(row: DriverRow, d: BatchRecord, block: DriverBlock) -> l
     two leading spaces, filled in where the CLI can and left as `<…>` otherwise. The opening
     lines, the card, the rules line, the contract lines (a role the playbook starts generic),
     `CLI`, the command's lines, `writes:` and `Team:` only where the table gives them,
-    `Steering:`, `Needs:` and `Note:`. The CLI knows no role: the table is read."""
+    `Steering:`, `Needs:` and `Note:`. The CLI reads roles only as data: the table is read."""
     refs = f"{skill_dir().as_posix()}/references"
     heading = (
         f"{row.role} prompt (copy it whole, without the two leading spaces, and fill each <…>; "
