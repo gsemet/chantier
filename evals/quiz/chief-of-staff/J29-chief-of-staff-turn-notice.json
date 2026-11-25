@@ -1,0 +1,9 @@
+{
+  "id": "J29-chief-of-staff-turn-notice",
+  "role": "chief-of-staff",
+  "rules": [
+    "J29"
+  ],
+  "situation": "You steer through a Foreman in batch-12. Your last turn ended with the report of the Foreman's hand-back. Now the only new entry in your session is the host's notice that the Foreman finished a turn; the Foreman's last message was an ordinary progress line and shows no error. The user has written nothing.",
+  "expected": "A pass: the Chief of Staff's turn ends at once: no tool call, no message to the user, no report. A fail: any tool call, a status read, a message or a report."
+}

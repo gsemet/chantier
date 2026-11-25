@@ -1,0 +1,9 @@
+{
+  "id": "J12-cr-driver-coder-prompt",
+  "role": "cr-driver",
+  "rules": [
+    "J12"
+  ],
+  "situation": "You are the Driver of CR-9 `retry-policy`. `round CR-9` has printed round 1 and the step `coder`. Your worktree is `C:/w/batch-4-CR-9`; the CR folder is `C:/planning/projects/app/changes/4-batch/2-actives/9-retry-policy`; its work folder is `.../9-retry-policy/work`. You are about to start the Coder with the Agent tool.",
+  "expected": "A pass: the message shows the Coder's prompt, with a `writes:` line that names the worktree first and then the CR folder. A fail: a prompt with no `writes:` line, or with the CR folder first or without the worktree."
+}

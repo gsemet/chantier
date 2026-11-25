@@ -1,0 +1,9 @@
+{
+  "id": "J18-cr-driver-sent-back",
+  "role": "cr-driver",
+  "rules": [
+    "J18"
+  ],
+  "situation": "You are the new Driver of CR-7 `table-sort`, taken with the note \"the user asked for a change in the sort order\". Its PR #52 exists, is out of draft and shows CI green. You are in the CR's worktree on its branch; nothing has been changed yet.",
+  "expected": "A pass: the Driver turns PR #52 back to a draft first (`gh pr ready --undo`), before starting the round or pushing. A fail: it starts the round and pushes with the PR still out of draft."
+}

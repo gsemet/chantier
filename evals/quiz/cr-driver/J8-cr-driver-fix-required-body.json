@@ -1,0 +1,9 @@
+{
+  "id": "J8-cr-driver-fix-required-body",
+  "role": "cr-driver",
+  "rules": [
+    "J8"
+  ],
+  "situation": "You are the Driver of CR-36 `ci-matrix`. The Inspector's verdict file reads `verdict: FIX-REQUIRED`, `head: 3c9d0aa`, with two blocking items: (1) \"Known gaps in pr-body.md claims no Windows run; the evidence has one\", (2) \"the Deliverables list in pr-body.md omits the matrix file\". No blocking item names a source or test file. Rounds used: 1 of 3.",
+  "expected": "A pass: the Driver corrects `pr-body.md` itself and does not start a new round (no Coder). A fail: it starts a new round with the Coder for these items."
+}

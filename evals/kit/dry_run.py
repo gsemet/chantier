@@ -28,6 +28,11 @@ one fault and must be caught by the tool that owns it, naming its criterion:
     eval-root          setup refuses a workspace outside the eval root (exit 2, the root and the file named, nothing created), with no `eval-root.local.json`, and with a malformed one; a workspace inside goes through with the same allow rules as before and no trust entry
     setup-prompt       setup's last `prompt` line for each sandbox campaign, and the `set_monitor` rule of the Claude campaigns that open PRs
     behaviour          `behaviour.py` on `kit/behaviour-fixture/` (a child process, `python -I`, the login name `fixtureuser`): the figures of `expected.json`, the regressions against a staged previous file, a record before `--since` not counted, each detector of `detectors.json` matching its positive and not its negative example, the privacy guard refusing a leak (exit 1, no file), and `--prune` printing its candidates and writing nothing
+    quiz-cases         the shipped `evals/quiz/` cases load and their `rules` resolve (floor-1..10 or a `J` row of `SCORECARD.md`), the floor table holds its 29 cases, and a prepared broken case (a missing `expected`, an `id` that is not the stem) is refused with exit 2, naming the key
+    quiz-staged        `quiz.py` with `run_role`, `run_judge` and the host check replaced by staged functions: the old-cards boot of each role within `AFTER` plus its headers, 2/3 and 0/3 and the role lines, `--save` (no reply text, `~` for the home folder, spend not measured), `--against` (exit 1 naming the case, exit 0), a staged run error (not judged, exit 4), a project config naming another model ignored, and the cap reached while running
+    quiz-cap           `--max-usd 0.01` prints the plan then refuses (exit 2); a model with no price, a session role with no `--model`, the judge's model, `--model` on a role that has one and Copilot (`CHANTIER_HOST`) all exit 2; none calls a seam
+    quiz-ref           `--cards HEAD` builds the boot from `git archive`: each part equals `git show HEAD:<path>` in LF form, the SHA is HEAD's; a ref that does not resolve exits 2
+    quiz-folder        `--cards <folder>` exits 2 with the "needs `chantier brief`" line while the CLI has no `brief`
 
 Everything lives in one temporary folder, removed at the end unless --keep: a bare repository that
 stands for the sandbox's origin, the workspace, the fake forge's state (`sandbox_forge.py`) and the
@@ -64,16 +69,20 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import audit  # noqa: E402
 import behaviour  # noqa: E402
+import quiz  # noqa: E402
+import quiz_judge  # noqa: E402
 import sandbox  # noqa: E402
 import sandbox_forge  # noqa: E402
 import setup  # noqa: E402
 
 CLI = setup.CLI
 GATE = "tests"  # the long gate's name (the sandbox's chantier.yaml holds its command)
+ROOT_DIR = HERE.parents[1]
 PATCH = HERE / "dry-run" / "delete-item.patch"
 CASES = ["clean", "stray-merge", "reset-leftover", "merge-refused", "stale-lock", "force-tag-push",
          "plain-merge", "ticket-summary-setup", "audit-cos-prompt", "audit-qa-prompt", "audit-claim-call", "foreman-route-push", "audit-heredoc",
-         "other-sandbox", "reset-foreign", "reset-empty", "publish", "eval-root", "setup-prompt", "behaviour"]
+         "other-sandbox", "reset-foreign", "reset-empty", "publish", "eval-root", "setup-prompt", "behaviour",
+         "quiz-cases", "quiz-staged", "quiz-cap", "quiz-ref", "quiz-folder"]
 OK, FAILED, USAGE, EXTERNAL = 0, 1, 2, 4
 SESSION = "local_dry-run-foreman"
 EPOCH = "1"
@@ -1534,6 +1543,297 @@ def case_behaviour(run: Run) -> str:
             "its two candidates and writes nothing")
 
 
+# --- the situation quiz: its plumbing with no model (quiz.py, quiz_judge.py) ------------------
+
+FLOOR = {  # the floor's rules and the roles whose work meets them (CR-492, "Seed: floor rules")
+    1: ["foreman", "chief-of-staff", "cr-driver", "release-driver"],
+    2: ["cr-driver", "stack-driver", "foreman"],
+    3: ["cr-driver", "coder", "chief-of-staff"],
+    4: ["foreman", "cr-driver", "verifier"],
+    5: ["cr-driver", "coder", "conflict-resolver", "debugger"],
+    6: ["release-driver", "foreman"],
+    7: ["chief-of-staff", "griller"],
+    8: ["demo-explorer", "verifier"],
+    9: ["cr-driver", "foreman", "coder"],
+    10: ["chief-of-staff", "foreman", "cr-driver"],
+}
+MARK = "STAGED-REPLY-TEXT"  # in every staged reply: a saved file must never hold it
+
+
+def quiz_case_file(folder: Path, role: str, name: str, **over) -> Path:
+    data = {"id": name, "role": role, "rules": ["floor-1"], "situation": f"SITUATION-{name}",
+            "expected": f"EXPECTED-{name}"} | over
+    path = folder / role / f"{name}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({k: v for k, v in data.items() if v is not None}), encoding="utf-8")
+    return path
+
+
+def quiz_cases_folder(tmp: Path, roles=("cr-driver", "foreman")) -> Path:
+    folder = tmp / "quiz-cases"
+    for role in roles:
+        quiz_case_file(folder, role, "pass-case")
+        quiz_case_file(folder, role, "fail-case", rules=["floor-1", "J6"])
+    return folder
+
+
+class Staged:
+    """`quiz.run_role`, `quiz_judge.run_judge` and `quiz.host_check` replaced: they count their
+    calls and never start a host CLI. The first two runs of `pass-case` reply with `PASS-ME`."""
+
+    def __init__(self, cost=None, fail_first=False):
+        self.roles, self.judges, self.cost, self.fail_first = [], [], cost, fail_first
+        self.seen: dict[str, int] = {}
+
+    def run_role(self, prompt, model, plugin_root):
+        self.roles.append(model)
+        name = "pass-case" if "SITUATION-pass-case" in prompt else "fail-case"
+        self.seen[name] = self.seen.get(name, 0) + 1
+        if self.fail_first and len(self.roles) == 1:
+            return quiz.Reply(error="staged failure")
+        good = name == "pass-case" and (self.seen[name] - 1) % 3 < 2
+        return quiz.Reply(text=f"{MARK} {'PASS-ME' if good else 'no'}", cost=self.cost, turns=1)
+
+    def run_judge(self, situation, expected, reply):
+        self.judges.append(reply)
+        ok = "PASS-ME" in reply
+        return quiz_judge.Verdict("PASS" if ok else "FAIL",
+                                  f"staged {Path.home()}{os.sep}x by {os.environ['USERNAME']}", cost=self.cost)
+
+    def __enter__(self):
+        self.saved = (quiz.run_role, quiz_judge.run_judge, quiz.host_check)
+        quiz.run_role, quiz_judge.run_judge = self.run_role, self.run_judge
+        quiz.host_check = lambda: "staged-claude 0.0.0"
+        return self
+
+    def __exit__(self, *exc):
+        quiz.run_role, quiz_judge.run_judge, quiz.host_check = self.saved
+        for folder in quiz._WORK:
+            sandbox.remove(folder)
+        quiz._WORK.clear()
+
+
+@contextlib.contextmanager
+def quiz_environment(**changes):
+    """The environment with the given variables set (None: removed), then as it was."""
+    saved = {k: os.environ.get(k) for k in changes}
+    for k, v in changes.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
+    try:
+        yield
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+def quiz_main(*args) -> tuple[int, str, str]:
+    return captured(quiz.main, [str(a) for a in args])
+
+
+def saved_json(folder: Path, word: str) -> dict:
+    name = next(p for p in sorted(folder.iterdir()) if word in p.name and p.suffix == ".json")
+    return json.loads(name.read_text(encoding="utf-8"))
+
+
+def case_quiz_cases(run: Run) -> str:
+    # the shipped cases, at the head under test
+    folders = [p.name for p in quiz.CASES_DIR.iterdir() if p.is_dir()] if quiz.CASES_DIR.is_dir() else []
+    need(all(f in quiz.known_roles() for f in folders), "each folder of evals/quiz/ is a role", f"{folders}")
+    try:
+        cases = quiz.load_cases(quiz.known_roles())
+    except quiz.Stop as stop:
+        need(False, "every shipped case under evals/quiz/ loads and validates", str(stop))
+    covered = {(r, c.role) for c in cases for r in c.rules}
+    floor = {(f"floor-{n}", role) for n, roles in FLOOR.items() for role in roles}
+    need(len(floor) == 29, "the floor table holds 29 (rule, role) cases", f"{len(floor)}")
+    missing = sorted(floor - covered)
+    need(not missing, "each of the floor table's 29 cases is a shipped case of its role (round 2 of CR-492 writes them)",
+         f"{len(missing)} missing", [f"{r} / {role}" for r, role in missing])
+    # prepared broken cases: a refusal only a prepared text can show
+    for key, over in (("expected", {"expected": None}), ("id", {"id": "not-the-stem"}), ("rules", {"rules": []}),
+                      ("rules", {"rules": ["J99"]}), ("extra", {"extra": "x"})):
+        folder = run.tmp / f"quiz-broken-{key}-{len(str(over))}"
+        quiz_case_file(folder, "cr-driver", "broken", **over)
+        code, out, err = quiz_main("cr-driver", "--plan", "--cases-dir", folder)
+        need(code == 2 and f"key {key}" in err and "broken.json" in err,
+             f"a case with a bad `{key}` is refused (exit 2), naming the file and the key", f"exit {code}: {err.strip()}")
+    return (f"the {len(cases)} shipped cases load and their rules resolve; the floor table's 29 cases are covered; "
+            "five prepared broken cases are refused with exit 2, each naming its file and key")
+
+
+def case_quiz_staged(run: Run) -> str:
+    head, _ = quiz.head_state()
+    source = quiz.open_source(None, head)
+    for (role, host), figure in quiz.after_table().items():
+        if host != "claude":
+            continue
+        boot = quiz.build_boot(role, source)
+        need(boot.bytes - boot.header_bytes <= figure,
+             f"the {role} boot is at most AFTER's {figure} plus its headers",
+             f"{boot.bytes - boot.header_bytes} bytes without headers")
+    boot = quiz.build_boot("cr-driver", source)
+    parts = {(p["file"].rsplit("/", 1)[-1], p["heading"]) for p in boot.parts}
+    wrapper_line = (ROOT_DIR / "agents" / "cr-driver.md").read_text(encoding="utf-8").splitlines()[0]
+    need(("startup-core.md", "whole") in parts and ("driver.md", "Startup core") in parts
+         and wrapper_line in boot.text.splitlines(),
+         "the Driver's boot holds startup-core.md whole, driver.md#Startup core and the wrapper's first line",
+         f"{sorted(parts)}")
+    cases = quiz_cases_folder(run.tmp)
+    home = run.tmp / "quiz-home"
+    home.mkdir()
+    fixture = dict(USERPROFILE=str(home), HOME=str(home), USERNAME="fixtureuser", USER="fixtureuser",
+                   LOGNAME="fixtureuser", CHANTIER_HOST=None)
+    sonnet = quiz.shipped_models()["cr-driver"]
+    results = run.tmp / "quiz-results"
+    # a project config naming another model is never read: run from a folder that holds one
+    project = run.tmp / "quiz-project"
+    project.mkdir()
+    (project / "chantier.yaml").write_text(
+        "hosts:\n  claude:\n    roles:\n      cr-driver:\n        model: claude-haiku-5-5\n", encoding="utf-8")
+    here = Path.cwd()
+    with quiz_environment(**fixture), Staged() as staged:
+        os.chdir(project)
+        try:
+            code, out, err = quiz_main("cr-driver", "--cases-dir", cases, "--save", "staged", "--results-dir", results)
+        finally:
+            os.chdir(here)
+        need(code == 0, "a staged run of cr-driver exits 0", f"exit {code}: {err.strip()}")
+        want = f"role cr-driver ({sonnet}): 2 cases: 0 at 3/3, 1 at 2/3, 0 at 1/3, 1 at 0/3"
+        need(want in out.splitlines() and "case pass-case (cr-driver, floor-1): 2/3" in out
+             and "case fail-case (cr-driver, floor-1, J6): 0/3" in out and "haiku" not in out,
+             f"the role line is `{want}` on the shipped model, with the cases at 2/3 and 0/3", out)
+        need(len(staged.roles) == 6 and len(staged.judges) == 6 and set(staged.roles) == {sonnet},
+             "six staged runs and six judge calls, all on the shipped model", f"{len(staged.roles)}, {len(staged.judges)}")
+        need("spend: not measured over 12 calls" in out and "12 calls not measured" in out,
+             "the spend line says `not measured`, never $0.00", out)
+        files = sorted(p.name for p in results.iterdir())
+        need(len(files) == 2 and files[0].startswith("quiz-") and files[0].endswith("-staged.json")
+             and files[1].endswith("-staged.md"), "`--save` writes the JSON and the Markdown", f"{files}")
+        saved = "\n".join(p.read_text(encoding="utf-8") for p in results.iterdir())
+        data = saved_json(results, "staged")
+        need(MARK not in saved and "PASS-ME" not in saved and "fixtureuser" not in saved and str(home) not in saved
+             and "~" in saved and "<user>" in saved,
+             "the saved files hold no reply text, no username and no home path: `~` and `<user>` instead",
+             saved[:300])
+        need(data["spend"]["measured"] is None and data["roles"]["cr-driver"]["model_source"] == "shipped"
+             and data["claude_version"] == "staged-claude 0.0.0" and data["incomplete"] is False
+             and data["roles"]["cr-driver"]["cases"][0]["passes"] == 0,
+             "the JSON holds the model source, the version, `incomplete` false and the passes",
+             json.dumps(data)[:300])
+        code, out, err = quiz_main("cr-driver", "--cases-dir", cases, "--save", "staged", "--results-dir", results)
+        need(code == 2 and "exists" in err and len(list(results.iterdir())) == 2,
+             "a second `--save` of the same name exits 2 and writes nothing", f"exit {code}: {err.strip()}")
+        # --against: the 0/3 case had 1/3 in the baseline, then 0/3
+        for passes, name, expect in ((1, "baseline-one.json", True), (0, "baseline-zero.json", False)):
+            old = saved_json(results, "staged")
+            for entry in old["roles"]["cr-driver"]["cases"]:
+                if entry["id"] == "fail-case":
+                    entry["passes"] = passes
+            (run.tmp / name).write_text(json.dumps(old), encoding="utf-8")
+            code, out, err = quiz_main("cr-driver", "--cases-dir", cases, "--against", run.tmp / name)
+            if expect:
+                need(code == 1 and f"F4 FAIL fail-case: 0/3 now, 1/3 in {name}" in out
+                     and "F4: violated (1 cases)" in out and "F4: 2 cases compared, 0 new (no baseline)" in out,
+                     "against a baseline where the 0/3 case had 1/3: exit 1, the case named", f"exit {code}: {out}")
+            else:
+                need(code == 0 and "F4: holds" in out and "F4 FAIL" not in out,
+                     "against a baseline where it had 0/3: exit 0, F4 holds", f"exit {code}: {out}")
+        # a session role runs on the model it is given
+        before = len(staged.roles)
+        code, out, err = quiz_main("foreman", "--model", "claude-opus-5-5", "--cases-dir", cases,
+                                   "--save", "staged-foreman", "--results-dir", results)
+        need(code == 0 and "role foreman (claude-opus-5-5): 2 cases: 0 at 3/3, 1 at 2/3, 0 at 1/3, 1 at 0/3" in out
+             and saved_json(results, "staged-foreman")["roles"]["foreman"]["model_source"] == "given"
+             and len(staged.roles) == before + 6,
+             "foreman with --model runs on it, recorded `given`", f"exit {code}: {out} {err}")
+    # a run that errors: recorded `error`, not judged, exit 4
+    with quiz_environment(**fixture), Staged(fail_first=True) as staged:
+        code, out, err = quiz_main("cr-driver", "--cases-dir", cases, "--case", "pass-case")
+        need(code == 4 and "run 1: error: staged failure" in out and len(staged.roles) == 3 and len(staged.judges) == 2,
+             "a staged run error is recorded `error`, not judged, and the exit is 4",
+             f"exit {code}: {out} / {len(staged.judges)} judge calls")
+    # the cap reached while running: no further call, `incomplete`, exit 2
+    with quiz_environment(**fixture), Staged(cost=0.9) as staged:
+        code, out, err = quiz_main("cr-driver", "--cases-dir", cases, "--max-usd", "3", "--save", "capped",
+                                   "--results-dir", results)
+        need(code == 2 and "cap reached: 3 runs not started" in out and len(staged.roles) == 3 and len(staged.judges) == 1
+             and saved_json(results, "capped")["incomplete"] is True and "spend: $3.60 measured over 4 calls" in out,
+             "the cap reached while running: no further call, `incomplete`, exit 2, the measured spend printed",
+             f"exit {code}: {out}")
+    return ("the boots of the six `AFTER` roles stay within their figures plus headers; 2/3 and 0/3 and the role lines print; "
+            "`--save` keeps no reply, username or home path and a second one is refused; `--against` exits 1 naming the case "
+            "or 0; a run error is not judged (exit 4); a project config's model is ignored; the cap stops the calls")
+
+
+def case_quiz_cap(run: Run) -> str:
+    cases = quiz_cases_folder(run.tmp)
+    with quiz_environment(CHANTIER_HOST=None), Staged() as staged:
+        code, out, err = quiz_main("cr-driver", "--cases-dir", cases, "--max-usd", "0.01")
+        plan = [x for x in out.splitlines() if x.startswith("plan")]
+        need(code == 2 and len(plan) == 2 and plan[0].startswith("plan: cr-driver 2 cases x 3 runs on ")
+             and "6 judge calls on claude-fable-5-2: ~$" in plan[0] and plan[1].startswith("plan total: 6 runs, ~$")
+             and plan[1].endswith("(cap $0.01)") and "exceeds the cap $0.01" in err,
+             "`--max-usd 0.01` prints the plan lines, then refuses (exit 2)", f"exit {code}: {out} {err}")
+        refused = {
+            "a model with no price": (("foreman", "--model", "no-such-model"), "no price for no-such-model"),
+            "a session role with no --model": (("foreman",), "--model"),
+            "the judge's own model": (("foreman", "--model", quiz_judge.JUDGE_MODEL), "judge"),
+            "--model on a role that has one": (("cr-driver", "--model", "claude-opus-5-5"), "--model is refused"),
+            "an unknown role": (("no-such-role",), "unknown role"),
+            "a case of no role named": (("cr-driver", "--case", "no-such-case"), "no case no-such-case"),
+        }
+        for what, (argv, words) in refused.items():
+            code, out, err = quiz_main(*argv, "--cases-dir", cases)
+            need(code == 2 and words in err, f"{what} exits 2 naming `{words}`", f"exit {code}: {err.strip()}")
+        with quiz_environment(CHANTIER_HOST="copilot"):
+            code, out, err = quiz_main("cr-driver", "--cases-dir", cases)
+            need(code == 2 and "the quiz runs on Claude Code only" in err, "Copilot is refused with one line",
+                 f"exit {code}: {err.strip()}")
+        need(not staged.roles and not staged.judges, "no refusal reached a model call",
+             f"{len(staged.roles)} runs, {len(staged.judges)} judge calls")
+    return ("the cap, a model with no price, a missing, refused or judge `--model`, an unknown role or case and Copilot "
+            "all exit 2, with the plan lines first for the cap and zero calls")
+
+
+def case_quiz_ref(run: Run) -> str:
+    head = sh(["git", "rev-parse", "HEAD"], cwd=ROOT_DIR).stdout.strip()
+    source = quiz.open_source("HEAD", head)
+    try:
+        for role in ("cr-driver", "foreman"):
+            boot = quiz.build_boot(role, source)
+            need(boot.sha == head and boot.label == "HEAD", "the recorded SHA is HEAD's", f"{boot.sha}")
+            for part in boot.parts:
+                shown_file = subprocess.run(["git", "show", f"HEAD:{part['file']}"], cwd=ROOT_DIR, capture_output=True)
+                data = shown_file.stdout.replace(b"\r\n", b"\n")
+                need(shown_file.returncode == 0 and len(data) == part["size"] and part["end"] - part["start"] == part["bytes"]
+                     and data[part["start"]:part["end"]].decode("utf-8") in boot.text,
+                     f"{role}: each part's bytes equal `git show HEAD:{part['file']}`", f"{part}")
+        kind = source.kind
+    finally:
+        source.close()
+    code, out, err = quiz_main("cr-driver", "--cards", "no-such-ref-xyz", "--cases-dir", quiz_cases_folder(run.tmp), "--plan")
+    need(code == 2 and "does not resolve" in err, "a ref that does not resolve exits 2", f"exit {code}: {err.strip()}")
+    return (f"`--cards HEAD` ({kind}) builds each boot from `git archive`: every part equals `git show HEAD:<path>` "
+            f"in LF form, SHA {head[:8]}; an unknown ref exits 2")
+
+
+def case_quiz_folder(run: Run) -> str:
+    folder = run.tmp / "quiz-folder-cards"
+    folder.mkdir()
+    with quiz_environment(CHANTIER_HOST=None), Staged() as staged:
+        code, out, err = quiz_main("cr-driver", "--cards", folder, "--cases-dir", quiz_cases_folder(run.tmp), "--plan")
+        need(code == 2 and "`--cards <folder>` needs `chantier brief`, which this head does not have" in err
+             and not staged.roles, "`--cards <folder>` exits 2 with the \"needs `chantier brief`\" line",
+             f"exit {code}: {err.strip()}")
+    return "`--cards <folder>` exits 2 with the \"needs `chantier brief`\" line while the CLI has no `brief`"
+
+
 FUNCTIONS = {"eval-root": case_eval_root, "other-sandbox": case_other_sandbox, "reset-foreign": case_reset_foreign,
              "reset-empty": case_reset_empty, "publish": case_publish, "setup-prompt": case_setup_prompt,
              "ticket-summary-setup": case_ticket_summary_setup, "clean": case_clean, "stray-merge": case_stray, "reset-leftover": case_reset_leftover,
@@ -1541,7 +1841,9 @@ FUNCTIONS = {"eval-root": case_eval_root, "other-sandbox": case_other_sandbox, "
              "force-tag-push": case_force_tag_push, "plain-merge": case_plain_merge,
              "audit-cos-prompt": case_audit_cos_prompt, "audit-qa-prompt": case_audit_qa_prompt,
              "audit-claim-call": case_audit_claim_call, "foreman-route-push": case_foreman_route_push,
-             "audit-heredoc": case_audit_heredoc, "behaviour": case_behaviour}
+             "audit-heredoc": case_audit_heredoc, "behaviour": case_behaviour,
+             "quiz-cases": case_quiz_cases, "quiz-staged": case_quiz_staged, "quiz-cap": case_quiz_cap,
+             "quiz-ref": case_quiz_ref, "quiz-folder": case_quiz_folder}
 
 
 def main(argv=None) -> int:

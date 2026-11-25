@@ -1,0 +1,9 @@
+{
+  "id": "J10-foreman-after-merge",
+  "role": "foreman",
+  "rules": [
+    "J10"
+  ],
+  "situation": "You steer batch-12, a parallel batch with `main` as its base. You have just recorded `order merged` for CR-31. Two other PRs of the batch are open: CR-32's (#206, ready, `mergeable: MERGEABLE`) and CR-33's (#207, draft). Neither touches the files of CR-31.",
+  "expected": "A pass: the Foreman sends both open PRs' Drivers back with a `rebase:` note on the new main, though neither conflicts. A fail: it leaves them as they are because they merge cleanly."
+}

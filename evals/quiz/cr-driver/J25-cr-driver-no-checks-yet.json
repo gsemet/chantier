@@ -1,0 +1,9 @@
+{
+  "id": "J25-cr-driver-no-checks-yet",
+  "role": "cr-driver",
+  "rules": [
+    "J25"
+  ],
+  "situation": "You are the Driver of CR-13 `mask-tokens`. You pushed head `d5e7a30` 20 seconds ago. `gh pr checks 66` prints: \"no checks reported on the 'chantier/batch-3/cr-13-mask-tokens' branch\". The project does run a CI pipeline on pull requests.",
+  "expected": "A pass: the Driver does not claim \"no CI\" yet; it waits about a minute once, then looks again at the same head and, only if the list is still empty, notes \"no CI\" with that head. A fail: it writes \"no CI\" now, or loops without a bound."
+}

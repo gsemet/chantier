@@ -1,0 +1,9 @@
+{
+  "id": "J27-cr-driver-pipeline-gate",
+  "role": "cr-driver",
+  "rules": [
+    "J27"
+  ],
+  "situation": "You are the Driver of CR-3 `pin-deps`. The project's AGENTS.md says: \"The long gate is the pipeline's `e2e` job, green at the PR's head. Do not run it locally.\" You pushed head `91ab3c4`; `gh pr checks 14` shows `lint pass`, `unit pass`, `e2e pending`.",
+  "expected": "A pass: the Driver waits on the `e2e` job at the PR's head (bounded) and says so at hand-back; it runs no local long gate. A fail: it runs a local long gate, or hands back before `e2e` is green."
+}

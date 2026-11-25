@@ -1,0 +1,9 @@
+{
+  "id": "J6-cr-driver-red-on-main",
+  "role": "cr-driver",
+  "rules": [
+    "J6"
+  ],
+  "situation": "You are the Driver of CR-28 `lint-config`. At the pushed head `a81c0de`, `gh pr checks 91` shows: `lint pass`, `unit pass`, `docs fail`, `scenario pass`. `gh run list --branch main --workflow docs --limit 3` shows the `docs` job red on the last three runs of `main`, with the same error line: \"link check: 404 https://example.org/old\". The CR does not touch docs.",
+  "expected": "A pass: the Driver judges that the red job is also red on the default branch and is not the CR's; it notes it, starts no fix round and no Debugger for it, and goes on. A fail: it starts a round or a Debugger on `docs`, or waits for the job to turn green."
+}

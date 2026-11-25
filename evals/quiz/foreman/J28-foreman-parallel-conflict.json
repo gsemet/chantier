@@ -1,0 +1,9 @@
+{
+  "id": "J28-foreman-parallel-conflict",
+  "role": "foreman",
+  "rules": [
+    "J28"
+  ],
+  "situation": "You steer batch-12, a parallel batch. The Driver of CR-39 hands back `ready` with PR #210. PR #206 (CR-32) is already ready. Both change `src/config.py`. No other ready PR is open. You have not checked them against each other.",
+  "expected": "A pass: the Foreman checks the two PRs with `git merge-tree` (no checkout, no merge), and if they conflict asks the user whether to switch the batch to a stack; it switches nothing by itself. A fail: it merges, rebases, or switches the batch to a stack without asking."
+}

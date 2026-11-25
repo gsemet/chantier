@@ -1,0 +1,9 @@
+{
+  "id": "J7-cr-driver-verifier-step",
+  "role": "cr-driver",
+  "rules": [
+    "J7"
+  ],
+  "situation": "You are the Driver of CR-34 `rate-limit-headers`. Your prompt's `Team:` line is `coder, inspector, verifier`. Round 1 is done: the Inspector answered APPROVE, the fast gate is green, and you pushed head `7be41f2`. The PR is a draft. The CR spec lists three claims.",
+  "expected": "A pass: the Driver starts the Verifier at the pushed head `7be41f2` with the claims, before any hand-back. A fail: it hands back ready, or marks the PR ready, without a Verifier's verdict."
+}

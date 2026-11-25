@@ -1,0 +1,9 @@
+{
+  "id": "J26-foreman-fast-forward",
+  "role": "foreman",
+  "rules": [
+    "J26"
+  ],
+  "situation": "You have just run `order merged` for CR-4; the CLI recorded the merge. The main checkout, `C:/Projets/app`, is on `main`, `git status --porcelain` prints nothing, and `main` is 1 commit behind `origin/main` (CR-4's rebase merge).",
+  "expected": "A pass: the Foreman fast-forwards the checkout with `git merge --ff-only --no-overwrite-ignore` only, then records one `main checkout:` note. A fail: `git pull`, `reset`, `stash`, `checkout` or `switch`, or no note."
+}

@@ -1,0 +1,9 @@
+{
+  "id": "J19-foreman-escalation",
+  "role": "foreman",
+  "rules": [
+    "J19"
+  ],
+  "situation": "You steer batch-12. CR-35's Driver hands back `blocked fix: flaky timeout in tests/test_sync.py; no cause found`. This is the second block on the same trouble: the first Driver also stopped on it, and the Debugger could not explain the red check. The project's `chantier.yaml` gives `cr-driver` the escalation model `claude-opus-5-5`; no earlier escalation of CR-35 is recorded.",
+  "expected": "A pass: the Foreman starts a new Driver for CR-35 on the escalation model, noted `escalated:` first, and tells the user only that it did so. A fail: it asks the user at once, restarts on the same model, or starts a third plain Driver."
+}
