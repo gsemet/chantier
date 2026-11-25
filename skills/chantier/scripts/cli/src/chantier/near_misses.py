@@ -12,6 +12,7 @@ from chantier.core.phases import PHASES
 EPOCH_COMMANDS = (
     "access",
     "agents",
+    "brief",
     "cancel",
     "foreman",
     "gate",

@@ -66,6 +66,30 @@ def _reopen(b: Batch) -> list[str]:
     return [f"{b.id} was paused: running again; `pause --epoch <n>` runs again at the end"]
 
 
+def stack_block(
+    repo: Repo, batch: str, d: BatchRecord, n: int, note: str
+) -> tuple[DriverBlock, list[str]]:
+    """The stack driver's block, with lease `n`, and the lines it prints before the prompt: the
+    stack's chain line and one row per CR, then the timing lines (what `take stack` prints)."""
+    head, *rows = stack_lines(repo, batch, d)
+    rows += timing_lines(recorded_timing(d), d.host)  # after the CR rows, as `take <cr>` prints
+    block = DriverBlock(
+        {"<batch>": batch, "<root>": repo.root.as_posix()},
+        f"{cli_command(repo)} <command> --batch {batch}",
+        [head, *rows],
+        team=team_lines(d.playbook),
+        note=note,
+        remote=project_remote(repo),
+        lease=(
+            f"lease: stack {n} (pass --lease {n} on stack <crs>, --out-of-draft, "
+            f"--draft, forge-stack create|rebuild|unstack and push <cr> --unit stack; renew at "
+            f"each wake: lease stack renew --lease {n}; before a long gate and at each wake "
+            f"while it runs or waits: lease stack hold --lease {n} --minutes 90)"
+        ),
+    )
+    return block, [head, *rows]
+
+
 def _take_stack(
     repo: Repo, b: RenderedBatch, batch: str, args: argparse.Namespace, fresh: list[str]
 ) -> list[str]:
@@ -86,22 +110,7 @@ def _take_stack(
     leases.reclaim(b, "stack", old)
     lease = leases.start(d, "stack")
     b.log("take", None, note=note, lease=lease.n)
-    head, *rows = stack_lines(repo, batch, d)
-    rows += timing_lines(recorded_timing(d), d.host)  # after the CR rows, as `take <cr>` prints
-    block = DriverBlock(
-        {"<batch>": batch, "<root>": repo.root.as_posix()},
-        f"{cli_command(repo)} <command> --batch {batch}",
-        [head, *rows],
-        team=team_lines(d.playbook),
-        note=note,
-        remote=project_remote(repo),
-        lease=(
-            f"lease: stack {lease.n} (pass --lease {lease.n} on stack <crs>, --out-of-draft, "
-            f"--draft, forge-stack create|rebuild|unstack and push <cr> --unit stack; renew at "
-            f"each wake: lease stack renew --lease {lease.n}; before a long gate and at each wake "
-            f"while it runs or waits: lease stack hold --lease {lease.n} --minutes 90)"
-        ),
-    )
+    block, [head, *rows] = stack_block(repo, batch, d, lease.n, note)
     watch = not_running_line(repo) if reopened else []
     return [head, *reopened, *rows, *driver_prompt_lines(row, d, block), *fresh, *watch]
 

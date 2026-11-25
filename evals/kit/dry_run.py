@@ -32,7 +32,7 @@ one fault and must be caught by the tool that owns it, naming its criterion:
     quiz-staged        `quiz.py` with `run_role`, `run_judge` and the host check replaced by staged functions: the old-cards boot of each role within `AFTER` plus its headers, 2/3 and 0/3 and the role lines, `--save` (no reply text, `~` for the home folder, spend not measured), `--against` (exit 1 naming the case, exit 0), a staged run error (not judged, exit 4), a project config naming another model ignored, and the cap reached while running
     quiz-cap           `--max-usd 0.01` prints the plan then refuses (exit 2); a model with no price, a session role with no `--model`, the judge's model, `--model` on a role that has one and Copilot (`CHANTIER_HOST`) all exit 2; none calls a seam
     quiz-ref           `--cards HEAD` builds the boot from `git archive`: each part equals `git show HEAD:<path>` in LF form, the SHA is HEAD's; a ref that does not resolve exits 2
-    quiz-folder        `--cards <folder>` exits 2 with the "needs `chantier brief`" line while the CLI has no `brief`
+    quiz-folder        `--cards <folder>` boots from `chantier brief coder --cards <folder>` (the folder's own card, the floor, the facts); a folder with no card exits 2
 
 Everything lives in one temporary folder, removed at the end unless --keep: a bare repository that
 stands for the sandbox's origin, the workspace, the fake forge's state (`sandbox_forge.py`) and the
@@ -58,6 +58,7 @@ import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -1825,13 +1826,26 @@ def case_quiz_ref(run: Run) -> str:
 
 def case_quiz_folder(run: Run) -> str:
     folder = run.tmp / "quiz-folder-cards"
-    folder.mkdir()
-    with quiz_environment(CHANTIER_HOST=None), Staged() as staged:
-        code, out, err = quiz_main("cr-driver", "--cards", folder, "--cases-dir", quiz_cases_folder(run.tmp), "--plan")
-        need(code == 2 and "`--cards <folder>` needs `chantier brief`, which this head does not have" in err
-             and not staged.roles, "`--cards <folder>` exits 2 with the \"needs `chantier brief`\" line",
-             f"exit {code}: {err.strip()}")
-    return "`--cards <folder>` exits 2 with the \"needs `chantier brief`\" line while the CLI has no `brief`"
+    shutil.copytree(ROOT_DIR / "skills" / "chantier" / "references", folder)
+    (folder / "coder.md").write_text("# Folder coder card\n\nFOLDER-CARD-MARK\n", encoding="utf-8", newline="\n")
+    head = sh(["git", "rev-parse", "HEAD"], cwd=ROOT_DIR).stdout.strip()
+    source = quiz.open_source(str(folder), head)
+    try:
+        with quiz_environment(CHANTIER_HOST="claude", CHANTIER_BATCH=None):
+            boot = quiz.build_boot("coder", source)
+    finally:
+        source.close()
+    need(source.kind == "folder" and "FOLDER-CARD-MARK" in boot.text and "=== floor" in boot.text
+         and "=== none-coder.md" in boot.text and boot.sha == head,
+         "`--cards <folder>` boots from `chantier brief coder --cards <folder>`: the prompt, then the brief file",
+         boot.text[:300])
+    empty = run.tmp / "quiz-folder-empty"
+    empty.mkdir()
+    with quiz_environment(CHANTIER_HOST="claude", CHANTIER_BATCH=None), Staged() as staged:
+        code, out, err = quiz_main("cr-driver", "--cards", empty, "--cases-dir", quiz_cases_folder(run.tmp), "--plan")
+        need(code == 2 and "cannot read" in err and not staged.roles,
+             "a folder with no card exits 2 with the line `brief` printed", f"exit {code}: {err.strip()}")
+    return "`--cards <folder>` boots from `chantier brief --cards`: the folder's own card, the floor and the facts; a folder with no card exits 2"
 
 
 FUNCTIONS = {"eval-root": case_eval_root, "other-sandbox": case_other_sandbox, "reset-foreign": case_reset_foreign,

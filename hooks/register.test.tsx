@@ -1467,6 +1467,16 @@ test('a CR driver with no worktree and no root to read starts in its parent\'s f
   expect(await said($)).toContain('started guarded, in its parent\'s folder')
 })
 
+test('a short prompt from `chantier brief` guards its writes and starts in its worktree', async ($, on) => {
+  mock.clock(on)
+  const seen = guardWorld(on, 'ok', false, [WT, ROOT])
+  const short = `${CR_FIRST}\nwrites: ${FOLDER}\n${TREE_LINE}\nRead ${ROOT}/.git/chantier/briefs/p/b/CR-5-cr-driver.md whole, first.`
+  const { agentId } = await spawn($, short, { cwd: '/elsewhere' })
+  expect(seen[0].cwd).toBe(WT)
+  expect((await write($, agentId, 'Write', `${FOLDER}/work/a.md`)).deny).toBeUndefined()
+  expect((await write($, agentId, 'Write', `${ROOT}/a.py`)).deny).toContain('refused:')
+})
+
 test('a worker with a worktree line keeps starting in its worktree', async ($, on) => {
   mock.clock(on)
   const seen = guardWorld(on, 'ok', false, [WT, ROOT])
