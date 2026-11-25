@@ -90,6 +90,26 @@ def lease_of(d: BatchRecord, unit: str) -> Lease | None:
     return c.lease
 
 
+def unit_for(d: BatchRecord, cr: str, number: int | None) -> str:
+    """The unit a `--lease <number>` on a command about the CR claims: the stack's, when the CR is
+    in a stack batch's chain and the stack's lease (not ended) has that number; else an open QA
+    order's on the CR with that number; else the CR's own. A stack driver's or a QA driver's number
+    is never read against the CR's own lease."""
+    from chantier.stacks import chain  # noqa: PLC0415 - imports the rails
+
+    if number is None:
+        return cr
+    stack = d.stack_lease
+    if stack is not None and stack.n == number and not stack.ended:  # noqa: SIM102
+        if cr in {x.id for x in chain(d)}:
+            return "stack"
+    for o in d.orders:
+        mine = o.kind == "qa" and o.cr == cr and o.done is None
+        if mine and o.lease is not None and o.lease.n == number and not o.lease.ended:
+            return o.id
+    return cr
+
+
 def set_lease(d: BatchRecord, unit: str, lease: Lease | None) -> None:
     if unit == "stack":
         d.stack_lease = lease
@@ -283,6 +303,15 @@ def lost(unit: str, number: int, lease: Lease) -> ChantierError:
     else:
         text = f"{unit}'s lease {number} ended at {hm(lease.ended or now())}"
     return ChantierError(f"claim lost: {text}; stop now: nothing recorded", EXIT_CONFLICT)
+
+
+def renew_read(  # noqa: PLR0913 - the keywords say what each is
+    repo: Repo, batch: str, d: BatchRecord, cr: str, number: int | None, *, what: str
+) -> None:
+    """A command that only reads the CR, given `--lease`: renew the unit the number claims (a stale
+    number exits 3), in a short session of its own. Without a number: nothing is written."""
+    if number is not None:
+        renewed_in_session(repo, batch, unit_for(d, cr, number), number, what=what, required=False)
 
 
 def claim(  # noqa: PLR0913 - the keywords say what each is

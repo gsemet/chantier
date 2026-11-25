@@ -58,6 +58,15 @@ def lease(args: argparse.Namespace) -> list[str] | tuple[list[str], int]:
     unit = (
         args.unit if args.unit == "stack" or leases.is_order(args.unit) else normalize_cr(args.unit)
     )
+    if args.lease is not None and number is not None and args.lease != number:
+        raise ChantierError(
+            f"lease {unit}: --lease given twice ({args.lease} and {number}); "
+            f"`lease {unit} renew --lease <n>`",
+            EXIT_USAGE,
+        )
+    number = args.lease if number is None else number
+    if action is None and number is not None and not command:
+        action = "renew"
     name = resolve_batch(repo, batch or args.batch)
     if action != "hold" and minutes is not None:
         raise ChantierError(f"lease {unit}: --minutes belongs to `hold`; {USAGE}", EXIT_USAGE)

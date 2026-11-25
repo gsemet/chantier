@@ -11,7 +11,7 @@ from chantier.core.clock import now
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.files import rel_in
 from chantier.core.repo import Repo
-from chantier.lifecycle.stages import PRIORITIES, changes_lock, stage_layout
+from chantier.lifecycle.stages import PRIORITIES, changes_lock, cr_folder_arg, stage_layout
 from chantier.status.write import write_dashboard
 from chantier.store import PlanStore
 
@@ -53,7 +53,7 @@ def mark_running_batch(repo: Repo, item: str) -> list[str]:
     """`triage <folder> --running-batch`: a grilled inbox or backlog CR is marked for the open
     batch; it joins once its specification is final, by `order add`."""
     paths = stage_layout(repo)
-    source = repo.planning_path(item, "CR folder")
+    source = cr_folder_arg(repo, item)
     slug, folder = source.name, repo.rel(source)
     if source.parent == paths["ready"]:
         raise ChantierError(

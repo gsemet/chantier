@@ -20,6 +20,7 @@ from chantier.lifecycle.running_batch import clear_mark, mark_path
 from chantier.lifecycle.stages import (
     PRIORITIES,
     changes_lock,
+    cr_folder_arg,
     move_backlog_item,
     stage_layout,
 )
@@ -107,7 +108,7 @@ def move_item(repo: Repo, item: str, to: str) -> list[str]:
     the running batch goes: the user changed the CR's destination. A marked CR already in `to`
     loses its mark and moves nowhere; an unmarked one keeps the refusal of `move_backlog_item`."""
     with changes_lock(repo):
-        source = repo.planning_path(item, "CR folder")
+        source = cr_folder_arg(repo, item)
         if repo.store.is_file(rel_in(repo.store.root, mark_path(source))) and _holds(
             repo, source, to
         ):

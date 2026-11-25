@@ -159,7 +159,13 @@ def take(args: argparse.Namespace) -> list[str]:
     """The Foreman gives a CR to a Driver (or the stack to its driver): the rails refuse what the
     batch does not allow (a slot, the budget, a CR that has nothing to do), the state records
     it, and the CR's facts are printed for the prompt. The Foreman chooses the agent."""
-    require_epoch(args.epoch, f"take {args.cr} --epoch <n>")
+    require_epoch(
+        args.epoch,
+        f"take {args.cr} --epoch <n>",
+        ""
+        if args.cr == "stack"
+        else f"; a Driver does not take: `handoff {args.cr}` prints the take's facts",
+    )
     repo = Repo.find()
     if args.cr == "stack":
         batch = resolve_batch(repo, args.batch)
@@ -367,7 +373,8 @@ def _ready_lines(repo: Repo, d: BatchRecord, c: CrEntry, prepared: bool, tail: s
 def log(args: argparse.Namespace) -> list[str]:
     """The CR's events, readable: what happened and when."""
     repo = Repo.find()
-    batch, _, c = batch_cr(repo, args.cr, args.batch)
+    batch, d, c = batch_cr(repo, args.cr, args.batch)
+    leases.renew_read(repo, batch, d, c.id, args.lease, what=f"log {c.id}")
     lines = []
     for e in cr_events(repo, batch, c.id):
         rest = {

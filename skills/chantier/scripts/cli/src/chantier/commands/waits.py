@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from chantier.commands.wait_view import GITLAB_NOTE, wait_line
-from chantier.core import waits
+from chantier.core import leases, waits
 from chantier.core.batch import (
     Batch,
     check_epoch,
@@ -26,7 +26,7 @@ from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
 from chantier.core.waits import what
 from chantier.lifecycle.session import RenderedBatch
-from chantier.lifecycle.stages import changes_lock, cr_stage, stage_layout
+from chantier.lifecycle.stages import changes_lock, cr_folder_arg, cr_stage, stage_layout
 
 CR_ID = re.compile(r"CR-\d+")
 TYPE_WORDS = "answer, approval, pipeline or merge"
@@ -185,6 +185,15 @@ def _in_batch(repo: Repo, args: argparse.Namespace) -> list[str]:
     ):
         check_epoch(b, args.epoch)
         c = b.cr(args.cr)
+        unit = leases.unit_for(b.record, c.id, args.lease)
+        leases.claim(
+            b,
+            unit,
+            args.lease,
+            what=f"wait {c.id} {args.action}",
+            required=False,
+            epoch=args.epoch,
+        )
         if args.action == "add":
             return _add_in_batch(repo, b, c, args)
         return _clear_in_batch(b, c, args.args[0], args.epoch)
@@ -216,7 +225,7 @@ def _clear_in_batch(b: Batch, c: CrEntry, wait_id: str, epoch: int | None) -> li
 
 def _folder(repo: Repo, item: str) -> Path:
     """A backlog CR's folder; refused under `4-batch/` and when it is not a CR folder."""
-    folder = repo.planning_path(item, "CR folder")
+    folder = cr_folder_arg(repo, item)
     paths = stage_layout(repo)
     stage = cr_stage(paths, folder) if folder.is_dir() else None
     shown = repo.rel(folder) if folder.exists() else item
@@ -341,6 +350,9 @@ def _show_one(repo: Repo, args: argparse.Namespace) -> list[str]:
         c = next((x for x in d.crs if x.id == args.cr), None)
         if c is None:
             raise ChantierError(f"unknown CR {args.cr} in batch {batch}", EXIT_USAGE)
+        leases.renew_read(repo, batch, d, c.id, args.lease, what=f"wait {c.id}")
+        d = read_batch(repo, batch)
+        c = next(x for x in d.crs if x.id == c.id)
         return [wait_line(repo, d, c) or f"{c.id} waits for nothing"]
     folder = _folder(repo, args.cr)
     return [_backlog_line(repo, folder) or f"{repo.rel(folder)} waits for nothing"]

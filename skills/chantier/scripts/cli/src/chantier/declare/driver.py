@@ -4,7 +4,16 @@ from __future__ import annotations
 
 import argparse
 
-from chantier.commands.registry import BATCH, BATCH_EPOCH, Subparsers, add_command, add_lease
+from chantier.commands.registry import (
+    ALSO_LEASE,
+    BATCH,
+    BATCH_EPOCH,
+    LEASE_ALSO,
+    PATH_FORMS,
+    Subparsers,
+    add_command,
+    add_lease,
+)
 from chantier.core.phases import PHASES
 
 
@@ -53,6 +62,7 @@ def _register_wait(sub: Subparsers) -> None:
         "chantier.commands.waits:wait",
         "a CR's typed waits: list, `<cr> add <type>`, `<cr> clear <id>`",
         BATCH_EPOCH,
+        (*LEASE_ALSO, *PATH_FORMS),
     )
     s.add_argument("cr", nargs="?", help="a CR id, or a backlog CR folder")
     s.add_argument("action", nargs="?", choices=["add", "clear"])
@@ -60,6 +70,7 @@ def _register_wait(sub: Subparsers) -> None:
     s.add_argument("--ref", help="add: the question, the sha or the link")
     s.add_argument("--link", help="add pipeline: the PR or MR link")
     s.add_argument("--note", help="add: why the CR waits")
+    add_lease(s, how=ALSO_LEASE)
 
 
 def _register_record(sub: Subparsers) -> None:
@@ -109,14 +120,18 @@ def _register_notes(sub: Subparsers) -> None:
         "chantier.commands.driver_notes:phase",
         "record the step the CR is at, shown by the status, the board and the pane",
         BATCH,
+        ('`phase <cr> "<step> <detail>"` = `phase <cr> <step> <detail>`',),
     )
     s.add_argument("cr")
     s.add_argument("phase", choices=PHASES)
     s.add_argument("detail", nargs="*", help="review: the step's name; gate, release: optional")
     add_lease(s)
 
-    s = add_command(sub, "log", "chantier.commands.driver:log", "the CR's events", BATCH)
+    s = add_command(
+        sub, "log", "chantier.commands.driver:log", "the CR's events", BATCH, LEASE_ALSO
+    )
     s.add_argument("cr")
+    add_lease(s, how=ALSO_LEASE)
 
 
 def _register_lease(sub: Subparsers) -> None:
@@ -128,8 +143,13 @@ def _register_lease(sub: Subparsers) -> None:
         "`lease <unit> hold --lease <n> [--minutes N]` keeps it live for N minutes (1 to 90, 45 by "
         "default) and runs nothing",
         BATCH,
+        (
+            "`--lease N` before the unit (`lease --lease N CR-7 renew`)",
+            "`lease <unit> --lease N` = `lease <unit> renew --lease N`",
+        ),
     )
     s.add_argument("unit", help="a CR, `stack` or a QA order `O-k`")
+    add_lease(s, how=ALSO_LEASE)
     s.add_argument(
         "rest",
         nargs=argparse.REMAINDER,

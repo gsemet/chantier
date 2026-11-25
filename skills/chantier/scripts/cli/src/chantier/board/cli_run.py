@@ -44,14 +44,17 @@ def judge(a: Any) -> tuple[str, str | None]:
         return "", "cli.run: a NUL character in the arguments"
     if outside := sorted(set(a.env) - set(wire.FORWARDED_ENV)):
         return "", f"cli.run: env {outside[0]} is not one a client may send"
+    from chantier.near_misses import normalize  # noqa: PLC0415 - with the CLI above
+
+    argv = normalize(list(a.argv))
     parser = _parser(quiet=True)
     try:
-        cmd = str(parser.parse_args(a.argv).cmd)
+        cmd = str(parser.parse_args(argv).cmd)
     except Usage as e:
         return "", f"cli.run: {e}"
     if cmd in wire.NEVER_REMOTE:
         return cmd, f"cli.run: {cmd} does not run through the server"
-    if opt := wire.holds_taken_over(a.argv, parser, cmd):
+    if opt := wire.holds_taken_over(argv, parser, cmd):
         return cmd, f'cli.run: argv holds {opt}: the server names the project from "project"'
     return cmd, None
 

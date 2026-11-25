@@ -18,7 +18,13 @@ from chantier.core.records import (
 )
 from chantier.core.repo import Repo
 from chantier.lifecycle.filing import shown
-from chantier.lifecycle.stages import changes_lock, cr_folders, cr_stage, stage_layout
+from chantier.lifecycle.stages import (
+    changes_lock,
+    cr_folder_arg,
+    cr_folders,
+    cr_stage,
+    stage_layout,
+)
 from chantier.summaries import store
 from chantier.summaries.edit import change_group, change_labels, label_set, one_line
 from chantier.summaries.gaps import gap_line, gap_of
@@ -28,7 +34,7 @@ from chantier.summaries.sources import checksums, covered_files
 
 def _cr_folder(repo: Repo, paths: dict[str, Path], item: str) -> Path:
     """A CR folder of a stage, from the path the command was given."""
-    folder = repo.planning_path(item, "CR folder")
+    folder = cr_folder_arg(repo, item)
     stage = cr_stage(paths, folder) if folder.is_dir() else None
     if stage is None:
         raise ChantierError(f"not a CR folder: {shown(repo, folder)}", EXIT_USAGE)

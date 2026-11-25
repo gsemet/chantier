@@ -261,7 +261,11 @@ def test_the_archives_and_the_trash_keep_their_format_only(repo: Path, chantier:
     assert code == EXIT_CONFLICT and len(lines) == ARCHIVE_LINES, lines
     assert lines[0] == "1 error(s), 1 gap(s) in 2 CRs"
     assert lines[1].startswith("error 5-archives/x/summary.json: unreadable (")
-    assert lines[1].endswith("→ repair or remove it, then summary set 5-archives/x …")
+    assert lines[1].endswith(
+        "→ repair or remove it, then summary set 5-archives/x "
+        '--title "<at most 72 characters>" '
+        '--summary "<at most 300 characters: the CR\'s state now>"'
+    )
     assert lines[2] == "gap 6-trash/y/summary.json: title is 73 characters: the limit is 72"
 
 

@@ -73,6 +73,8 @@ def verdict(args: argparse.Namespace) -> list[str]:
             )
     judged_on = base_keys(head_base(repo, d, c, wt, head))
     with RenderedBatch(repo, batch, actor="driver") as b:
+        unit = leases.unit_for(b.record, c.id, args.lease)
+        leases.claim(b, unit, args.lease, what=f"verdict {c.id}", required=False)
         b.log("verdict", c.id, result=result, head=head, **judged_on)
     return [f"verdict {c.id} {result} at {short_head(head)}"]
 

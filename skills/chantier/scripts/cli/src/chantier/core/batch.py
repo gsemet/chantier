@@ -241,13 +241,13 @@ def resolve_batch(repo: Repo, batch: str | None, paused: bool = False) -> str:
     raise ChantierError(f"several running batches ({', '.join(names)}): pass --batch", EXIT_USAGE)
 
 
-def require_epoch(epoch: int | None, usage: str) -> None:
+def require_epoch(epoch: int | None, usage: str, tail: str = "") -> None:
     """A steering command carries `--epoch`: the Foreman's number in its batch. Called before
     anything is written; `usage` is the command's own form, e.g. `take <cr> --epoch <n>`."""
     if epoch is None:
         raise ChantierError(
             f"{usage}: the steering session's command; <n> is your number as Foreman of the "
-            "batch (Foreman n°<n>)",
+            f"batch (Foreman n°<n>){tail}",
             EXIT_PRECONDITION,
         )
 

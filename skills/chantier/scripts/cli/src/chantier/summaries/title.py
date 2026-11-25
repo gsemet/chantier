@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from chantier.core.files import heading_of, rel_in, title_source
-from chantier.core.records import TITLE_MAX
+from chantier.core.records import SUMMARY_MAX, TITLE_MAX
 from chantier.core.repo import Repo
 from chantier.lifecycle.layout_check import Finding, Severity
 from chantier.summaries import store
@@ -14,6 +14,14 @@ REQUEST = "intake/request.md"
 WRITE = (
     f'write a short "# Title" line (at most {TITLE_MAX} characters) at its top, the text below it'
 )
+
+
+def set_form(path: str) -> str:
+    """`summary set` with both fields, each with its limit: what closes a missing summary."""
+    return (
+        f'summary set {path} --title "<at most {TITLE_MAX} characters>" '
+        f'--summary "<at most {SUMMARY_MAX} characters: the CR\'s state now>"'
+    )
 
 
 def short_heading(text: str) -> str | None:

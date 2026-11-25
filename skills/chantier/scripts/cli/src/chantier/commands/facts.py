@@ -308,6 +308,9 @@ def handoff(args: argparse.Namespace) -> list[str]:
     """The CR's facts, for any agent; changes nothing."""
     repo = Repo.find()
     batch, d, c = batch_cr(repo, args.cr, args.batch)
+    if args.lease is not None:
+        leases.renew_read(repo, batch, d, c.id, args.lease, what=f"handoff {c.id}")
+        batch, d, c = batch_cr(repo, args.cr, args.batch)
     lines = cr_facts(repo, batch, d, c)
     if c.lease is not None:
         lines.append(leases.line(repo, c.id, c.lease))

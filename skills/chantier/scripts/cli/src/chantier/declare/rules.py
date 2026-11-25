@@ -2,18 +2,27 @@
 
 from __future__ import annotations
 
-from chantier.commands.registry import BATCH, Subparsers, add_command
+from chantier.commands.registry import (
+    BATCH,
+    IGNORED_LEASE,
+    LEASE_IGNORED,
+    Subparsers,
+    add_command,
+    add_lease,
+)
 
 
 def register(sub: Subparsers) -> None:
     """Declare this module's commands."""
-    add_command(
+    s = add_command(
         sub,
         "rules",
         "chantier.commands.rules:rules",
         "the project's instruction file and the files it links",
         BATCH,
+        LEASE_IGNORED,
     )
+    add_lease(s, how=IGNORED_LEASE)
 
     s = add_command(
         sub,

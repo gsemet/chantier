@@ -30,13 +30,24 @@ def lazy(path: str) -> Handler:
     return run
 
 
-def add_lease(s: argparse.ArgumentParser, required: bool = False) -> None:
-    """`--lease <n>`: the number `take` (or `order qa`) printed, on a Driver's command."""
+ALSO_LEASE = (
+    "accepted on this command too: a valid one renews, a stale one exits 3 (`claim lost`); "
+    "without it nothing is checked"
+)
+IGNORED_LEASE = "accepted and ignored: `rules` names no unit"
+
+
+def add_lease(
+    s: argparse.ArgumentParser, required: bool = False, *, how: str | None = None
+) -> None:
+    """`--lease <n>`: the number `take` (or `order qa`) printed, on a Driver's command. `how`: the
+    help of a command that accepts it only as a near miss (`ALSO_LEASE`, `IGNORED_LEASE`)."""
     s.add_argument(
         "--lease",
         type=int,
         metavar="N",
-        help=(
+        help=how
+        or (
             "the lease number `take` printed: "
             + ("required" if required else "optional")
             + " when the unit has a lease; a valid one renews it, a stale one exits 3 "
@@ -45,12 +56,33 @@ def add_lease(s: argparse.ArgumentParser, required: bool = False) -> None:
     )
 
 
-def add_command(
-    sub: Subparsers, name: str, fn: str, help_: str, scope: str = BATCH
+LEASE_ALSO = ("`--lease N`, renewed when valid",)
+LEASE_IGNORED = ("`--lease N`, ignored",)
+EPOCH_FORM = "`--epoch N` before the command name"
+PATH_FORMS = (
+    "a path repeating the planning prefix (`projects/<name>/changes/1-inbox/<cr>`)",
+    "a path from a shell inside the planning folder (`.`)",
+    "the CR's short name",
+)
+
+
+def also_text(forms: list[str]) -> str | None:
+    """A command's `--help` epilog: one line per near-miss form it accepts."""
+    return "\n".join(["also accepted:", *(f"  {f}" for f in forms)]) if forms else None
+
+
+def add_command(  # noqa: PLR0913, PLR0917 - the command's words
+    sub: Subparsers, name: str, fn: str, help_: str, scope: str = BATCH, also: tuple[str, ...] = ()
 ) -> argparse.ArgumentParser:
     """Add one command: its handler (`module:function`), `--project` and `--profile` (accepted after
     the command too), and its scope."""
-    s: argparse.ArgumentParser = sub.add_parser(name, help=help_)
+    forms = [*also, *([EPOCH_FORM] if scope == BATCH_EPOCH else [])]
+    s: argparse.ArgumentParser = sub.add_parser(
+        name,
+        help=help_,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=also_text(forms),
+    )
     s.set_defaults(fn=lazy(fn))
     if scope != OWN_PROJECT:
         s.add_argument("--project", default=argparse.SUPPRESS, help=argparse.SUPPRESS)

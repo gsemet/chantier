@@ -7,11 +7,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from chantier.core.files import heading_of, rel_in
-from chantier.core.records import TITLE_MAX, CrSummary
+from chantier.core.records import SUMMARY_MAX, TITLE_MAX, CrSummary
 from chantier.core.repo import Repo
 from chantier.summaries import store as summaries_store
 from chantier.summaries.sources import Change, checksums, diff
-from chantier.summaries.title import REQUEST, WRITE
+from chantier.summaries.title import REQUEST, WRITE, set_form
 
 if TYPE_CHECKING:
     from chantier.store import PlanStore
@@ -54,10 +54,7 @@ def gap_line(repo: Repo, gap: Gap) -> str:
     """The line `summary lint` prints for a gap, and the command that closes it."""
     path = repo.rel(gap.folder)  # the form `summary set` reads: relative to the planning folder
     if gap.kind == "no summary":
-        return (
-            f"{path}: no summary → summary set {path} "
-            f'--title "<at most {TITLE_MAX} characters>" --summary "<the CR\'s state now>"'
-        )
+        return f"{path}: no summary → {set_form(path)}"
     if gap.kind == "no heading":
         return f'{path}/{REQUEST}: no "# " heading → {WRITE}'
     if gap.kind == "long title":
@@ -69,10 +66,11 @@ def gap_line(repo: Repo, gap: Gap) -> str:
     if gap.kind == "unreadable":
         return (
             f"{path}: summary.json unreadable ({gap.error}) → repair or remove it, "
-            f"then summary set {path} …"
+            f"then {set_form(path)}"
         )
     files = ", ".join(f"{c.path} {c.how}" for c in gap.changes)
     return (
-        f'{path}: summary late ({files}) → read them, then summary set {path} --summary "<…>" '
-        "or --unchanged"
+        f"{path}: summary late ({files}) → read them, then summary set {path} "
+        f'--summary "<at most {SUMMARY_MAX} characters>" or '
+        f"summary set {path} --unchanged"
     )
