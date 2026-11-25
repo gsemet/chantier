@@ -2519,7 +2519,8 @@ def forge_hub(w: World) -> None:
             return ["(still running)"]
         got = []
         while (x := proc.line(2)) is not None:
-            got.append(x)
+            if not x.startswith("state: "):  # the steering watcher's `state:` line, checked on its own
+                got.append(x)
         return got
 
     def watcher(project: str, *args, env: dict = quick) -> BoardProc:
@@ -2845,13 +2846,23 @@ def forge_hub(w: World) -> None:
             return (f"watch: {name} told up to cursor {n}; still watching (if this watcher stops, start "
                     f"again: {cli_of('third')} watch --after {n} --stream)")
 
+        state_before_last: list[str] = []  # per block: the `state:` line right before its last line, or ""
+
         def block(proc: BoardProc) -> list[str]:
-            """The lines a streaming watcher printed up to its next `still watching` line."""
+            """The lines a streaming watcher printed up to its next `still watching` line,
+            without its `state:` line."""
             got = []
+            prev = ""
             while (x := proc.line(60)) is not None:
-                got.append(x)
+                if x.startswith("state: "):
+                    prev = x
+                    continue
                 if x.startswith("watch: ") and "; still watching (" in x:
+                    state_before_last.append(prev)
+                    got.append(x)
                     break
+                prev = x
+                got.append(x)
             return got
 
         ws = watcher("third", "--after", base_c, "--stream", env={"CHANTIER_HUB_TEST_TIMES": "1:4:6"})
@@ -2940,6 +2951,9 @@ def forge_hub(w: World) -> None:
               and got[0].startswith(f"message from {f2}'s Driver (note, seq ")
               and got[1].startswith(f"message from {f2}'s Driver (blocked, seq ")
               and wf.p.poll() is None, str(got))
+        check("the Foreman's watcher prints the batch's `state:` line just before its last line",
+              bool(state_before_last) and state_before_last[-1].startswith(f"state: {c_batch}"),
+              str(state_before_last))
         _, out = sw.chantier("inbox", "--epoch", 1, "--batch", c_batch, project="third", env=fm)
         check("`inbox` lists both messages unread", len(out) == 3 and out[-1].startswith("inbox: 2 unread"),
               str(out))
@@ -3796,7 +3810,8 @@ def surface_server(w: World) -> None:
             return ["(still running)"]
         got = []
         while (x := proc.line(2)) is not None:
-            got.append(x)
+            if not x.startswith("state: "):  # the steering watcher's `state:` line, checked on its own
+                got.append(x)
         return got
 
     def start_board() -> BoardProc:
@@ -11153,7 +11168,7 @@ def lost_messages(w: World) -> None:
           all(o["done"] for o in w.batch()["orders"])
           and any(m == f"{three} first" for m in fm.messages), str(fm.messages))
     check("the line that arrives late changes nothing",
-          w.chantier("order", "done", order, "--epoch", 1)[1] == [f"{order} already done"])
+          w.chantier("order", "done", order, "--epoch", 1)[1][:1] == [f"{order} already done"])
 
     driver_round(w, one, "lost.py", f"WHO = '{one}'\n")
     w.ready(one, w.cr(one)["pr"])
@@ -11547,7 +11562,8 @@ def surface_config_page(w: SurfaceWorld, coder_line: Callable[..., str], frozen:
                 return ["(still running)"]
             got = []
             while (x := proc.line(2)) is not None:
-                got.append(x)
+                if not x.startswith("state: "):
+                    got.append(x)
             return got
 
         cli_form = (f'uvx --from "{SKILL.parents[1].resolve().as_posix()}" chantier '
