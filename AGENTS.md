@@ -21,7 +21,8 @@
   surface's root and in the project's folder there, are the only configuration, above the plugin's
   shipped `config/chantier.defaults.yml`; the user's profiles (`chantier login`), below, only say where a project's commands run (with none, chantier runs on the shipped defaults; `uv` is the only tool to install, and the CLI needs no network once uv's cache holds its
   packages, except the server's read of a batch's PRs, the forge hub, the surface server's writer, whose fetch and push need it, the board's Griller run (the host CLI's calls to its model), and the forge calls of `ship`, `take`, `round`, `handoff` and `forge-stack`, made with the user's own `gh` or `glab` (below), `chantier push`'s push to the remote, and a command run through a profile (`chantier login`), which reaches the profile's server), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
-  external planning surface), as plain JSON and Markdown, and the project's `chantier.yaml` in an
+  external planning surface), as plain JSON and Markdown, and, through the launcher's `--sync` in
+  the dev mode, uv's sync of chantier's own checkout's `.venv`, and the project's `chantier.yaml` in an
   external planning surface's project folder, from the board's Configuration page, and a CR's
   cleaned archive in its PR when the project asks for it, and fast-forwards a clean main checkout
   after a merge it records, and `chantier push` updates a CR's recorded branch on the remote (and the worktree's tracking ref), the surface server keeps its two keys, and the user's profiles (`chantier login`, `logout`), in one file outside any project, `chantier/profiles.json` in the user's config folder (`$CHANTIER_CONFIG_HOME`, else `%APPDATA%` on Windows, else `$XDG_CONFIG_HOME` or `~/.config`), mode 0600; a profile applies only to the projects it was logged in for, and to none served by another surface on this machine, the host CLI that the board's Griller runs keeps its own
@@ -328,7 +329,15 @@
   start, after a merge that changes `uv.lock`); it checks first, and a sync that chantier's own
   processes block names them and waits, never stopping or killing one but the session's own board
   and watcher on the user's yes (the cards), then `uv run --no-sync --project` runs the local
-  code, live; chantier's own sessions never run `uvx --from <checkout>`; other projects run the
+  code, live; The plugin ships one launcher, `skills/chantier/scripts/chantier.py`, run as
+  `uv run --script "<plugin root>/skills/chantier/scripts/chantier.py" …` from uv's own
+  environment, never the checkout's `.venv`. It picks the mode by this rule and runs the CLI by
+  this one method, adding `--skill` in the plugin mode. With `--sync`, in the dev mode only, it
+  runs the checked sync: the check, the holders named read-only, the sync when there are none,
+  else `sync pending: held by …`. It stops no process, installs nothing, has no dependency of
+  its own, and runs no `uv sync` but under `--sync`. It is built on study-fable-v2's measure
+  (the `$CHANTIER` paragraph, about 2.3 KB in each of the four skills) and the user's answers
+  simplify-cards-Q18 and Q22. chantier's own sessions never run `uvx --from <checkout>`; other projects run the
   plugin mode, `uvx --from <plugin root>`, even from chantier's checkout. Another project runs
   chantier from its checkout in plugin mode, a build uv caches by version: it changes at each
   version bump. The board server, its writer and the forge hub, started from another project's

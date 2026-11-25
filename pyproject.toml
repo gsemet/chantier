@@ -66,10 +66,15 @@ banned-module-level-imports = ["ruamel", "ruamel.yaml", "psutil", "starlette", "
 strict = true
 python_version = "3.11"
 plugins = ["pydantic.mypy"]
+# the launcher `skills/chantier/scripts/chantier.py` would clash with the `chantier` package:
+# modules are named from these bases, the launcher from the repository's root
+explicit_package_bases = true
+mypy_path = ["skills/chantier/scripts/cli/src", "skills/chantier/scripts/cli/tests"]
 files = [
     "skills/chantier/scripts/cli/src",
     "skills/chantier/scripts/cli/tests",
     "skills/chantier/scripts/cli/session_usage.py",
+    "skills/chantier/scripts/chantier.py",
 ]
 
 [[tool.mypy.overrides]]
