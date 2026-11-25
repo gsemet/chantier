@@ -1173,6 +1173,806 @@
         "chief-of-staff"
       ],
       "trigger": "a parked CR back, or dropped with dependents"
+    },
+    "grill-series": {
+      "readings": [
+        "topics/grill-series.md"
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "a series of questions to the user, a CR's answers"
+    },
+    "grill-options": {
+      "readings": [
+        "topics/grill-options.md"
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "the options of a question, a recommended answer"
+    },
+    "grill-backlog": {
+      "readings": [
+        "topics/grill-backlog-p1.md",
+        "topics/grill-backlog-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "filing, moving, triaging or grouping a CR; the backlog's labels"
+    },
+    "grill-restate": {
+      "readings": [
+        "topics/grill-restate.md"
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "before asking 'grilled enough?', a restatement"
+    },
+    "grill-specify": {
+      "readings": [
+        "topics/grill-specify-p1.md",
+        "topics/grill-specify-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "the spec-writer or the spec-critic to start, a specification to apply"
+    },
+    "grill-critic": {
+      "readings": [
+        "topics/grill-critic.md"
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "an impactful CR's specification"
+    },
+    "grill-critic-steps": {
+      "readings": [
+        "topics/grill-critic-steps.md"
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "a spec-critic's report to apply"
+    },
+    "where-cr-goes": {
+      "readings": [
+        "topics/where-cr-goes.md"
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "'grilled enough': the destination of a CR"
+    },
+    "grill-surface": {
+      "readings": [
+        "topics/grill-surface.md"
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "a CR of another project of the surface, a relay"
+    },
+    "grill-outside-pr": {
+      "readings": [
+        "topics/grill-outside-pr.md"
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "'archive <link>', a PR follow-up on a ticket",
+      "review_by": "0.16.0"
+    },
+    "ticket-summary": {
+      "readings": [
+        "topics/ticket-summary-p1.md",
+        "topics/ticket-summary-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "a CR with an `issue:` line, a summary for a ticket"
+    },
+    "ticket-summary-post": {
+      "readings": [
+        "topics/ticket-summary-post-p1.md",
+        "topics/ticket-summary-post-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "the user's yes to post a drafted text on a ticket"
+    },
+    "session-start": {
+      "readings": [
+        "topics/session-start.md"
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "a session's first turn, a failed P6 or P7"
+    },
+    "session-start-surface": {
+      "readings": [
+        "topics/session-start-surface-p1.md",
+        "topics/session-start-surface-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "no `--project`, a `planning:` pointer in AGENTS.md"
+    },
+    "seat": {
+      "readings": [
+        "topics/seat-p1.md",
+        "topics/seat-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "`seat` output, a role question, 'become chief of staff' or 'griller'"
+    },
+    "first-turn": {
+      "readings": [
+        "topics/first-turn-p1.md",
+        "topics/first-turn-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "a session's first message to the user"
+    },
+    "reload": {
+      "readings": [
+        "topics/reload.md"
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "'chantier reload', a skill argument `reload`, a host reload"
+    },
+    "titles": {
+      "readings": [
+        "topics/titles.md"
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "a role set or changed, a session to rename"
+    },
+    "writer": {
+      "readings": [
+        "topics/writer.md"
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "a `writer:` line, a journal `sync-*` line"
+    },
+    "griller-worktree": {
+      "readings": [
+        "topics/griller-worktree.md"
+      ],
+      "roles": [
+        "griller"
+      ],
+      "trigger": "a Griller in a worktree"
+    },
+    "griller-cost": {
+      "readings": [
+        "topics/griller-cost.md"
+      ],
+      "roles": [
+        "griller"
+      ],
+      "trigger": "the cost of a Griller"
+    },
+    "board": {
+      "readings": [
+        "topics/board-p1.md",
+        "topics/board-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "the board, the surface server, `serve`, a `board` line"
+    },
+    "board-lines": {
+      "readings": [
+        "topics/board-lines.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a `board on`, `board already running` or `error: board not started` line"
+    },
+    "board-restart": {
+      "readings": [
+        "topics/board-restart.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "`board runs another build`, a new key, a restart"
+    },
+    "watcher": {
+      "readings": [
+        "topics/watcher.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a `watch: not running` line, the session's first yes"
+    },
+    "watcher-lines": {
+      "readings": [
+        "topics/watcher-lines.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a `watch:` start or end line"
+    },
+    "watcher-events": {
+      "readings": [
+        "topics/watcher-events.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a watcher's notification or end, a `forge saw` line"
+    },
+    "watcher-board": {
+      "readings": [
+        "topics/watcher-board.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a `board wrote (...)` line"
+    },
+    "watcher-pull": {
+      "readings": [
+        "topics/watcher-pull.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "no watcher can wake the session, `watch --once`"
+    },
+    "remote-login": {
+      "readings": [
+        "topics/remote-login.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "'board on my phone', `webui`, `chantier login`",
+      "review_by": "0.16.0"
+    },
+    "allow-rules": {
+      "readings": [
+        "topics/allow-rules.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a P10 warn line, the allow-rules question"
+    },
+    "allow-rules-more": {
+      "readings": [
+        "topics/allow-rules-more-p1.md",
+        "topics/allow-rules-more-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a broad or stale rule, a no, a refused settings edit",
+      "review_by": "0.16.0"
+    },
+    "forge-permissions": {
+      "readings": [
+        "topics/forge-permissions.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "P9 at a first turn or step 1 of a batch (GitHub)"
+    },
+    "forge-permissions-say": {
+      "readings": [
+        "topics/forge-permissions-say.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "what the first message says of the forge"
+    },
+    "forge-permissions-gitlab": {
+      "readings": [
+        "topics/forge-permissions-gitlab.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "P9 on a GitLab remote"
+    },
+    "config": {
+      "readings": [
+        "topics/config-p1.md",
+        "topics/config-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "`chantier.yaml`, `playbook`, a role's agent or model"
+    },
+    "project-rules": {
+      "readings": [
+        "topics/project-rules.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a session's start, a long gate to name"
+    },
+    "options": {
+      "readings": [
+        "topics/options.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "an option to offer the user"
+    },
+    "refusals-to-say": {
+      "readings": [
+        "topics/refusals-to-say-p1.md",
+        "topics/refusals-to-say-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "the user asks for what the CLI will refuse"
+    },
+    "refusals-to-say-more": {
+      "readings": [
+        "topics/refusals-to-say-more.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a release word, a CR with no specification, rounds, an unpriced model"
+    },
+    "compacting": {
+      "readings": [
+        "topics/compacting-p1.md",
+        "topics/compacting-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "context above 100k tokens, a tip moment",
+      "review_by": "0.16.0"
+    },
+    "delivery-time": {
+      "readings": [
+        "topics/delivery-time-p1.md",
+        "topics/delivery-time-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a plan, a report, a sentence that says when work will be done"
+    },
+    "trials": {
+      "readings": [
+        "topics/trials.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "step 1 of a batch, a permission trial"
+    },
+    "batch-plan": {
+      "readings": [
+        "topics/batch-plan.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "the user's go to run CRs, up to `open`"
+    },
+    "batch-plan-show": {
+      "readings": [
+        "topics/batch-plan-show.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "the plan shown at the go, an empty batch, a waiver"
+    },
+    "batch-plan-mode": {
+      "readings": [
+        "topics/batch-plan-mode-p1.md",
+        "topics/batch-plan-mode-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "the mode question, the steering mode, a forced `foreman` or `direct`"
+    },
+    "batch-plan-cut": {
+      "readings": [
+        "topics/batch-plan-cut.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a time given by the user, a wait between CRs"
+    },
+    "foreman-start": {
+      "readings": [
+        "topics/foreman-start-p1.md",
+        "topics/foreman-start-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "`open`, the Foreman to start"
+    },
+    "foreman-start-more": {
+      "readings": [
+        "topics/foreman-start-more.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a Foreman to reuse, a Foreman in a worktree, `ready <batch>`"
+    },
+    "steering-reports": {
+      "readings": [
+        "topics/steering-reports-p1.md",
+        "topics/steering-reports-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "`status`, a Progress report, a delivery slip"
+    },
+    "refused-push-chief": {
+      "readings": [
+        "topics/refused-push-chief-p1.md",
+        "topics/refused-push-chief-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "`[foreman→chief-of-staff] push <branch> ...`, a Driver's `push` line in direct mode"
+    },
+    "refused-push-chief-more": {
+      "readings": [
+        "topics/refused-push-chief-more-p1.md",
+        "topics/refused-push-chief-more-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a push judged not legitimate, a host refusal of your push"
+    },
+    "refused-rebase-chief": {
+      "readings": [
+        "topics/refused-rebase-chief.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "`[foreman→chief-of-staff] rebase <branch> <base>`"
+    },
+    "refused-forge-chain": {
+      "readings": [
+        "topics/refused-forge-chain.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a refused `gh pr ready`, `gh pr edit --base`, or a chained subcommand",
+      "review_by": "0.16.0"
+    },
+    "asks": {
+      "readings": [
+        "topics/asks.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "`asks`, a report's unread asks"
+    },
+    "cost": {
+      "readings": [
+        "topics/cost.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "the cost table, `cost --explain`"
+    },
+    "chain-conflict": {
+      "readings": [
+        "topics/chain-conflict.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "`chain <cr> after <cr>`, `conflict <cr> with <cr>`"
+    },
+    "rounds-exception": {
+      "readings": [
+        "topics/rounds-exception.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a CR blocked `rounds:` on a red the batch caused"
+    },
+    "driver-question": {
+      "readings": [
+        "topics/driver-question.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "`ask ... blocked <cr> question`, `fix:`, `refused <cr>`, a typed wait, `parked`"
+    },
+    "merge-words": {
+      "readings": [
+        "topics/merge-words.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a PR to name to the user, a `handed back:` line"
+    },
+    "merge-gaps": {
+      "readings": [
+        "topics/merge-gaps.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a `ready-to-merge` ask with gaps, a local gate clause, a screenshot gap"
+    },
+    "merge-recorded": {
+      "readings": [
+        "topics/merge-recorded.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a `forge saw merged` line, 'I merged #n'"
+    },
+    "merge-series-stack": {
+      "readings": [
+        "topics/merge-series-stack-p1.md",
+        "topics/merge-series-stack-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a series or stack batch's merge, `order mode`, a mismatched ask"
+    },
+    "merge-stack-ready": {
+      "readings": [
+        "topics/merge-stack-ready-p1.md",
+        "topics/merge-stack-ready-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "`stack-ready-to-merge`, a refused `forge-stack rebuild`"
+    },
+    "merge-stack-gitlab": {
+      "readings": [
+        "topics/merge-stack-gitlab.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a stack of MRs on GitLab"
+    },
+    "stack-changes-chief": {
+      "readings": [
+        "topics/stack-changes-chief-p1.md",
+        "topics/stack-changes-chief-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a drop from a stack, a hold, an insert into a stack ready to merge"
+    },
+    "batch-pause": {
+      "readings": [
+        "topics/batch-pause.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "`final <STATUS.md path>`, the last CR ended"
+    },
+    "retro-route": {
+      "readings": [
+        "topics/retro-route-p1.md",
+        "topics/retro-route-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "the retro to offer, a point's route, a list of changes of your own"
+    },
+    "retro-route-chantier": {
+      "readings": [
+        "topics/retro-route-chantier-p1.md",
+        "topics/retro-route-chantier-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a `chantier` point the user wants posted as an issue"
+    },
+    "batch-close": {
+      "readings": [
+        "topics/batch-close-p1.md",
+        "topics/batch-close-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "'close the batch', the close offer"
+    },
+    "batch-close-stopped": {
+      "readings": [
+        "topics/batch-close-stopped-p1.md",
+        "topics/batch-close-stopped-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "`close` refused for a held agent, `--stopped`",
+      "review_by": "0.16.0"
+    },
+    "recovery": {
+      "readings": [
+        "topics/recovery.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a stale heartbeat, an app restart, a Foreman not answering",
+      "review_by": "0.16.0"
+    },
+    "direct-mode": {
+      "readings": [
+        "topics/direct-mode-p1.md",
+        "topics/direct-mode-p2.md",
+        "topics/direct-mode-p3.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "`open --direct`, a switch to direct mode"
+    },
+    "direct-mode-epoch": {
+      "readings": [
+        "topics/direct-mode-epoch-p1.md",
+        "topics/direct-mode-epoch-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a claim of your number as Foreman, `--epoch`"
+    },
+    "direct-mode-accept": {
+      "readings": [
+        "topics/direct-mode-accept-p1.md",
+        "topics/direct-mode-accept-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a request while a direct batch runs, the pause in direct mode"
+    },
+    "release-chief": {
+      "readings": [
+        "topics/release-chief-p1.md",
+        "topics/release-chief-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a release CR to file or join, `order add --release`"
+    },
+    "release-chief-approve": {
+      "readings": [
+        "topics/release-chief-approve-p1.md",
+        "topics/release-chief-approve-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a `ready-to-merge` ask of a release PR, `order approve`"
+    },
+    "release-chief-auto": {
+      "readings": [
+        "topics/release-chief-auto-p1.md",
+        "topics/release-chief-auto-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "'auto' during a release, `order grant`"
+    },
+    "release-chief-after": {
+      "readings": [
+        "topics/release-chief-after-p1.md",
+        "topics/release-chief-after-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a refused publication, a refused main-checkout step, `release published`"
+    },
+    "seat-handover": {
+      "readings": [
+        "topics/seat-handover.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "'hand the batch to another session', `your turn, you are the Chief of Staff`",
+      "review_by": "0.16.0"
+    },
+    "demo": {
+      "readings": [
+        "topics/demo-p1.md",
+        "topics/demo-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "the last PR of a stack ready to merge, 'demo'",
+      "review_by": "0.16.0"
+    },
+    "pr-template-own": {
+      "readings": [
+        "topics/pr-template-own.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "the user's own PR template",
+      "review_by": "0.16.0"
     }
   }
 }

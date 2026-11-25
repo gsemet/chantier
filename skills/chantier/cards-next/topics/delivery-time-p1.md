@@ -1,0 +1,7 @@
+# Delivery time: the floor of a batch (part 1 of 2)
+
+The least time a batch can take, counted from facts, never a prediction; extra rounds, a Verifier or a wait add to it and are not counted. Say it "at least about <h> h", a delivery time "not before <time>" in the user's time zone. You count it by hand; the CLI prints none. The name in the card is this topic; no other word for it.
+- The depth: the longest chain of CRs that wait for one another (`depends.json`, an approved chain, the order of a series; a release waits for every other CR, one more level). Say it with the chain: "critical path: CR-a -> CR-b". A parallel batch with no `after` has depth 1.
+- The gates: CRs still to pass their long gate, queued behind one lock whatever the slots. A CR exempt (`handback --no-gate`) or covered by a waiver does not count; under a stack waiver the top counts once. Under a rule that asks a local run, every CR of a parallel or series batch that owes it counts, and a stack's top counts once, unless a waiver's words name that gate.
+- Lock term = gates times the gate's time. Chain term = depth times (the gate's time plus one CI run). The floor is the larger; say which.
+- The gate's time comes from the record only: the latest passed runs, the `gate` events of one `run` id in `events.jsonl` (end at the last event's `t` in UTC; start from the run id `<yyyymmdd>-<hhmmss>-<pid>`, local time, converted); else the project's rules; else unknown.

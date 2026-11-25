@@ -1,0 +1,4 @@
+# Start checks, once per invocation
+
+Run `$CHANTIER preflight --direct` (it prints P6 and P7). On a P6 or P7 failure, or on a host that refuses writes in the main checkout's planning folder from this session, the first message says, before anything else: what fails in one line; what it means for the role (a Chief of Staff cannot steer a batch: preflight fails at the go; a Griller cannot write the planning folder but may work and send its files to the Chief of Staff, `help griller-worktree`); what the user does: open a new session on the main checkout, without a worktree, nothing is lost. Before proposing it check nothing is left behind (`git status --porcelain` empty, `git rev-list --count <default branch>..HEAD` is 0), else name what would be and ask. Offer the host's way to move the session only where its reference marks it proved.
+`help session-start-surface` for the surface.

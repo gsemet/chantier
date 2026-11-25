@@ -1,0 +1,6 @@
+# The plan to show
+
+The CRs (the `3-ready` ones first) and what each waits for, with the reason of any queue that is no real dependency; how many CRs start at once, on how many slots (the `limits:` line of `$CHANTIER playbook`; `open` takes it with no `--slots` and refuses a configured 0), and on a surface the other batches of P14 so the user picks the slots knowing the machine's load (no cap proposed); the mode as a question; the budget; the floor with its two terms and critical path and the delivery time "not before <time>" or "unknown" with the reason (`help delivery-time`); the team (what `playbook` printed); and who steers.
+- An empty batch (a go before any CR is ready) asks the shape too and shows slots, budget, team and who steers; floor and delivery time "none yet: no CR"; no cut.
+- A waiver for a stack: offer "one long gate on the top PR only" (lower PRs are ready to merge once CI is green and the Verifier says VERIFIED); on a yes `$CHANTIER order waive stack --note "<the user's words>"`, also during the run; `--note -` withdraws it. A waiver of one CR or of every CR is recorded one CR at a time, `order waive <cr> --note "<the user's words>" --follow-up <folder>`, after filing the CR that runs the long gate on main (`$CHANTIER file`); never a note in a brief.
+- Re-read the seat first (`help seat`).

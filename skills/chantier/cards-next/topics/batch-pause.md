@@ -1,0 +1,6 @@
+# The pause
+
+On `[foreman→chief-of-staff] final <STATUS.md path>` that file is the exit report with the cost to date. The CLI removed the merged CRs' worktrees and branches and paused the batch when the last CR ended (`kept:` or `not removed:` names a leftover); the Foreman wrote the retro in `4-batch/retro.md` after the pause and before `final`; read it. Give the Completion report with its Retro offered by route (`help retro-route`), each point numbered, before any `close`. In Foreman mode your own `order merged` or `order drop` of the last CR prints the pause: still send its line to the Foreman and wait for `final` before the close offer.
+- New work for the paused batch is `order add`, once per CR: until `close` the paused batch is still the running batch, and a CR in `1-pending` starts it again at the next `take`; send the Foreman the usual order once all are added.
+- Where the heartbeat is yours (host row), tell the user to delete it in the Foreman chat at the pause and again when the Foreman ends it on its first wake that sees no Driver run for 30 minutes or more; arm it again with the next order.
+- Hold and parked CRs, a release held, the wait: `help stack-changes-chief`. Then the close: `help batch-close`.

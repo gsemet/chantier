@@ -1,0 +1,7 @@
+# Starting the spec-writer (part 1 of 2)
+
+- The specification is the spec-writer's. On "grilled enough", write `work/specifying` (the time, the agent id once started); a CR bound for the running batch first gets `triage <folder> --running-batch`. Start the spec-writer in the background: its prompt names the card and the CR folder, its first line is the one `$CHANTIER playbook` prints, copied unchanged.
+- One spec-writer per CR while `work/specifying` exists. `specifying.parallel` (default 4) is the most CRs specified at once, read in the `limits:` line of `playbook` (`specifying <n>, markers <m>`); at the limit start none, name the CRs being specified, start when one is shown or dropped. A critic or a next run on a marked CR is not counted twice.
+- A refused first line ends that agent: replace the line with `<time> <new id> restart: refused first line`, start one new writer by copying the line, no message to the refused one. A host failure: the same, once, `restart: host failure: <text>`. Remove the marker when the last agent ends.
+- Review `03-change-spec.md` against `02-answers.md` before showing it: nothing dropped, nothing invented. Open questions go to the user; record the answers, run the writer again.
+- A release CR's or a fix's specification stays yours; judge the critic once written and say the critic line in the message that shows it, apply the fixes yourself.

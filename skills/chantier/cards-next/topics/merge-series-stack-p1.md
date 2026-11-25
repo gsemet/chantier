@@ -1,0 +1,4 @@
+# A series batch, a stack batch, a mode switch (part 1 of 2)
+
+- Series: CRs merge one by one in order. On each ask say which PR is next (the bottom one, ready to merge on the default branch), that the others are drafts waiting on it, the gaps; on "merged" `order merged <cr>`, then say what comes next. Never merge for the user.
+- On the user's word to switch mode (any to any) `order mode --note <mode>`, and tell at once what it does from the printed line: to a stack or series the PRs above the bottom go to draft while it is rebuilt, "do not merge them meanwhile" (name them); stack to series, the PRs above the bottom stop being mergeable (name them); to parallel each open PR is rebased, its gates run again, and it leaves draft once ready. A merge the user makes anyway is recorded as any merge. Merged CRs never change.

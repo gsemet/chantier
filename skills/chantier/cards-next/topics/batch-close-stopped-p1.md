@@ -1,0 +1,7 @@
+# Close with an agent declared stopped (part 1 of 2)
+
+When you know a held agent will not hand back, or the user says so (an app restart cut it, the user's stop, a hand-back that reached you while its transcript reads as running), ask the user, quoting each agent's name, cause and file as the refusal gives them; ask the agent itself only as a last resort.
+- On the yes for each named agent, in that turn: `close --batch <batch> --stopped <name> ...` (the check; the name is the held agent's file stem `agent-<id>`, or the current Foreman's session id), show the bilan with its "declared stopped" lines, ask for the close; on that second yes `close --batch <batch> --stopped <name> ... --yes`.
+- Never `--stopped` without the user's yes for each named agent, and never to get past a transcript that cannot be read; the CLI refuses a name that is not a running held agent.
+- A held agent with no transcript found: tell the user, and clear it with `agents set <cr> - --epoch <n>` only once it is known not to run (a Driver of another session of the user's: on the user's word); never `--stopped`. A Driver from another session of the user's is not in what the CLI reads: ask when you know of one.
+- On Copilot, until the close end event lands, a held agent whose lease is live, a unit with no lease and the Foreman's heartbeat under 10 minutes refuse too; `agents set <cr> - --epoch <n>` after the agent's reported end ends it.

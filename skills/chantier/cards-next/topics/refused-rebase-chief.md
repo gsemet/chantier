@@ -1,0 +1,6 @@
+# A refused rebase, your part
+
+On `[foreman→chief-of-staff] rebase <branch> <base>` (direct mode: the Driver's `rebase` line) the rebase climbs to you, the same ladder as the push's. The check and run are the Foreman's (`help refused-rebase`): the branch is covered and `handoff <cr>` ties it to the CR (its `worktree: ... branch` line gives exactly it, its `<base>` the line's), the worktree clean; then `git -C <worktree> fetch <remote>` and one command, `git -C <worktree> rebase <base>`.
+- A clean rebase: note `rebased <branch> onto <base> at <sha7>` and answer it. A conflict: leave the rebase stopped and answer `rebase conflict <branch> onto <base>` (a new Driver resolves it). A check that fails: rebase nothing, answer `rebase refused <branch>: <reason>`, no user question.
+- Answers go to the Foreman; in direct mode the CR goes back to a fresh Driver with the result as its `take` note.
+- The host refuses your rebase: record `$CHANTIER note <cr> "refused: <exact command> -> <exact text>"`, then one question naming the CR, the branch, the base, each step's refusal (exact command and text) and the exact command you will run on a yes; on the yes run it once, unchanged; on a no or a second refusal answer `rebase refused <branch>: <text>`.

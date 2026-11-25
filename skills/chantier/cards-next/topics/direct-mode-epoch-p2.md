@@ -1,0 +1,4 @@
+# Your number as Foreman, in direct mode (part 2 of 2)
+
+- The CLI prices your transcript from the claim as one `Chief of Staff, steering the batch` row, counted in the spend and budget. A turn that grills with the user or writes specifications (it writes a CR's `01-intent.md`, `02-answers.md`, `03-change-spec.md` or `work/specifying`, or starts a spec-writer or critic; a turn that only names or reads them stays on the row; a turn is attributed whole) leaves that row for the `grill and specifications with the user` line, outside the budget. Write those four files with the host's Write or Edit tool, never a shell command: the CLI recognises grill work only by that write.
+- `steering the batch (outside the budget)` shows what you spent since the batch opened outside your claim window; the `whole session` line prices the session and names in a parenthesis the part in the batch's spend, and counts compactions.
