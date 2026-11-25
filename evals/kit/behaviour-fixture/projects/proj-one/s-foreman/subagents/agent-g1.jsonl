@@ -1,0 +1,6 @@
+{"type":"user","message":{"role":"user","content":"chantier verifier for CR-1 \"a fixture title\" of batch batch-1, in the project /fixture/project."},"timestamp":"2026-11-20T10:00:01.000Z"}
+{"type":"assistant","message":{"id":"msg-1","role":"assistant","content":[{"type":"tool_use","id":"g1a","name":"Read","input":{"file_path":"/fix/chantier/skills/chantier/SKILL.md"}}]},"timestamp":"2026-11-20T10:00:02.000Z"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"g1a","content":"KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK"}]},"timestamp":"2026-11-20T10:00:03.000Z"}
+{"type":"assistant","message":{"id":"msg-2","role":"assistant","content":[{"type":"tool_use","id":"g1b","name":"Bash","input":{"command":"chantier help rules"}}]},"timestamp":"2026-11-20T10:00:04.000Z"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"g1b","content":"RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR"}]},"timestamp":"2026-11-20T10:00:05.000Z"}
+{"type":"assistant","message":{"id":"msg-3","role":"assistant","content":[{"type":"text","text":"done"}]},"timestamp":"2026-11-20T10:00:06.000Z"}

@@ -1,0 +1,3052 @@
+{
+  "schema": 1,
+  "version": "0.15.1",
+  "commit": "ff042412",
+  "cards_commit": "f9804337",
+  "cards_date": "2026-11-25T00:09:33+01:00",
+  "since": "2026-11-17T00:00:00Z",
+  "written": "2026-11-25T03:46:33Z",
+  "first_event": "2026-11-17T00:00:05.902Z",
+  "last_event": "2026-11-25T03:46:05.062Z",
+  "files_read": 4136,
+  "files_skipped": 2368,
+  "not_chantier_runs": 484,
+  "host": "claude-code",
+  "roles": {
+    "verifier": {
+      "runs": 720,
+      "tool_calls": {
+        "total": 9385,
+        "per_run_mean": 13.0,
+        "median": 10.0
+      },
+      "model_calls": {
+        "total": 7294,
+        "per_run_mean": 10.1
+      },
+      "card_bytes": {
+        "total": 13627776,
+        "per_run_mean": 18927.5,
+        "by_card": {
+          "verifier.md": 10534737,
+          "pr-template.md": 1839449,
+          "references/": 559052,
+          "chief-of-staff.md": 126719,
+          "driver.md": 124248,
+          "startup-manifest.json": 70548,
+          "concepts.md": 62327,
+          "startup-core.md": 56948,
+          "SKILL.md:chantier": 41396,
+          "hosts/claude-code.md": 33443,
+          "foreman.md": 32310,
+          "hosts": 29368,
+          "session-start.md": 17611,
+          "SKILL.md:status": 13975,
+          "release-template.md": 12991,
+          "hosts/copilot.md": 11174,
+          "griller.md": 10767,
+          "SKILL.md:chief-of-staff": 10721,
+          "inspector.md": 7555,
+          "status-layout.md": 6388,
+          "foreman-stack.md": 6012,
+          "coder.md": 5774,
+          "other-card": 4788,
+          "init.md": 4738,
+          "routing.md": 3326,
+          "spec-writer.md": 688,
+          "role-core.md": 374,
+          "session-start-chief-of-staff.md": 202,
+          "host-core-claude-code.md": 147
+        }
+      },
+      "files_read": {
+        "paths_per_run_mean": 2.4,
+        "cards_per_run_mean": 1.6
+      },
+      "cli": {
+        "calls": 2127,
+        "usage_errors": {
+          "chantier: error: unrecognized arguments: --lease <v>": {
+            "count": 22,
+            "runs": 19
+          },
+          "chantier: error: argument cmd: invalid choice: <v> (choose from <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <": {
+            "count": 4,
+            "runs": 4
+          },
+          "chantier: error: argument cmd: invalid choice: <v>, maybe you meant <v>? (choose from <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>,": {
+            "count": 4,
+            "runs": 4
+          },
+          "chantier: error: unrecognized arguments: --lease": {
+            "count": 2,
+            "runs": 2
+          },
+          "chantier open: error: the following arguments are required: items": {
+            "count": 1,
+            "runs": 1
+          },
+          "chantier triage: error: one of the arguments --priority --ready --inbox --running-batch is required": {
+            "count": 1,
+            "runs": 1
+          },
+          "chantier: error: unrecognized arguments: --batch <v>": {
+            "count": 1,
+            "runs": 1
+          },
+          "chantier: error: unrecognized arguments: --epoch": {
+            "count": 1,
+            "runs": 1
+          },
+          "chantier: error: unrecognized arguments: --factory": {
+            "count": 1,
+            "runs": 1
+          },
+          "chantier: error: unrecognized arguments: --no-writer": {
+            "count": 1,
+            "runs": 1
+          },
+          "chantier: error: unrecognized arguments: --note <v>": {
+            "count": 1,
+            "runs": 1
+          },
+          "chantier: error: unrecognized arguments: --stream --batch <v>": {
+            "count": 1,
+            "runs": 1
+          },
+          "chantier: error: unrecognized arguments: <v>... ": {
+            "count": 1,
+            "runs": 1
+          }
+        },
+        "refusals": {
+          "no remote <v>: pass --remote <remote>": {
+            "count": 8,
+            "runs": 8
+          },
+          "prepared CR not found: <path>": {
+            "count": 7,
+            "runs": 7
+          },
+          "CR-<n>: verdict VERIFIED needs <path> with a line <v> for the head <sha> it records: its Head: line names <sha>": {
+            "count": 6,
+            "runs": 6
+          },
+          "CR-<n> is held out of the stack (order O-1): `order unhold CR-<n>` first": {
+            "count": 3,
+            "runs": 2
+          },
+          "Failed to spawn: chantier": {
+            "count": 3,
+            "runs": 3
+          },
+          "Git does not know the default branch of <v>: read AGENTS.md or ask the user, then pass --default-branch": {
+            "count": 3,
+            "runs": 3
+          },
+          "no running batch: run `chantier open` first; no batch closed yet": {
+            "count": 3,
+            "runs": 3
+          },
+          "triage expects a CR folder: <path>, <path> or <path>; got <path>": {
+            "count": 3,
+            "runs": 3
+          },
+          "--url: at most <n> boards in one screen": {
+            "count": 2,
+            "runs": 2
+          },
+          "CR folder already exists: <path>; file it again with --slug <other>": {
+            "count": 2,
+            "runs": 2
+          },
+          "CR-<n> is already held (order O-1)": {
+            "count": 2,
+            "runs": 2
+          },
+          "CR-<n>: the worktree has uncommitted work: a verdict binds to a head, commit first": {
+            "count": 2,
+            "runs": 2
+          },
+          "batch-<n> is not closed (a paused batch stays until `close`): `order add` joins new work to it": {
+            "count": 2,
+            "runs": 1
+          },
+          "no running batch; paused: batch-<n>: pass `--batch batch-<n>`": {
+            "count": 2,
+            "runs": 1
+          },
+          "only `order merged` and `order add --fix-for` take --epoch: the Foreman's own merge or fix": {
+            "count": 2,
+            "runs": 2
+          },
+          "this is a linked worktree: init runs in the main checkout (<path>)": {
+            "count": 2,
+            "runs": 1
+          },
+          "--url: the link holds no key (?k=...): give the link the board printed": {
+            "count": 1,
+            "runs": 1
+          },
+          "<path> is not a valid batch record: <n> validation errors for BatchRecord": {
+            "count": 1,
+            "runs": 1
+          },
+          "<path>: expected {<v>: <v>, <v>, \"branch": {
+            "count": 1,
+            "runs": 1
+          },
+          "<path>: formerly.json names CR-<n>, which batch-<n> already holds": {
+            "count": 1,
+            "runs": 1
+          },
+          "CR-<n> is already dropped: <path>": {
+            "count": 1,
+            "runs": 1
+          },
+          "CR-<n> is held: lease <n> live until <n>:<n>:<n>; take it again with --reclaim only on the user's word": {
+            "count": 1,
+            "runs": 1
+          },
+          "CR-<n>: lease <n> not confirmed since <n>:<n> (<sha> min ago); check with the host that its Driver ended, then take it with --reclaim": {
+            "count": 1,
+            "runs": 1
+          },
+          "CR-<n>: no worktree at <path>; its Driver creates it (`git worktree add -b <path> <path> <base>`)": {
+            "count": 1,
+            "runs": 1
+          },
+          "O-1 is held: lease <n> live until <n>:<n>:<n>; take it again with --reclaim only on the user's word": {
+            "count": 1,
+            "runs": 1
+          },
+          "a release CR ends a factory batch: open without --factory, or open the factory and add the release later with `order add --release`, which turns the factory off": {
+            "count": 1,
+            "runs": 1
+          },
+          "a release CR is in batch-<n>: it ends the factory; open a new factory batch after the close": {
+            "count": 1,
+            "runs": 1
+          },
+          "access claim <cr>: name the CR": {
+            "count": 1,
+            "runs": 1
+          },
+          "batch-<n> is not a factory batch": {
+            "count": 1,
+            "runs": 1
+          },
+          "board not started: a chantier board <n>.<n>.<n> (PID <n>) holds this surface at <n>.<n>.<n>.<n>:<n> and does not answer: stop it (taskkill <path> <n> <path> <pa": {
+            "count": 1,
+            "runs": 1
+          },
+          "cancel <cr> --epoch <n>: the steering session's command for a CR the user dropped; a Driver stops its own long gate with `gate CR-<n> --stop`": {
+            "count": 1,
+            "runs": 1
+          },
+          "cannot change what CR-<n> waits for: it is working, not queued; in a stack, its place and base are set by `stack`": {
+            "count": 1,
+            "runs": 1
+          },
+          "cannot close batch-<n>, something still runs: CR-<n> is queued, not merged or cancelled; order O-1 (add) is open. Nothing was deleted.": {
+            "count": 1,
+            "runs": 1
+          },
+          "cannot close batch-<n>, something still runs: order O-1 (drop) is open; order O-2 (drop) is open; order O-3 (drop) is open; order O-4 (drop) is open; order O-5 ": {
+            "count": 1,
+            "runs": 1
+          },
+          "cannot close batch-<n>, something still runs: transcript sess1 still runs: its last call stopped on null (<scratch>\\proj\\x\\sess1.jsonl). Nothing was deleted. an": {
+            "count": 1,
+            "runs": 1
+          },
+          "cannot close batch-<n>: it is running, not paused; `pause --epoch <n>` comes first. Nothing was deleted.": {
+            "count": 1,
+            "runs": 1
+          },
+          "cannot close batch-<n>: its final cost cannot be priced (no Foreman transcript recorded). Nothing was deleted.": {
+            "count": 1,
+            "runs": 1
+          },
+          "cannot close batch-<n>: its final cost cannot be priced (no steering transcript recorded). Nothing was deleted.": {
+            "count": 1,
+            "runs": 1
+          },
+          "cannot drop CR-<n> to <path>: the name <n>-alpha is already used by <path>": {
+            "count": 1,
+            "runs": 1
+          },
+          "cannot move CR folder <path> to <path> refused for <n> s, the folder is likely held; nothing moved. On Windows a folder cannot move while a process holds it: a ": {
+            "count": 1,
+            "runs": 1
+          },
+          "chantier.yaml:<n>: board: <v> is network (this machine's local network address, found at each start); a fixed address goes in --host, for one start": {
+            "count": 1,
+            "runs": 1
+          },
+          "file: the surface's writer is not running: nothing written; for the Chief of Staff: start the surface server ($CHANTIER board --seat <session id>)": {
+            "count": 1,
+            "runs": 1
+          },
+          "gate CR-<n>: <v> is not a long gate named in chantier.yaml (long_gate.commands); named: a, bad, c": {
+            "count": 1,
+            "runs": 1
+          },
+          "gate CR-<n>: <v> is not a long gate named in chantier.yaml (long_gate.commands); named: scenario": {
+            "count": 1,
+            "runs": 1
+          },
+          "journal add: <url> is no CR's issue (chantier interests --kind issue lists them): nothing written": {
+            "count": 1,
+            "runs": 1
+          },
+          "no batch holds CR-<n>": {
+            "count": 1,
+            "runs": 1
+          },
+          "no clone of the project at <path> (remote <url> clone it there": {
+            "count": 1,
+            "runs": 1
+          },
+          "not joined batch-<n>: CR-<n>: depends.json names <v>, which is in neither the batch nor the archives as merged; the CR waits in <n>-ready (`order add --note <pa": {
+            "count": 1,
+            "runs": 1
+          },
+          "order hold: CR-<n> is the release CR: the release is the top piece of the stack": {
+            "count": 1,
+            "runs": 1
+          },
+          "order kind: one of add, after, approve, budget, confirm, done, drop, factory, grant, merged, mode, note, qa, rounds, slots, waive": {
+            "count": 1,
+            "runs": 1
+          },
+          "order merged: CR-<n> not merged or cancelled: the release PR merges last": {
+            "count": 1,
+            "runs": 1
+          },
+          "order merged: CR-<n>, CR-<n>, CR-<n>, CR-<n>, CR-<n> not merged or cancelled: the release PR merges last": {
+            "count": 1,
+            "runs": 1
+          },
+          "order mode --note parallel|series|stack (any mode to any other)": {
+            "count": 1,
+            "runs": 1
+          },
+          "park: CR-<n> is queued: only a working or blocked CR is parked": {
+            "count": 1,
+            "runs": 1
+          },
+          "pause --epoch <n>: the steering session's command; <n> is your number as Foreman of the batch (Foreman n°<n>)": {
+            "count": 1,
+            "runs": 1
+          },
+          "remote origin already exists.": {
+            "count": 1,
+            "runs": 1
+          },
+          "take CR-<n> --epoch <n>: the steering session's command; <n> is your number as Foreman of the batch (Foreman n°<n>)": {
+            "count": 1,
+            "runs": 1
+          },
+          "unknown CR CR-<n> in batch batch-<n>": {
+            "count": 1,
+            "runs": 1
+          },
+          "watch: --for <v>: one of project, role:<name>, cr:<id>, session:<key>, user": {
+            "count": 1,
+            "runs": 1
+          },
+          "watch: --stream and --once do not go together": {
+            "count": 1,
+            "runs": 1
+          },
+          "watch: chantier.yaml:<n>: events: <v> is <whole number><s|m|h>, 20s or more, found <v>: fix it, then start the watcher again": {
+            "count": 1,
+            "runs": 1
+          }
+        }
+      },
+      "help": {
+        "commands": {
+          "": 20,
+          "board": 12,
+          "cancel": 1,
+          "close": 1,
+          "file": 3,
+          "foreman": 1,
+          "handoff": 1,
+          "init": 1,
+          "open": 11,
+          "order": 4,
+          "order add": 2,
+          "order mode": 1,
+          "park": 1,
+          "phase": 2,
+          "playbook": 1,
+          "rules": 1,
+          "serve": 3,
+          "take": 2,
+          "triage": 1,
+          "triage scratch-probe-request": 1,
+          "validate": 3,
+          "verdict": 3,
+          "watch": 3
+        },
+        "topics": {}
+      },
+      "host_denials": {
+        "classifier": 5,
+        "mode": 1
+      },
+      "write_guard_refusals": 94,
+      "waits": {
+        "count": 71,
+        "share": 0.8
+      },
+      "tool_not_in_list": {
+        "Edit": 24,
+        "Monitor": 2,
+        "ToolSearch": 3
+      },
+      "pushes": {
+        "chantier_push": 0,
+        "refused": 0,
+        "rate": 0.0,
+        "force_with_lease": 3,
+        "force_with_lease_denied": 0
+      }
+    },
+    "inspector": {
+      "runs": 680,
+      "tool_calls": {
+        "total": 6049,
+        "per_run_mean": 8.9,
+        "median": 8.0
+      },
+      "model_calls": {
+        "total": 4379,
+        "per_run_mean": 6.4
+      },
+      "card_bytes": {
+        "total": 8567216,
+        "per_run_mean": 12598.8,
+        "by_card": {
+          "inspector.md": 4241456,
+          "pr-template.md": 2471542,
+          "references/": 766448,
+          "chief-of-staff.md": 197404,
+          "foreman.md": 195027,
+          "driver.md": 160838,
+          "startup-manifest.json": 106777,
+          "hosts/claude-code.md": 99964,
+          "concepts.md": 66803,
+          "other-card": 52974,
+          "session-start.md": 50152,
+          "hosts": 45975,
+          "hosts/copilot.md": 36139,
+          "SKILL.md:chantier": 28429,
+          "startup-core.md": 18703,
+          "reload-rules.md": 14014,
+          "routing.md": 8463,
+          "release-template.md": 4851,
+          "chief-of-staff": 862,
+          "driver-conflicts.md": 201,
+          "role-core.md": 194
+        }
+      },
+      "files_read": {
+        "paths_per_run_mean": 2.3,
+        "cards_per_run_mean": 1.7
+      },
+      "cli": {
+        "calls": 314,
+        "usage_errors": {},
+        "refusals": {}
+      },
+      "help": {
+        "commands": {
+          "lease": 1,
+          "order": 1,
+          "take": 1
+        },
+        "topics": {}
+      },
+      "host_denials": {},
+      "write_guard_refusals": 10,
+      "waits": {
+        "count": 7,
+        "share": 0.1
+      },
+      "tool_not_in_list": {},
+      "pushes": {
+        "chantier_push": 0,
+        "refused": 0,
+        "rate": 0.0,
+        "force_with_lease": 0,
+        "force_with_lease_denied": 0
+      }
+    },
+    "cr-driver": {
+      "runs": 603,
+      "tool_calls": {
+        "total": 25535,
+        "per_run_mean": 42.3,
+        "median": 41
+      },
+      "model_calls": {
+        "total": 21627,
+        "per_run_mean": 35.9
+      },
+      "card_bytes": {
+        "total": 39093659,
+        "per_run_mean": 64831.9,
+        "by_card": {
+          "driver.md": 23863497,
+          "pr-template.md": 4505951,
+          "concepts.md": 3013132,
+          "startup-manifest.json": 2930045,
+          "references/": 2411274,
+          "startup-core.md": 1090872,
+          "hosts/claude-code.md": 868591,
+          "verifier.md": 127202,
+          "role-core.md": 70214,
+          "host-core-claude-code.md": 60368,
+          "chief-of-staff.md": 23077,
+          "coder.md": 23077,
+          "debugger.md": 15664,
+          "release-template.md": 13684,
+          "session-start": 12256,
+          "inspector.md": 10565,
+          "SKILL.md:chantier": 10361,
+          "investigator.md": 7212,
+          "spec-writer.md": 6574,
+          "other-card": 5162,
+          "SKILL.md:chief-of-staff": 4539,
+          "driver-pr-extras.md": 4428,
+          "conflict-resolver.md": 3496,
+          "hosts/copilot.md": 3212,
+          "hosts": 2208,
+          "foreman.md": 2094,
+          "session-start.md": 1899,
+          "chief-of-staff-batch-start.md": 1124,
+          "forges/github.md": 910,
+          "chief-of-staff-direct.md": 542,
+          "review-step.md": 225,
+          "driver-retake.md": 117,
+          "reload-rules.md": 47,
+          "chief-of-staff-merge.md": 40
+        }
+      },
+      "files_read": {
+        "paths_per_run_mean": 6.5,
+        "cards_per_run_mean": 5.7
+      },
+      "cli": {
+        "calls": 8833,
+        "usage_errors": {
+          "chantier: error: unrecognized arguments: --lease <v>": {
+            "count": 152,
+            "runs": 134
+          },
+          "chantier phase: error: argument phase: invalid choice: <v> (choose from <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>)": {
+            "count": 77,
+            "runs": 77
+          },
+          "chantier handback: error: argument result: invalid choice: <v> (choose from <v>, <v>)": {
+            "count": 8,
+            "runs": 8
+          },
+          "chantier ship: error: the following arguments are required: pr": {
+            "count": 7,
+            "runs": 7
+          },
+          "chantier: error: unrecognized arguments: <v>... ": {
+            "count": 5,
+            "runs": 4
+          },
+          "chantier: error: argument cmd: invalid choice: <v>, maybe you meant <v>? (choose from <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>,": {
+            "count": 2,
+            "runs": 2
+          },
+          "chantier: error: unrecognized arguments: --note": {
+            "count": 2,
+            "runs": 2
+          },
+          "chantier agents: error: the following arguments are required: action, cr, agent": {
+            "count": 1,
+            "runs": 1
+          },
+          "chantier phase: error: argument phase: invalid choice: <v>, maybe you meant <v>? (choose from <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>)": {
+            "count": 1,
+            "runs": 1
+          },
+          "chantier: error: argument cmd: invalid choice: <v> (choose from <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <": {
+            "count": 1,
+            "runs": 1
+          },
+          "chantier: error: unrecognized arguments: --no-gate <v>... ": {
+            "count": 1,
+            "runs": 1
+          },
+          "chantier: error: unrecognized arguments: --note <v>... ": {
+            "count": 1,
+            "runs": 1
+          },
+          "chantier: error: unrecognized arguments: --note <v>... --once; <v>... ": {
+            "count": 1,
+            "runs": 1
+          },
+          "chantier: error: unrecognized arguments: <v>... --conflict; <v>... --no-gate <v>... ": {
+            "count": 1,
+            "runs": 1
+          }
+        },
+        "refusals": {
+          "take CR-<n> --epoch <n>: the steering session's command; <n> is your number as Foreman of the batch (Foreman n°<n>)": {
+            "count": 45,
+            "runs": 45
+          },
+          "CR-<n>: round limit <n> reached; hand back blocked, only the user grants more (`order rounds`)": {
+            "count": 14,
+            "runs": 14
+          },
+          "claim lost: CR-<n>'s lease <n> ended at <n>:<n>; stop now: nothing recorded": {
+            "count": 12,
+            "runs": 10
+          },
+          "handback CR-<n> needs --lease <n> (the number take printed)": {
+            "count": 12,
+            "runs": 12
+          },
+          "ship CR-<n> needs --lease <n> (the number take printed)": {
+            "count": 11,
+            "runs": 11
+          },
+          "handback <cr> ready <pr link, release link or tag>": {
+            "count": 9,
+            "runs": 9
+          },
+          "CR-<n>: branch not based on CR-<n>'s head <sha>: rebase onto <path>, push, ship again; nothing recorded": {
+            "count": 7,
+            "runs": 7
+          },
+          "could not apply <sha>...": {
+            "count": 6,
+            "runs": 6
+          },
+          "refused: the worktree's head <sha> is not the head ship recorded (<sha>): ship CR-<n> <url> again, then the long gate and a verdict VERIFIED at the new head": {
+            "count": 5,
+            "runs": 5
+          },
+          "recipe `scenario` failed on line <n> with exit code <n>": {
+            "count": 4,
+            "runs": 4
+          },
+          "recipe `test` failed on line <n> with exit code <n>": {
+            "count": 4,
+            "runs": 4
+          },
+          "round CR-<n> needs --lease <n> (the number take printed)": {
+            "count": 4,
+            "runs": 4
+          },
+          "ship <cr> <pr link>": {
+            "count": 4,
+            "runs": 4
+          },
+          "CR-<n>: round <n> was counted and nothing happened since (no note, the worktree unchanged): start that round's coder; to read the facts, `handoff CR-<n>`; if a ": {
+            "count": 3,
+            "runs": 3
+          },
+          "CR-<n> is blocked: no Driver to run a round": {
+            "count": 2,
+            "runs": 2
+          },
+          "CR-<n> is ready: no Driver holds it until the steering session takes it back (take CR-<n> --note <v>), then hand back again": {
+            "count": 2,
+            "runs": 2
+          },
+          "batch batch-<n> is not a stack": {
+            "count": 2,
+            "runs": 2
+          },
+          "claim lost: CR-<n> was taken again (lease <n>) at <n>:<n>; stop now: nothing recorded": {
+            "count": 2,
+            "runs": 2
+          },
+          "failed to push some refs to '<url>": {
+            "count": 2,
+            "runs": 2
+          },
+          "gate <cr> <name> [<name>...]: the long gate's names from chantier.yaml (long_gate.commands), one per argument": {
+            "count": 2,
+            "runs": 2
+          },
+          "refused: no long gate passed at <sha> (gate CR-<n> <v>..., or --no-gate <v>)": {
+            "count": 2,
+            "runs": 2
+          },
+          "Project directory `<v>` does not exist": {
+            "count": 1,
+            "runs": 1
+          },
+          "lease: unexpected <v>; lease <unit> | lease <unit> renew --lease <n> | lease <unit> hold --lease <n> [--minutes N] (N from <n> to <n>, <n> by default)": {
+            "count": 1,
+            "runs": 1
+          },
+          "not inside a git repository: <path>": {
+            "count": 1,
+            "runs": 1
+          },
+          "phase: the detail is at most <n> characters": {
+            "count": 1,
+            "runs": 1
+          },
+          "recipe `lint` failed on line <n> with exit code <n>": {
+            "count": 1,
+            "runs": 1
+          },
+          "recipe `unit` failed on line <n> with exit code <n>": {
+            "count": 1,
+            "runs": 1
+          },
+          "refused: no long gate passed at <sha> (gate CR-<n> <name>..., or --no-gate <v>)": {
+            "count": 1,
+            "runs": 1
+          },
+          "refused: no long gate passed at <sha> (the pass at <sha> does not carry: the rebase changed the patch) (gate CR-<n> <v>..., or --no-gate <v>)": {
+            "count": 1,
+            "runs": 1
+          },
+          "refused: no verdict VERIFIED at <sha> (the verdict VERIFIED at <sha> does not carry: the rebase changed the patch (own commits: <n> at <sha> above <sha>, <n> at": {
+            "count": 1,
+            "runs": 1
+          },
+          "this is a planning surface with projects <names>: pass --project <name>": {
+            "count": 1,
+            "runs": 1
+          }
+        }
+      },
+      "help": {
+        "commands": {
+          "": 9,
+          "board": 4,
+          "file": 1,
+          "forge-stack": 3,
+          "gate": 21,
+          "handback": 25,
+          "handoff": 2,
+          "inspector": 1,
+          "lease": 3,
+          "note": 4,
+          "round": 5,
+          "ship": 12,
+          "summary": 1,
+          "summary set": 1,
+          "take": 8,
+          "verdict": 4
+        },
+        "topics": {}
+      },
+      "host_denials": {
+        "classifier": 16,
+        "user_rejected": 3
+      },
+      "write_guard_refusals": 119,
+      "waits": {
+        "count": 4171,
+        "share": 16.3
+      },
+      "tool_not_in_list": {
+        "TaskStop": 4
+      },
+      "pushes": {
+        "chantier_push": 1,
+        "refused": 1,
+        "rate": 100.0,
+        "force_with_lease": 130,
+        "force_with_lease_denied": 9
+      }
+    },
+    "coder": {
+      "runs": 536,
+      "tool_calls": {
+        "total": 26740,
+        "per_run_mean": 49.9,
+        "median": 32.5
+      },
+      "model_calls": {
+        "total": 22594,
+        "per_run_mean": 42.2
+      },
+      "card_bytes": {
+        "total": 6538593,
+        "per_run_mean": 12198.9,
+        "by_card": {
+          "coder.md": 2482354,
+          "references/": 1900111,
+          "driver.md": 615371,
+          "chief-of-staff.md": 395330,
+          "concepts.md": 192121,
+          "session-start.md": 159450,
+          "hosts/claude-code.md": 145471,
+          "foreman.md": 140660,
+          "startup-manifest.json": 139401,
+          "hosts": 48633,
+          "startup-core.md": 41415,
+          "hosts/copilot.md": 36121,
+          "SKILL.md:chantier": 34421,
+          "SKILL.md:chief-of-staff": 33826,
+          "session-start-chief-of-staff.md": 21210,
+          "griller.md": 20991,
+          "release-template.md": 19489,
+          "pr-template.md": 18148,
+          "verifier.md": 17871,
+          "status-layout.md": 15615,
+          "SKILL.md:status": 13538,
+          "chief-of-staff-steering.md": 9180,
+          "chief-of-staff": 8167,
+          "driver-retake.md": 8076,
+          "other-card": 4686,
+          "driver": 3739,
+          "routing.md": 3024,
+          "SKILL.md:griller": 3007,
+          "init.md": 2994,
+          "inspector.md": 1278,
+          "spec-writer.md": 1031,
+          "driver-pr-extras.md": 669,
+          "foreman-stack.md": 569,
+          "spec-critic.md": 344,
+          "role-core.md": 194,
+          "chief-of-staff-merge.md": 88
+        }
+      },
+      "files_read": {
+        "paths_per_run_mean": 5.3,
+        "cards_per_run_mean": 1.9
+      },
+      "cli": {
+        "calls": 392,
+        "usage_errors": {
+          "chantier: error: unrecognized arguments: --lease <v>": {
+            "count": 1,
+            "runs": 1
+          }
+        },
+        "refusals": {
+          "Distribution `pyyaml==<n>.<n>.<n> @ registry+<url> can't be installed because it is marked as `--no-build` but has no binary distribution": {
+            "count": 1,
+            "runs": 1
+          },
+          "Failed to spawn: chantier": {
+            "count": 1,
+            "runs": 1
+          },
+          "Failed to spawn: ruff": {
+            "count": 1,
+            "runs": 1
+          },
+          "recipe `lint` failed on line <n> with exit code <n>": {
+            "count": 1,
+            "runs": 1
+          },
+          "recipe `test` failed on line <n> with exit code <n>": {
+            "count": 1,
+            "runs": 1
+          }
+        }
+      },
+      "help": {
+        "commands": {
+          "": 1,
+          "board": 6,
+          "live": 1,
+          "order": 1,
+          "order add": 1
+        },
+        "topics": {}
+      },
+      "host_denials": {
+        "classifier": 7,
+        "user_rejected": 1
+      },
+      "write_guard_refusals": 323,
+      "waits": {
+        "count": 291,
+        "share": 1.1
+      },
+      "tool_not_in_list": {
+        "Monitor": 14,
+        "TaskStop": 10,
+        "bash": 1
+      },
+      "pushes": {
+        "chantier_push": 0,
+        "refused": 0,
+        "rate": 0.0,
+        "force_with_lease": 29,
+        "force_with_lease_denied": 0
+      }
+    },
+    "spec-writer": {
+      "runs": 515,
+      "tool_calls": {
+        "total": 18309,
+        "per_run_mean": 35.6,
+        "median": 32
+      },
+      "model_calls": {
+        "total": 15300,
+        "per_run_mean": 29.7
+      },
+      "card_bytes": {
+        "total": 11772577,
+        "per_run_mean": 22859.4,
+        "by_card": {
+          "references/": 3201568,
+          "concepts.md": 1742349,
+          "spec-writer.md": 1402017,
+          "driver.md": 1221233,
+          "chief-of-staff.md": 1126278,
+          "foreman.md": 700212,
+          "hosts/claude-code.md": 683920,
+          "startup-manifest.json": 399895,
+          "session-start.md": 246887,
+          "SKILL.md:chantier": 135961,
+          "verifier.md": 92838,
+          "hosts/copilot.md": 86434,
+          "other-card": 84180,
+          "startup-core.md": 82035,
+          "griller.md": 60067,
+          "SKILL.md:chief-of-staff": 59022,
+          "hosts": 53661,
+          "pr-template.md": 52458,
+          "release-template.md": 40768,
+          "coder.md": 33420,
+          "routing.md": 29026,
+          "inspector.md": 22536,
+          "sync-checkout.md": 22396,
+          "status-layout.md": 19784,
+          "SKILL.md:griller": 18124,
+          "foreman-stack.md": 16545,
+          "session-start-chief-of-staff.md": 16446,
+          "driver-refused.md": 16054,
+          "chief-of-staff-batch-start.md": 15257,
+          "release-driver.md": 13876,
+          "foreman-conflict.md": 11358,
+          "role-core.md": 11108,
+          "foreman-refused.md": 8058,
+          "init.md": 7483,
+          "spec-critic.md": 7380,
+          "release-driver-merged.md": 5864,
+          "SKILL.md:status": 5558,
+          "ticket-summary-example.md": 5023,
+          "retro-critic.md": 4114,
+          "foreman": 4035,
+          "host-core-claude-code.md": 3055,
+          "chief-of-staff-release.md": 1389,
+          "release": 1058,
+          "floor.md": 903,
+          "host-core-copilot.md": 500,
+          "startup-manifest": 232,
+          "host-core-": 212
+        }
+      },
+      "files_read": {
+        "paths_per_run_mean": 6.3,
+        "cards_per_run_mean": 3.7
+      },
+      "cli": {
+        "calls": 3089,
+        "usage_errors": {
+          "chantier: error: unrecognized arguments: <v> --no-sync <v>": {
+            "count": 2,
+            "runs": 2
+          },
+          "chantier: error: argument cmd: invalid choice: <v> (choose from <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <": {
+            "count": 1,
+            "runs": 1
+          },
+          "chantier: error: unrecognized arguments: --title <v>... --summary <v>... ": {
+            "count": 1,
+            "runs": 1
+          }
+        },
+        "refusals": {
+          "not a CR folder: <path>": {
+            "count": 275,
+            "runs": 261
+          },
+          "this is a planning surface with projects <names>: pass --project <name>": {
+            "count": 71,
+            "runs": 71
+          },
+          "summary is <n> characters: the limit is <n>": {
+            "count": 55,
+            "runs": 46
+          },
+          "CR folder must be inside the planning folder: <path>": {
+            "count": 47,
+            "runs": 38
+          },
+          "unknown batch batch-<n>": {
+            "count": 6,
+            "runs": 6
+          },
+          "no project folder <path> in a planning surface": {
+            "count": 3,
+            "runs": 3
+          },
+          "CR folder must be inside the planning folder: .": {
+            "count": 2,
+            "runs": 2
+          },
+          "summary set takes --title, --summary or --unchanged": {
+            "count": 2,
+            "runs": 2
+          },
+          "title is <n> characters: the limit is <n>": {
+            "count": 2,
+            "runs": 2
+          },
+          "the issue: line's tracker is not known from its URL: add --tracker github|gitlab|jira": {
+            "count": 1,
+            "runs": 1
+          }
+        }
+      },
+      "help": {
+        "commands": {
+          "": 16,
+          "abandon": 1,
+          "cost": 6,
+          "file": 8,
+          "run chantier": 4,
+          "summary": 130,
+          "summary lint": 11,
+          "summary set": 385
+        },
+        "topics": {}
+      },
+      "host_denials": {
+        "classifier": 3
+      },
+      "write_guard_refusals": 5,
+      "waits": {
+        "count": 1,
+        "share": 0.0
+      },
+      "tool_not_in_list": {
+        "Edit": 95
+      },
+      "pushes": {
+        "chantier_push": 0,
+        "refused": 0,
+        "rate": 0.0,
+        "force_with_lease": 3,
+        "force_with_lease_denied": 0
+      }
+    },
+    "spec-critic": {
+      "runs": 241,
+      "tool_calls": {
+        "total": 7008,
+        "per_run_mean": 29.1,
+        "median": 27
+      },
+      "model_calls": {
+        "total": 5738,
+        "per_run_mean": 23.8
+      },
+      "card_bytes": {
+        "total": 4979791,
+        "per_run_mean": 20663.0,
+        "by_card": {
+          "references/": 1580475,
+          "spec-critic.md": 796603,
+          "driver.md": 527060,
+          "chief-of-staff.md": 475237,
+          "foreman.md": 370167,
+          "hosts/claude-code.md": 307929,
+          "concepts.md": 241381,
+          "session-start.md": 129064,
+          "startup-manifest.json": 126603,
+          "startup-core.md": 97816,
+          "SKILL.md:chief-of-staff": 80852,
+          "SKILL.md:chantier": 46428,
+          "hosts": 41843,
+          "griller.md": 36512,
+          "other-card": 25340,
+          "verifier.md": 25246,
+          "hosts/copilot.md": 18928,
+          "status-layout.md": 15723,
+          "release-template.md": 10386,
+          "SKILL.md:griller": 6593,
+          "host-core-": 4279,
+          "coder.md": 3966,
+          "role-core.md": 3862,
+          "conflict-resolver.md": 3754,
+          "pr-template.md": 2426,
+          "routing.md": 1318
+        }
+      },
+      "files_read": {
+        "paths_per_run_mean": 6.0,
+        "cards_per_run_mean": 3.8
+      },
+      "cli": {
+        "calls": 46,
+        "usage_errors": {},
+        "refusals": {
+          "this is a planning surface with projects <names>: pass --project <name>": {
+            "count": 1,
+            "runs": 1
+          }
+        }
+      },
+      "help": {
+        "commands": {
+          "": 4,
+          "lease": 1
+        },
+        "topics": {}
+      },
+      "host_denials": {},
+      "write_guard_refusals": 2,
+      "waits": {
+        "count": 1,
+        "share": 0.0
+      },
+      "tool_not_in_list": {},
+      "pushes": {
+        "chantier_push": 0,
+        "refused": 0,
+        "rate": 0.0,
+        "force_with_lease": 0,
+        "force_with_lease_denied": 0
+      }
+    },
+    "conflict-resolver": {
+      "runs": 109,
+      "tool_calls": {
+        "total": 1841,
+        "per_run_mean": 16.9,
+        "median": 13
+      },
+      "model_calls": {
+        "total": 1494,
+        "per_run_mean": 13.7
+      },
+      "card_bytes": {
+        "total": 620471,
+        "per_run_mean": 5692.4,
+        "by_card": {
+          "conflict-resolver.md": 413304,
+          "hosts/claude-code.md": 44001,
+          "foreman.md": 36201,
+          "chief-of-staff.md": 20455,
+          "driver.md": 19023,
+          "startup-core.md": 17274,
+          "routing.md": 16840,
+          "concepts.md": 15788,
+          "hosts/copilot.md": 10000,
+          "startup-manifest.json": 8669,
+          "hosts": 7699,
+          "session-start.md": 5406,
+          "references/": 3998,
+          "foreman-stack.md": 1813
+        }
+      },
+      "files_read": {
+        "paths_per_run_mean": 2.1,
+        "cards_per_run_mean": 1.4
+      },
+      "cli": {
+        "calls": 48,
+        "usage_errors": {},
+        "refusals": {}
+      },
+      "help": {
+        "commands": {},
+        "topics": {}
+      },
+      "host_denials": {},
+      "write_guard_refusals": 39,
+      "waits": {
+        "count": 6,
+        "share": 0.3
+      },
+      "tool_not_in_list": {
+        "TaskStop": 1
+      },
+      "pushes": {
+        "chantier_push": 0,
+        "refused": 0,
+        "rate": 0.0,
+        "force_with_lease": 3,
+        "force_with_lease_denied": 0
+      }
+    },
+    "stack-driver": {
+      "runs": 81,
+      "tool_calls": {
+        "total": 2763,
+        "per_run_mean": 34.1,
+        "median": 31
+      },
+      "model_calls": {
+        "total": 2252,
+        "per_run_mean": 27.8
+      },
+      "card_bytes": {
+        "total": 5260573,
+        "per_run_mean": 64945.3,
+        "by_card": {
+          "driver.md": 4180004,
+          "startup-manifest.json": 370724,
+          "references/": 216780,
+          "concepts.md": 198000,
+          "startup-core.md": 148043,
+          "verifier.md": 54735,
+          "conflict-resolver.md": 52128,
+          "inspector.md": 11232,
+          "hosts/claude-code.md": 10653,
+          "role-core.md": 8828,
+          "host-core-claude-code.md": 6900,
+          "chief-of-staff.md": 1930,
+          "foreman-stack.md": 432,
+          "SKILL.md:chief-of-staff": 184
+        }
+      },
+      "files_read": {
+        "paths_per_run_mean": 5.2,
+        "cards_per_run_mean": 4.6
+      },
+      "cli": {
+        "calls": 993,
+        "usage_errors": {
+          "chantier ship: error: the following arguments are required: pr": {
+            "count": 4,
+            "runs": 4
+          }
+        },
+        "refusals": {
+          "claim lost: CR-<n> was taken again (lease <n>) at <n>:<n>; stop now: nothing recorded": {
+            "count": 6,
+            "runs": 5
+          },
+          "CR-<n>: <url> is on main and out of draft, but its head <sha> carries CR-<n> (<url> merging it would merge them too. First put the PR back to draft and ship aga": {
+            "count": 3,
+            "runs": 3
+          },
+          "gh api -X POST <path> -F pull_requests[]=<n>: gh: Invalid request.": {
+            "count": 3,
+            "runs": 3
+          },
+          "batch batch-<n> is not a stack": {
+            "count": 2,
+            "runs": 1
+          },
+          "gh api -X POST <path> -F pull_requests[]=<n> -F pull_requests[]=<n> -F pull_requests[]=<n> -F pull_requests[]=<n> -F pull_requests[]=<n>: not JSON:": {
+            "count": 2,
+            "runs": 2
+          },
+          "ship <cr> <pr link>": {
+            "count": 2,
+            "runs": 2
+          },
+          "CR-<n> depends on CR-<n>, which is not named: it cannot sit below it": {
+            "count": 1,
+            "runs": 1
+          },
+          "CR-<n> is ready: no Driver to record a step": {
+            "count": 1,
+            "runs": 1
+          },
+          "CR-<n>: <url> is on main and out of draft, but its head <sha> carries CR-<n> (<url>": {
+            "count": 1,
+            "runs": 1
+          },
+          "CR-<n>: CR-<n>'s branch moved since its last ship (<sha> -> <sha>): it ships first, then ship again; nothing recorded": {
+            "count": 1,
+            "runs": 1
+          },
+          "CR-<n>: only a CR handed back ready leaves draft": {
+            "count": 1,
+            "runs": 1
+          },
+          "CR-<n>: under it is a draft: CR-<n>": {
+            "count": 1,
+            "runs": 1
+          },
+          "a stack driver is recorded (<sha>); one that ended: `agents set stack - --epoch <n>` first (a stack driver reads the stack with `stack`, which changes nothing)": {
+            "count": 1,
+            "runs": 1
+          },
+          "could not apply <sha>...": {
+            "count": 1,
+            "runs": 1
+          },
+          "gh api -X PATCH <path> -f base=main: gh: Validation Failed (HTTP <n>) (`forge-stack rebuild` replaces a stack)": {
+            "count": 1,
+            "runs": 1
+          },
+          "lease: unexpected <v>; lease <unit> | lease <unit> renew --lease <n> | lease <unit> hold --lease <n> [--minutes N] (N from <n> to <n>, <n> by default)": {
+            "count": 1,
+            "runs": 1
+          },
+          "ship CR-<n> needs --lease <n> (the number take printed)": {
+            "count": 1,
+            "runs": 1
+          },
+          "take CR-<n> --epoch <n>: the steering session's command; <n> is your number as Foreman of the batch (Foreman n°<n>)": {
+            "count": 1,
+            "runs": 1
+          }
+        }
+      },
+      "help": {
+        "commands": {
+          "": 1,
+          "forge-stack": 13,
+          "forge-stack create": 1,
+          "forge-stack rebuild": 1,
+          "forge-stack unstack": 1,
+          "gate": 3,
+          "lease": 3,
+          "ship": 5,
+          "stack": 5,
+          "take": 1,
+          "verdict": 2
+        },
+        "topics": {}
+      },
+      "host_denials": {
+        "classifier": 6
+      },
+      "write_guard_refusals": 0,
+      "waits": {
+        "count": 292,
+        "share": 10.6
+      },
+      "tool_not_in_list": {},
+      "pushes": {
+        "chantier_push": 0,
+        "refused": 0,
+        "rate": 0.0,
+        "force_with_lease": 97,
+        "force_with_lease_denied": 2
+      }
+    },
+    "debugger": {
+      "runs": 50,
+      "tool_calls": {
+        "total": 1042,
+        "per_run_mean": 20.8,
+        "median": 19.0
+      },
+      "model_calls": {
+        "total": 869,
+        "per_run_mean": 17.4
+      },
+      "card_bytes": {
+        "total": 187012,
+        "per_run_mean": 3740.2,
+        "by_card": {
+          "debugger.md": 186434,
+          "references/": 578
+        }
+      },
+      "files_read": {
+        "paths_per_run_mean": 2.7,
+        "cards_per_run_mean": 1.0
+      },
+      "cli": {
+        "calls": 21,
+        "usage_errors": {},
+        "refusals": {
+          "init: the surface's writer is not running: nothing written; for the Chief of Staff: start the watcher, which starts the surface server (the <v> line's command),": {
+            "count": 1,
+            "runs": 1
+          }
+        }
+      },
+      "help": {
+        "commands": {},
+        "topics": {}
+      },
+      "host_denials": {},
+      "write_guard_refusals": 7,
+      "waits": {
+        "count": 1,
+        "share": 0.1
+      },
+      "tool_not_in_list": {
+        "Edit": 1
+      },
+      "pushes": {
+        "chantier_push": 0,
+        "refused": 0,
+        "rate": 0.0,
+        "force_with_lease": 1,
+        "force_with_lease_denied": 0
+      }
+    },
+    "investigator": {
+      "runs": 45,
+      "tool_calls": {
+        "total": 1288,
+        "per_run_mean": 28.6,
+        "median": 24
+      },
+      "model_calls": {
+        "total": 997,
+        "per_run_mean": 22.2
+      },
+      "card_bytes": {
+        "total": 337750,
+        "per_run_mean": 7505.6,
+        "by_card": {
+          "investigator.md": 167545,
+          "references/": 87259,
+          "startup-manifest.json": 20954,
+          "driver.md": 16610,
+          "chief-of-staff.md": 14425,
+          "concepts.md": 11103,
+          "foreman.md": 7771,
+          "griller.md": 5713,
+          "session-start.md": 4012,
+          "startup-core.md": 2358
+        }
+      },
+      "files_read": {
+        "paths_per_run_mean": 4.9,
+        "cards_per_run_mean": 1.8
+      },
+      "cli": {
+        "calls": 48,
+        "usage_errors": {
+          "chantier: error: unrecognized arguments: --lease <v>": {
+            "count": 2,
+            "runs": 2
+          }
+        },
+        "refusals": {}
+      },
+      "help": {
+        "commands": {},
+        "topics": {}
+      },
+      "host_denials": {},
+      "write_guard_refusals": 5,
+      "waits": {
+        "count": 0,
+        "share": 0.0
+      },
+      "tool_not_in_list": {
+        "Edit": 2
+      },
+      "pushes": {
+        "chantier_push": 0,
+        "refused": 0,
+        "rate": 0.0,
+        "force_with_lease": 0,
+        "force_with_lease_denied": 0
+      }
+    },
+    "release-driver": {
+      "runs": 31,
+      "tool_calls": {
+        "total": 961,
+        "per_run_mean": 31.0,
+        "median": 30
+      },
+      "model_calls": {
+        "total": 771,
+        "per_run_mean": 24.9
+      },
+      "card_bytes": {
+        "total": 1194523,
+        "per_run_mean": 38533.0,
+        "by_card": {
+          "driver.md": 903409,
+          "startup-manifest.json": 109551,
+          "references/": 98271,
+          "startup-core.md": 48691,
+          "release-template.md": 15289,
+          "session-start.md": 5436,
+          "hosts/claude-code.md": 5109,
+          "chief-of-staff.md": 4062,
+          "role-core.md": 2110,
+          "host-core-claude-code.md": 2005,
+          "hosts": 590
+        }
+      },
+      "files_read": {
+        "paths_per_run_mean": 6.4,
+        "cards_per_run_mean": 3.4
+      },
+      "cli": {
+        "calls": 224,
+        "usage_errors": {
+          "chantier: error: unrecognized arguments: --lease <v>": {
+            "count": 6,
+            "runs": 5
+          },
+          "chantier phase: error: argument phase: invalid choice: <v> (choose from <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>)": {
+            "count": 1,
+            "runs": 1
+          },
+          "chantier ship: error: the following arguments are required: pr": {
+            "count": 1,
+            "runs": 1
+          }
+        },
+        "refusals": {
+          "CR-<n> is merged: no Driver to hand it back": {
+            "count": 1,
+            "runs": 1
+          },
+          "no running batch: run `chantier open` first; no batch closed yet": {
+            "count": 1,
+            "runs": 1
+          },
+          "refused: no long gate passed at <sha> (gate CR-<n> <v>..., or --no-gate <v>)": {
+            "count": 1,
+            "runs": 1
+          },
+          "take CR-<n> --epoch <n>: the steering session's command; <n> is your number as Foreman of the batch (Foreman n°<n>)": {
+            "count": 1,
+            "runs": 1
+          }
+        }
+      },
+      "help": {
+        "commands": {
+          "handback": 2,
+          "lease": 1,
+          "open": 1,
+          "release": 2,
+          "ship": 2,
+          "take": 1,
+          "watch": 1
+        },
+        "topics": {}
+      },
+      "host_denials": {
+        "classifier": 2
+      },
+      "write_guard_refusals": 0,
+      "waits": {
+        "count": 106,
+        "share": 11.0
+      },
+      "tool_not_in_list": {},
+      "pushes": {
+        "chantier_push": 0,
+        "refused": 0,
+        "rate": 0.0,
+        "force_with_lease": 2,
+        "force_with_lease_denied": 0
+      }
+    },
+    "retro-critic": {
+      "runs": 25,
+      "tool_calls": {
+        "total": 328,
+        "per_run_mean": 13.1,
+        "median": 13
+      },
+      "model_calls": {
+        "total": 281,
+        "per_run_mean": 11.2
+      },
+      "card_bytes": {
+        "total": 314984,
+        "per_run_mean": 12599.4,
+        "by_card": {
+          "references/": 133031,
+          "driver.md": 66869,
+          "retro-critic.md": 65885,
+          "startup-manifest.json": 14514,
+          "foreman.md": 11725,
+          "hosts/claude-code.md": 11393,
+          "chief-of-staff.md": 4773,
+          "SKILL.md:chief-of-staff": 3061,
+          "startup-core.md": 2358,
+          "concepts.md": 951,
+          "host-core-claude-code.md": 244,
+          "role-core.md": 180
+        }
+      },
+      "files_read": {
+        "paths_per_run_mean": 2.2,
+        "cards_per_run_mean": 2.5
+      },
+      "cli": {
+        "calls": 16,
+        "usage_errors": {},
+        "refusals": {}
+      },
+      "help": {
+        "commands": {
+          "": 1,
+          "status": 1
+        },
+        "topics": {}
+      },
+      "host_denials": {},
+      "write_guard_refusals": 0,
+      "waits": {
+        "count": 3,
+        "share": 0.9
+      },
+      "tool_not_in_list": {},
+      "pushes": {
+        "chantier_push": 0,
+        "refused": 0,
+        "rate": 0.0,
+        "force_with_lease": 0,
+        "force_with_lease_denied": 0
+      }
+    },
+    "griller": {
+      "runs": 10,
+      "tool_calls": {
+        "total": 833,
+        "per_run_mean": 83.3,
+        "median": 72.5
+      },
+      "model_calls": {
+        "total": 810,
+        "per_run_mean": 81.0
+      },
+      "card_bytes": {
+        "total": 630708,
+        "per_run_mean": 63070.8,
+        "by_card": {
+          "references/": 266858,
+          "chief-of-staff.md": 135574,
+          "hosts/claude-code.md": 74995,
+          "griller.md": 45758,
+          "startup-manifest.json": 45583,
+          "session-start.md": 30743,
+          "concepts.md": 11458,
+          "sync-checkout.md": 4840,
+          "startup-core.md": 4204,
+          "SKILL.md:griller": 4066,
+          "host-core-claude-code.md": 3066,
+          "titles.md": 2777,
+          "session-start-griller.md": 592,
+          "role-core.md": 194
+        }
+      },
+      "files_read": {
+        "paths_per_run_mean": 4.8,
+        "cards_per_run_mean": 5.0
+      },
+      "cli": {
+        "calls": 134,
+        "usage_errors": {},
+        "refusals": {
+          "not a CR folder: <path>": {
+            "count": 5,
+            "runs": 4
+          },
+          "cannot move CR folder <path> to <path> refused for <n> s, the folder is likely held; nothing moved. On Windows a folder cannot move while a process holds it: a ": {
+            "count": 2,
+            "runs": 1
+          },
+          "cannot move CR folder <path> to <path> [WinError <n>] Accès refusé: <v> -> <v>": {
+            "count": 1,
+            "runs": 1
+          },
+          "failed to remove file `<path>`: Le processus ne peut pas accéder au fichier car ce fichier est utilisé par un autre processus. (os error <n>)": {
+            "count": 1,
+            "runs": 1
+          },
+          "title is <n> characters: the limit is <n>": {
+            "count": 1,
+            "runs": 1
+          },
+          "triage expects a CR folder: <path>, <path> or <path>; got <path>": {
+            "count": 1,
+            "runs": 1
+          }
+        }
+      },
+      "help": {
+        "commands": {
+          "": 1,
+          "file": 4,
+          "summary": 1,
+          "summary set": 2,
+          "triage": 3
+        },
+        "topics": {}
+      },
+      "host_denials": {
+        "user_rejected": 1
+      },
+      "write_guard_refusals": 0,
+      "waits": {
+        "count": 10,
+        "share": 1.2
+      },
+      "tool_not_in_list": {},
+      "pushes": {
+        "chantier_push": 0,
+        "refused": 0,
+        "rate": 0.0,
+        "force_with_lease": 1,
+        "force_with_lease_denied": 0
+      }
+    },
+    "chief-of-staff": {
+      "runs": 6,
+      "tool_calls": {
+        "total": 10584,
+        "per_run_mean": 1764.0,
+        "median": 1254.5
+      },
+      "model_calls": {
+        "total": 11925,
+        "per_run_mean": 1987.5
+      },
+      "card_bytes": {
+        "total": 3017281,
+        "per_run_mean": 502880.2,
+        "by_card": {
+          "chief-of-staff.md": 1256912,
+          "references/": 551680,
+          "hosts/claude-code.md": 362998,
+          "session-start.md": 251440,
+          "foreman.md": 187439,
+          "startup-manifest.json": 164480,
+          "concepts.md": 61715,
+          "griller.md": 56844,
+          "startup-core.md": 35282,
+          "hosts": 34095,
+          "spec-writer.md": 19980,
+          "release-template.md": 10208,
+          "driver.md": 5780,
+          "release": 5237,
+          "retro-critic.md": 3399,
+          "role-core.md": 2632,
+          "SKILL.md:chief-of-staff": 2225,
+          "routing.md": 1434,
+          "host-core-claude-code.md": 1223,
+          "SKILL.md:griller": 925,
+          "session-start-chief-of-staff.md": 658,
+          "other-card": 442,
+          "spec-critic.md": 222,
+          "brief": 31
+        }
+      },
+      "files_read": {
+        "paths_per_run_mean": 61.0,
+        "cards_per_run_mean": 14.2
+      },
+      "cli": {
+        "calls": 1868,
+        "usage_errors": {
+          "chantier triage: error: one of the arguments --priority --ready --inbox is required": {
+            "count": 2,
+            "runs": 2
+          },
+          "chantier: error: argument cmd: invalid choice: <v>, maybe you meant <v>? (choose from <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>,": {
+            "count": 2,
+            "runs": 2
+          },
+          "chantier triage: error: one of the arguments --priority --ready --inbox --running-batch is required": {
+            "count": 1,
+            "runs": 1
+          },
+          "chantier: error: unrecognized arguments: --session": {
+            "count": 1,
+            "runs": 1
+          },
+          "chantier: error: unrecognized arguments: <v>": {
+            "count": 1,
+            "runs": 1
+          },
+          "chantier: error: unrecognized arguments: <v>... ": {
+            "count": 1,
+            "runs": 1
+          }
+        },
+        "refusals": {
+          "cannot move CR folder <path> to <path> [WinError <n>] Le processus ne peut pas accéder au fichier car ce fichier est utilisé par un autre processus: <v> -> <v>": {
+            "count": 19,
+            "runs": 3
+          },
+          "no running batch: run `chantier open` first; last closed: batch-<n>": {
+            "count": 17,
+            "runs": 5
+          },
+          "not a CR folder: <path>": {
+            "count": 13,
+            "runs": 4
+          },
+          "cannot move CR folder <path> to <path> refused for <n> s, the folder is likely held; nothing moved. On Windows a folder cannot move while a process holds it: a ": {
+            "count": 12,
+            "runs": 3
+          },
+          "title is <n> characters: the limit is <n>": {
+            "count": 12,
+            "runs": 4
+          },
+          "no running batch; paused: batch-<n>: pass `--batch batch-<n>`; last closed: batch-<n>": {
+            "count": 9,
+            "runs": 3
+          },
+          "failed to remove file `<path>`: Le processus ne peut pas accéder au fichier car ce fichier est utilisé par un autre processus. (os error <n>)": {
+            "count": 5,
+            "runs": 3
+          },
+          "prepared CR not found: <path>": {
+            "count": 5,
+            "runs": 2
+          },
+          "summary is <n> characters: the limit is <n>": {
+            "count": 4,
+            "runs": 3
+          },
+          "unknown batch batch-<n>": {
+            "count": 4,
+            "runs": 3
+          },
+          "cannot move CR folder <path>": {
+            "count": 3,
+            "runs": 1
+          },
+          "missing Change Specification: <path>; grill the CR first": {
+            "count": 3,
+            "runs": 2
+          },
+          "seat take <session-id>": {
+            "count": 3,
+            "runs": 3
+          },
+          "triage expects a CR folder: <path>, <path> or <path>; got <path>": {
+            "count": 3,
+            "runs": 1
+          },
+          "--title is required: this CR has no title yet": {
+            "count": 1,
+            "runs": 1
+          },
+          "<slug> is not grilled: grill it first": {
+            "count": 1,
+            "runs": 1
+          },
+          "<slug> is not in the backlog (inbox, P1…P4, <n>-ready)": {
+            "count": 1,
+            "runs": 1
+          },
+          "CR folder must be inside the planning folder: .": {
+            "count": 1,
+            "runs": 1
+          },
+          "CR-<n> is a release CR: it leaves the batch only to the trash (--note trash)": {
+            "count": 1,
+            "runs": 1
+          },
+          "batch-<n> is not closed (a paused batch stays until `close`): `order add` joins new work to it": {
+            "count": 1,
+            "runs": 1
+          },
+          "branch <v> not found": {
+            "count": 1,
+            "runs": 1
+          },
+          "cannot change what CR-<n> waits for: it is ready, not queued; in a stack, its place and base are set by `stack`": {
+            "count": 1,
+            "runs": 1
+          },
+          "cannot change what CR-<n> waits for: it is working, not queued; in a stack, its place and base are set by `stack`": {
+            "count": 1,
+            "runs": 1
+          },
+          "cannot close batch-<n>, something still runs: transcript <id> still runs: its last record is a prompt with no answer yet (<path>). Nothing was deleted. an agent": {
+            "count": 1,
+            "runs": 1
+          },
+          "failed to push some refs to '<url>": {
+            "count": 1,
+            "runs": 1
+          },
+          "foreman set <session-id> --epoch <n>": {
+            "count": 1,
+            "runs": 1
+          },
+          "no running batch: run `chantier open` first; no batch closed yet": {
+            "count": 1,
+            "runs": 1
+          },
+          "only an inbox, backlog, <n>-ready or unclaimed batch CR can be abandoned": {
+            "count": 1,
+            "runs": 1
+          },
+          "order add --release: CR-<n> is already the release CR of batch-<n>; a batch has one. Put the second release in the next batch, once this one is closed": {
+            "count": 1,
+            "runs": 1
+          },
+          "order after: unknown CR <v> in batch batch-<n>": {
+            "count": 1,
+            "runs": 1
+          },
+          "order approve names the batch's release CR (CR-<n>)": {
+            "count": 1,
+            "runs": 1
+          },
+          "order budget --note <usd>: no value given: a positive amount in dollars": {
+            "count": 1,
+            "runs": 1
+          },
+          "order merged: the surface's writer is not running: nothing written; for the Chief of Staff: start the watcher, which starts the surface server (the <v> line's c": {
+            "count": 1,
+            "runs": 1
+          },
+          "order waive CR-<n>: --follow-up <backlog folder> names the CR that runs the long gate on main afterwards (file it first: `file`)": {
+            "count": 1,
+            "runs": 1
+          },
+          "prepared CR not found: <path> <v>": {
+            "count": 1,
+            "runs": 1
+          },
+          "src refspec v0.<n>.<n>-preflight-trial does not match any": {
+            "count": 1,
+            "runs": 1
+          },
+          "the request has no short title (its title is <n> characters; the limit is <n>): give --title <v>, the text goes below it as its description, or start the text w": {
+            "count": 1,
+            "runs": 1
+          },
+          "title is one line of plain text: no newline or other control character": {
+            "count": 1,
+            "runs": 1
+          },
+          "triage: the surface's writer is not running: nothing written; for the Chief of Staff: start t": {
+            "count": 1,
+            "runs": 1
+          }
+        }
+      },
+      "help": {
+        "commands": {
+          "": 25,
+          "abandon": 5,
+          "ask": 1,
+          "asks": 1,
+          "board": 7,
+          "cancel": 1,
+          "close": 2,
+          "cost": 1,
+          "file": 36,
+          "foreman": 2,
+          "handback": 2,
+          "live": 1,
+          "open": 2,
+          "order": 19,
+          "order add": 2,
+          "order budget": 1,
+          "order drop": 1,
+          "order merged": 2,
+          "order mode": 1,
+          "order rounds": 2,
+          "order waive": 2,
+          "preflight": 1,
+          "seat take": 1,
+          "serve": 2,
+          "stack": 3,
+          "summary": 4,
+          "summary set": 2,
+          "sync": 1,
+          "triage": 19,
+          "webui": 1
+        },
+        "topics": {}
+      },
+      "host_denials": {
+        "classifier": 10
+      },
+      "write_guard_refusals": 0,
+      "waits": {
+        "count": 371,
+        "share": 3.5
+      },
+      "tool_not_in_list": {},
+      "pushes": {
+        "chantier_push": 0,
+        "refused": 0,
+        "rate": 0.0,
+        "force_with_lease": 59,
+        "force_with_lease_denied": 0
+      }
+    }
+  },
+  "driver_runs_per_cr": {
+    "crs": 256,
+    "runs": 591,
+    "mean": 2.3,
+    "one": 31.2,
+    "two": 37.1,
+    "three_or_more": 31.6
+  },
+  "wake_shares": {
+    "chief-of-staff": {
+      "compaction": 2.6,
+      "agent_ended": 3.6,
+      "watcher": 0.1,
+      "heartbeat": 0.0,
+      "foreman_turn_ended": 15.0,
+      "skill": 1.9,
+      "typed": 76.8
+    }
+  },
+  "detectors": {
+    "merge-by-agent": {
+      "verifier": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "inspector": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "cr-driver": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "coder": {
+        "runs_matched": 1,
+        "rate": 0.2
+      },
+      "spec-writer": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "spec-critic": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "conflict-resolver": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "stack-driver": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "debugger": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "investigator": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "release-driver": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "retro-critic": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "griller": {
+        "runs_matched": 0,
+        "rate": 0.0
+      }
+    },
+    "merge-not-ff": {
+      "verifier": {
+        "runs_matched": 1,
+        "rate": 0.1
+      },
+      "inspector": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "cr-driver": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "coder": {
+        "runs_matched": 2,
+        "rate": 0.4
+      },
+      "spec-writer": {
+        "runs_matched": 3,
+        "rate": 0.6
+      },
+      "spec-critic": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "conflict-resolver": {
+        "runs_matched": 1,
+        "rate": 0.9
+      },
+      "stack-driver": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "debugger": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "investigator": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "release-driver": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "retro-critic": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "griller": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "chief-of-staff": {
+        "runs_matched": 2,
+        "rate": 33.3
+      }
+    },
+    "plain-force-push": {
+      "verifier": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "inspector": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "cr-driver": {
+        "runs_matched": 2,
+        "rate": 0.3
+      },
+      "coder": {
+        "runs_matched": 1,
+        "rate": 0.2
+      },
+      "spec-writer": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "spec-critic": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "conflict-resolver": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "stack-driver": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "debugger": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "investigator": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "release-driver": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "retro-critic": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "griller": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "chief-of-staff": {
+        "runs_matched": 0,
+        "rate": 0.0
+      }
+    },
+    "discard-work": {
+      "verifier": {
+        "runs_matched": 16,
+        "rate": 2.2
+      },
+      "inspector": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "cr-driver": {
+        "runs_matched": 8,
+        "rate": 1.3
+      },
+      "coder": {
+        "runs_matched": 17,
+        "rate": 3.2
+      },
+      "spec-writer": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "spec-critic": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "conflict-resolver": {
+        "runs_matched": 8,
+        "rate": 7.3
+      },
+      "stack-driver": {
+        "runs_matched": 2,
+        "rate": 2.5
+      },
+      "debugger": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "investigator": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "release-driver": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "retro-critic": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "griller": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "chief-of-staff": {
+        "runs_matched": 2,
+        "rate": 33.3
+      }
+    },
+    "git-stash": {
+      "verifier": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "inspector": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "cr-driver": {
+        "runs_matched": 1,
+        "rate": 0.2
+      },
+      "coder": {
+        "runs_matched": 6,
+        "rate": 1.1
+      },
+      "spec-writer": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "spec-critic": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "conflict-resolver": {
+        "runs_matched": 1,
+        "rate": 0.9
+      },
+      "stack-driver": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "debugger": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "investigator": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "release-driver": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "retro-critic": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "griller": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "chief-of-staff": {
+        "runs_matched": 2,
+        "rate": 33.3
+      }
+    },
+    "stop-by-name": {
+      "verifier": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "inspector": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "cr-driver": {
+        "runs_matched": 3,
+        "rate": 0.5
+      },
+      "coder": {
+        "runs_matched": 8,
+        "rate": 1.5
+      },
+      "spec-writer": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "spec-critic": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "conflict-resolver": {
+        "runs_matched": 1,
+        "rate": 0.9
+      },
+      "stack-driver": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "debugger": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "investigator": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "release-driver": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "retro-critic": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "griller": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "chief-of-staff": {
+        "runs_matched": 0,
+        "rate": 0.0
+      }
+    },
+    "add-all": {
+      "verifier": {
+        "runs_matched": 21,
+        "rate": 2.9
+      },
+      "inspector": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "cr-driver": {
+        "runs_matched": 51,
+        "rate": 8.5
+      },
+      "coder": {
+        "runs_matched": 1,
+        "rate": 0.2
+      },
+      "spec-writer": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "spec-critic": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "conflict-resolver": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "stack-driver": {
+        "runs_matched": 1,
+        "rate": 1.2
+      },
+      "debugger": {
+        "runs_matched": 1,
+        "rate": 2.0
+      },
+      "investigator": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "release-driver": {
+        "runs_matched": 1,
+        "rate": 3.2
+      },
+      "retro-critic": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "griller": {
+        "runs_matched": 2,
+        "rate": 20.0
+      },
+      "chief-of-staff": {
+        "runs_matched": 3,
+        "rate": 50.0
+      }
+    },
+    "cd-into-changes": {
+      "verifier": {
+        "runs_matched": 418,
+        "rate": 58.1
+      },
+      "inspector": {
+        "runs_matched": 186,
+        "rate": 27.4
+      },
+      "cr-driver": {
+        "runs_matched": 278,
+        "rate": 46.1
+      },
+      "coder": {
+        "runs_matched": 203,
+        "rate": 37.9
+      },
+      "spec-writer": {
+        "runs_matched": 300,
+        "rate": 58.3
+      },
+      "spec-critic": {
+        "runs_matched": 123,
+        "rate": 51.0
+      },
+      "conflict-resolver": {
+        "runs_matched": 16,
+        "rate": 14.7
+      },
+      "stack-driver": {
+        "runs_matched": 22,
+        "rate": 27.2
+      },
+      "debugger": {
+        "runs_matched": 27,
+        "rate": 54.0
+      },
+      "investigator": {
+        "runs_matched": 10,
+        "rate": 22.2
+      },
+      "release-driver": {
+        "runs_matched": 5,
+        "rate": 16.1
+      },
+      "retro-critic": {
+        "runs_matched": 19,
+        "rate": 76.0
+      },
+      "griller": {
+        "runs_matched": 10,
+        "rate": 100.0
+      },
+      "chief-of-staff": {
+        "runs_matched": 5,
+        "rate": 83.3
+      }
+    },
+    "no-verify": {
+      "verifier": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "inspector": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "cr-driver": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "coder": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "spec-writer": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "spec-critic": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "conflict-resolver": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "stack-driver": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "debugger": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "investigator": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "release-driver": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "retro-critic": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "griller": {
+        "runs_matched": 0,
+        "rate": 0.0
+      },
+      "chief-of-staff": {
+        "runs_matched": 0,
+        "rate": 0.0
+      }
+    }
+  },
+  "s_list": [
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "--title is required: this CR has no title yet",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "<slug> is not grilled: grill it first",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "<slug> is not in the backlog (inbox, P1…P4, <n>-ready)",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "CR folder must be inside the planning folder: .",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "CR-<n> is a release CR: it leaves the batch only to the trash (--note trash)",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "batch-<n> is not closed (a paused batch stays until `close`): `order add` joins new work to it",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "branch <v> not found",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "cannot change what CR-<n> waits for: it is ready, not queued; in a stack, its place and base are set by `stack`",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "cannot change what CR-<n> waits for: it is working, not queued; in a stack, its place and base are set by `stack`",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "cannot close batch-<n>, something still runs: transcript <id> still runs: its last record is a prompt with no answer yet (<path>). Nothing was deleted. an agent",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "cannot move CR folder <path>",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "cannot move CR folder <path> to <path> [WinError <n>] Le processus ne peut pas accéder au fichier car ce fichier est utilisé par un autre processus: <v> -> <v>",
+      "runs": 3,
+      "rate": 50.0
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "cannot move CR folder <path> to <path> refused for <n> s, the folder is likely held; nothing moved. On Windows a folder cannot move while a process holds it: a ",
+      "runs": 3,
+      "rate": 50.0
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "failed to push some refs to '<url>",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "failed to remove file `<path>`: Le processus ne peut pas accéder au fichier car ce fichier est utilisé par un autre processus. (os error <n>)",
+      "runs": 3,
+      "rate": 50.0
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "foreman set <session-id> --epoch <n>",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "missing Change Specification: <path>; grill the CR first",
+      "runs": 2,
+      "rate": 33.3
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "no running batch: run `chantier open` first; last closed: batch-<n>",
+      "runs": 5,
+      "rate": 83.3
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "no running batch: run `chantier open` first; no batch closed yet",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "no running batch; paused: batch-<n>: pass `--batch batch-<n>`; last closed: batch-<n>",
+      "runs": 3,
+      "rate": 50.0
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "not a CR folder: <path>",
+      "runs": 4,
+      "rate": 66.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "only an inbox, backlog, <n>-ready or unclaimed batch CR can be abandoned",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "order add --release: CR-<n> is already the release CR of batch-<n>; a batch has one. Put the second release in the next batch, once this one is closed",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "order after: unknown CR <v> in batch batch-<n>",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "order approve names the batch's release CR (CR-<n>)",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "order budget --note <usd>: no value given: a positive amount in dollars",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "order merged: the surface's writer is not running: nothing written; for the Chief of Staff: start the watcher, which starts the surface server (the <v> line's c",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "order waive CR-<n>: --follow-up <backlog folder> names the CR that runs the long gate on main afterwards (file it first: `file`)",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "prepared CR not found: <path>",
+      "runs": 2,
+      "rate": 33.3
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "prepared CR not found: <path> <v>",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "seat take <session-id>",
+      "runs": 3,
+      "rate": 50.0
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "src refspec v0.<n>.<n>-preflight-trial does not match any",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "summary is <n> characters: the limit is <n>",
+      "runs": 3,
+      "rate": 50.0
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "the request has no short title (its title is <n> characters; the limit is <n>): give --title <v>, the text goes below it as its description, or start the text w",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "title is <n> characters: the limit is <n>",
+      "runs": 4,
+      "rate": 66.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "title is one line of plain text: no newline or other control character",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "triage expects a CR folder: <path>, <path> or <path>; got <path>",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "triage: the surface's writer is not running: nothing written; for the Chief of Staff: start t",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "refusal",
+      "template": "unknown batch batch-<n>",
+      "runs": 3,
+      "rate": 50.0
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "usage_error",
+      "template": "chantier triage: error: one of the arguments --priority --ready --inbox --running-batch is required",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "usage_error",
+      "template": "chantier triage: error: one of the arguments --priority --ready --inbox is required",
+      "runs": 2,
+      "rate": 33.3
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "usage_error",
+      "template": "chantier: error: argument cmd: invalid choice: <v>, maybe you meant <v>? (choose from <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>,",
+      "runs": 2,
+      "rate": 33.3
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "usage_error",
+      "template": "chantier: error: unrecognized arguments: --session",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "usage_error",
+      "template": "chantier: error: unrecognized arguments: <v>",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "chief-of-staff",
+      "kind": "usage_error",
+      "template": "chantier: error: unrecognized arguments: <v>... ",
+      "runs": 1,
+      "rate": 16.7
+    },
+    {
+      "role": "cr-driver",
+      "kind": "refusal",
+      "template": "CR-<n>: round limit <n> reached; hand back blocked, only the user grants more (`order rounds`)",
+      "runs": 14,
+      "rate": 2.3
+    },
+    {
+      "role": "cr-driver",
+      "kind": "refusal",
+      "template": "take CR-<n> --epoch <n>: the steering session's command; <n> is your number as Foreman of the batch (Foreman n°<n>)",
+      "runs": 45,
+      "rate": 7.5
+    },
+    {
+      "role": "cr-driver",
+      "kind": "usage_error",
+      "template": "chantier phase: error: argument phase: invalid choice: <v> (choose from <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>)",
+      "runs": 77,
+      "rate": 12.8
+    },
+    {
+      "role": "cr-driver",
+      "kind": "usage_error",
+      "template": "chantier: error: unrecognized arguments: --lease <v>",
+      "runs": 134,
+      "rate": 22.2
+    },
+    {
+      "role": "griller",
+      "kind": "refusal",
+      "template": "cannot move CR folder <path> to <path> [WinError <n>] Accès refusé: <v> -> <v>",
+      "runs": 1,
+      "rate": 10.0
+    },
+    {
+      "role": "griller",
+      "kind": "refusal",
+      "template": "cannot move CR folder <path> to <path> refused for <n> s, the folder is likely held; nothing moved. On Windows a folder cannot move while a process holds it: a ",
+      "runs": 1,
+      "rate": 10.0
+    },
+    {
+      "role": "griller",
+      "kind": "refusal",
+      "template": "failed to remove file `<path>`: Le processus ne peut pas accéder au fichier car ce fichier est utilisé par un autre processus. (os error <n>)",
+      "runs": 1,
+      "rate": 10.0
+    },
+    {
+      "role": "griller",
+      "kind": "refusal",
+      "template": "not a CR folder: <path>",
+      "runs": 4,
+      "rate": 40.0
+    },
+    {
+      "role": "griller",
+      "kind": "refusal",
+      "template": "title is <n> characters: the limit is <n>",
+      "runs": 1,
+      "rate": 10.0
+    },
+    {
+      "role": "griller",
+      "kind": "refusal",
+      "template": "triage expects a CR folder: <path>, <path> or <path>; got <path>",
+      "runs": 1,
+      "rate": 10.0
+    },
+    {
+      "role": "investigator",
+      "kind": "usage_error",
+      "template": "chantier: error: unrecognized arguments: --lease <v>",
+      "runs": 2,
+      "rate": 4.4
+    },
+    {
+      "role": "release-driver",
+      "kind": "refusal",
+      "template": "CR-<n> is merged: no Driver to hand it back",
+      "runs": 1,
+      "rate": 3.2
+    },
+    {
+      "role": "release-driver",
+      "kind": "refusal",
+      "template": "no running batch: run `chantier open` first; no batch closed yet",
+      "runs": 1,
+      "rate": 3.2
+    },
+    {
+      "role": "release-driver",
+      "kind": "refusal",
+      "template": "refused: no long gate passed at <sha> (gate CR-<n> <v>..., or --no-gate <v>)",
+      "runs": 1,
+      "rate": 3.2
+    },
+    {
+      "role": "release-driver",
+      "kind": "refusal",
+      "template": "take CR-<n> --epoch <n>: the steering session's command; <n> is your number as Foreman of the batch (Foreman n°<n>)",
+      "runs": 1,
+      "rate": 3.2
+    },
+    {
+      "role": "release-driver",
+      "kind": "usage_error",
+      "template": "chantier phase: error: argument phase: invalid choice: <v> (choose from <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>, <v>)",
+      "runs": 1,
+      "rate": 3.2
+    },
+    {
+      "role": "release-driver",
+      "kind": "usage_error",
+      "template": "chantier ship: error: the following arguments are required: pr",
+      "runs": 1,
+      "rate": 3.2
+    },
+    {
+      "role": "release-driver",
+      "kind": "usage_error",
+      "template": "chantier: error: unrecognized arguments: --lease <v>",
+      "runs": 5,
+      "rate": 16.1
+    },
+    {
+      "role": "spec-writer",
+      "kind": "refusal",
+      "template": "CR folder must be inside the planning folder: <path>",
+      "runs": 38,
+      "rate": 7.4
+    },
+    {
+      "role": "spec-writer",
+      "kind": "refusal",
+      "template": "not a CR folder: <path>",
+      "runs": 261,
+      "rate": 50.7
+    },
+    {
+      "role": "spec-writer",
+      "kind": "refusal",
+      "template": "summary is <n> characters: the limit is <n>",
+      "runs": 46,
+      "rate": 8.9
+    },
+    {
+      "role": "spec-writer",
+      "kind": "refusal",
+      "template": "this is a planning surface with projects <names>: pass --project <name>",
+      "runs": 71,
+      "rate": 13.8
+    },
+    {
+      "role": "stack-driver",
+      "kind": "refusal",
+      "template": "CR-<n>: <url> is on main and out of draft, but its head <sha> carries CR-<n> (<url> merging it would merge them too. First put the PR back to draft and ship aga",
+      "runs": 3,
+      "rate": 3.7
+    },
+    {
+      "role": "stack-driver",
+      "kind": "refusal",
+      "template": "claim lost: CR-<n> was taken again (lease <n>) at <n>:<n>; stop now: nothing recorded",
+      "runs": 5,
+      "rate": 6.2
+    },
+    {
+      "role": "stack-driver",
+      "kind": "refusal",
+      "template": "gh api -X POST <path> -F pull_requests[]=<n> -F pull_requests[]=<n> -F pull_requests[]=<n> -F pull_requests[]=<n> -F pull_requests[]=<n>: not JSON:",
+      "runs": 2,
+      "rate": 2.5
+    },
+    {
+      "role": "stack-driver",
+      "kind": "refusal",
+      "template": "gh api -X POST <path> -F pull_requests[]=<n>: gh: Invalid request.",
+      "runs": 3,
+      "rate": 3.7
+    },
+    {
+      "role": "stack-driver",
+      "kind": "refusal",
+      "template": "ship <cr> <pr link>",
+      "runs": 2,
+      "rate": 2.5
+    },
+    {
+      "role": "stack-driver",
+      "kind": "usage_error",
+      "template": "chantier ship: error: the following arguments are required: pr",
+      "runs": 4,
+      "rate": 4.9
+    },
+    {
+      "role": "verifier",
+      "kind": "usage_error",
+      "template": "chantier: error: unrecognized arguments: --lease <v>",
+      "runs": 19,
+      "rate": 2.6
+    }
+  ],
+  "previous": null,
+  "regressions": []
+}

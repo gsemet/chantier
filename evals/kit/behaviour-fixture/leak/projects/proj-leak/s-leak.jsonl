@@ -1,0 +1,5 @@
+{"type":"user","message":{"role":"user","content":"start"},"timestamp":"2026-11-20T10:00:01.000Z"}
+{"type":"assistant","message":{"id":"msg-1","role":"assistant","content":[{"type":"tool_use","id":"l1","name":"Skill","input":{"skill":"chantier:chief-of-staff"}}]},"timestamp":"2026-11-20T10:00:02.000Z"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"l1","content":"Launching skill"}]},"timestamp":"2026-11-20T10:00:03.000Z"}
+{"type":"assistant","message":{"id":"msg-2","role":"assistant","content":[{"type":"tool_use","id":"l2","name":"Bash","input":{"command":"chantier --project p status"}}]},"timestamp":"2026-11-20T10:00:04.000Z"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"l2","content":"No such tool available: fixtureuser","is_error":true}]},"timestamp":"2026-11-20T10:00:05.000Z"}

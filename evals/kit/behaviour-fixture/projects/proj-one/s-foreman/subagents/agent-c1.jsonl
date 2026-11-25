@@ -1,0 +1,10 @@
+{"type":"user","message":{"role":"user","content":"chantier coder for CR-7 \"a fixture title\" of batch batch-1, in the project /fixture/project."},"timestamp":"2026-11-20T10:00:01.000Z"}
+{"type":"assistant","message":{"id":"msg-1","role":"assistant","content":[{"type":"tool_use","id":"c1a","name":"Write","input":{"file_path":"/x/outside.txt","content":"x"}}]},"timestamp":"2026-11-20T10:00:02.000Z"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"c1a","content":"refused: /x/outside.txt is outside the folders this agent may write in (/x/work); write there","is_error":true}]},"timestamp":"2026-11-20T10:00:03.000Z"}
+{"type":"assistant","message":{"id":"msg-2","role":"assistant","content":[{"type":"tool_use","id":"c1b","name":"Bash","input":{"command":"sleep 30"}}]},"timestamp":"2026-11-20T10:00:04.000Z"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"c1b","content":"Blocked: sleep 30 is not allowed; use Monitor","is_error":true}]},"timestamp":"2026-11-20T10:00:05.000Z"}
+{"type":"assistant","message":{"id":"msg-3","role":"assistant","content":[{"type":"tool_use","id":"c1old","name":"Bash","input":{"command":"git stash"}}]},"timestamp":"2019-01-01T00:00:00.000Z"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"c1old","content":"x"}]},"timestamp":"2019-01-01T00:00:01.000Z"}
+{"type":"assistant","message":{"id":"msg-4","role":"assistant","content":[{"type":"tool_use","id":"c1c","name":"Bash","input":{"command":"git push --force origin chantier/x"}}]},"timestamp":"2026-11-20T10:00:07.000Z"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"c1c","content":"ok"}]},"timestamp":"2026-11-20T10:00:08.000Z"}
+{"type":"assistant","message":{"id":"msg-5","role":"assistant","content":[{"type":"text","text":"done"}]},"timestamp":"2026-11-20T10:00:09.000Z"}

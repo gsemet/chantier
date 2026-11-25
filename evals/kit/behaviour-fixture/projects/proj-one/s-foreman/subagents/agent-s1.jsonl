@@ -1,0 +1,10 @@
+{"type":"user","message":{"role":"user","content":"chantier spec-writer for the Chief of Staff of batch batch-1, in the project /fixture/project."},"timestamp":"2026-11-20T10:00:01.000Z"}
+{"type":"assistant","message":{"id":"msg-1","role":"assistant","content":[{"type":"tool_use","id":"s1a","name":"Edit","input":{"file_path":"/x/y.md"}}]},"timestamp":"2026-11-20T10:00:02.000Z"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"s1a","content":"No such tool available: Edit","is_error":true}]},"timestamp":"2026-11-20T10:00:03.000Z"}
+{"type":"assistant","message":{"id":"msg-2","role":"assistant","content":[{"type":"tool_use","id":"s1b","name":"Bash","input":{"command":"chantier summary set --help"}}]},"timestamp":"2026-11-20T10:00:04.000Z"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"s1b","content":"usage: chantier summary set [-h] --text TEXT folder"}]},"timestamp":"2026-11-20T10:00:05.000Z"}
+{"type":"assistant","message":{"id":"msg-3","role":"assistant","content":[{"type":"tool_use","id":"s1c","name":"Bash","input":{"command":"chantier --project p summary set /x/folder"}}]},"timestamp":"2026-11-20T10:00:06.000Z"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"s1c","content":"usage: chantier summary set [-h] --text TEXT folder\nchantier summary set: error: the following arguments are required: --text","is_error":true}]},"timestamp":"2026-11-20T10:00:07.000Z"}
+{"type":"assistant","message":{"id":"msg-4","role":"assistant","content":[{"type":"tool_use","id":"s1d","name":"Bash","input":{"command":"chantier summary lint /x/folder"}}]},"timestamp":"2026-11-20T10:00:08.000Z"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"s1d","content":"error: summary lint: 3 sections are missing in /x/folder/summary.md","is_error":true}]},"timestamp":"2026-11-20T10:00:09.000Z"}
+{"type":"assistant","message":{"id":"msg-5","role":"assistant","content":[{"type":"text","text":"done"}]},"timestamp":"2026-11-20T10:00:10.000Z"}

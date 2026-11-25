@@ -27,6 +27,7 @@ one fault and must be caught by the tool that owns it, naming its criterion:
     publish            an empty origin: the plan changes nothing; `--yes` pushes the base and writes `sandbox.local.json`; a second one is refused
     eval-root          setup refuses a workspace outside the eval root (exit 2, the root and the file named, nothing created), with no `eval-root.local.json`, and with a malformed one; a workspace inside goes through with the same allow rules as before and no trust entry
     setup-prompt       setup's last `prompt` line for each sandbox campaign, and the `set_monitor` rule of the Claude campaigns that open PRs
+    behaviour          `behaviour.py` on `kit/behaviour-fixture/` (a child process, `python -I`, the login name `fixtureuser`): the figures of `expected.json`, the regressions against a staged previous file, a record before `--since` not counted, each detector of `detectors.json` matching its positive and not its negative example, the privacy guard refusing a leak (exit 1, no file), and `--prune` printing its candidates and writing nothing
 
 Everything lives in one temporary folder, removed at the end unless --keep: a bare repository that
 stands for the sandbox's origin, the workspace, the fake forge's state (`sandbox_forge.py`) and the
@@ -62,6 +63,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import audit  # noqa: E402
+import behaviour  # noqa: E402
 import sandbox  # noqa: E402
 import sandbox_forge  # noqa: E402
 import setup  # noqa: E402
@@ -71,7 +73,7 @@ GATE = "tests"  # the long gate's name (the sandbox's chantier.yaml holds its co
 PATCH = HERE / "dry-run" / "delete-item.patch"
 CASES = ["clean", "stray-merge", "reset-leftover", "merge-refused", "stale-lock", "force-tag-push",
          "plain-merge", "ticket-summary-setup", "audit-cos-prompt", "audit-qa-prompt", "audit-claim-call", "foreman-route-push", "audit-heredoc",
-         "other-sandbox", "reset-foreign", "reset-empty", "publish", "eval-root", "setup-prompt"]
+         "other-sandbox", "reset-foreign", "reset-empty", "publish", "eval-root", "setup-prompt", "behaviour"]
 OK, FAILED, USAGE, EXTERNAL = 0, 1, 2, 4
 SESSION = "local_dry-run-foreman"
 EPOCH = "1"
@@ -1443,6 +1445,95 @@ def case_eval_root(run: Run) -> str:
     return "setup refuses a workspace outside the eval root, a missing and a malformed file (exit 2, nothing created); inside, it passes with the allow rules and no trust entry"
 
 
+BEHAVIOUR = HERE / "behaviour.py"
+BEHAVIOUR_FIXTURE = HERE / "behaviour-fixture"
+
+
+def behave(tmp: Path, *args) -> subprocess.CompletedProcess:
+    """`behaviour.py` as a child process, `python -I`, as the login `fixtureuser` with a home that is `tmp`."""
+    env = dict(os.environ, USER="fixtureuser", USERNAME="fixtureuser", LOGNAME="fixtureuser",
+               HOME=str(tmp), USERPROFILE=str(tmp))
+    return subprocess.run([sys.executable, "-I", str(BEHAVIOUR), *map(str, args)], capture_output=True, text=True,
+                          encoding="utf-8", errors="replace", env=env)
+
+
+def differences(want, got, path: str = "") -> list[str]:
+    """What `want` names that `got` does not hold: dicts by the keys `want` names, lists in any order."""
+    if isinstance(want, dict):
+        if not isinstance(got, dict):
+            return [f"{path or '.'}: not an object"]
+        return [d for k, v in want.items()
+                for d in (differences(v, got[k], f"{path}.{k}") if k in got else [f"{path}.{k}: missing"])]
+    if isinstance(want, list):
+        if not isinstance(got, list) or len(want) != len(got):
+            return [f"{path}: {got!r} is not the {len(want)} expected entries"]
+        left = sorted(json.dumps(x, sort_keys=True) for x in got)
+        return [] if left == sorted(json.dumps(x, sort_keys=True) for x in want) else [f"{path}: {got!r} is not {want!r}"]
+    return [] if want == got else [f"{path}: {got!r} is not {want!r}"]
+
+
+def case_behaviour(run: Run) -> str:
+    out = run.tmp / "behaviour-out"
+    out.mkdir()
+    home = run.tmp / "behaviour-home"
+    home.mkdir()
+    staged = out / "behaviour-2020-01-02-v0.0.0.json"
+    staged.write_bytes((BEHAVIOUR_FIXTURE / "previous.json").read_bytes())
+    done = behave(home, "--projects", BEHAVIOUR_FIXTURE / "projects", "--out", out, "--since", "2020-01-01")
+    need(done.returncode == 0, "`behaviour.py` on the fixture exits 0", f"exit {done.returncode}: {done.stderr.strip()}")
+    written = [p for p in out.glob("behaviour-*.json") if p != staged]
+    need(len(written) == 1 and written[0].with_suffix(".md").exists(), "it writes one JSON and one Markdown file",
+         f"{[p.name for p in out.iterdir()]}")
+    data = json.loads(written[0].read_text(encoding="utf-8"))
+    # 1. the figures; 3. the record dated before --since is not counted (the coder's three calls, no `git stash`)
+    want = json.loads((BEHAVIOUR_FIXTURE / "expected.json").read_text(encoding="utf-8"))
+    miss = differences(want, data)
+    need(not miss, "the written figures are those of `expected.json`", f"{len(miss)} differ", miss)
+    need("foreman" not in data["detectors"]["merge-by-agent"], "the Foreman is not measured by `merge-by-agent`",
+         f"{data['detectors']['merge-by-agent']}")
+    need("Copilot: not measured" in written[0].with_suffix(".md").read_text(encoding="utf-8"),
+         "the Markdown says Copilot is not measured", "it does not")
+    # 2. the staged previous file: one detector regression and one new S-list line
+    need(data["previous"] == staged.name and [r["kind"] for r in data["regressions"]] == ["detector", "s_list"],
+         "against the staged previous file: one detector regression, then one new S-list line",
+         f"{data['previous']}: {data['regressions']}")
+    # 4. each shipped detector matches its positive example and not its negative one
+    for d in behaviour.load_detectors():
+        need(d.rx.search(d.positive) and not d.rx.search(d.negative),
+             f"detector {d.id} matches {d.positive!r} and not {d.negative!r}",
+             f"positive {bool(d.rx.search(d.positive))}, negative {bool(d.rx.search(d.negative))}")
+    broken = run.tmp / "behaviour-broken.json"
+    broken.write_text(json.dumps({"schema": 1, "detectors": [{"id": "broken-one", "pattern": "("}]}), encoding="utf-8")
+    try:
+        behaviour.load_detectors(broken)
+        need(False, "a pattern that does not compile is refused, naming the detector", "it was accepted")
+    except behaviour.Usage as error:
+        need("broken-one" in str(error), "a pattern that does not compile is refused, naming the detector", str(error))
+    # 5. the privacy guard: the login name, as a bare word in a message, exits 1 and writes nothing
+    leak = run.tmp / "behaviour-leak-out"
+    done = behave(home, "--projects", BEHAVIOUR_FIXTURE / "leak" / "projects", "--out", leak, "--since", "2020-01-01")
+    need(done.returncode == 1 and "fixtureuser" not in done.stderr and "tool_not_in_list" in done.stderr
+         and not any(leak.glob("*")), "the guard refuses a leak: exit 1, the key path named, the value not, no file",
+         f"exit {done.returncode}: {done.stderr.strip()}; files {[p.name for p in leak.glob('*')]}")
+    # 5b. a card key is never a raw path: a comma-joined list of cards in a home folder, a glob, a plugin cache
+    wild = ("Get-Content C:/Users/someone/p/skills/chantier/references/a.md,C:/Users/someone/p/skills/chantier/references/hosts/*.md "
+            r"D:\Users\someone\.claude\plugins\cache\x\skills\chantier\references\foreman.md "
+            "skills/chantier/references/$env:USERPROFILE/x.md")
+    keys = behaviour.card_names(wild)
+    need(keys == ["a.md", "other-card", "foreman.md", "other-card"] and not any("someone" in k or ":" in k for k in keys),
+         "a card key is a path relative to `references/` or `other-card`, never a raw path", f"{keys}")
+    # 6. --prune prints the candidates and writes nothing
+    before = sorted(p.name for p in out.iterdir())
+    done = behave(home, "--prune", "--out", out)
+    candidates = [x.split(":")[0] for x in done.stdout.splitlines() if x.startswith("detector ")]
+    need(done.returncode == 0 and candidates == ["detector cd-into-changes", "detector no-verify"]
+         and sorted(p.name for p in out.iterdir()) == before,
+         "`--prune` names `cd-into-changes` and `no-verify`, and writes nothing", f"exit {done.returncode}: {done.stdout}")
+    return ("the fixture's figures, regressions (one detector, one S-list line) and `--since` as expected; each detector "
+            "matches its positive and not its negative example; the guard refuses a leak (exit 1, no file); `--prune` lists "
+            "its two candidates and writes nothing")
+
+
 FUNCTIONS = {"eval-root": case_eval_root, "other-sandbox": case_other_sandbox, "reset-foreign": case_reset_foreign,
              "reset-empty": case_reset_empty, "publish": case_publish, "setup-prompt": case_setup_prompt,
              "ticket-summary-setup": case_ticket_summary_setup, "clean": case_clean, "stray-merge": case_stray, "reset-leftover": case_reset_leftover,
@@ -1450,7 +1541,7 @@ FUNCTIONS = {"eval-root": case_eval_root, "other-sandbox": case_other_sandbox, "
              "force-tag-push": case_force_tag_push, "plain-merge": case_plain_merge,
              "audit-cos-prompt": case_audit_cos_prompt, "audit-qa-prompt": case_audit_qa_prompt,
              "audit-claim-call": case_audit_claim_call, "foreman-route-push": case_foreman_route_push,
-             "audit-heredoc": case_audit_heredoc}
+             "audit-heredoc": case_audit_heredoc, "behaviour": case_behaviour}
 
 
 def main(argv=None) -> int:

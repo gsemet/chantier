@@ -1,0 +1,6 @@
+{"type":"user","message":{"role":"user","content":"hello, let us start"},"timestamp":"2026-11-20T10:00:01.000Z"}
+{"type":"assistant","message":{"id":"msg-1","role":"assistant","content":[{"type":"tool_use","id":"c1","name":"Skill","input":{"skill":"chantier:chief-of-staff"}}],"usage":{"input_tokens":10,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":2}},"timestamp":"2026-11-20T10:00:02.000Z"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"c1","content":"Launching skill"}]},"timestamp":"2026-11-20T10:00:03.000Z"}
+{"type":"user","message":{"role":"user","content":"The Foreman finished a turn."},"timestamp":"2026-11-20T10:00:04.000Z"}
+{"type":"assistant","message":{"id":"msg-2","role":"assistant","content":[{"type":"tool_use","id":"c2","name":"Bash","input":{"command":"git add -A"}}],"usage":{"input_tokens":20,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":2}},"timestamp":"2026-11-20T10:00:05.000Z"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"c2","content":""}]},"timestamp":"2026-11-20T10:00:06.000Z"}
