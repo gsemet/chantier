@@ -10,7 +10,7 @@ def register(sub: Subparsers) -> None:
     s = add_command(
         sub,
         "order",
-        "chantier.commands.orders:order",
+        "chantier.commands.next_lines:order",
         "the user's word, recorded at once; the Foreman does what needs its hands",
         BATCH_EPOCH,
     )

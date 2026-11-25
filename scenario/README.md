@@ -91,6 +91,13 @@ does a unit that is not in `UNITS` and a test that does not exist.
   watcher's `state:` line
   (test: test_status_since.py::test_the_listing_holds_only_what_changed_since_the_sequence)
   (test: test_watch_state_line.py::test_only_the_steering_watcher_prints_the_state_line_before_its_last_line).
+- `next` and the `next:` lines: `next --epoch` names a free slot's take, `nothing due: wait`, a
+  hand-back with no ask before a pending order, and a lease not confirmed but never a live one; a
+  scripted Driver that runs only what each `next:` line names goes from `round` to a ready
+  hand-back, each command's line equal to `next <cr> --lease <n>`; nothing written; in a stack,
+  the restack owed after the bottom's merge (unit: parallel, stack)
+  (test: test_next_advice.py::test_due_lists_each_kind_in_its_order_with_the_batchs_epoch)
+  (test: test_next_advice.py::test_driver_step_names_the_first_step_not_done).
 - `push <cr> --lease <n>` of a CR Driver, after a rebase on its base: the CR's own recorded
   branch reaches the bare remote at the worktree's head with one `push` event and a `new branch`
   line, `ship` then prints no "not pushed" line, and a `push` from a dirty worktree is refused with

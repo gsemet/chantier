@@ -19,7 +19,7 @@ def register(sub: Subparsers) -> None:
     s = add_command(
         sub,
         "verdict",
-        "chantier.commands.delivery:verdict",
+        "chantier.commands.next_lines:verdict",
         "the Verifier's verdict on the CR's worktree head: VERIFIED or \"NOT VERIFIED\"",
         BATCH,
         LEASE_ALSO,
@@ -31,7 +31,7 @@ def register(sub: Subparsers) -> None:
     s = add_command(
         sub,
         "ship",
-        "chantier.commands.delivery:ship",
+        "chantier.commands.next_lines:ship",
         "record the PR the Driver opened or updated, with its base and draft state read from the "
         "forge; say what is off; in a stack or series batch, refused (nothing recorded) for a CR "
         "whose branch does not hold the recorded head of the CR below it",
@@ -65,7 +65,7 @@ def _push_command(sub: Subparsers) -> None:
     s = add_command(
         sub,
         "push",
-        "chantier.commands.push:push",
+        "chantier.commands.next_lines:push",
         "push the CR's own recorded `chantier/*` branch from its worktree with `git push "
         "--force-with-lease`: chantier's own update of the CR's branch after a rebase, declared "
         "legitimate by this command, with the lease held; never another branch, never "

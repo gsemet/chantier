@@ -254,13 +254,15 @@ def require_epoch(epoch: int | None, usage: str, tail: str = "") -> None:
 
 def check_epoch(b: Batch, epoch: int | None) -> None:
     """A Foreman command carries the number it was started with; a stale Foreman is refused."""
-    if epoch is None:
-        return
-    current = b.record.foreman_epoch
-    if epoch != current:
+    stale_epoch(b.id, b.record.foreman_epoch, epoch)
+
+
+def stale_epoch(batch_id: str, current: int, epoch: int | None) -> None:
+    """The comparison `check_epoch` makes, also on a record read with no lock (`next`): exit 3."""
+    if epoch is not None and epoch != current:
         raise ChantierError(
-            f"stale Foreman: Foreman n°{epoch} of {b.id}, which is now at Foreman n°{current}; "
-            "stop now",
+            f"stale Foreman: Foreman n°{epoch} of {batch_id}, which is now at Foreman "
+            f"n°{current}; stop now",
             EXIT_CONFLICT,
         )
 

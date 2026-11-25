@@ -16,7 +16,6 @@ from chantier.commands.orders_merged import (
     chain_above,
     check_merged,
     open_ids,
-    restack_line,
 )
 from chantier.commands.orders_release import (
     add_release,
@@ -39,6 +38,7 @@ from chantier.rails_release import (
     parse_grant,
     release_merged,
 )
+from chantier.status.due import restack_line
 
 CR_ORDERS = {"after", "drop", "merged", "rounds", "approve", "grant", "confirm", "hold", "unhold"}
 

@@ -145,14 +145,16 @@ def test_a_new_branch_then_an_update_after_a_rebase_push_and_record(
     clock.fix(clock.after(-300, before))  # the lease has 5 minutes left: a renewal moves it
     code, out, err = chantier("push", one["id"])
     assert code == 0, err
-    assert out == [f"pushed {branch} at {first[:7]} (new branch on origin)"]
+    step = f"next: `round {one['id']} --lease 1` before the round's Coder"  # round 0 here
+    assert out == [f"pushed {branch} at {first[:7]} (new branch on origin)", step]
     assert tip(remote, branch) == first
     (e,) = pushes(repo)
     assert (e["branch"], e["head"], e["expected"], e["unit"]) == (branch, first, "", one["id"])
     assert record(repo)["crs"][0]["lease"]["expires"] > before
     git_at(wt, "commit", "-q", "--amend", "-m", "A again", "--allow-empty")  # a rebased head
     second = sh("git", "rev-parse", "HEAD", cwd=wt)
-    assert chantier("push", one["id"])[1] == [f"pushed {branch} at {second[:7]} (was {first[:7]})"]
+    out = chantier("push", one["id"])[1]
+    assert out == [f"pushed {branch} at {second[:7]} (was {first[:7]})", step]
     assert tip(remote, branch) == second
     assert [x["expected"] for x in pushes(repo)] == ["", first]
 
