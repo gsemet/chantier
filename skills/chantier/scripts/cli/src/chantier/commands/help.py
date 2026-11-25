@@ -116,10 +116,13 @@ def _known_roles() -> list[str]:
         raise ChantierError(f"startup-manifest.json: no roles: {e}", EXIT_PRECONDITION) from None
 
 
-def _print_topic(topic: Topic, host: str, base: Path) -> list[str]:
+def _print_topic(topic: Topic, explicit: str | None, base: Path) -> list[str]:
     out = [f"topic {topic.name}: {topic.trigger} ({', '.join(topic.roles)})"]
+    host: str | None = None
     for reading in topic.readings:
-        form = reading[host] if isinstance(reading, dict) else reading
+        if isinstance(reading, dict) and host is None:
+            host = plugin_files.detect_host(explicit)  # only a host map needs the host
+        form = reading[host] if isinstance(reading, dict) and host else reading
         file, _, heading = form.partition("#")
         out.append(f"--- references/{form} ---")
         text = section(base / file, heading) if heading else _lf(base / file)
@@ -139,8 +142,7 @@ def show(args: argparse.Namespace) -> list[str]:
                 "; did you mean " + " or ".join(f"help {c}" for c in close) + "?" if close else ""
             )
             raise ChantierError(f"no topic {topic}{guess}; help lists them all", EXIT_USAGE)
-        host = args.host or plugin_files.detect_host()
-        return _print_topic(topics[topic], host, plugin_files.skill_dir() / "references")
+        return _print_topic(topics[topic], args.host, plugin_files.skill_dir() / "references")
     if role:
         known = _known_roles()
         if role not in known:

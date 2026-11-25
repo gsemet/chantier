@@ -239,6 +239,8 @@ def test_a_refusal_a_silent_board_or_a_board_gone_ends_the_watcher(
     assert END in got and w.lines(END)[-1] == line
     assert w.code(END) == 1
     assert board.spawned == []
+    if kind in (KEY, PROTOCOL_KIND, "refused"):  # the end line names its topic, for the CoS
+        assert "(`help board`): for the Chief of Staff" in w.lines(END)[-1]
 
 
 @pytest.mark.parametrize(("times", "end"), [("1:20:100", 100.0), ("1:20", hub_times.IDLE_END_S)])
