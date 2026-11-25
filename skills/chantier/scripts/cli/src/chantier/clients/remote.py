@@ -38,6 +38,10 @@ GATE = (
     "gate runs on the server's machine, not through a profile: run it there, or here with "
     "--profile local"
 )
+PUSH = (
+    "push runs on the machine that holds the worktree, not through a profile: run it there, or "
+    "here with --profile local"
+)
 
 
 class Unreachable(Exception):
@@ -197,7 +201,7 @@ def forward(
 ) -> int | None:
     """Send the command to the profile's server and print its answer; its exit code. None when
     the command runs here: no profile takes it, or it is one that never runs remotely."""
-    if args.cmd in NEVER_REMOTE and args.cmd != "gate":
+    if args.cmd in NEVER_REMOTE and args.cmd not in ("gate", "push"):
         return None
     taken = _choose(args)
     if taken is None:
@@ -205,6 +209,8 @@ def forward(
     name, profile, found = taken
     if args.cmd == "gate":
         raise ChantierError(GATE, EXIT_USAGE)
+    if args.cmd == "push":
+        raise ChantierError(PUSH, EXIT_USAGE)
     if profile.access != "write":
         raise ChantierError(READ_ONLY.format(name=name), EXIT_USAGE)
     body = {

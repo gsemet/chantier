@@ -20,11 +20,11 @@
   `chantier.yml`) files, at the project's root and, with an external planning surface, at the
   surface's root and in the project's folder there, are the only configuration, above the plugin's
   shipped `config/chantier.defaults.yml`; the user's profiles (`chantier login`), below, only say where a project's commands run (with none, chantier runs on the shipped defaults; `uv` is the only tool to install, and the CLI needs no network once uv's cache holds its
-  packages, except the server's read of a batch's PRs, the forge hub, the surface server's writer, whose fetch and push need it, the board's Griller run (the host CLI's calls to its model), and the forge calls of `ship`, `take`, `round`, `handoff` and `forge-stack`, made with the user's own `gh` or `glab` (below), and a command run through a profile (`chantier login`), which reaches the profile's server), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
+  packages, except the server's read of a batch's PRs, the forge hub, the surface server's writer, whose fetch and push need it, the board's Griller run (the host CLI's calls to its model), and the forge calls of `ship`, `take`, `round`, `handoff` and `forge-stack`, made with the user's own `gh` or `glab` (below), `chantier push`'s push to the remote, and a command run through a profile (`chantier login`), which reaches the profile's server), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
   external planning surface), as plain JSON and Markdown, and the project's `chantier.yaml` in an
   external planning surface's project folder, from the board's Configuration page, and a CR's
   cleaned archive in its PR when the project asks for it, and fast-forwards a clean main checkout
-  after a merge it records, the surface server keeps its two keys, and the user's profiles (`chantier login`, `logout`), in one file outside any project, `chantier/profiles.json` in the user's config folder (`$CHANTIER_CONFIG_HOME`, else `%APPDATA%` on Windows, else `$XDG_CONFIG_HOME` or `~/.config`), mode 0600; a profile applies only to the projects it was logged in for, and to none served by another surface on this machine, the host CLI that the board's Griller runs keeps its own
+  after a merge it records, and `chantier push` updates a CR's recorded branch on the remote (and the worktree's tracking ref), the surface server keeps its two keys, and the user's profiles (`chantier login`, `logout`), in one file outside any project, `chantier/profiles.json` in the user's config folder (`$CHANTIER_CONFIG_HOME`, else `%APPDATA%` on Windows, else `$XDG_CONFIG_HOME` or `~/.config`), mode 0600; a profile applies only to the projects it was logged in for, and to none served by another surface on this machine, the host CLI that the board's Griller runs keeps its own
   session files, as for any session of the user, and while it serves its PID, address
   and version, and the forge hub's PID, version and last reads, in the repository's git folder
   (`chantier/server.json`, with its write lock `chantier/server.json.lock`; the hub's lock is
@@ -130,7 +130,7 @@
   refuses with one line while the surface's writer is not running or stopped, and no agent starts
   it; the board speaks plain HTTP, so on the network the key and every turn's text travel in clear,
   and `chantier serve --new-key` replaces both keys; built on the user's direction of 2026-11-17 and
-  answers "Tout" (2026-11-21) and board-griller-Q4 B and Q20, with no measured cost; a fifth, a client's command: for a client logged in with `chantier login`, the `cli.run` op runs one chantier command (any but `serve`, `webui`, `watch`, `live`, `login`, `logout` and `gate`) as a child process of the server's own build, never forwarded again, in its planning folder on the server's machine (its worktrees, transcripts and paths), with the client's arguments and its batch, host and session variables, behind the private key, and returns its output, its exit code and its launch form; that command edits the batch and the planning folder exactly as when run locally, but prints no watcher line; built on the user's answers remote-cli-Q2, Q5, Q10, Q12 and Q15 (2026-11-22), with no measured cost; it takes its
+  answers "Tout" (2026-11-21) and board-griller-Q4 B and Q20, with no measured cost; a fifth, a client's command: for a client logged in with `chantier login`, the `cli.run` op runs one chantier command (any but `serve`, `webui`, `watch`, `live`, `login`, `logout`, `gate` and `push`) as a child process of the server's own build, never forwarded again, in its planning folder on the server's machine (its worktrees, transcripts and paths), with the client's arguments and its batch, host and session variables, behind the private key, and returns its output, its exit code and its launch form; that command edits the batch and the planning folder exactly as when run locally, but prints no watcher line; built on the user's answers remote-cli-Q2, Q5, Q10, Q12 and Q15 (2026-11-22), with no measured cost; it takes its
   dependencies like the rest of the CLI and knows no role but the board's Griller. The same process is the
   forge hub while it runs (one per planning surface and machine, holding the same `chantier/hub.lock` the claim above takes, started by a session's watcher,
   detached, when none runs and the session holds the seat and no chantier dev session of the
@@ -184,6 +184,20 @@
   built on the user's answers foreman-wake-Q1 (2026-11-22) and Q2 (2026-11-24) from the cost study of
   `foreman-idle-wakes` (batch-29: 41 timer wakes of 291, the merges and red CIs relayed by the Chief
   of Staff), with its gain not measured before the next batch's retro.
+  `push`: `chantier push <cr> --lease <n> [--unit stack|O-k]` runs the one `git push
+  --force-with-lease` of a CR's own recorded `chantier/*` branch (never the default branch or a
+  protected one, which git or the forge refuses and chantier prints verbatim), from its worktree,
+  clean and on that branch, by the holder of the CR's lease, the stack's (`--unit stack`) or a QA
+  order's (`--unit O-k`); no forge call, no retry, never through a profile or the server (it is
+  refused like `gate`). The command states that it exists to declare the operation legitimate:
+  chantier's own update of the CR's own branch after a rebase, with the lease held. Built on the
+  user's answers simplify-cards-Q5 (2026-11-24, answer 7) and Q22 (answer 22), and on
+  study-classifier's measure: 13 classifier refusals of force pushes in 12 days, each one a lost
+  Driver, and 4 questions to the user; 83 % of the force pushes agents typed were compound
+  commands that no allow rule matches. `chantier push` is the one way a Driver publishes its
+  branch; it is never run as a retry after a refused `git push`, and a refused `chantier push` is
+  not followed by a raw push from the Driver; the refused-push route of answer 8 (the steering
+  session runs a refused `--force-with-lease` push of a batch CR branch alone and reports) stays.
   `lease`, an exception to the measured-cost rule and not a git one (with `take --reclaim` and
   `lease hold`), a Driver's, the stack driver's and a QA driver's short lease on their unit, renewed
   by their commands, built on the user's answer of 2026-11-20 ("tout": all five of Board's ideas);
@@ -194,7 +208,7 @@
   poller only); `journal add` is the one entry by which an outside poller appends an `issue@1`
   line to a project's journal; built on the user's answer planning-server-Q24 (2026-11-20: issues
   polled from outside), with no measured cost.
-  `login` and `logout`: `login` stores a server's address and key in a profile of the user's config folder for the projects named, after which every command for those projects but `serve`, `watch`, `webui`, `live`, `login` and `logout` runs on that server (`gate` is refused there), and `logout` removes it; built on the user's answers remote-cli-Q4, Q7, Q8 and Q17 (2026-11-22), with no measured cost.
+  `login` and `logout`: `login` stores a server's address and key in a profile of the user's config folder for the projects named, after which every command for those projects but `serve`, `watch`, `webui`, `live`, `login` and `logout` runs on that server (`gate` and `push` are refused there), and `logout` removes it; built on the user's answers remote-cli-Q4, Q7, Q8 and Q17 (2026-11-22), with no measured cost.
   `webui`: prints the web board's link with its key, and starts the surface server, detached,
   when none runs (with an active profile, it prints the profile's link and starts nothing); built on the user's answers remote-cli-Q1, Q3 and Q14 (2026-11-22), with no
   measured cost.
@@ -231,7 +245,10 @@
 - The CLI has named git exceptions: the surface server's writer, which runs `git add`,
   `commit`, `fetch`, `merge --ff-only --autostash`, `rebase --autostash`, `rebase --abort`, `push` and, read-only, `merge-base` and `ls-tree` (to tell the
   arrivals) (never forced, never `--no-verify`), in the planning surface's checkout only, while the
-  server runs, and the batch's end cleanup (above). The rest of the CLI keeps no git write.
+  server runs, the batch's end cleanup (above), and `push` (below): one
+  `git push --force-with-lease=<branch>:<expected>` of a CR's recorded `chantier/*` branch (never
+  the default branch), from its worktree, by a caller holding the lease, never forced, never
+  `--no-verify`, nothing retried. The rest of the CLI keeps no git write.
 - Never edit a version by hand: `just version X.Y.Z` or `just bump-version [minor|major]`.
 - The CLI is one Python package declared in the root `pyproject.toml`, its dependencies listed
   there once and locked in `uv.lock`. One method runs it, `uvx --from <source> chantier`: as a

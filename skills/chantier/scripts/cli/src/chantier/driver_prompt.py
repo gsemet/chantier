@@ -120,6 +120,7 @@ def _rewrites_line(row: DriverRow, block: DriverBlock) -> list[str]:
     if row.rewrites == "none":
         return []
     tree, branch, base = "<worktree>", "<branch>", "<base>"
+    cr = block.fill.get("<cr>", "<cr>")
     for line in block.middle:
         if m := _WORKTREE_LINE.match(line):
             tree, branch = m[1], m[2]
@@ -131,13 +132,12 @@ def _rewrites_line(row: DriverRow, block: DriverBlock) -> list[str]:
     if row.rewrites == "batch branches":
         return [
             f"  Rewrites: for each CR branch of the stack listed above (chantier/*), "
-            f"git -C <worktree> rebase <base>, then git -C <worktree> push --force-with-lease "
-            f"-u {block.remote} <branch>, one command per branch, on that branch only: {flow}"
+            f"git -C <worktree> rebase <base>, then $CHANTIER push <cr> --lease <n> --unit stack, "
+            f"one command per branch, on that branch only: {flow}"
         ]
     return [
-        f"  Rewrites: git -C {tree} rebase {base}, then git -C {tree} push --force-with-lease "
-        f"-u {block.remote} {branch}, one command each, on your own CR branch only "
-        f"({branch}): {flow}"
+        f"  Rewrites: git -C {tree} rebase {base}, then $CHANTIER push {cr} --lease <n>, "
+        f"one command each, on your own CR branch only ({branch}): {flow}"
     ]
 
 

@@ -79,6 +79,11 @@ Each bullet ends with the unit that runs it, `(unit: <name>)`, and/or the pytest
 checks it, `(test: <file>::<test>)`. A bullet with neither fails `test_scenario_coverage.py`, as
 does a unit that is not in `UNITS` and a test that does not exist.
 
+- `push <cr> --lease <n>` of a CR Driver, after a rebase on its base: the CR's own recorded
+  branch reaches the bare remote at the worktree's head with one `push` event and a `new branch`
+  line, `ship` then prints no "not pushed" line, and a `push` from a dirty worktree is refused with
+  nothing pushed or recorded (unit: gates, gitlab)
+  (test: test_push.py::test_each_refusal_pushes_nothing_and_records_nothing).
 - preflight refusing Claude in VS Code and passing on Desktop with no setup and nothing written;
   its P10 warning (one line per capability the batch uses) on the recommended allow rules missing
   from the settings, the rebase rules (`git -C * rebase chantier/*` and the others) among them (it
