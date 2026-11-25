@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 STOPPED_HINT = (
     "an agent stopped without its hand-back (an app restart, the user's stop) passes only on the "
-    "user's word: close --stopped <name> for each"
+    "user's word: `close --stopped <name>` for each"
 )
 
 
@@ -91,6 +91,13 @@ def _copilot_causes(repo: Repo, d: BatchRecord) -> list[str]:
     return causes
 
 
+def _owner(d: BatchRecord, name: str) -> str:
+    """The CR or order id that holds the agent a `--stopped` name stands for; `<owner>` if none."""
+    held = held_agents(d)
+    keys = (name, f"agent-{name}", name.removeprefix("agent-"))
+    return next((held[k] for k in keys if k in held), "<owner>")
+
+
 def _declared(
     d: BatchRecord, endings: list[Ending], others: list[Ending], stopped: list[str]
 ) -> list[Ending]:
@@ -103,7 +110,7 @@ def _declared(
         if d.stack_agent and d.stack_agent in {name, f"agent-{name}", name.removeprefix("agent-")}:
             raise ChantierError(
                 f"close --stopped {name}: the stack agent is a record cause no flag passes; "
-                "clear it: agents set stack - --epoch <n>. Nothing was deleted.",
+                "clear it: `agents set stack - --epoch <n>`. Nothing was deleted.",
                 EXIT_PRECONDITION,
             )
         if any(name in {e.name, e.name.removeprefix("agent-")} for e in others) and not any(
@@ -111,7 +118,7 @@ def _declared(
         ):
             raise ChantierError(
                 f"close --stopped {name}: not an agent {d.id} holds; it does not block close, "
-                "drop the flag. Nothing was deleted.",
+                f"drop the flag: `close` without `--stopped {name}`. Nothing was deleted.",
                 EXIT_PRECONDITION,
             )
         match = next((e for e in endings if name in {e.name, e.name.removeprefix("agent-")}), None)
@@ -119,20 +126,23 @@ def _declared(
             names = [e.name for e in endings if e.state == "running"]
             raise ChantierError(
                 f"close --stopped {name}: no transcript of {d.id} by that name; still running: "
-                f"{', '.join(names) or 'none'}. Nothing was deleted.",
+                f"{', '.join(names) or 'none'}. Nothing was deleted. "
+                f"`close --stopped {name}` takes only a name listed as still running.",
                 EXIT_PRECONDITION,
             )
         if match.state == "ended":
             raise ChantierError(
-                f"close --stopped {name}: its transcript shows it ended; drop the flag. "
-                "Nothing was deleted.",
+                f"close --stopped {name}: its transcript shows it ended; drop the flag: "
+                f"`close` without `--stopped {name}`. Nothing was deleted.",
                 EXIT_PRECONDITION,
             )
         if match.state == "unreadable":
             where = "no transcript found" if match.missing else str(match.path)
             raise ChantierError(
                 f"close --stopped {name}: its transcript cannot be read ({where}), and the "
-                "flag covers only an agent that reads as running. Nothing was deleted.",
+                "flag covers only an agent that reads as running. Nothing was deleted. "
+                "If it is not "
+                f"running, `agents set {_owner(d, name)} - --epoch <n>` clears it.",
                 EXIT_PRECONDITION,
             )
         if match not in chosen:
@@ -163,7 +173,7 @@ def check_idle(
         raise ChantierError(
             f"cannot close {d.id}, something still runs: "
             + "; ".join(causes)
-            + f". Nothing was deleted.{hint}",
+            + f". Nothing was deleted. Run `close` again once none of these runs.{hint}",
             EXIT_PRECONDITION,
         )
     return declared, [e for e in others if e.state != "ended"]
