@@ -17,6 +17,7 @@ EPOCH_COMMANDS = (
     "foreman",
     "gate",
     "inbox",
+    "judge",
     "next",
     "order",
     "park",

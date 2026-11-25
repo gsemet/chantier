@@ -27,6 +27,7 @@ from chantier.declare import (
     intake,
     interests,
     journal,
+    judge,
     live,
     msg,
     next,
@@ -66,6 +67,7 @@ FULL_OUTPUT = {
     "rules",
     "next",  # the due list, one line each
     "inbox",  # the unread messages, one line each
+    "judge",  # an ask cut short would drop a gap
     "host",
     "help",
     "log",
@@ -115,6 +117,7 @@ _MODULES = (
     access,
     next,
     msg,
+    judge,
     host,
     rules,
     help,

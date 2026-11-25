@@ -83,6 +83,10 @@ does a unit that is not in `UNITS` and a test that does not exist.
   untested row ends with the one sentence; an unknown capability lists the known ones
   (unit: parallel) (test: test_host_rows.py::test_every_untested_row_prints_the_sentence,
   test_host_rows.py::test_an_unknown_capability_lists_the_known_ones).
+- `judge` (unit: parallel): the ask to the user worded from a handed-back CR's record, nothing
+  recorded without `--record`, the recorded ask equal to the printed one with the steering
+  session's sentence, shown in `status` and `asks`; a CR not handed back refused
+  (test: test_judge.py::test_the_ask_is_worded_whole_and_drops_no_gap_or_owed_item).
 - help topics: `help lease` prints a topic whole with no batch; every topic resolves on both hosts
   and every topic a CLI line names exists in pytest (unit: parallel)
   (test: test_help_topics.py::test_every_topic_resolves_on_both_hosts).

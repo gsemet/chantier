@@ -35,7 +35,7 @@ def _driver_live(repo: Repo, d: BatchRecord, c: CrEntry, stopped: set[str]) -> b
     return not ended_unrecorded(repo, d, c.agent)
 
 
-def _gaps(events: list[EventRecord], c: CrEntry) -> str:
+def gaps(events: list[EventRecord], c: CrEntry) -> str:
     """The text after `gaps: ` of the CR's last `handback ready` note, unchanged."""
     found = [e for e in events if e.cr == c.id and e.kind == "handback" and e.result == "ready"]
     m = GAPS.search(str(found[-1].note or "")) if found else None
@@ -68,18 +68,18 @@ def gate_owed(
     return "its Driver" if _driver_live(repo, d, c, stopped) else _steering(d)
 
 
-def _owed(
+def owed(
     repo: Repo, d: BatchRecord, c: CrEntry, events: list[EventRecord], stopped: set[str]
 ) -> list[str]:
-    owed = []
+    items = []
     if (who := gate_owed(repo, d, c, events, stopped)) and c.head:
-        owed.append(f"its long gate passes at {c.head[:7]} ({who})")
-    owed += [
+        items.append(f"its long gate passes at {c.head[:7]} ({who})")
+    items += [
         f"{o.id} {o.kind} is applied ({_steering(d)})"
         for o in d.orders
         if o.cr == c.id and not o.done and not o.applied
     ]
-    return owed
+    return items
 
 
 def _line(
@@ -90,10 +90,10 @@ def _line(
     line = f"handed back: {READY_ICON.get(word, '🟤')} {word} {name} {c.shown_pr() or 'no PR yet'}"
     if word == PR_IN_DRAFT:
         line += f" | do not merge: waits for {draft_waits(d, c, repo)}"
-    if gaps := _gaps(events, c):
-        line += f" | gaps: {gaps}"
-    if owed := _owed(repo, d, c, events, stopped):
-        line += f" | owed before the merge: {'; '.join(owed)}"
+    if found := gaps(events, c):
+        line += f" | gaps: {found}"
+    if items := owed(repo, d, c, events, stopped):
+        line += f" | owed before the merge: {'; '.join(items)}"
     if c.head:
         line += f" | long gate {c.id} at {c.head[:7]}: {_result(gate_view(repo, d, c, events))}"
     return line + " | `help merge`"
