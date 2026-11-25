@@ -1,0 +1,10 @@
+# Hand-backs out of the ordinary
+
+- `handback <cr> blocked <reason>` takes `question:`, `approval:`, `merge:`, `fix:`, `infra:`, `budget:`, `rounds:`, `refused`, `waits: <what>`, `context: <where it stopped, what is next>` or `context: closing: <where>; next: <what is left>`. A decision only the user can take is `blocked question: <text>`.
+- The host asked for your hand-back while work remains: `note <cr> "…"`, then `handback <cr> blocked context: host asked the hand-back at <n> tokens while waiting for <what>: <where it stopped, what is next>` (`<n>` the last `context:` figure), then the host hand-back. A turn that ended to wait for a worker's reply had broken "a worker is never resumed by a message".
+- `budget:` follows only a CLI refusal on the budget (`take` or `round`, exit 5; checked before the round limit, so both spent is `budget:`). Never skip a proof pass to save budget: `gate`, `verdict`, `ship`, `note` and `handback` are never refused for it.
+- `blocked waits: <what>` is for a thing already on its way that no one decides; the steering session takes the CR back when it lands.
+- A wait of a known type is recorded with `--wait <type>[=<ref>]`, repeatable: `answer="<question>"`, `approval`, `pipeline[=<sha>]`, `merge[=<link>]`. The line ends `; waits: w1 approval`, and `$CHANTIER wait <cr>` lists them. A wait that does not end you: `wait <cr> add <type> [--ref <ref>] --note "<text>"`. A `--wait` the CLI refuses is not worked around: hand back without it, the refusal named in the reason.
+- A Driver still recorded on a CR it handed back `blocked` (a `waits:` that landed, a `question:` answered, an `infra:` cleared) hands back `ready <link>` directly once its checks hold; the CLI prints `it was blocked: <reason>`. A release keeps the `take --note` route.
+- The ready line for `PR in draft` says the draft state and the CR it waits on and asks for no change on the forge.
+- Refusals: `help handback-refused`. The steering session checks the rule `--no-gate` quotes: `help handback-gate-draft`.

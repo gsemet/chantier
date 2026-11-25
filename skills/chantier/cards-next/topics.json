@@ -97,6 +97,483 @@
       ],
       "trigger": "a CI job added or changed, a host or default matrix, an `issue:` line, a prepared-text check",
       "review_by": "0.16.0"
+    },
+    "lease": {
+      "readings": [
+        "topics/lease.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "trigger": "a `--lease` refusal, `claim lost`, a lease `not confirmed`, a wait over 3 minutes"
+    },
+    "refused-push": {
+      "readings": [
+        "topics/refused-push.md",
+        "topics/refused-push-answer.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "release-driver"
+      ],
+      "trigger": "`push <cr>` exit 4, a force push or rebase the host refuses"
+    },
+    "refused-push-answer": {
+      "readings": [
+        "topics/refused-push-answer.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "release-driver"
+      ],
+      "trigger": "the `take` note after a push that was refused"
+    },
+    "restart": {
+      "readings": [
+        "topics/restart.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "release-driver"
+      ],
+      "trigger": "a `take` note `resume:`, `rebase:` or `context:`"
+    },
+    "checkpoints": {
+      "readings": [
+        "topics/checkpoints.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "release-driver"
+      ],
+      "trigger": "a checkpoint commit"
+    },
+    "steering-messages": {
+      "readings": [
+        "topics/steering-messages.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "release-driver"
+      ],
+      "trigger": "a message from or to the steering session"
+    },
+    "trouble": {
+      "readings": [
+        "topics/trouble-worker.md",
+        "topics/trouble-remote.md",
+        "topics/trouble-gate.md",
+        "topics/trouble-git.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "release-driver"
+      ],
+      "trigger": "a worker fails, an escalation, a remote command fails, a gate to stop, a git command in the wrong place"
+    },
+    "trouble-worker": {
+      "readings": [
+        "topics/trouble-worker.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "release-driver"
+      ],
+      "trigger": "a worker refused, ended, out of format or too long; a dirty coder"
+    },
+    "trouble-remote": {
+      "readings": [
+        "topics/trouble-remote.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "release-driver"
+      ],
+      "trigger": "a remote command or a CI job that fails on the infrastructure"
+    },
+    "trouble-gate": {
+      "readings": [
+        "topics/trouble-gate.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "release-driver"
+      ],
+      "trigger": "a long gate to stop",
+      "review_by": "0.16.0"
+    },
+    "trouble-git": {
+      "readings": [
+        "topics/trouble-git.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "release-driver"
+      ],
+      "trigger": "a git command run in the wrong place",
+      "review_by": "0.16.0"
+    },
+    "ci": {
+      "readings": [
+        "topics/ci.md",
+        "topics/ci-no-check.md",
+        "topics/ci-beside-gate.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "release-driver"
+      ],
+      "trigger": "CI runs on the pushed head"
+    },
+    "ci-no-check": {
+      "readings": [
+        "topics/ci-no-check.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "release-driver"
+      ],
+      "trigger": "the forge lists no check"
+    },
+    "ci-beside-gate": {
+      "readings": [
+        "topics/ci-beside-gate.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "release-driver"
+      ],
+      "trigger": "a pipeline job named as the long gate, the `ci: beside the long gate` line"
+    },
+    "conflicts": {
+      "readings": [
+        "topics/conflicts.md",
+        "topics/conflicts-early-push.md",
+        "topics/conflicts-local-gate.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "release-driver"
+      ],
+      "trigger": "a `ship` refused, a carry, a resolved conflict, the early push"
+    },
+    "conflicts-early-push": {
+      "readings": [
+        "topics/conflicts-early-push.md"
+      ],
+      "roles": [
+        "cr-driver"
+      ],
+      "trigger": "a rebase of a CR with a PR that needs a long gate"
+    },
+    "conflicts-local-gate": {
+      "readings": [
+        "topics/conflicts-local-gate.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver"
+      ],
+      "trigger": "a rule that asks a local run"
+    },
+    "handback-other": {
+      "readings": [
+        "topics/handback-other.md",
+        "topics/handback-refused.md",
+        "topics/handback-gate-draft.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "release-driver"
+      ],
+      "trigger": "a hand-back out of the ordinary"
+    },
+    "handback-refused": {
+      "readings": [
+        "topics/handback-refused.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "release-driver"
+      ],
+      "trigger": "a hand-back that is refused"
+    },
+    "handback-gate-draft": {
+      "readings": [
+        "topics/handback-gate-draft.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "release-driver"
+      ],
+      "trigger": "`--no-gate`, a waived long gate, a PR in draft"
+    },
+    "closing": {
+      "readings": [
+        "topics/closing.md"
+      ],
+      "roles": [
+        "cr-driver"
+      ],
+      "trigger": "the pushed-head `VERIFIED`, a context near 115,000 tokens"
+    },
+    "pr-extras": {
+      "readings": [
+        "topics/pr-extras.md",
+        "topics/pr-images.md",
+        "topics/pr-gitlab.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "release-driver"
+      ],
+      "trigger": "`archive: in the PR at <path>`, images, GitLab forms"
+    },
+    "pr-images": {
+      "readings": [
+        "topics/pr-images.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "trigger": "an image to keep or upload"
+    },
+    "pr-gitlab": {
+      "readings": [
+        "topics/pr-gitlab.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "release-driver"
+      ],
+      "trigger": "a GitLab project",
+      "review_by": "0.16.0"
+    },
+    "retake": {
+      "readings": [
+        "topics/retake.md",
+        "topics/retake-stack.md",
+        "topics/retake-notes.md"
+      ],
+      "roles": [
+        "cr-driver"
+      ],
+      "trigger": "a first `take` that shows a `PR:` link, a `rebase:` note"
+    },
+    "retake-stack": {
+      "readings": [
+        "topics/retake-stack.md"
+      ],
+      "roles": [
+        "cr-driver"
+      ],
+      "trigger": "a CR placed on another CR's branch"
+    },
+    "retake-notes": {
+      "readings": [
+        "topics/retake-notes.md"
+      ],
+      "roles": [
+        "cr-driver"
+      ],
+      "trigger": "a note `unhold:`, `rebase: <cr> dropped`, `rebase: mode`, `folded:`"
+    },
+    "matrix": {
+      "readings": [
+        "topics/matrix.md"
+      ],
+      "roles": [
+        "cr-driver"
+      ],
+      "trigger": "a matrix probe, the board's write paths",
+      "review_by": "0.16.0"
+    },
+    "cr-workers": {
+      "readings": [
+        "topics/cr-workers.md",
+        "topics/cr-prompt.md"
+      ],
+      "roles": [
+        "cr-driver"
+      ],
+      "trigger": "starting a worker, its prompt, its reply"
+    },
+    "cr-rounds": {
+      "readings": [
+        "topics/cr-rounds.md"
+      ],
+      "roles": [
+        "cr-driver"
+      ],
+      "trigger": "a round, an `APPROVE`, a `FIX-REQUIRED`"
+    },
+    "cr-ship": {
+      "readings": [
+        "topics/cr-ship.md",
+        "topics/cr-proof.md"
+      ],
+      "roles": [
+        "cr-driver"
+      ],
+      "trigger": "the commit, the checks before the first push, the PR, `ship`, the `verifier`"
+    },
+    "cr-handback": {
+      "readings": [
+        "topics/cr-handback.md"
+      ],
+      "roles": [
+        "cr-driver"
+      ],
+      "trigger": "the ready hand-back"
+    },
+    "stack-restack": {
+      "readings": [
+        "topics/stack-restack.md",
+        "topics/stack-record.md"
+      ],
+      "roles": [
+        "stack-driver"
+      ],
+      "trigger": "the restack pass, the chain check"
+    },
+    "stack-make": {
+      "readings": [
+        "topics/stack-make.md",
+        "topics/stack-gate.md"
+      ],
+      "roles": [
+        "stack-driver"
+      ],
+      "trigger": "making the stack, the five checks, the local gate at the top"
+    },
+    "stack-joins": {
+      "readings": [
+        "topics/stack-joins.md"
+      ],
+      "roles": [
+        "stack-driver"
+      ],
+      "trigger": "a join, a draft turning ready, a merge, a deadline"
+    },
+    "stack-changes": {
+      "readings": [
+        "topics/stack-changes.md"
+      ],
+      "roles": [
+        "stack-driver"
+      ],
+      "trigger": "an insertion or a drop"
+    },
+    "stack-hold": {
+      "readings": [
+        "topics/stack-hold.md"
+      ],
+      "roles": [
+        "stack-driver"
+      ],
+      "trigger": "a hold, a park, a conflict that needs code, heavy CI"
+    },
+    "release-notes": {
+      "readings": [
+        "topics/release-notes.md"
+      ],
+      "roles": [
+        "release-driver"
+      ],
+      "trigger": "the notes, the drafts, the PR body"
+    },
+    "release-ship": {
+      "readings": [
+        "topics/release-ship.md"
+      ],
+      "roles": [
+        "release-driver"
+      ],
+      "trigger": "the release PR, a new attempt, a fix"
+    },
+    "release-merged": {
+      "readings": [
+        "topics/release-merged.md"
+      ],
+      "roles": [
+        "release-driver"
+      ],
+      "trigger": "after the release PR merged"
+    },
+    "release-end": {
+      "readings": [
+        "topics/release-end.md"
+      ],
+      "roles": [
+        "release-driver"
+      ],
+      "trigger": "the release is published"
+    },
+    "qa-results": {
+      "readings": [
+        "topics/qa-results.md"
+      ],
+      "roles": [
+        "qa-driver"
+      ],
+      "trigger": "the result file, a screenshot, the worktree"
+    },
+    "cr-proof": {
+      "readings": [
+        "topics/cr-proof.md"
+      ],
+      "roles": [
+        "cr-driver"
+      ],
+      "trigger": "a `verifier` at the pushed head, a gap, the evidence"
+    },
+    "cr-prompt": {
+      "readings": [
+        "topics/cr-prompt.md"
+      ],
+      "roles": [
+        "cr-driver"
+      ],
+      "trigger": "a worker's prompt lines, `phase`, a reply to check"
+    },
+    "stack-record": {
+      "readings": [
+        "topics/stack-record.md"
+      ],
+      "roles": [
+        "stack-driver"
+      ],
+      "trigger": "a restack refused, a moved patch, the restack notes"
+    },
+    "stack-gate": {
+      "readings": [
+        "topics/stack-gate.md"
+      ],
+      "roles": [
+        "stack-driver"
+      ],
+      "trigger": "the local gate at the top, the stack hand-back"
     }
   }
 }

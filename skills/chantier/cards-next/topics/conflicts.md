@@ -1,0 +1,11 @@
+# Carries, moves and conflicts
+
+- A move is any change of the head after a judgment (a round, a rebase, a restack, a resolved conflict). A clean rebase that leaves the CR's patch unchanged touches no judgment: no `verifier`, no `inspector`, no long gate; `ship` checks with git that each of the CR's commits has the same patch id on the old and the new base, logs a `carry` event and prints `carried:` (or `off: <why>`; unequal counts are an anomaly to report, not a reason to re-verify). `handback ready` records the same keys.
+- Any commit added or edited is gated again and gets a `verifier` given the previous `verify.md`, the move (`<old head>..<new head>`, old and new base) and its kind. The hand-back refuses `does not carry: <why>` otherwise.
+- A rebase during which a conflict was resolved always changes the patch: an `inspector` on that change alone, no `round`, no `coder`; its pass is the note `move <old7>..<new7> (conflict) inspector approved at <head>`. Several such rebases since the last push are inspected once, on the patch after the last. `FIX-REQUIRED` on the code is a round.
+- Every `ship` after a rebase with a resolved conflict, whoever resolved it and whoever runs `ship`, takes `--conflict`: it voids every earlier pass, verdict and carry, so gate and verifier run again. The same head shipped again without the flag clears nothing. You read CI at the new head.
+- A conflict-resolver's reply: `conflicts.md` exists, with each hunk and the choice, and the fast gate's command and result.
+- Refused `ship`: `holds a merge commit`: rebase onto its base, push `--force-with-lease`, `ship`. `cannot check`: fetch and `ship`; refused again, `blocked`. `carries CR-x (<link>): merging it would merge them too`: PR back to draft, `ship`, rebase without those commits, push, `ship`.
+- After any change of a PR's base or draft state on the forge, `ship <cr> <link>`, so the record follows.
+- `ship` prints `base ? (not read …)` and `draft not read` when the forge read failed; the CR reads `PR in draft` until a `ship` reads it. The forge's own rebase action is allowed, unproved: the worktree then takes that head by fetch and rebase, never a merge.
+- More: `help conflicts-early-push`, `help conflicts-local-gate`.
