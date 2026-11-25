@@ -1167,6 +1167,7 @@ test('the reload hook never vetoes a compaction', async ($, on) => {
 
 // ---- the worker write guard ----
 
+const SCRATCH = 'C:/Users/u/AppData/Local/Temp/claude/0123456789abcdef/11111111-2222-3333-4444-555555555555/scratchpad'
 const WT = '/work/repo.worktrees/b-CR-5'
 const FOLDER = `${ROOT}/.agents/changes/4-batch/2-actives/5-x`
 const WRITES = `writes: ${WT}; ${FOLDER}`
@@ -1175,7 +1176,7 @@ const refusal = (path: string, folders = `${WT}; ${FOLDER}`) =>
   `refused: ${path} is outside the folders this agent may write in (${folders}); write there`
 
 /** The engine beneath the hooks: a spawn that answers an id, a tool that answers; `seen` holds the spawns it got. */
-function guardWorld(on: On, answer: 'ok' | 'deny' = 'ok', broken = false, exist: string[] = []) {
+function guardWorld(on: On, answer: 'ok' | 'deny' = 'ok', broken = false, exist: string[] = [], scratch: string | null | 'throw' = null, infoCalls: { n: number } = { n: 0 }) {
   const seen: any[] = []
   let k = 0
   const w = world(on)
@@ -1186,6 +1187,11 @@ function guardWorld(on: On, answer: 'ok' | 'deny' = 'ok', broken = false, exist:
     return (answer === 'ok' ? { model: 'm', agentId: `agent-${++k}` } : { deny: 'no' }) as any
   })
   on('tool.call', () => ({ result: 'ok' }) as any)
+  on('session.info', () => {
+    infoCalls.n++
+    if (scratch === 'throw') return { deny: 'the host cannot say' } as any
+    return { value: { transcriptPath: '', platform: 'linux', isHosted: false, ...(scratch ? { scratchpadDir: scratch } : {}) } } as any
+  })
   // A stored record the guard cannot use (its folders are not a list), so that its own code throws.
   if (broken) {
     on('state.get', { key: 'workers' } as any, async (_, e: any, next: any) => JSON.parse(JSON.stringify(await next(e)).replace(/"folders":\[[^\]]*\]/g, '"folders":"broken"')))
@@ -1286,9 +1292,97 @@ test('a worker\'s shell write inside its worktree passes, and outside is refused
 
 test('an agent with no writes line has its shell left alone', async ($, on) => {
   mock.clock(on)
-  guardWorld(on)
+  const info = { n: 0 }
+  guardWorld(on, 'ok', false, [], SCRATCH, info)
   const { agentId } = await spawn($, 'chantier release-driver for CR-5.')
   expect((await shell($, agentId, `echo x > ${ROOT}/a`, 'Bash')).deny).toBeUndefined()
+  expect((await write($, agentId, 'Write', `${ROOT}/a`)).deny).toBeUndefined()
+  expect(info.n).toBe(0)
+})
+
+for (const [what, command, tool] of [
+  ['a Bash substitution', 'OB=$(git merge-base a b 2>/dev/null); echo $OB', 'Bash'],
+  ['a Bash backtick', 'x=`ls 2>/dev/null`', 'Bash'],
+  ['a PowerShell $null', '$v = $(Get-Item x 2>$null)', 'PowerShell'],
+  ['a PowerShell NUL', '$(dir 2>NUL)', 'PowerShell'],
+] as const) {
+  test('the null device closing a command substitution passes: ' + what, async ($, on) => {
+    mock.clock(on)
+    guardWorld(on)
+    const { agentId } = await spawn($, DRIVER_PROMPT)
+    expect((await shell($, agentId, command, tool)).deny).toBeUndefined()
+    expect(await said($)).not.toContain('could not')
+  })
+}
+
+test('a non-null target closed by a parenthesis keeps today\'s reading', async ($, on) => {
+  mock.clock(on)
+  guardWorld(on)
+  const { agentId } = await spawn($, DRIVER_PROMPT)
+  expect((await shell($, agentId, `$(echo x > ${ROOT}/a)`, 'Bash')).deny).toContain('refused: a shell write to')
+})
+
+const SCRATCH_GIT_BASH = '/c/Users/u/AppData/Local/Temp/claude/0123456789abcdef/11111111-2222-3333-4444-555555555555/scratchpad'
+
+test('a write inside the session\'s scratchpad passes, for each tool', async ($, on) => {
+  mock.clock(on)
+  guardWorld(on, 'ok', false, [], SCRATCH)
+  const { agentId } = await spawn($, WORKER_PROMPT)
+  for (const tool of ['Write', 'Edit', 'NotebookEdit']) {
+    expect((await write($, agentId, tool, `${SCRATCH}/notes/a.md`)).deny, tool).toBeUndefined()
+  }
+  expect((await shell($, agentId, `Set-Content -Path ${SCRATCH}/x.txt -Value y`)).deny).toBeUndefined()
+  expect((await shell($, agentId, `echo x > ${SCRATCH}/x.txt`, 'Bash')).deny).toBeUndefined()
+  expect((await shell($, agentId, `echo x > ${SCRATCH_GIT_BASH}/x.txt`, 'Bash')).deny).toBeUndefined()
+  expect(await said($)).not.toContain('could not')
+})
+
+test('a POSIX scratchpad passes a Write', async ($, on) => {
+  mock.clock(on)
+  guardWorld(on, 'ok', false, [], '/tmp/claude-1000/abc/scratchpad')
+  const { agentId } = await spawn($, WORKER_PROMPT)
+  expect((await write($, agentId, 'Write', '/tmp/claude-1000/abc/scratchpad/a.md')).deny).toBeUndefined()
+})
+
+test('a write outside is still refused, with the scratchpad listed', async ($, on) => {
+  mock.clock(on)
+  guardWorld(on, 'ok', false, [], SCRATCH)
+  const { agentId } = await spawn($, WORKER_PROMPT)
+  const folders = `${WT}; ${FOLDER}; ${SCRATCH}`
+  expect((await write($, agentId, 'Write', `${ROOT}/src/a.py`)).deny).toBe(refusal(`${ROOT}/src/a.py`, folders))
+  expect((await shell($, agentId, 'echo x > /tmp/x.log', 'Bash')).deny).toBe(shellRefusal('/tmp/x.log', folders))
+  expect((await write($, agentId, 'Write', `${SCRATCH}-other/x`)).deny).toBe(refusal(`${SCRATCH}-other/x`, folders))
+  expect((await write($, agentId, 'Write', `${SCRATCH}/../x`)).deny).toContain('refused:')
+  expect((await shell($, agentId, `echo a > ${SCRATCH}/ok; echo b > ${ROOT}/a`, 'Bash')).deny).toBe(shellRefusal(`${ROOT}/a`, folders))
+})
+
+test('no scratchpad from the host: today\'s refusal', async ($, on) => {
+  mock.clock(on)
+  guardWorld(on, 'ok', false, [], null)
+  const { agentId } = await spawn($, WORKER_PROMPT)
+  expect((await write($, agentId, 'Write', `${SCRATCH}/a.md`)).deny).toBe(refusal(`${SCRATCH}/a.md`))
+})
+
+test('the host\'s call fails: the call passes, with the note', async ($, on) => {
+  mock.clock(on)
+  guardWorld(on, 'ok', false, [], 'throw')
+  const { agentId } = await spawn($, WORKER_PROMPT)
+  expect((await write($, agentId, 'Write', `${ROOT}/src/a.py`)).deny).toBeUndefined()
+  expect(await said($)).toContain('could not judge')
+})
+
+test('the scratchpad is read lazily, once per refused call', async ($, on) => {
+  mock.clock(on)
+  const info = { n: 0 }
+  guardWorld(on, 'ok', false, [], SCRATCH, info)
+  const { agentId } = await spawn($, WORKER_PROMPT)
+  await write($, agentId, 'Write', `${WT}/src/a.py`)
+  await shell($, agentId, `echo x > ${WT}/a`, 'Bash')
+  expect(info.n).toBe(0)
+  await write($, agentId, 'Write', `${ROOT}/src/a.py`)
+  expect(info.n).toBe(1)
+  await shell($, agentId, `echo a > ${ROOT}/a; echo b > ${ROOT}/b`, 'Bash')
+  expect(info.n).toBe(2)
 })
 
 test('a Windows path in another drive case or with backslashes is judged the same', async ($, on) => {
