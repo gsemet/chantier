@@ -219,6 +219,11 @@
   `access`: read-only, it explains why a session may or may not write the planning folder, claim
   a CR or push its branch, and changes nothing; built on the user's answer of 2026-11-20 ("tout":
   all five of Vercel Board's ideas, planning-server-Q9), with no measured cost.
+  `host`: read-only, it prints how the host does a capability: the row of the plugin's
+  `references/hosts/<host>.json` (the batch's recorded host, else the session's), whose means end,
+  on a row not marked proved, with one sentence saying the path was never tried for real here; it
+  writes nothing and reads no network; built on the user's answer simplify-cards-Q13, with no
+  measured cost.
   `help`: read-only, it prints a help topic whole from the plugin's own cards
   (`references/topics.json` names each topic's readings, the roles it serves and the line that
   names it), lists the topics, or one role's with `--for`, reading roles only as that data; it

@@ -1167,6 +1167,10 @@ def scenario(w: World) -> None:
     check("`rules` lists the project's instructions and what they link, with line counts",
           out[0].startswith((w.work / "AGENTS.md").as_posix()) and "lines)" in out[0]
           and out[1].startswith((w.work / "CONTRIBUTING.md").as_posix()), str(out))
+    _, out = w.chantier("host")
+    check("`host` with no batch prints the session's host and every row",
+          out[0] == "host: claude (this session)" and any(ln.startswith("start-driver: ") for ln in out),
+          str(out[:2]))
     _, out = w.chantier("help", "lease")
     lease_card = (SKILL / "references" / "driver-session.md").read_text(encoding="utf-8")
     heading = next(ln for ln in lease_card.splitlines() if ln == "## Means: the lease")
@@ -1207,6 +1211,19 @@ def scenario(w: World) -> None:
           and w.chantier("status", "--batch", "1")[0] == 0
           and w.chantier("status", "--batch", "batch-01")[0] == 0, w.name)
     opened_record(w)
+    _, out = w.chantier("host", "start-driver")
+    check("`host start-driver` prints the batch's host and the row, a proved row with no untested sentence",
+          out[0] == f"host: claude ({w.name})" and out[1].startswith("start-driver: ")
+          and out[1].endswith("(proved)") and "This path was never tried for real here." not in out,
+          str(out))
+    _, out = w.chantier("host", "write-guard")
+    check("`host write-guard` ends with the sentence that the path was never tried for real here",
+          out[-1] == "  This path was never tried for real here." and out[1].endswith("(untested)"),
+          str(out))
+    code, _ = w.chantier("host", "nope", expect=2)
+    check("`host nope` exits 2 and its line names the known capabilities",
+          "unknown capability `nope`" in w.last_stderr and "start-driver" in w.last_stderr,
+          w.last_stderr)
     _, first = w.chantier("status")
     check("`status` prints the last closed batch on its third line (after the `batch:` line): none yet",
           len(first) > 2 and first[2] == "last closed: none", str(first[:3]))

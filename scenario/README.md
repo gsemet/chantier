@@ -79,6 +79,10 @@ Each bullet ends with the unit that runs it, `(unit: <name>)`, and/or the pytest
 checks it, `(test: <file>::<test>)`. A bullet with neither fails `test_scenario_coverage.py`, as
 does a unit that is not in `UNITS` and a test that does not exist.
 
+- `host` prints a capability's row for the batch's recorded host, else the session's; an
+  untested row ends with the one sentence; an unknown capability lists the known ones
+  (unit: parallel) (test: test_host_rows.py::test_every_untested_row_prints_the_sentence,
+  test_host_rows.py::test_an_unknown_capability_lists_the_known_ones).
 - help topics: `help lease` prints a topic whole with no batch; every topic resolves on both hosts
   and every topic a CLI line names exists in pytest (unit: parallel)
   (test: test_help_topics.py::test_every_topic_resolves_on_both_hosts).

@@ -1,0 +1,687 @@
+{
+  "host": "copilot",
+  "rows": [
+    {
+      "capability": "start-foreman",
+      "name": "Start the Foreman's session",
+      "roles": [
+        "chief-of-staff"
+      ],
+      "means": [
+        "`create_session` with `model: \"claude-opus-5.5\"`, `workspace` = the repository, `worktree: false`, `title: \"<title>\"`.",
+        "A refused start is reported with its exact text."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "own-session-id",
+      "name": "Own session id and title",
+      "roles": [
+        "chief-of-staff",
+        "foreman",
+        "griller"
+      ],
+      "means": [
+        "`$COPILOT_AGENT_SESSION_ID`, which is also the transcript's id.",
+        "Reading the session's own title is not recorded on this host."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "set-own-title",
+      "name": "Set a session's own title",
+      "roles": [
+        "chief-of-staff",
+        "foreman",
+        "griller"
+      ],
+      "means": [
+        "When the host offers a way, the session sets its own title (the Foreman first); else the title stays.",
+        "The tool that does it is not recorded on this host."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "skills",
+      "name": "The skills",
+      "roles": [
+        "chief-of-staff",
+        "foreman",
+        "griller"
+      ],
+      "means": [
+        "The same four skills, same names: `skills/chantier` (the router), `skills/chief-of-staff`, `skills/griller`, `skills/status`.",
+        "Declared in `.github/plugin/plugin.json`; how Copilot passes the arguments `foreman`, `direct` or `reload` is not known."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "load-skill",
+      "name": "Load another skill (the router)",
+      "roles": [
+        "chief-of-staff",
+        "foreman",
+        "griller"
+      ],
+      "means": [
+        "Not recorded on this host: which tool loads another skill.",
+        "The four skills are declared in `.github/plugin/plugin.json`."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "list-sessions",
+      "name": "List the sessions and their state",
+      "roles": [
+        "chief-of-staff"
+      ],
+      "means": [
+        "Not known on this host: how a session lists the sessions or tells the seat's session alive.",
+        "The seat's session always looks stopped to a new session; the \"looks stopped\" line of `session-start.md` is asked."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "message-session",
+      "name": "Message another session of the user",
+      "roles": [
+        "chief-of-staff",
+        "foreman",
+        "griller"
+      ],
+      "means": [
+        "`send_message` to the other session's link (a hand-over, a Griller's line).",
+        "Whether a limit applies is not recorded on this host."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "session-link",
+      "name": "A session's link (for the seat)",
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "means": [
+        "Not recorded on this host: where a session reads its own link.",
+        "`send_message` takes a session link (see `message-chief`)."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "start-driver",
+      "name": "Start a Driver or a worker",
+      "roles": [
+        "foreman",
+        "chief-of-staff",
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "means": [
+        "`task`, `mode: background`, `agent_type: <agent>`; the plugin's agent is `chantier-<role>`; no model, no effort.",
+        "The CLI prints the plugin's agent or yours; when it prints `agent=(generic)`, use `start-generic-agent` instead."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "model-at-start",
+      "name": "Models at an agent's start",
+      "roles": [
+        "foreman",
+        "chief-of-staff",
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "means": [
+        "A named plugin agent runs on its file's model: given another model, the host replaces it with the file's.",
+        "A generic agent takes the model passed; the start value is the identifier (the display name in lower case, spaces as `-`, dots kept).",
+        "A model changed in the configuration starts a generic agent; the user's own agent with a model is refused."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "start-generic-agent",
+      "name": "Start a generic agent",
+      "roles": [
+        "foreman",
+        "chief-of-staff",
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "means": [
+        "`task`, `mode: background`, the generic agent (`agent_type: general-purpose`), `model:` the printed start value.",
+        "The prompt carries the printed contract lines; its tools are the caller's, not restricted."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "model-ran-on",
+      "name": "The model a role ran on",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "The steering session's `events.jsonl`: `subagent.started` and `subagent.completed` carry `model`, `firstDispatchedModel`, `modelSelectionSource`.",
+        "After a start with a model, read that `model`; when it differs from the printed identifier, stop the agent's work and report both."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "start-spec-writer",
+      "name": "Start the Spec-writer",
+      "roles": [
+        "chief-of-staff"
+      ],
+      "means": [
+        "`task`, `mode: background`, `agent_type: chantier-spec-writer`; no model, no effort.",
+        "The CLI prints the plugin's agent or yours; when it prints `agent=(generic)`, use `start-generic-agent` instead."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "start-spec-critic",
+      "name": "Start the Spec critic",
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "means": [
+        "`task`, `mode: background`, `agent_type: chantier-spec-critic`; no model, no effort; Fable is not recorded on Copilot.",
+        "The CLI prints the plugin's agent or yours; when it prints `agent=(generic)`, use `start-generic-agent` instead."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "start-retro-critic",
+      "name": "Start the Retro critic",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "`task` with `agent_type: chantier-retro-critic`; no model, no effort; Fable is not recorded on Copilot.",
+        "The CLI prints the plugin's agent or yours; when it prints `agent=(generic)`, use `start-generic-agent` instead."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "message-driver",
+      "name": "Message a Driver",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "`write_agent` to the Driver's agent id.",
+        "A stop is the same tool with `[foreman→driver <cr>] stop` (see `stop-driver`)."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "message-chief",
+      "name": "Message the Chief of Staff",
+      "roles": [
+        "foreman",
+        "griller"
+      ],
+      "means": [
+        "`send_message` to the Chief of Staff's session link.",
+        "The Foreman's lines and a Griller's `ready` line travel the same way."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "driver-hand-back",
+      "name": "A Driver's final report to a Foreman's Desktop session",
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "means": [
+        "The Driver's final answer is its hand-back to its steering session (the Foreman).",
+        "In direct mode the final answer returns to the Chief of Staff that started the Driver."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "driver-messages-steering-direct",
+      "name": "A Driver messages its steering session in direct mode",
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "means": [
+        "In direct mode the Driver's final answer returns to the Chief of Staff that started the Driver.",
+        "No earlier message from the Driver to that session is recorded on this host."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "stop-driver",
+      "name": "Stop a Driver",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "`write_agent` to the Driver's agent id with `[foreman→driver <cr>] stop`.",
+        "The steering session sends it; no other route is used."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "stop-woken-driver",
+      "name": "Stop an ended Driver that wakes again",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "Not recorded on this host: the stop of an ended Driver that wakes again.",
+        "A Driver stopped from outside is read when the host says it was stopped (`foreman-lost-driver.md`)."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "driver-start-folder",
+      "name": "A CR Driver's start folder",
+      "roles": [
+        "cr-driver"
+      ],
+      "means": [
+        "A Driver starts in the folder the host gives it; no mod moves it.",
+        "The write guard's start folder does not apply here (see `write-guard`)."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "stop-own-background-task",
+      "name": "Stop a background task of one's own",
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "means": [
+        "The host's stop of a background shell, within the agent's `execute` tool set.",
+        "A Driver stops its CI watch before its hand-back."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "name-env-holders",
+      "name": "Name the holders of the checkout's environment",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "The same commands through the host's shell tool: on Windows `Get-CimInstance Win32_Process` under `<plugin root>\\.venv\\`.",
+        "On macOS and Linux `ps -eo pid,ppid,args | grep -F \"<plugin root>/.venv/\"`, the grep line itself excluded.",
+        "Read as on Claude Code, \"own\" by its evidence (`--seat <this session's id>`).",
+        "Read-only: never a stop or a kill of a holder."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "stop-session",
+      "name": "Stop another session",
+      "roles": [
+        "chief-of-staff"
+      ],
+      "means": [
+        "Not recorded on this host: how a session stops another session.",
+        "A missing tool is reported with its text; no other route is used."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "agent-ids",
+      "name": "Agent ids of the project",
+      "roles": [
+        "chief-of-staff"
+      ],
+      "means": [
+        "A file in `.github/agents/` or `~/.copilot/agents/`.",
+        "The plugin's own agents are `chantier-<role>`."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "models",
+      "name": "Models",
+      "roles": [
+        "chief-of-staff",
+        "foreman"
+      ],
+      "means": [
+        "Each plugin agent's file names its model (Luna, Sol, Terra, Sonnet 5.5 or Opus 5.5); it runs when no model is passed.",
+        "Each file sets `model-policy: required` except `chantier-coder`'s; defaults are `config/chantier.defaults.yml`'s unless `hosts.<host>.roles` sets one.",
+        "An identifier is the display name in lower case, spaces as `-`, dots kept; the list comes from `just copilot-models`.",
+        "An escalated role (`coder`, `debugger`, `conflict-resolver`) starts as a generic agent on its model, printed `(generic)`."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "session-skills-tools",
+      "name": "Skills and tools of a session",
+      "roles": [
+        "chief-of-staff"
+      ],
+      "means": [
+        "Not known on this host: how a session lists its skills and tools.",
+        "The Chief of Staff compares a role's needs with what it can tell."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "preflight-p2",
+      "name": "Preflight P2",
+      "roles": [
+        "chief-of-staff",
+        "foreman"
+      ],
+      "means": [
+        "`create_session` and `send_message` load.",
+        "Preflight P2 passes when both tools are available to the session."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "ask-questions",
+      "name": "Ask the user a series of questions",
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "means": [
+        "The host's question tool, at most 5 questions per call, at most 4 options per question.",
+        "The reference opens each question's text; the tool's exact name and its free answer are not recorded here."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "run-board",
+      "name": "Run the board",
+      "roles": [
+        "chief-of-staff"
+      ],
+      "means": [
+        "The host's background shell with the command `$CHANTIER serve --seat <id>`; `serve --restart --seat <id>` runs the same way.",
+        "Add `--forge-always` on a host that cannot run the watcher; read the first lines from the output; stop it with the host's stop of a background shell.",
+        "If the host has no background command, give the one line of `session-start.md` and go on: no workaround."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "board-griller",
+      "name": "The board's Griller",
+      "roles": [
+        "board-griller",
+        "griller"
+      ],
+      "means": [
+        "`copilot -p` is the intended run.",
+        "The Grill action refuses on Copilot with one line: grill in a session with the Griller skill."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "workspace-trust",
+      "name": "Trust of a workspace inside a trusted folder",
+      "roles": [
+        "chief-of-staff"
+      ],
+      "means": [
+        "Not recorded on this host: how Copilot trusts a workspace.",
+        "A refused start is reported with its exact text."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "move-session",
+      "name": "Move a started session to another folder",
+      "roles": [
+        "chief-of-staff"
+      ],
+      "means": [
+        "Not recorded on this host: moving a started session to another folder.",
+        "A refused start or move is reported with its exact text; no other route is used."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "prompt-cache-ttl",
+      "name": "Prompt cache TTL",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "Not known on this host: how long a session's prompt cache keeps a prefix.",
+        "The `cache_ttl` default is `5m`."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "steering-wake-bound",
+      "name": "Steering wake bound (60 minutes)",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "`/every` takes whole minutes: the CLI refuses a Copilot duration that is not whole minutes.",
+        "The heartbeat uses `/every 4m` today."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "heartbeat",
+      "name": "Heartbeat",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "The Chief of Staff sends the Foreman chat `/every <steering wake> chantier status --refresh --batch <batch> --epoch <n>` on its `ready <batch>`.",
+        "The wake comes from the batch's `timing: Copilot <family> models:` line, else `timing: Copilot other models:`, in `/every`'s form (`4m` by default).",
+        "The Foreman cannot end `/every`: at every pause the Chief of Staff tells the user to delete it; in direct mode it runs `/every` in its own session.",
+        "Whoever ends the heartbeat first records it with `chantier status --stop-heartbeat --batch <batch> --epoch <n>`."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "run-watcher",
+      "name": "Run the watcher",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "The host's background shell with the command the `watch: not running` or `still running` line prints, as is (no `--stream`: it ends after each block).",
+        "Its end must start a turn of the idle Chief of Staff session; its output is read from the task.",
+        "Until then the Chief of Staff also runs the printed `watch --once` command at each user message.",
+        "With no background command, or an end that starts no turn, no watcher starts and one line says so: no workaround."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "watcher-session-end",
+      "name": "The watcher when the session ends",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "Not recorded on this host: whether the host ends a background command when the session ends.",
+        "An orphaned watcher ends by the CLI's own rules, once the project's seat is another session's."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "board-session-end",
+      "name": "The board when the session ends",
+      "roles": [
+        "chief-of-staff"
+      ],
+      "means": [
+        "Not recorded on this host: whether the host ends a background command when the session ends.",
+        "The board stops when the seat moves (the CLI); a board a watcher started stops 30 minutes after its last client."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "message-limit",
+      "name": "Limit on messages",
+      "roles": [
+        "chief-of-staff",
+        "foreman",
+        "griller"
+      ],
+      "means": [
+        "Not recorded on this host.",
+        "A refused send is reported, never sent another way."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "end-turn-background",
+      "name": "End a subagent's turn with nothing running in the background",
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "means": [
+        "Not recorded on this host: how a subagent's turn ends with nothing running in the background.",
+        "A Driver's final answer is its hand-back (see `driver-hand-back`)."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "subagent-stops",
+      "name": "A background subagent stops",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "Not recorded on this host: the notices that tell a background subagent stopped or finished.",
+        "A Driver's final answer is its hand-back (see `driver-hand-back`)."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "subagent-stopped-outside",
+      "name": "A background subagent is stopped from outside",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "A Driver stopped from outside is read when the host says the Driver was stopped (`foreman-lost-driver.md`).",
+        "What a user's stop leaves in the session's record is not recorded on this host."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "resume-subagent",
+      "name": "Resume a stopped subagent",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "Not recorded on this host: resuming a stopped subagent.",
+        "`write_agent` to the agent id is the message to a Driver; whether it resumes a stopped one is not known."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "compact",
+      "name": "Compacting",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "Name no compacting command or setting to the user.",
+        "The manual reload (\"chantier reload\") is the only reload after a compaction."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "reload-after-compact",
+      "name": "Reload after a compaction",
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "means": [
+        "Not done on this host: Copilot has no mod (its manifest names no hooks).",
+        "The manual reload (\"chantier reload\", `session-start.md`, \"Reload\") is the only one."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "write-guard",
+      "name": "The write guard",
+      "roles": [
+        "cr-driver",
+        "coder",
+        "conflict-resolver",
+        "debugger",
+        "inspector",
+        "investigator",
+        "verifier"
+      ],
+      "means": [
+        "Copilot has no hook (its manifest names none): no guard refuses a write outside the `writes:` folders.",
+        "The `writes:` line is inert there; the card's rule alone covers a worker's writes."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "griller-in-worktree",
+      "name": "A Griller in a worktree",
+      "roles": [
+        "griller",
+        "chief-of-staff"
+      ],
+      "means": [
+        "A Griller in a worktree sends its files as on Claude Code: by message to the seat's session, naming the absolute paths.",
+        "The message is `send_message` to the session's link (see `message-session`)."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "surface-session-writes",
+      "name": "A session in a planning surface writing in the project's clone",
+      "roles": [
+        "chief-of-staff",
+        "foreman",
+        "griller",
+        "cr-driver"
+      ],
+      "means": [
+        "A session in a planning surface writes the project's clone and worktrees outside its own folder; that folder may be the surface's checkout or the clone.",
+        "The host must allow those folders; the remote finding is Claude Code's and was not run on Copilot."
+      ],
+      "mark": "untested"
+    }
+  ]
+}
