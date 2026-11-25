@@ -182,8 +182,14 @@ does a unit that is not in `UNITS` and a test that does not exist.
   back ready against each other ready PR of a parallel batch, asks once (`conflict <cr> with <cr>:
   <paths>; switch to a stack?`) and notes the pair on a conflict, sends nothing when two PRs do
   not conflict, asks again for no pair already noted, and checks nothing in a stack batch; the
-  switch to a stack then puts the earlier ready CR at the bottom (unit: series-deps) (test:
-  test_mode_switch.py::test_to_a_stack_the_ready_cr_go_first_in_the_order_they_became_ready);
+  switch to a stack then puts the earlier ready CR at the bottom; `chantier conflicts <cr> --epoch
+  <n>` gives the same note and prints the same ask, records no ask, notes a pair once, and runs
+  nothing in a stack batch (unit: series-deps) (test:
+  test_mode_switch.py::test_to_a_stack_the_ready_cr_go_first_in_the_order_they_became_ready)
+  (test:
+  test_conflicts.py::test_a_conflicting_pair_is_noted_once_and_asked_not_recorded_and_the_repository_untouched)
+  (test:
+  test_conflicts.py::test_an_older_or_unreadable_git_refuses_before_anything_is_read_or_written);
 - `order mode` refusing the mode the batch already has and an unknown one, nothing written (test:
   test_mode_switch.py::test_the_same_mode_and_an_unknown_one_are_refused_and_nothing_is_written);
 - a stack batch's first `take stack` made due: `status` prints one `stack: take stack now: <crs> ready

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -87,3 +88,45 @@ def is_ancestor(older: str, newer: str, cwd: Path | str | None = None) -> bool |
         check=False,
     )
     return {0: True, 1: False}.get(p.returncode)
+
+
+def _env() -> dict[str, str]:
+    return {**os.environ, "GIT_EDITOR": "true", "GIT_PAGER": "cat", "GIT_TERMINAL_PROMPT": "0"}
+
+
+def run(*args: str, cwd: Path | str | None = None) -> tuple[int, str, str]:
+    """A read that tells its exit code: (code, stdout, stderr), git's own failures included
+    (`git` raises on any non-zero exit, which cannot tell exit 1 from a refusal)."""
+    if cwd is not None and not Path(cwd).is_dir():
+        raise ChantierError(f"no folder {cwd}: git cannot run there", EXIT_PRECONDITION)
+    p = subprocess.run(
+        ["git", "--no-pager", *args],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=_env(),
+        check=False,
+    )
+    return p.returncode, p.stdout, p.stderr
+
+
+def version_text() -> str | None:
+    """What `git --version` prints, stripped; None when git is absent or refuses."""
+    try:
+        code, out, _ = run("--version")
+    except (OSError, ChantierError):
+        return None
+    return out.strip() if code == 0 else None
+
+
+def parse_version(text: str | None) -> tuple[int, int, int] | None:
+    """`git version 2.56.0.windows.4` -> (2, 56, 0); None when the text does not parse."""
+    found = re.match(r"git version (\d+)\.(\d+)(?:\.(\d+))?", text or "")
+    return None if found is None else (int(found[1]), int(found[2]), int(found[3] or 0))
+
+
+def version() -> tuple[int, int, int] | None:
+    """The installed git's version; None when git is absent or the text does not parse."""
+    return parse_version(version_text())
