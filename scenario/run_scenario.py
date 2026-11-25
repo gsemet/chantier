@@ -1446,7 +1446,23 @@ def scenario(w: World) -> None:
     check("CR-105 has a worktree and takes the second free slot",
           fm.started[-1] == "CR-105" and w.cr("CR-105")["status"] == "working"
           and Path(w.cr("CR-105")["worktree"]).is_dir())
+    _, since0 = w.chantier("status", "--since", 0)
+    seq = int(re.fullmatch(r"since 0, now (\d+): next time .*", since0[-1])[1])
+    check("`status --since 0` starts with the `state:` line and its due count",
+          since0[0].startswith("state: batch-01") and "due " in since0[0], str(since0))
     _, out = w.chantier("order", "note", "CR-101", "--note", "change: also log the timeout")
+    record_files = [(w.folder() / f).read_bytes() for f in ("batch.json", "events.jsonl")]
+    _, since1 = w.chantier("status", "--since", seq)
+    last = re.fullmatch(r"since \d+, now (\d+): next time .*", since1[-1])
+    check("`status --since` lists only what changed: CR-101's row and its order, not CR-105 "
+          "(taken before), the merged count, and a later sequence last",
+          any(ln.startswith("CR-101 ") for ln in since1)
+          and any("note CR-101" in ln for ln in since1 if ln.startswith("orders "))
+          and not any(ln.startswith("CR-105 ") for ln in since1)
+          and any(ln.startswith("merged: ") for ln in since1)
+          and last is not None and int(last[1]) > seq, str(since1))
+    check("`status --since` records nothing",
+          [(w.folder() / f).read_bytes() for f in ("batch.json", "events.jsonl")] == record_files)
     check("a note on a ready CR is recorded; the CR stays ready for the Foreman to decide",
           w.cr("CR-101")["status"] == "ready" and w.cr("CR-101")["notes"][-1]
           == "change: also log the timeout", str(out))
@@ -1528,6 +1544,10 @@ def scenario(w: World) -> None:
           and (w.state / w.cr("CR-101")["path"] / "03-change-spec.md").is_file()
           and re.fullmatch(r"20\d\d-\d\d-\d\dT\d\d:\d\d:\d\dZ", w.cr("CR-101")["merged_at"]),
           str(out))
+    _, since2 = w.chantier("status", "--since", seq)
+    merged_n = sum(c["status"] == "merged" for c in w.batch()["crs"])
+    check("`status --since` after the first merge counts the batch's merged CRs",
+          any(ln.startswith(f"merged: {merged_n} (") for ln in since2), str(since2))
     fm.turn()
     remote = w.sh("git", "ls-remote", "origin", "refs/heads/main").split()[0]
     check("fast-forward done: the main checkout is at origin/main, with the file CR-101 added, "

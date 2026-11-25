@@ -14,7 +14,10 @@ line and the last moment it saw a batch in flight.
 A watch run by the session that the running or paused batch records as its Foreman is the
 Foreman's watcher (`watch_reads.foreman_end`): it reads only that batch's merge, red-CI and
 wait-met lines, starts no server and never ends on the seat. `--once --after SEQ` is the pull
-path: it prints the journal's lines past SEQ, takes no lock, reaches no server, starts nothing."""
+path: it prints the journal's lines past SEQ, takes no lock, reaches no server, starts nothing.
+
+At each telling, the steering session's watcher prints its batch's `state:` line just before its
+last line (`watch_reads.steering_state`)."""
 
 from __future__ import annotations
 
@@ -60,6 +63,7 @@ from chantier.hub.watch_reads import (
     foreman_lines,
     open_batch,
     seat_moved,
+    steering_state,
     subscription,
 )
 from chantier.hub.watch_seat import seat_rule
@@ -341,7 +345,7 @@ class Watch:
     def tell(self, now: float) -> list[str]:
         """`--stream`: the block of events gathered and the `still watching` line; the block is
         emptied and the next comes no sooner than `events.wake_every` from now."""
-        out = self._told()
+        out = [*self._told(), *steering_state(self.repo, self.foreman)]
         out.append(
             STREAM_TOLD.format(
                 name=self._name(),
@@ -362,10 +366,8 @@ class Watch:
             text = FOREMAN_IDLE_END if reason == IDLE else FOREMAN_EVENTS_END
         else:
             text = IDLE_END if reason == IDLE else EVENTS_END
-        return [
-            *out,
-            text.format(name=self._name(), watch=autostart.watch_command(self.repo, self.cursor)),
-        ]
+        end = text.format(name=self._name(), watch=autostart.watch_command(self.repo, self.cursor))
+        return [*out, *steering_state(self.repo, self.foreman), end]
 
     def code(self, reason: str) -> int:
         return self.end.code if reason == END and self.end is not None else 0

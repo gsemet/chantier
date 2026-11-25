@@ -86,6 +86,11 @@ does a unit that is not in `UNITS` and a test that does not exist.
 - help topics: `help lease` prints a topic whole with no batch; every topic resolves on both hosts
   and every topic a CLI line names exists in pytest (unit: parallel)
   (test: test_help_topics.py::test_every_topic_resolves_on_both_hosts).
+- `status --since` and the `state:` line (unit: parallel): only the changed CRs and orders,
+  merged CRs as one count, the next sequence on the last line, nothing written; the steering
+  watcher's `state:` line
+  (test: test_status_since.py::test_the_listing_holds_only_what_changed_since_the_sequence)
+  (test: test_watch_state_line.py::test_only_the_steering_watcher_prints_the_state_line_before_its_last_line).
 - `push <cr> --lease <n>` of a CR Driver, after a rebase on its base: the CR's own recorded
   branch reaches the bare remote at the worktree's head with one `push` event and a `new branch`
   line, `ship` then prints no "not pushed" line, and a `push` from a dirty worktree is refused with

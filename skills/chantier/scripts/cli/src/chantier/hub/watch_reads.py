@@ -11,11 +11,12 @@ from typing import Any
 
 from chantier.core.errors import EXIT_USAGE, ChantierError
 from chantier.core.files import rel_in
-from chantier.core.records import read_batch_json
+from chantier.core.records import read_batch_json, read_events
 from chantier.core.repo import Repo
 from chantier.core.seat import read_seat
 from chantier.hub import arrival_mark, autostart, journal
 from chantier.hub.watch_lines import FOREMAN_CLOSED, FOREMAN_OTHER, FOREMAN_TYPES, Ended
+from chantier.status.state_line import state_line
 
 
 @dataclass
@@ -64,6 +65,21 @@ def subscription(session: str, audiences: list[str] | tuple[str, ...] = ()) -> l
     key `none`), then the `--for` values in their order."""
     own = [] if session == autostart.NONE else [f"session:{session}"]
     return list(dict.fromkeys([journal.PROJECT, *own, *audiences]))
+
+
+def steering_state(repo: Repo, foreman: str | None) -> list[str]:
+    """The `state:` line of the open batch, for the steering session's watcher only: the
+    Foreman's of that batch (`foreman`), or the seat's of a batch steered `direct`; else nothing.
+    It reads the batch's record and events, no journal file and no forge."""
+    try:
+        d = autostart.open_record(repo)
+        if d is None or (foreman is None and d.steering != "direct"):
+            return []
+        if foreman is not None and d.id != foreman:
+            return []
+        return [state_line(repo, d, read_events(repo.store, repo.batch_dir(d.id)))]
+    except (OSError, ValueError, ChantierError) as e:
+        return [f"state: unreadable ({e})"]
 
 
 def open_batch(repo: Repo) -> str | None:
