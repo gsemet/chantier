@@ -1,0 +1,7 @@
+# The tour's checks: allow rules and the forge's tools
+
+For each missing piece the tour asks and fixes it.
+
+- **The allow rules:** the Chief of Staff's question and write (`help allow-rules`); the host refusing the edit: `help host-allow-add-lines`. Only the rules P10 named are written, on the user's yes. Already asked at this session's first turn: do not ask again, say what P10 says now. The tour checks the capability "every batch" only; it names the others (a stack, a release on its own, fixes on a grant) as checked at the go, and runs no trial.
+- **The forge's tools:** on GitHub, when `gh` is missing or not logged in, or the `gh stack` extension (github/gh-stack) is not installed, recommend it and say why (the stack driver makes the stack with it), ask, and on the yes run the install with the platform's usual installer (`winget install --id GitHub.cli` on Windows, `brew install gh` on macOS, the distribution's package on Linux; then `gh extension install github/gh-stack`). `gh auth login` is interactive and stays the user's. The same for `glab` on GitLab (no stack extension). An install the host refuses or that fails: give the user the exact commands to run. Check the result (`gh --version`, `gh extension list`) and say what you found. Other missing tools (`uv`, `git`): the exact install command, for the user to run.
+- **The forge's settings** (rights, branch rules, `help forge-permissions`): chantier changes none; say the exact change for the user to make.

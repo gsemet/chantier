@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "paths": "relative to this folder (cards-next/); a reading: a topics/<name>.md file, or file#heading (a level-2 heading of that file)",
+  "paths": "relative to this folder (cards-next/); a reading: file, file#heading (a level-2 heading of that file), or {\"claude\": ..., \"copilot\": ...} (that host only)",
   "topics": {
     "worker-shell": {
       "readings": [
@@ -16,6 +16,25 @@
         "inspector"
       ],
       "trigger": "a shell call that chains, assigns or waits; a file write",
+      "review_by": "0.16.0"
+    },
+    "session-shell": {
+      "readings": [
+        "topics/session-shell.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "release-driver",
+        "stack-driver",
+        "qa-driver",
+        "chief-of-staff",
+        "foreman",
+        "griller",
+        "spec-writer",
+        "spec-critic",
+        "retro-critic"
+      ],
+      "trigger": "a shell call that waits, backgrounds or changes folder; a text for the forge",
       "review_by": "0.16.0"
     },
     "verifier-scratch": {
@@ -438,6 +457,15 @@
       ],
       "trigger": "a round, an `APPROVE`, a `FIX-REQUIRED`"
     },
+    "cr-review-step": {
+      "readings": [
+        "topics/cr-review-step.md"
+      ],
+      "roles": [
+        "cr-driver"
+      ],
+      "trigger": "an extra review step of `Team:` to brief"
+    },
     "cr-ship": {
       "readings": [
         "topics/cr-ship.md",
@@ -617,7 +645,8 @@
     },
     "sync": {
       "readings": [
-        "topics/main-checkout.md"
+        "topics/main-checkout.md",
+        "sync-checkout.md"
       ],
       "roles": [
         "foreman",
@@ -1174,6 +1203,26 @@
       ],
       "trigger": "a parked CR back, or dropped with dependents"
     },
+    "grill": {
+      "readings": [
+        "topics/grill-series.md",
+        "topics/grill-options.md",
+        "topics/grill-restate.md",
+        "topics/grill-backlog-p1.md",
+        "topics/grill-backlog-p2.md",
+        "topics/grill-specify-p1.md",
+        "topics/grill-specify-p2.md",
+        "topics/grill-critic.md",
+        "topics/grill-critic-steps.md",
+        "topics/where-cr-goes.md",
+        "topics/writer.md"
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "the backlog and a grill"
+    },
     "grill-series": {
       "readings": [
         "topics/grill-series.md"
@@ -1587,6 +1636,23 @@
       ],
       "trigger": "a plan, a report, a sentence that says when work will be done"
     },
+    "batch-start": {
+      "readings": [
+        "topics/trials.md",
+        "topics/batch-plan.md",
+        "topics/batch-plan-show.md",
+        "topics/batch-plan-mode-p1.md",
+        "topics/batch-plan-mode-p2.md",
+        "topics/batch-plan-cut.md",
+        "topics/foreman-start-p1.md",
+        "topics/foreman-start-p2.md",
+        "topics/foreman-start-more.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "the trials before the go, starting a batch"
+    },
     "trials": {
       "readings": [
         "topics/trials.md"
@@ -1651,6 +1717,34 @@
         "chief-of-staff"
       ],
       "trigger": "a Foreman to reuse, a Foreman in a worktree, `ready <batch>`"
+    },
+    "steering": {
+      "readings": [
+        "topics/steering-reports-p1.md",
+        "topics/steering-reports-p2.md",
+        "topics/asks.md",
+        "topics/driver-question.md",
+        "topics/chain-conflict.md",
+        "topics/rounds-exception.md",
+        "topics/watcher-events.md",
+        "topics/watcher-lines.md",
+        "topics/refused-push-chief-p1.md",
+        "topics/refused-push-chief-p2.md",
+        "topics/refused-push-chief-more-p1.md",
+        "topics/refused-push-chief-more-p2.md",
+        "topics/refused-rebase-chief.md",
+        "topics/refused-answer.md",
+        "topics/refused-push-judgement.md",
+        "topics/refused-push-gate.md",
+        "topics/refused-push-route.md",
+        "topics/refused-push-run.md",
+        "topics/refused-rebase.md",
+        "topics/refused-rebase-run.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a running batch"
     },
     "steering-reports": {
       "readings": [
@@ -1746,6 +1840,24 @@
       ],
       "trigger": "`ask ... blocked <cr> question`, `fix:`, `refused <cr>`, a typed wait, `parked`"
     },
+    "ready-to-merge": {
+      "readings": [
+        "topics/merge-words.md",
+        "topics/merge-gaps.md",
+        "topics/merge-recorded.md",
+        "topics/merge-series-stack-p1.md",
+        "topics/merge-series-stack-p2.md",
+        "topics/merge-stack-ready-p1.md",
+        "topics/merge-stack-ready-p2.md",
+        "topics/merge-stack-gitlab.md",
+        "topics/stack-changes-chief-p1.md",
+        "topics/stack-changes-chief-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a PR ready to merge, a merge, a stack"
+    },
     "merge-words": {
       "readings": [
         "topics/merge-words.md"
@@ -1812,6 +1924,24 @@
       ],
       "trigger": "a drop from a stack, a hold, an insert into a stack ready to merge"
     },
+    "batch-end": {
+      "readings": [
+        "topics/batch-pause.md",
+        "topics/retro-route-p1.md",
+        "topics/retro-route-p2.md",
+        "topics/retro-route-chantier-p1.md",
+        "topics/retro-route-chantier-p2.md",
+        "topics/batch-close-p1.md",
+        "topics/batch-close-p2.md",
+        "topics/batch-close-stopped-p1.md",
+        "topics/batch-close-stopped-p2.md",
+        "topics/recovery.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "the pause, the end of a batch"
+    },
     "batch-pause": {
       "readings": [
         "topics/batch-pause.md"
@@ -1872,6 +2002,21 @@
       "trigger": "a stale heartbeat, an app restart, a Foreman not answering",
       "review_by": "0.16.0"
     },
+    "direct": {
+      "readings": [
+        "topics/direct-mode-p1.md",
+        "topics/direct-mode-p2.md",
+        "topics/direct-mode-p3.md",
+        "topics/direct-mode-epoch-p1.md",
+        "topics/direct-mode-epoch-p2.md",
+        "topics/direct-mode-accept-p1.md",
+        "topics/direct-mode-accept-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "steering a batch yourself (direct mode)"
+    },
     "direct-mode": {
       "readings": [
         "topics/direct-mode-p1.md",
@@ -1902,6 +2047,22 @@
         "chief-of-staff"
       ],
       "trigger": "a request while a direct batch runs, the pause in direct mode"
+    },
+    "release-procedure": {
+      "readings": [
+        "topics/release-chief-p1.md",
+        "topics/release-chief-p2.md",
+        "topics/release-chief-approve-p1.md",
+        "topics/release-chief-approve-p2.md",
+        "topics/release-chief-auto-p1.md",
+        "topics/release-chief-auto-p2.md",
+        "topics/release-chief-after-p1.md",
+        "topics/release-chief-after-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a release to plan, the project's procedure"
     },
     "release-chief": {
       "readings": [
@@ -1973,6 +2134,414 @@
       ],
       "trigger": "the user's own PR template",
       "review_by": "0.16.0"
+    },
+    "sync-offer": {
+      "readings": [
+        "topics/sync-offer.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "`sync pending` for 3 minutes"
+    },
+    "host-configuration": {
+      "readings": [
+        {
+          "claude": "topics/host-configuration.md",
+          "copilot": "topics/host-configuration-copilot.md"
+        }
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a question on the host settings the user sets"
+    },
+    "host-allow-rules": {
+      "readings": [
+        {
+          "claude": "topics/host-allow-rules.md",
+          "copilot": "topics/host-allow-rules-copilot.md"
+        }
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "how an allow rule matches"
+    },
+    "host-allow-broad": {
+      "readings": [
+        {
+          "claude": "topics/host-allow-broad.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a broad rule, a moved path, a rule the base set leaves out"
+    },
+    "host-allow-extra": {
+      "readings": [
+        {
+          "claude": "topics/host-allow-extra.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a release or a grant that needs rules the base set lacks"
+    },
+    "host-allow-add": {
+      "readings": [
+        {
+          "claude": "topics/host-allow-add.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "the host refused your edit of the settings, or the file is not JSON"
+    },
+    "host-allow-add-lines": {
+      "readings": [
+        {
+          "claude": "topics/host-allow-add-lines.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "the command lines to give for the allow rules"
+    },
+    "host-allow-not-add": {
+      "readings": [
+        {
+          "claude": "topics/host-allow-not-add.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a rule auto mode drops, a rule not to propose"
+    },
+    "host-refused": {
+      "readings": [
+        {
+          "claude": "topics/host-refused.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a command the host refuses whatever the rules"
+    },
+    "host-auto-mode": {
+      "readings": [
+        {
+          "claude": "topics/host-auto-mode.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff",
+        "cr-driver",
+        "stack-driver",
+        "release-driver"
+      ],
+      "trigger": "auto mode, a classifier refusal"
+    },
+    "host-auto-mode-steering": {
+      "readings": [
+        {
+          "claude": "topics/host-auto-mode-steering.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "the steering session's push in auto mode"
+    },
+    "host-auto-mode-trials": {
+      "readings": [
+        {
+          "claude": "topics/host-auto-mode-trials.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a trial before the go",
+      "review_by": "0.16.0"
+    },
+    "host-compact": {
+      "readings": [
+        {
+          "claude": "topics/host-compact.md",
+          "copilot": "topics/host-compact-copilot.md"
+        }
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "a compaction, a compacting setting"
+    },
+    "host-write-guard": {
+      "readings": [
+        {
+          "claude": "topics/host-write-guard.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff",
+        "cr-driver",
+        "stack-driver",
+        "release-driver"
+      ],
+      "trigger": "a write refused by the plugin, a `writes:` line"
+    },
+    "host-write-guard-shell": {
+      "readings": [
+        {
+          "claude": "topics/host-write-guard-shell.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff",
+        "cr-driver",
+        "stack-driver",
+        "release-driver"
+      ],
+      "trigger": "a shell write refused by the plugin"
+    },
+    "host-sessions": {
+      "readings": [
+        {
+          "claude": "topics/host-sessions.md",
+          "copilot": "topics/host-sessions-copilot.md"
+        }
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a session to start, a session's class"
+    },
+    "host-sessions-more": {
+      "readings": [
+        {
+          "claude": "topics/host-sessions-more.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "two sessions of one repository",
+      "review_by": "0.16.0"
+    },
+    "host-remote": {
+      "readings": [
+        {
+          "claude": "topics/host-remote.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a session to start from Remote Control",
+      "review_by": "0.16.0"
+    },
+    "host-surfaces": {
+      "readings": [
+        {
+          "claude": "topics/host-surfaces.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "where the user is, the options that fit"
+    },
+    "host-subagent-signs": {
+      "readings": [
+        {
+          "claude": "topics/host-subagent-signs.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff",
+        "cr-driver",
+        "stack-driver",
+        "release-driver"
+      ],
+      "trigger": "what the host says of a subagent"
+    },
+    "host-foreman-worktree": {
+      "readings": [
+        {
+          "claude": "topics/host-foreman-worktree.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a Foreman started in a worktree",
+      "review_by": "0.16.0"
+    },
+    "host-reuse-foreman": {
+      "readings": [
+        {
+          "claude": "topics/host-reuse-foreman.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a last Foreman session still there at a new batch",
+      "review_by": "0.16.0"
+    },
+    "host-for-you": {
+      "readings": [
+        {
+          "claude": "topics/host-for-you.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "a step that is the user's"
+    },
+    "host-for-you-sessions": {
+      "readings": [
+        {
+          "claude": "topics/host-for-you-sessions.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a \"For you\" block for a reused Foreman or a new session",
+      "review_by": "0.16.0"
+    },
+    "host-auto-fix": {
+      "readings": [
+        {
+          "claude": "topics/host-auto-fix.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "an Auto-fix event",
+      "review_by": "0.16.0"
+    },
+    "host-turn-end": {
+      "readings": [
+        {
+          "claude": "topics/host-turn-end.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "the host's notice of a turn's end"
+    },
+    "host-driver-silence": {
+      "readings": [
+        {
+          "claude": "topics/host-driver-silence.md",
+          "copilot": "topics/host-claude-only.md"
+        }
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a silent Driver"
+    },
+    "host-heartbeat": {
+      "readings": [
+        {
+          "claude": "topics/host-heartbeat.md",
+          "copilot": "topics/host-heartbeat-copilot.md"
+        }
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "the heartbeat to arm"
+    },
+    "init-checks": {
+      "readings": [
+        "topics/init-checks.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "the tour's checks of the gates",
+      "review_by": "0.16.0"
+    },
+    "init-tools": {
+      "readings": [
+        "topics/init-tools.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "the tour's checks of the allow rules and the forge's tools",
+      "review_by": "0.16.0"
+    },
+    "release-evidence": {
+      "readings": [
+        "topics/release-evidence.md",
+        "topics/release-thread.md"
+      ],
+      "roles": [
+        "release-driver"
+      ],
+      "trigger": "the pictures of the notes, the announcement thread"
+    },
+    "status-notes": {
+      "readings": [
+        "topics/status-notes.md",
+        "topics/status-notes-more.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a report's conditional Notes lines"
     }
   }
 }

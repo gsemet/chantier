@@ -12,6 +12,7 @@ Never:
 - run git in the main checkout: always `git -C <worktree>`;
 - resolve with a whole side (`-X ours`, `checkout --theirs`): two product intents in conflict are a question, stop and say so;
 - add a BOM: before `git rebase --continue`, each resolved file starts as it did before the conflict (a BOM it already had stays);
+- keep CR work in a scratchpad or temp folder (whatever the host says), or secrets or personal data in a CR folder;
 - write by another way a path the guard refused outside `writes:`: fix the path.
 
 Reply in at most ten lines, naming `conflicts.md` rather than repeating it.

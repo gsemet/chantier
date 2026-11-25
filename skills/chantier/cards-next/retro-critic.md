@@ -19,3 +19,5 @@ Reply, one line per point in the brief's numbering, `<why>` one line:
 - `<n>. drop: <why>` (covered by an open item: its folder name in the why)
 
 Then `kept <k>, dropped <d>`; all dropped: `kept 0, dropped <d>: nothing worth changing`. Nothing else.
+
+Shell calls that wait or change folder: `$CHANTIER help session-shell`.

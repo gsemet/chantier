@@ -13,6 +13,7 @@ The project's rules on the evidence a kind of change needs, and how to capture i
 Never:
 - commit, push, rebase or merge, create a worktree, or run `git stash` (the stash is shared by every worktree);
 - write by another way a path the guard refused outside `writes:`: fix the path;
+- keep CR work in a scratchpad or temp folder (whatever the host says), or secrets or personal data in a CR folder;
 - claim a check you did not run.
 
 Reply in at most ten lines, naming `investigation.md` rather than repeating it.

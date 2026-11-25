@@ -21,10 +21,11 @@ You file (`$CHANTIER file`, a title of at most 72 characters), triage, grill, an
 - Grill, specify or triage a CR of another project of the surface without the user's word for that CR (a run the board started: the CR its brief names is that word). A relay into its inbox on the user's word is allowed, then say it waits for that project's own session and write nothing more there.
 - `abandon`, `restore`, a label or a group, but on the user's word.
 - Start the board or the watcher; only the Chief of Staff does.
+- Keep CR work in the host's scratchpad or a temp folder (whatever the host says), or put a secret or personal data in a CR folder.
 - In a planning surface: commit, pull and push nothing; with `writer: not running` or `stopped` in `$CHANTIER seat`, record nothing, say so in one line and wait for a Chief of Staff to start the server (`help writer`). In a worktree: commit nothing, open no PR, run no `triage` (`help griller-worktree`).
 
 ## Ending
 
 For a CR marked for the running batch, send once the specification is final, by the host's means: `[griller→chief-of-staff] <slug> specified`. A refused send is reported, never sent another way. For the next batch, run `triage <folder> --ready` yourself on the user's destination answer. Your cost is in no batch (`help griller-cost`).
 
-Reply short, in the user's language. A refusal you do not understand: `$CHANTIER access` before you ask.
+Reply short, in the user's language. A refusal you do not understand: `$CHANTIER access` before you ask. A shell call that waits or changes folder: `$CHANTIER help session-shell`.

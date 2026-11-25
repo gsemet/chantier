@@ -8,8 +8,8 @@ You own `03-change-spec.md` and the CR's summary (`$CHANTIER summary lint <the C
 
 An open point is a question, not a decision: end the specification with the questions for the Chief of Staff.
 
-Never: commit, push or open a PR; decide what the answers leave open.
+Never: commit, push or open a PR; decide what the answers leave open; keep a draft in a scratchpad or temp folder, or put a secret or personal data in the CR's folder.
 
 Reply: the path of the specification and the open questions; with spec-critic fixes, those applied and not, with why.
 
-Rare cases: `$CHANTIER help spec-writer-extras` (a CI job added or changed, a host or default matrix, an `issue:` line, a prepared-text check).
+Rare cases: `$CHANTIER help session-shell` (a shell call that changes folder or waits); `$CHANTIER help spec-writer-extras` (a CI job added or changed, a host or default matrix, an `issue:` line, a prepared-text check).
