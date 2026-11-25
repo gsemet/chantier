@@ -237,6 +237,30 @@ def check_worker_writes_line(w, cr: str, out: list[str], label: str) -> None:
           and scratch == [f"scratch: {folder}/work/scratch"], str(out))
 
 
+def check_brief_driver(w, cr: str) -> None:
+    """`brief cr-driver <cr> --lease <n>` writes the Driver's brief in the git folder and prints
+    the short prompt: the first line, the `writes:` line, the worktree line and the `Read` line;
+    a Driver started from those four lines has what the hook needs and a brief to read."""
+    n = w.leases[unit_name(cr)]
+    _, out = w.chantier("brief", "cr-driver", cr, "--lease", n, lease=False)
+    git_dir = (w.work / w.sh("git", "rev-parse", "--git-common-dir")).resolve()
+    path = Path(out[-1].removeprefix("Read ").removesuffix(" whole, first."))
+    text = path.read_text(encoding="utf-8") if path.is_file() else ""
+    check(
+        f"`brief cr-driver {cr}` prints the four short-prompt lines and writes the brief in the "
+        "git folder, with the card, the floor, the facts and the host rows",
+        len(out) == 4
+        and out[0].startswith(f"chantier cr-driver for {cr} ")
+        and out[1].startswith("writes: ")
+        and out[2].startswith("worktree: ")
+        and out[3].startswith("Read ")
+        and git_dir in path.parents
+        and "=== floor" in text and "=== facts" in text and "=== host rows: " in text
+        and chr(13) not in text,
+        str(out),
+    )
+
+
 def check_driver_skeleton(w, target: str, out: list[str]) -> None:
     """After a `take`, the skeleton of the CR's Driver: no `writes:` line for a release or stack
     driver and the stack rows in the stack driver's; for any other CR one `writes:` line naming
@@ -1268,6 +1292,7 @@ def scenario(w: World) -> None:
           and "references/verifier.md;" in fm.facts[vi + 2]
           and fm.facts[vi + 2].startswith("  Read "), str(fm.facts))
     check_worker_writes_line(w, fm.started[-1], fm.facts, "take " + fm.started[-1])
+    check_brief_driver(w, fm.started[0])
     code, _ = w.chantier("take", "CR-103", "--epoch", 1, expect=2)
     check("a third Driver is refused: no free slot", code == 2 and "no free slot" in w.last_stderr)
     check("a taken CR is working", w.cr("CR-101")["status"] == "working")

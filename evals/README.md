@@ -390,8 +390,8 @@ by hand, never in CI or in `just check`, and each model call is spend on your ma
   temporary folder. Their limits are unproved until the first real run, as the Griller's.
 - **Boot text.** `--cards` names a git ref (the tree is read with `git archive`) or a folder; with none,
   the working tree. While the startup manifest exists, a tree or a ref is read as the manifest says
-  (what `tests/test_start_reading.py` counts); a folder needs `chantier brief`, which the CLI does not
-  have yet, and is refused.
+  (what `tests/test_start_reading.py` counts); a folder is read by `chantier brief <role> --cards <folder>`:
+  the boot is its short prompt, then the brief file it names.
 - **Spend.** The plan and its estimate print first, one line per role (`--plan` stops there); above
   `--max-usd` (default 10) nothing runs (exit 2), and while running no call starts once the measured
   cost reaches the cap (`incomplete`). The spend printed is the host's own `total_cost_usd`; a call

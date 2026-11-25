@@ -14,6 +14,7 @@ from chantier.core.ids import normalize_cr
 from chantier.declare import (
     access,
     batch_status,
+    brief,
     closing,
     cost,
     delivery,
@@ -105,6 +106,7 @@ _MODULES = (
     webui,
     live,
     batch_status,
+    brief,
     driver,
     access,
     host,

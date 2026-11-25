@@ -122,6 +122,19 @@ def _qa_folder(repo: Repo, b: Batch, note: str) -> str:
     )
 
 
+def qa_default_branch(repo: Repo) -> str:
+    """The project's default branch for a QA driver: the configured one, else the remote's;
+    never a guess."""
+    branch = repo.config["default_branch"] or git.default_branch(repo.root, repo.config["remote"])
+    if not branch:
+        raise ChantierError(
+            "order qa: the project's default branch is unknown (set `default_branch` in the "
+            "project's configuration, or give the remote a HEAD)",
+            EXIT_PRECONDITION,
+        )
+    return str(branch)
+
+
 def _qa_row(repo: Repo, b: Batch) -> tuple[DriverRow, str]:
     """The QA driver's table row and the project's default branch, both checked before any state
     changes: the configured one, else the remote's; never a guess."""
@@ -132,32 +145,32 @@ def _qa_row(repo: Repo, b: Batch) -> tuple[DriverRow, str]:
             EXIT_PRECONDITION,
         )
     row = driver_row(b.record.host, "order qa")
-    branch = repo.config["default_branch"] or git.default_branch(repo.root, repo.config["remote"])
-    if not branch:
-        raise ChantierError(
-            "order qa: the project's default branch is unknown (set `default_branch` in the "
-            "project's configuration, or give the remote a HEAD)",
-            EXIT_PRECONDITION,
-        )
+    branch = qa_default_branch(repo)
     return row, branch
+
+
+def qa_block(  # noqa: PLR0913, PLR0917 - the order, its branch, lease and note
+    repo: Repo, batch: str, order: tuple[str, str], branch: str, n: int, note: str
+) -> DriverBlock:
+    """The QA driver's block: `order` is the order's id and its QA folder, `n` its lease."""
+    oid, folder = order
+    return DriverBlock(
+        {"<folder>": folder, "<batch>": batch, "<root>": repo.root.as_posix()},
+        f"{cli_command(repo)} <command> --batch {batch}",
+        [f"QA folder: {folder}; order {oid}", f"default branch: {branch}"],
+        note=note,
+        lease=(
+            f"lease: {n} of {oid} (renew at each wake: lease {oid} renew --lease {n}; "
+            f"before a long test: lease {oid} hold --lease {n} [--minutes N])"
+        ),
+    )
 
 
 def _qa_skeleton(repo: Repo, b: Batch, qa_row: tuple[DriverRow, str], req: _Req) -> list[str]:
     """The QA driver's prompt block, after the order's `QA folder:` line."""
     row, branch = qa_row
     held = leases.lease_of(b.record, req.oid)
-    n = held.n if held else 1
-    fill = {"<folder>": req.cr, "<batch>": b.id, "<root>": repo.root.as_posix()}
-    block = DriverBlock(
-        fill,
-        f"{cli_command(repo)} <command> --batch {b.id}",
-        [f"QA folder: {req.cr}; order {req.oid}", f"default branch: {branch}"],
-        note=req.note,
-        lease=(
-            f"lease: {n} of {req.oid} (renew at each wake: lease {req.oid} renew --lease {n}; "
-            f"before a long test: lease {req.oid} hold --lease {n} [--minutes N])"
-        ),
-    )
+    block = qa_block(repo, b.id, (req.oid, req.cr), branch, held.n if held else 1, req.note)
     return driver_prompt_lines(row, b.record, block)
 
 

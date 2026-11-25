@@ -129,6 +129,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
 - `verdict VERIFIED` refused without `work/verify.md` naming the head (no file, a stale `Head:`),
   `NOT VERIFIED` accepted without it (unit: gates)
   (test: test_verdict_note.py::test_verified_needs_a_verify_note_naming_the_head);
+- `brief` writes a Driver's brief in the git folder and its short prompt starts the Driver (unit: parallel)
 - leases (unit: parallel): a stale `--lease` exits 3 `claim lost` and a missing one
   exits 2, nothing recorded; a `lease <cr> hold` keeps the lease live through its minutes (`CHANTIER_LEASE_TEST_MINUTE`), with no process running, and one given a `--` command is refused;
 - the step a working CR is at: `round` recording `coder r1`, `phase` recording the inspector, a

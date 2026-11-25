@@ -28,7 +28,9 @@
   session files, as for any session of the user, and while it serves its PID, address
   and version, and the forge hub's PID, version and last reads, in the repository's git folder
   (`chantier/server.json`, with its write lock `chantier/server.json.lock`; the hub's lock is
-  `chantier/hub.lock`), and the surface server's writer commits, rebases and pushes the planning
+  `chantier/hub.lock`), and the role briefs `brief` writes
+  (`chantier/briefs/<project>/<batch>/<unit>-<role>.md`), overwritten at each run, never
+  published, and the surface server's writer commits, rebases and pushes the planning
   surface's published paths (`projects/` and the root `chantier.yaml`, never the surface's other
   files), rebases and pushes with them the local commits of the surface's branch made by hand, and
   keeps `chantier/writer.lock` and `chantier/writer.wake` in the git folder,
@@ -41,9 +43,14 @@
 - `agents/` (Claude Code) and `com.github.copilot/agents/` (Copilot) are hand-written, one file
   per role and host: change a role on both hosts together; their bodies must stay identical.
 - A role's contract lives in `skills/chantier/references/` (the cards), never in an agent file
-  or in the CLI: the parent that starts an agent names the card in its prompt. A card says what
-  the role judges; the CLI (`rails.py`) says what it refuses; a user's project rules rank above
-  both. The CLI knows no role; two named exceptions: the cost code knows the two specification
+  or in the CLI. The CLI reads the roles as data (each role's card, wrapper, first line and kind)
+  and prints a role's brief whole: the parent starts an agent with the short prompt `brief`
+  prints, which names the brief file holding the card. A card says what the role judges; the CLI
+  refuses with its rails (`rails.py`), advises with `next` and its `next:` lines, and never
+  decides a merge or a take-back: `judge` only words the ask to the user, the steering session
+  decides, and the user's yes merges. A user's project rules rank above both. The CLI knows roles
+  only as data (`skills/chantier/roles.yaml`, read by `brief`, `help --for` and `msg steering`);
+  two named exceptions: the cost code knows the two specification
   agents by their agent type (`spec-writer`, `spec-critic`), to put them on the grill line, and the surface
   server knows the board's Griller (`board-griller`), to start it with its brief and read its
   `[griller→board]` line (below).
@@ -219,6 +226,10 @@
   `access`: read-only, it explains why a session may or may not write the planning folder, claim
   a CR or push its branch, and changes nothing; built on the user's answer of 2026-11-20 ("tout":
   all five of Vercel Board's ideas, planning-server-Q9), with no measured cost.
+  `brief`: writes one role's start brief (its card, the floor, its unit's facts, its host rows) in
+  the git folder and prints the short prompt that points at it; it reads the record and the
+  planning folder only and records nothing; built on the user's answer simplify-cards-Q22 (F1,
+  F10, F19) and the measured start readings (a Driver 44 KB, the Foreman 144 KB).
   `host`: read-only, it prints how the host does a capability: the row of the plugin's
   `references/hosts/<host>.json` (the batch's recorded host, else the session's), whose means end,
   on a row not marked proved, with one sentence saying the path was never tried for real here; it

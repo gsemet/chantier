@@ -127,6 +127,31 @@ def cr_facts(
     """Everything an agent needs to work on a CR, on one screen: the parent writes its prompt
     from these lines and the role's card. `landed`: the CRs the forge hub saw merged, from the
     journal (read here when the caller passes none)."""
+    title = shown_title(repo.store, c.title, cr_directory(repo, c))
+    return (
+        cr_facts_head(repo, batch, d, c, landed)
+        + team_lines(d.playbook)
+        + ci_lines(d.playbook)
+        + timing_lines(recorded_timing(d), d.host)
+        + worker_prompt_lines(repo.root.as_posix(), (c.id, title), batch, d)
+        + [
+            "worker writes line (copy it unchanged, without the two leading spaces, into each "
+            "worker's prompt):",
+            f"  {worker_writes(c, cr_directory(repo, c))}",
+        ]
+    )
+
+
+def worker_writes(c: CrEntry, folder: Path) -> str:
+    """A worker's `writes:` line: the CR's worktree, then its folder, both absolute."""
+    return f"writes: {Path(c.worktree).as_posix()}; {folder.as_posix()}"
+
+
+def cr_facts_head(
+    repo: Repo, batch: str, d: BatchRecord, c: CrEntry, landed: frozenset[str] | None = None
+) -> list[str]:
+    """The facts of a CR before the team, CI and timing lines and the worker blocks: its title
+    line to its gate lines (the worker's brief)."""
     if landed is None:
         landed = journal.seen_merged(journal.read(repo.store, repo.changes)[0], d)
     folder = cr_directory(repo, c)
@@ -156,18 +181,7 @@ def cr_facts(
     if c.kind not in {"release"}:
         lines += _gate_lines(repo, batch, d, c)
     lines += _gate_log(folder)
-    return (
-        lines
-        + team_lines(d.playbook)
-        + ci_lines(d.playbook)
-        + timing_lines(recorded_timing(d), d.host)
-        + worker_prompt_lines(repo.root.as_posix(), (c.id, title), batch, d)
-        + [
-            "worker writes line (copy it unchanged, without the two leading spaces, into each "
-            "worker's prompt):",
-            f"  writes: {Path(c.worktree).as_posix()}; {folder.as_posix()}",
-        ]
-    )
+    return lines
 
 
 def _external_lines(repo: Repo, c: CrEntry) -> list[str]:
