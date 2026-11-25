@@ -1730,6 +1730,43 @@ def scenario(w: World) -> None:
     check("events.jsonl holds the whole story",
           {"open", "take", "round", "gate", "ship", "note", "handback",
            "order", "order-done", "cancel", "pause"} <= kinds, str(sorted(kinds)))
+    retro = w.folder() / "retro.md"
+    retro_before = retro.read_bytes() if retro.is_file() else None
+    code, out = w.chantier("retro", "draft", "--epoch", fm.epoch, "--batch", w.name, expect=None)
+    first = re.match(rf"retro draft: {re.escape(w.name)}, events (\d+)\.\.", out[0] if out else "")
+    fails = [e for n, e in enumerate(map(json.loads, events), start=1)
+             if first and n >= int(first.group(1)) and e["kind"] == "gate" and e.get("result") == "fail"]
+    tagged = [i for i, ln in enumerate(out) if ln.startswith("- [<tag>] ")]
+    check("`retro draft` drafts the paused batch's points, each with home:, count: and why not code:",
+          code == 0 and first is not None
+          and any(ln.startswith("<!-- chantier retro draft:") for ln in out)
+          and "<!-- end of chantier retro draft -->" in out
+          and all(out[i + 1].startswith("  - home: ") and out[i + 2] == "  - count:"
+                  and out[i + 3] == "  - why not code:" for i in tagged), "\n".join(out))
+    check("`retro draft` names each red gate of its window",
+          all(any(e["cr"] in out[i] and "failed" in out[i] for i in tagged) for e in fails),
+          f"{fails} {out}")
+    check("`retro draft` without `--write` writes nothing",
+          (retro.read_bytes() if retro.is_file() else None) == retro_before)
+    retro.write_bytes(b"## Author\n\n- my own line\n")
+    code, out = w.chantier("retro", "draft", "--write", "--epoch", fm.epoch, "--batch", w.name,
+                           expect=None)
+    written = retro.read_bytes()
+    check("`retro draft --write` appends the draft block once after the author's text",
+          code == 0 and any(ln.startswith("written: ") for ln in out)
+          and written.startswith(b"## Author\n\n- my own line\n")
+          and written.count(b"<!-- chantier retro draft:") == 1, "\n".join(out))
+    code, _ = w.chantier("retro", "draft", "--write", "--epoch", fm.epoch, "--batch", w.name,
+                         expect=None)
+    check("a second `retro draft --write` is refused and leaves the file as it was",
+          code == 2 and "retro draft --epoch" in w.last_stderr and retro.read_bytes() == written,
+          w.last_stderr)
+    code, _ = w.chantier("retro", "draft", "--batch", w.name, expect=None)
+    check("`retro draft` without `--epoch` is refused", code == 2, w.last_stderr)
+    if retro_before is None:
+        retro.unlink()
+    else:
+        retro.write_bytes(retro_before)
     calls = (w.root / "gh-state.json.calls").read_text()
     created, merged = (("create", '"merge"'), ('"POST"', '/merge"'))[ARGS.forge == "gitlab"]
     check("only the agents called the forge: the Drivers created the PRs, nobody merged",

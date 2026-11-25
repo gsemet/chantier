@@ -279,6 +279,13 @@
   it writes nothing but, with `--record`, the ask that `asks` records, with the steering
   session's one sentence; it decides no merge and no take-back; built on the user's answers
   simplify-cards-Q11 and Q22 (F7), with no measured cost.
+  `retro draft`: it drafts the batch's retro points from the batch's `events.jsonl` (asks,
+  refusals, blocks, Driver restarts, red long gates) and, from the spend `cost` reads, the CRs'
+  cost outliers, each point with the `home:`, `count:` and `why not code:` fields left for its
+  author; it prints the draft, or, with `--write`, appends it to `4-batch/retro.md` only when
+  that file has no draft section, never touching the author's text; it reads no forge, runs no
+  git, logs no event and files no point; built on the user's answers simplify-cards-Q9 (M5) and
+  Q22 (F14), with no measured cost.
   `live`: a read-only terminal client of the surface server's published API, shipped in
   `clients/tui/`; it reads the server only (the recorded one, or the active profile's) (never the planning folder, the forge or git), writes
   nothing and messages no agent; built on the user's request of 2026-11-20, with no measured

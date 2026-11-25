@@ -38,6 +38,7 @@ from chantier.declare import (
     preflight,
     release,
     remote,
+    retro,
     rules,
     seat,
     serve,
@@ -70,6 +71,7 @@ FULL_OUTPUT = {
     "inbox",  # the unread messages, one line each
     "judge",  # an ask cut short would drop a gap
     "conflicts",  # one line per pair, then the ask
+    "retro",  # a draft cut short would drop points
     "host",
     "help",
     "log",
@@ -131,6 +133,7 @@ _MODULES = (
     release,
     remote,
     closing,
+    retro,
     cost,
     summary,
     interests,
