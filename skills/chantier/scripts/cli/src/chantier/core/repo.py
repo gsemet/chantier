@@ -13,6 +13,7 @@ from chantier.core.errors import EXIT_USAGE, ChantierError
 from chantier.core.files import read_text, rel_in
 from chantier.core.git import git
 from chantier.core.ids import normalize_batch
+from chantier.core.planning_readings import other_readings
 from chantier.store import FolderStore, PlanStore, SurfaceStore
 from chantier.store.base import inside_path
 
@@ -305,9 +306,27 @@ class Repo:
 
     def planning_path(self, value: str | Path, label: str = "path") -> Path:
         """A CR folder or file inside the planning folder. A relative value is read from that
-        folder."""
+        folder; when that path does not exist, two more readings are tried (`_other_readings`)."""
         text = str(value).replace("\\", "/")
-        return project_path(self.changes, text, label, "the planning folder")
+        try:
+            path: Path | None = project_path(self.changes, text, label, "the planning folder")
+        except ChantierError:
+            if not self._other_readings(text):
+                raise
+            path = None
+        if path is not None and self._exists(path):
+            return path
+        found = self._other_readings(text)
+        if len(found) > 1:
+            a, b = (self.rel(x) for x in found[:2])
+            raise ChantierError(f"{value} is ambiguous: name it as `{a}` or `{b}`", EXIT_USAGE)
+        return found[0] if found else project_path(self.changes, text, label, "the planning folder")
+
+    def _exists(self, path: Path) -> bool:
+        return self.store.exists(rel_in(self.store.root, path))
+
+    def _other_readings(self, text: str) -> list[Path]:
+        return other_readings(self.changes, self.surface or self.root, self._exists, text)
 
     @property
     def batches(self) -> Path:

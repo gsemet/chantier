@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from chantier.commands.registry import BATCH, Subparsers, add_command
+from chantier.commands.registry import (
+    ALSO_LEASE,
+    BATCH,
+    LEASE_ALSO,
+    Subparsers,
+    add_command,
+    add_lease,
+)
 
 
 def register(sub: Subparsers) -> None:
@@ -11,7 +18,9 @@ def register(sub: Subparsers) -> None:
         sub,
         "handoff",
         "chantier.commands.facts:handoff",
-        "the CR's facts, for any agent; changes nothing",
+        "the CR's facts, for any agent; changes nothing (with --lease: renews it)",
         BATCH,
+        LEASE_ALSO,
     )
     s.add_argument("cr")
+    add_lease(s, how=ALSO_LEASE)

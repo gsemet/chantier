@@ -4,7 +4,14 @@ from __future__ import annotations
 
 import argparse
 
-from chantier.commands.registry import NO_BATCH, Subparsers, add_command, lazy
+from chantier.commands.registry import (
+    NO_BATCH,
+    PATH_FORMS,
+    Subparsers,
+    add_command,
+    also_text,
+    lazy,
+)
 
 # The limits of `core.records` (TITLE_MAX, SUMMARY_MAX, GROUP_MAX, TRACKERS), repeated here so
 # the start-up imports no pydantic.
@@ -22,7 +29,12 @@ PATH = "chantier.commands.summary"
 
 def _action(actions: Subparsers, name: str, fn: str, help_: str) -> argparse.ArgumentParser:
     """One action of `summary`; `--project` is accepted after it too."""
-    p: argparse.ArgumentParser = actions.add_parser(name, help=help_)
+    p: argparse.ArgumentParser = actions.add_parser(
+        name,
+        help=help_,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=also_text(list(PATH_FORMS)),
+    )
     p.set_defaults(fn=lazy(f"{PATH}:{fn}"))
     p.add_argument("--project", default=argparse.SUPPRESS, help=argparse.SUPPRESS)
     p.add_argument("--skill", default=argparse.SUPPRESS, help=argparse.SUPPRESS)
@@ -39,7 +51,7 @@ def register(sub: Subparsers) -> None:
     p.add_argument("folders", nargs="*", help="CR folders; none: every CR but the archives")
 
     p = _action(actions, "set", "set_summary", "store a CR's title and summary, and its checksums")
-    p.add_argument("folder", help="the CR's folder")
+    p.add_argument("folder", help="the CR's folder, or its short name")
     p.add_argument("--title", help=f"one line, {TITLE_MAX} characters at most")
     g = p.add_mutually_exclusive_group()
     g.add_argument("--summary", help=f"one line of plain text, {SUMMARY_MAX} characters at most")

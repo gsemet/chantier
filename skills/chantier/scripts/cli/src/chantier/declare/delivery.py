@@ -4,7 +4,14 @@ from __future__ import annotations
 
 import argparse
 
-from chantier.commands.registry import BATCH, Subparsers, add_command, add_lease
+from chantier.commands.registry import (
+    ALSO_LEASE,
+    BATCH,
+    LEASE_ALSO,
+    Subparsers,
+    add_command,
+    add_lease,
+)
 
 
 def register(sub: Subparsers) -> None:
@@ -15,9 +22,11 @@ def register(sub: Subparsers) -> None:
         "chantier.commands.delivery:verdict",
         "the Verifier's verdict on the CR's worktree head: VERIFIED or \"NOT VERIFIED\"",
         BATCH,
+        LEASE_ALSO,
     )
     s.add_argument("cr")
     s.add_argument("result", nargs="+", help="VERIFIED, or NOT VERIFIED (one argument or two)")
+    add_lease(s, how=ALSO_LEASE)
 
     s = add_command(
         sub,

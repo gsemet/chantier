@@ -24,6 +24,7 @@ from chantier.lifecycle.stages import (
     PRIORITIES,
     TRIAGE_USAGE,
     changes_lock,
+    cr_folder_arg,
     cr_slug,
     ensure_unclaimed,
     stage_layout,
@@ -101,7 +102,7 @@ def triage(args: argparse.Namespace) -> list[str]:
     if marked:
         return mark_running_batch(repo, args.item)
     to = next(c for c in chosen if c)
-    source = repo.planning_path(args.item, "CR folder")
+    source = cr_folder_arg(repo, args.item)
     was = arrivals.stage_of(repo, source)
     lines = move_item(repo, args.item, to)
     after = "3-ready" if to == "3-ready" else "1-inbox" if to == "inbox" else f"2-backlog/{to}"
@@ -113,7 +114,7 @@ def triage(args: argparse.Namespace) -> list[str]:
 def abandon(args: argparse.Namespace) -> list[str]:
     repo = Repo.find()
     paths = stage_layout(repo)
-    source = repo.planning_path(args.item, "CR folder")
+    source = cr_folder_arg(repo, args.item)
     in_backlog = source.parent.parent == paths["backlog"] and source.parent.name in PRIORITIES
     in_batch = source.parent in (paths["pending"], paths["actives"])
     if source.parent not in (paths["inbox"], paths["ready"]) and not in_batch and not in_backlog:

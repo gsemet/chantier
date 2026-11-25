@@ -40,6 +40,7 @@ from chantier.declare import (
     watch,
     webui,
 )
+from chantier.near_misses import normalize
 from chantier.writer import lines as writer_lines
 
 MAX_LINES = 10
@@ -186,6 +187,7 @@ def main(argv: list[str] | None = None) -> int:
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
     parser = _parser()
+    argv = normalize(sys.argv[1:] if argv is None else argv)
     args = parser.parse_args(argv)
     _one_spelling_of_a_cr(args)
     repo.PROJECT = args.project
@@ -202,7 +204,7 @@ def main(argv: list[str] | None = None) -> int:
     plugin_files.SKILL = args.skill
     writer_lines.forget()
     try:
-        sent = client.forward(args, sys.argv[1:] if argv is None else argv, parser)
+        sent = client.forward(args, argv, parser)
         if sent is not None:  # a profile's server ran it
             return sent
         result: Any = args.fn(args)

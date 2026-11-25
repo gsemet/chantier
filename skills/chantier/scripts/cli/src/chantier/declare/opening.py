@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 
-from chantier.commands.registry import NO_BATCH, Subparsers, add_command
+from chantier.commands.registry import NO_BATCH, PATH_FORMS, Subparsers, add_command
 
 
 def _release_options(s: argparse.ArgumentParser) -> None:
@@ -41,6 +41,7 @@ def register(sub: Subparsers) -> None:
         "open a batch: each prepared CR gets its folder, and a branch and worktree name; "
         "with no CR the batch is born paused",
         NO_BATCH,
+        PATH_FORMS,
     )
     s.add_argument(
         "items",

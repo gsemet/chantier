@@ -74,6 +74,22 @@ def cr_folders(
     return found
 
 
+def cr_folder_arg(repo: Repo, item: str, label: str = "CR folder") -> Path:
+    """The CR folder a command was given: `repo.planning_path(item)` when that exists, else, for a
+    bare name (no slash, no backslash), the one CR folder of that name in any stage but
+    `6-trash`. Several of that name: exit 1, naming them. None: the path, as `planning_path` read
+    it, so each caller keeps its own refusal."""
+    path = repo.planning_path(item, label)
+    if repo.store.exists(rel_in(repo.store.root, path)) or "/" in item or "\\" in item:
+        return path
+    every = cr_folders(repo.store, stage_layout(repo), include_archives=True)
+    found = [f for f in every if f.name == item]
+    if len(found) > 1:
+        names = ", ".join(f"`{repo.rel(f)}`" for f in found)
+        raise ChantierError(f"{item} names several CR folders: name one: {names}", EXIT_USAGE)
+    return found[0] if found else path
+
+
 def cr_stage(paths: dict[str, Path], folder: Path) -> str | None:
     """The stage key (`inbox`, `backlog`, `ready`, `pending`, `actives`, `done`, `archives`,
     `trash`) of a folder that is directly one stage's CR folder, else None."""
@@ -105,7 +121,7 @@ def prepared_cr(repo: Repo, item: str, paths: dict[str, Path]) -> PreparedCR:
             "file and grill the CR first",
             EXIT_USAGE,
         )
-    supplied = repo.planning_path(item, "CR item")
+    supplied = cr_folder_arg(repo, item, "CR item")
     store = repo.store
     if store.is_file(rel_in(store.root, supplied)):
         directory, specification = supplied.parent, supplied
@@ -287,7 +303,7 @@ def move_backlog_item(repo: Repo, item: str, to: str, paths: dict[str, Path]) ->
     or `3-ready`. `3-ready` keeps no priority."""
     if to not in ("inbox", "3-ready", *PRIORITIES):
         raise ChantierError(TRIAGE_USAGE, EXIT_USAGE)
-    source = repo.planning_path(item, "CR folder")
+    source = cr_folder_arg(repo, item)
     held = source.parent.parent == paths["backlog"] and source.parent.name in PRIORITIES
     if source.parent not in (paths["inbox"], paths["ready"]) and not held:
         raise ChantierError(

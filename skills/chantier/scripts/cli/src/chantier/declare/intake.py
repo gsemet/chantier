@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 
-from chantier.commands.registry import NO_BATCH, Subparsers, add_command
+from chantier.commands.registry import NO_BATCH, PATH_FORMS, Subparsers, add_command
 
 
 def register(sub: Subparsers) -> None:
@@ -35,6 +35,7 @@ def register(sub: Subparsers) -> None:
         "move an inbox, backlog or 3-ready CR to a priority of the backlog, to 3-ready, or back "
         "to the inbox; or mark a grilled CR for the running batch",
         NO_BATCH,
+        PATH_FORMS,
     )
     _register_triage_choices(s)
     _register_trash(sub)
@@ -72,8 +73,9 @@ def _register_trash(sub: Subparsers) -> None:
         "chantier.commands.intake:abandon",
         "move an explicitly abandoned CR to trash",
         NO_BATCH,
+        PATH_FORMS,
     )
-    s.add_argument("item", help="path to the unclaimed CR folder")
+    s.add_argument("item", help="path to the unclaimed CR folder, or its short name")
 
     s = add_command(
         sub,

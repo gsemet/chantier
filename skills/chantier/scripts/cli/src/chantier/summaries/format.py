@@ -18,6 +18,7 @@ from chantier.core.records import (
 from chantier.lifecycle.layout_check import Finding
 from chantier.summaries import store as summaries_store
 from chantier.summaries.edit import LABEL_RULE, one_line
+from chantier.summaries.title import set_form
 
 if TYPE_CHECKING:
     from chantier.store import PlanStore
@@ -60,7 +61,7 @@ def summary_findings(store: PlanStore, cr: str, folder: Path, in_trash: bool) ->
     try:
         summary = summaries_store.read(store, folder)
     except summaries_store.UnreadableSummary as e:
-        hint = "" if in_trash else f", then summary set {cr} …"
+        hint = "" if in_trash else f", then {set_form(cr)}"
         return [Finding("error", path, f"unreadable ({e.why}) → repair or remove it{hint}")]
     if summary is None:
         return []
