@@ -1,0 +1,697 @@
+{
+  "host": "claude",
+  "rows": [
+    {
+      "capability": "start-foreman",
+      "name": "Start the Foreman's session",
+      "roles": [
+        "chief-of-staff"
+      ],
+      "means": [
+        "`mcp__ccd_session__start_session` with `initiation: \"user_asked\"`, `title: \"<title>\"`, `context: \"fresh\"`, no `cwd`, no `preset`, `use_worktree: false`.",
+        "`model: \"claude-sonnet-5-5\"`, `effort: \"medium\"`, the user's permission mode; leave the session linked."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "own-session-id",
+      "name": "Own session id and title",
+      "roles": [
+        "chief-of-staff",
+        "foreman",
+        "griller"
+      ],
+      "means": [
+        "`get_session(\"self\")` gives the session's id and title.",
+        "The transcript's id is `$CLAUDE_CODE_SESSION_ID`."
+      ],
+      "mark": "proved"
+    },
+    {
+      "capability": "set-own-title",
+      "name": "Set a session's own title",
+      "roles": [
+        "chief-of-staff",
+        "foreman",
+        "griller"
+      ],
+      "means": [
+        "`set_session_title` renames the session itself (the Chief of Staff, a Griller, the Foreman).",
+        "`get_session(\"self\")` shows the new title."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "skills",
+      "name": "The skills",
+      "roles": [
+        "chief-of-staff",
+        "foreman",
+        "griller"
+      ],
+      "means": [
+        "`/chantier:chantier` (the router), `/chantier:chief-of-staff [foreman|direct]`, `/chantier:griller`, `/chantier:status`.",
+        "A plugin's `skills/<name>/` is `/<plugin>:<name>`; the argument `reload` of the router and of both role skills reloads the rules."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "load-skill",
+      "name": "Load another skill (the router)",
+      "roles": [
+        "chief-of-staff",
+        "foreman",
+        "griller"
+      ],
+      "means": [
+        "The host's Skill tool loads another skill.",
+        "The router (`/chantier:chantier`) asks which role, then loads that role's skill."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "list-sessions",
+      "name": "List the sessions and their state",
+      "roles": [
+        "chief-of-staff"
+      ],
+      "means": [
+        "The session tools of the `mcp__ccd_session__` set list the sessions and tell whether the seat's session is alive.",
+        "The exact tool and its states are not recorded on this host; the \"looks stopped\" line of `session-start.md` is asked."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "message-session",
+      "name": "Message another session of the user",
+      "roles": [
+        "chief-of-staff",
+        "foreman",
+        "griller"
+      ],
+      "means": [
+        "`SendMessage` to the other session's id (a hand-over, a Griller's line).",
+        "Claude Desktop limits messages between sessions; a refused send is reported, never sent another way."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "session-link",
+      "name": "A session's link (for the seat)",
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "means": [
+        "`get_session` gives the session's link; the seat records it.",
+        "The name of the link field is not recorded on this host."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "start-driver",
+      "name": "Start a Driver or a worker",
+      "roles": [
+        "foreman",
+        "chief-of-staff",
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "means": [
+        "`Agent` with `subagent_type: chantier:<role>`; `run_in_background: true` for a Driver.",
+        "The `model` parameter only when `$CHANTIER` printed a start value (an alias), as printed; no effort."
+      ],
+      "mark": "proved"
+    },
+    {
+      "capability": "model-at-start",
+      "name": "Models at an agent's start",
+      "roles": [
+        "foreman",
+        "chief-of-staff",
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "means": [
+        "A named agent starts with a model through the `model` parameter of `Agent`, set to an alias: `opus`, `sonnet` or `haiku`.",
+        "The CLI maps the identifier to the alias: `claude-opus-5-5` is `opus`, `claude-sonnet-5-5` is `sonnet`, `claude-haiku-5-5` is `haiku`.",
+        "The full identifier is not recorded as accepted; the agent's tools stay unchanged."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "start-generic-agent",
+      "name": "Start a generic agent",
+      "roles": [
+        "foreman",
+        "chief-of-staff",
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "means": [
+        "Not on this host as a separate start: a configured model goes through the `model` parameter of `Agent` (see `model-at-start`).",
+        "The role runs as its named agent `chantier:<role>` with that model, its tools unchanged."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "model-ran-on",
+      "name": "The model a role ran on",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "Not recorded on this host: no step reads the model back after a start.",
+        "The model a role ran on is the one its transcript shows."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "start-spec-writer",
+      "name": "Start the Spec-writer",
+      "roles": [
+        "chief-of-staff"
+      ],
+      "means": [
+        "`Agent` with `run_in_background: true` and `subagent_type: chantier:spec-writer`; no effort.",
+        "The `model` parameter as in `start-driver`, only when `$CHANTIER playbook` printed one."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "start-spec-critic",
+      "name": "Start the Spec critic",
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "means": [
+        "`Agent` with `run_in_background: true` and `subagent_type: chantier:spec-critic`; no effort.",
+        "The `model` parameter only when `$CHANTIER playbook` printed one or the user asked for Fable."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "start-retro-critic",
+      "name": "Start the Retro critic",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "`Agent` with `subagent_type: chantier:retro-critic`; no effort.",
+        "The `model` parameter only when `$CHANTIER playbook` printed one or the user asked for Fable."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "message-driver",
+      "name": "Message a Driver",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "`SendMessage` to the Driver's agent id.",
+        "A Driver that stopped resumes, with its context, when it gets the message (see `resume-subagent`)."
+      ],
+      "mark": "proved"
+    },
+    {
+      "capability": "message-chief",
+      "name": "Message the Chief of Staff",
+      "roles": [
+        "foreman",
+        "griller"
+      ],
+      "means": [
+        "`SendMessage` to the Chief of Staff's session id.",
+        "The Foreman's lines and a Griller's `ready` line travel the same way."
+      ],
+      "mark": "proved"
+    },
+    {
+      "capability": "driver-hand-back",
+      "name": "A Driver's final report to a Foreman's Desktop session",
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "means": [
+        "For a steering session of Claude Desktop (id `local_…`), a Driver sends one message: its final report, by `SubagentHandback`, at its end.",
+        "Before its end a background subagent has no means to reach that session, and `SendMessage` to `main` does not reach it.",
+        "The report's first line is the hand-back line, then every other line due (`anomaly`, `push`), one per line, as the cards word them.",
+        "An `anomaly` is recorded when it happens: `$CHANTIER note <cr> \"anomaly: <text>\"`."
+      ],
+      "mark": "proved"
+    },
+    {
+      "capability": "driver-messages-steering-direct",
+      "name": "A Driver messages its steering session in direct mode",
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "means": [
+        "Direct mode run from Claude Desktop: the final report only, as `driver-hand-back` says, once, at the Driver's end.",
+        "Direct mode run from a terminal or VS Code: `SendMessage` to `main`, and the `Steering:` line names it."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "stop-driver",
+      "name": "Stop a Driver",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "`TaskStop` with the Driver's agent id.",
+        "After a Driver's own `TaskStop` with no restart at once, the steering session clears the recorded id."
+      ],
+      "mark": "proved"
+    },
+    {
+      "capability": "stop-woken-driver",
+      "name": "Stop an ended Driver that wakes again",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "`TaskStop` with the Driver's agent id, as in `stop-driver`.",
+        "Whether it also ends the background tasks that Driver left running is not known: say so, never tell it as a fact."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "driver-start-folder",
+      "name": "A CR Driver's start folder",
+      "roles": [
+        "cr-driver"
+      ],
+      "means": [
+        "A CR Driver starts in the folder the plugin's mod gives it, as `write-guard` says.",
+        "That is its worktree, or the project's root while the worktree does not exist yet."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "stop-own-background-task",
+      "name": "Stop a background task of one's own",
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "means": [
+        "`TaskStop` with the id the start returned (`Bash` or `PowerShell` with `run_in_background: true`, or `Monitor`).",
+        "The Driver agents list `TaskStop` in their tools for it."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "name-env-holders",
+      "name": "Name the holders of the checkout's environment",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "Windows, the `PowerShell` tool: `Get-CimInstance Win32_Process` filtered on an `ExecutablePath` under `<plugin root>\\.venv\\`, showing PIDs and `CommandLine`.",
+        "macOS and Linux, the `Bash` tool: `ps -eo pid,ppid,args | grep -F \"<plugin root>/.venv/\"`, the grep line itself excluded.",
+        "A `chantier.exe` and its child `python.exe` are one holder, named by the top process's PID, subcommand and `--project` value.",
+        "Read-only: never `Stop-Process`, `taskkill` or `kill` on a holder."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "stop-session",
+      "name": "Stop another session",
+      "roles": [
+        "chief-of-staff"
+      ],
+      "means": [
+        "`mcp__ccd_session_mgmt__stop_session` with the session's id (a Foreman not answering, on the user's yes).",
+        "Whether it works from Remote Control is not recorded on this host."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "agent-ids",
+      "name": "Agent ids of the project",
+      "roles": [
+        "chief-of-staff"
+      ],
+      "means": [
+        "The `name:` of a file in `.claude/agents/` or `~/.claude/agents/`.",
+        "The plugin's own agents are `chantier:<role>`."
+      ],
+      "mark": "proved"
+    },
+    {
+      "capability": "models",
+      "name": "Models",
+      "roles": [
+        "chief-of-staff",
+        "foreman"
+      ],
+      "means": [
+        "The Spec-writer, the Spec critic and the Retro critic run Opus 5.5; the Foreman, every Driver and the workers run Sonnet 5.5.",
+        "Unless the configuration (`hosts.<host>.roles`) sets one; the defaults are `config/chantier.defaults.yml`'s.",
+        "A task under escalation runs the role's `escalation` model, printed by `$CHANTIER playbook` (`coder`, `debugger`, `conflict-resolver`)."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "session-skills-tools",
+      "name": "Skills and tools of a session",
+      "roles": [
+        "chief-of-staff"
+      ],
+      "means": [
+        "Not recorded on this host: how a session lists its skills and tools, and whether a subagent sees what the session sees.",
+        "The Chief of Staff compares a role's needs with what it can tell."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "preflight-p2",
+      "name": "Preflight P2",
+      "roles": [
+        "chief-of-staff",
+        "foreman"
+      ],
+      "means": [
+        "`mcp__ccd_session__start_session` loads.",
+        "Preflight P2 passes when that tool is available to the session."
+      ],
+      "mark": "proved"
+    },
+    {
+      "capability": "ask-questions",
+      "name": "Ask the user a series of questions",
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "means": [
+        "The host's question tool (`AskUserQuestion`): at most 4 questions per call, at most 4 options per question, plus its own free answer (\"Other\").",
+        "The reference opens each question's text; the tool's short header field, if used, need not hold it.",
+        "Remote Control relays the same tool: the same 4-question form shows on the phone, above the conversation.",
+        "The text is written before every call all the same."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "run-board",
+      "name": "Run the board",
+      "roles": [
+        "chief-of-staff"
+      ],
+      "means": [
+        "`Bash` with `run_in_background: true` and the command `$CHANTIER serve --seat <id>`; `$CHANTIER serve --restart --seat <id>` runs the same way.",
+        "Add `--forge-always` on a host that cannot run the watcher.",
+        "Read its first lines from the background task's output; stop it with the host's stop of a background shell."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "board-griller",
+      "name": "The board's Griller",
+      "roles": [
+        "board-griller",
+        "griller"
+      ],
+      "means": [
+        "The surface server starts `claude -p` with the JSON output, as the agent `chantier:board-griller` with `--model <effective model>`.",
+        "The conversation is fixed by an id and resumed by it; the prompt goes on standard input; no user, project or local settings load; the plugin loads explicitly.",
+        "The run works from an allow list alone (the Griller card's \"Started from the board\"); the exact flags are not recorded on this host."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "workspace-trust",
+      "name": "Trust of a workspace inside a trusted folder",
+      "roles": [
+        "chief-of-staff"
+      ],
+      "means": [
+        "A folder the user trusted once in Claude Desktop at the desk covers every new folder created inside it later.",
+        "A session started on such a folder from Remote Control does not ask for trust."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "move-session",
+      "name": "Move a started session to another folder",
+      "roles": [
+        "chief-of-staff"
+      ],
+      "means": [
+        "A session started with no `cwd` may move with `mcp__ccd_directory__change_directory` into a folder inside a trusted folder.",
+        "No question is asked in auto mode and the next turn runs there; project instructions do not reload (the session keeps its own `AGENTS.md`).",
+        "`clear_session` on another id is denied by the auto mode classifier; no chantier route uses it."
+      ],
+      "mark": "proved"
+    },
+    {
+      "capability": "prompt-cache-ttl",
+      "name": "Prompt cache TTL",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "A session's cache writes are 1-hour (`cache_creation.ephemeral_1h_input_tokens` in its transcript's usage).",
+        "A subagent's cache writes are 5-minute (`ephemeral_5m_input_tokens`)."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "steering-wake-bound",
+      "name": "Steering wake bound (60 minutes)",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "The CLI refuses a `steering_wake` over 60 minutes.",
+        "The shipped default is 55 minutes (3300 seconds), scheduled with `ScheduleWakeup`."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "heartbeat",
+      "name": "Heartbeat",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "The steering session runs the `/loop` skill in dynamic mode; its prompt is `chantier status --refresh --batch <batch> --epoch <n>` alone, with no interval.",
+        "Each wake is scheduled with `ScheduleWakeup`, the steering wake of the `timing: Claude Code session:` line `chantier playbook` prints, in seconds.",
+        "It ends with `ScheduleWakeup` `stop: true`, after `chantier status --stop-heartbeat --batch <batch> --epoch <n>`; it never ends the session.",
+        "An order's line or a `ping` starts a turn; if a Driver is left running, the heartbeat is armed again."
+      ],
+      "mark": "proved"
+    },
+    {
+      "capability": "run-watcher",
+      "name": "Run the watcher",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "`Monitor`, with no timeout, running the command the `watch: not running` or `still running` line prints, as is (it ends with `--stream`).",
+        "Each notification (event lines closed by `... still watching`) and the monitor's end start a turn of the idle session.",
+        "On the `no event for <name> in 2 h` line, start again at once as printed, nothing told.",
+        "Auto mode drops every `Monitor` allow rule, so the start is the classifier's call."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "watcher-session-end",
+      "name": "The watcher when the session ends",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "Not recorded on this host: whether the host ends a background command when the session ends.",
+        "An orphaned watcher ends by the CLI's own rules: when the project's seat is another session's, or after 2 h with no event and no batch in flight."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "board-session-end",
+      "name": "The board when the session ends",
+      "roles": [
+        "chief-of-staff"
+      ],
+      "means": [
+        "Not recorded on this host: whether the host ends a background command when the session ends.",
+        "The board stops when the seat moves (the CLI); a board a watcher started stops 30 minutes after its last client."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "message-limit",
+      "name": "Limit on messages",
+      "roles": [
+        "chief-of-staff",
+        "foreman",
+        "griller"
+      ],
+      "means": [
+        "Claude Desktop limits messages between sessions: 10 since someone last typed.",
+        "A refused send is reported, never sent another way; the limit applies to the lines between a Griller and the Chief of Staff, and to a hand-over's."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "end-turn-background",
+      "name": "End a subagent's turn with nothing running in the background",
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "means": [
+        "The host asks a subagent for its hand-back at once (`[handback-send-enforce] Your report has not been delivered. Call SubagentHandback…`).",
+        "It asks before a resumed worker's reply arrives; a background shell's end wakes the subagent (the CI wait of `driver.md`)."
+      ],
+      "mark": "proved"
+    },
+    {
+      "capability": "subagent-stops",
+      "name": "A background subagent stops",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "`<task-notification>` summary `Agent \"<name>\" is waiting on its own background work`: it stopped with its own work running and resumes when that reports.",
+        "`Agent \"<name>\" finished`: it stopped with no live background child, and its `SubagentHandback` report arrives as a message."
+      ],
+      "mark": "proved"
+    },
+    {
+      "capability": "subagent-stopped-outside",
+      "name": "A background subagent is stopped from outside",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "The steering transcript's `attachment` record `task_status` with `status: \"killed\"` and the agent's id as `taskId`, seen as `Task \"<name>\" (<id>) was stopped.`",
+        "A message to the stopped agent is refused. What a stop by the user in the app leaves in the transcript is not recorded."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "resume-subagent",
+      "name": "Resume a stopped subagent",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "`SendMessage` to a stopped subagent's agent id resumes it with its context.",
+        "Not for a subagent the host stopped (`task_status` `killed`): the message gets `Agent <id> was stopped and won't be resumed. Treat its work as cancelled; ...`.",
+        "A refused agent answers a `taken back:` or `record your hand-back` note with its refusal."
+      ],
+      "mark": "proved"
+    },
+    {
+      "capability": "compact",
+      "name": "Compacting",
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "means": [
+        "`/compact` continues the same conversation; connected devices follow it, `$CHANTIER cost` keeps the transcript, and `/clear` may replace it.",
+        "No role runs it: the person types it. The window is `autoCompactWindow` (100000 to 1000000), capped at the model's context window.",
+        "`idleCompaction` (default true) compacts after about an hour idle; `/autocompact` and the setting set the window."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "reload-after-compact",
+      "name": "Reload after a compaction",
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "means": [
+        "The plugin's mod hooks `session.compact`: after each compaction of a session that loaded a chantier role skill, it adds one reload message.",
+        "The message tells the role to call its chantier skill again with the argument `reload`; the answer opens with one line saying the rules were reloaded.",
+        "It leaves a subagent's own compaction alone and never vetoes one; the manual reload (`/chantier:chantier reload`) works everywhere."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "write-guard",
+      "name": "The write guard",
+      "roles": [
+        "cr-driver",
+        "coder",
+        "conflict-resolver",
+        "debugger",
+        "inspector",
+        "investigator",
+        "verifier"
+      ],
+      "means": [
+        "The plugin's mod reads the `writes: <folder>; <folder>` line of a spawn's prompt and starts the agent in the first folder (a `worktree:` line wins).",
+        "That agent's Write, Edit or NotebookEdit outside every folder is refused: `refused: <path> is outside the folders this agent may write in (...); write there`.",
+        "Its shell writes (`>`, `tee`, `sed -i`, `cp`, `mv`, `rm`, `Set-Content`, `Out-File`) follow the same rule; `git`, `gh`, `glab` and the chantier CLI pass.",
+        "Not guarded: the main session, the Release, stack and QA drivers, the Spec agents, the Griller, the Demo explorer, any agent with no `writes:` line."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "griller-in-worktree",
+      "name": "A Griller in a worktree",
+      "roles": [
+        "griller",
+        "chief-of-staff"
+      ],
+      "means": [
+        "A Griller in a worktree sends its files by `SendMessage` to the seat's session, naming the absolute paths.",
+        "The Chief of Staff on the main checkout reads them under `.claude/worktrees/<name>/`."
+      ],
+      "mark": "untested"
+    },
+    {
+      "capability": "surface-session-writes",
+      "name": "A session in a planning surface writing in the project's clone",
+      "roles": [
+        "chief-of-staff",
+        "foreman",
+        "griller",
+        "cr-driver"
+      ],
+      "means": [
+        "A session in a planning surface writes the planning folder by absolute paths, and the project's clone and worktrees outside its own folder.",
+        "The host must allow those folders: add the clone and its worktrees folder as working directories (`/add-dir <path>`, or `additionalDirectories`)."
+      ],
+      "mark": "untested"
+    }
+  ]
+}

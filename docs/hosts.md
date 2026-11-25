@@ -58,3 +58,6 @@ On Windows, the CLI runs natively (no WSL). `chantier gate` runs the long gate i
 write it for it. `chantier cancel` ends a CR's processes at once, with no grace period, and
 finds stray ones by their command line only, since Windows does not expose another process's
 current directory.
+
+The trials behind each host row's mark are in [Claude Code](proofs/claude-code.md) and
+[Copilot](proofs/copilot.md); `chantier host <capability>` prints a row.
