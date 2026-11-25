@@ -240,6 +240,16 @@
   `access`: read-only, it explains why a session may or may not write the planning folder, claim
   a CR or push its branch, and changes nothing; built on the user's answer of 2026-11-20 ("tout":
   all five of Vercel Board's ideas, planning-server-Q9), with no measured cost.
+  `conflicts`: the Foreman's early conflict check of a parallel batch (the Chief of Staff's in
+  direct mode), `conflicts <cr> --epoch <n>` at a CR's ready hand-back: one `git merge-tree
+  --write-tree` per pair of that CR and another CR ready with a PR on the default branch (a pair
+  chained or already noted is skipped), one note on the CR per conflicting pair, and the ask
+  printed for the steering session to send; it refuses on a git older than 2.38, records no ask,
+  switches no mode, starts no rebase, reads no forge and sends nothing to a Driver; it shares no
+  code with the server's scan of PRs left in conflict after a merge; built on the measure of
+  study-fable and study-fable-v2 (the check's card piece, `foreman-conflict.md`, 3,789 bytes, read
+  at a ready hand-back of a parallel batch) and the user's answers simplify-cards-Q18 and Q22 (the
+  tools first, child 15 of the program).
   `next`: read-only advice: the steering session's due list (`next --epoch`), a CR's next step
   (`next <cr> --lease`) and the Chief of Staff's view (plain `next`), and the one `next:` line
   that `round`, `gate`, `push`, `ship`, `verdict`, `handback`, `order merged` and `order done`
@@ -298,7 +308,10 @@
   server runs, the batch's end cleanup (above), and `push` (below): one
   `git push --force-with-lease=<branch>:<expected>` of a CR's recorded `chantier/*` branch (never
   the default branch), from its worktree, by a caller holding the lease, never forced, never
-  `--no-verify`, nothing retried. The rest of the CLI keeps no git write.
+  `--no-verify`, nothing retried, and `conflicts`'s read, `git merge-tree --write-tree --name-only
+  --no-messages` (after a `git --version`), one per pair, in the main checkout or the project's
+  clone: it writes the merged trees' objects to the object store, and no ref, branch, index or
+  worktree file. The rest of the CLI keeps no git write.
 - Never edit a version by hand: `just version X.Y.Z` or `just bump-version [minor|major]`.
 - The CLI is one Python package declared in the root `pyproject.toml`, its dependencies listed
   there once and locked in `uv.lock`. One method runs it, `uvx --from <source> chantier`: as a

@@ -9407,12 +9407,43 @@ def early_conflict(w: World) -> None:
           code == 0 and code2 == 0 and w.batch()["mode"] == "stack" and order == [first, second]
           and f"order: {first} → {second}" in out[-1], str(out) + str(order))
 
+    fm, first, second = two_ready(("Early cmd first", "Early cmd second"))
+    hand_back(first, 1)
+    hand_back(second, 2)  # no `fm.turn()`: the scripted Foreman's own check does not run
+
+    def refs() -> str:
+        return subprocess.run(["git", "for-each-ref"], cwd=w.work, capture_output=True, text=True,
+                              encoding="utf-8").stdout
+
+    def slug(cr: str) -> str:
+        return Path(w.cr(cr)["path"]).name.split("-", 1)[1]
+
+    before_refs, before_asks = refs(), w.batch()["asks"]
+    code, out = w.chantier("conflicts", second, "--epoch", 1)
+    check("`conflicts`: the note on the CR, the ask printed last and not recorded, the batch "
+          "still parallel with both CRs ready, no ref moved",
+          code == 0 and w.cr(second)["notes"][-1] == f"early conflict: with {first}: shared.py"
+          and out[-1] == f'next: asks "conflict {second} {slug(second)} with {first} '
+                         f'{slug(first)}: shared.py; switch to a stack?"'
+          and w.batch()["asks"] == before_asks and w.batch()["mode"] == "parallel"
+          and all(w.cr(c)["status"] == "ready" for c in (first, second))
+          and refs() == before_refs, str(out))
+    code, out = w.chantier("conflicts", second, "--epoch", 1)
+    check("`conflicts` again: the pair skipped as already noted, no ask line, one note only",
+          code == 0 and any(f"{second} x {first}: skipped: already noted" in ln for ln in out)
+          and not any(ln.startswith("next:") for ln in out)
+          and sum(n.startswith("early conflict:") for n in w.cr(second)["notes"]) == 1, str(out))
+
     fm, first, second = two_ready(("Early stacked first", "Early stacked second"), "--mode", "stack")
     hand_back(first, 1)
     hand_back(second, 2, "shared_second.py", base=w.cr(first)["branch"])  # it starts on the first's branch
     fm.turn()
     check("a stack batch: no merge-tree runs and no `conflict` ask is sent",
           not merge_trees(fm) and not conflict_asks(fm), str(fm.asked))
+    notes = w.cr(second)["notes"]
+    code, out = w.chantier("conflicts", second, "--epoch", 1)
+    check("`conflicts` in a stack batch: not run, no note added",
+          code == 0 and "is a stack batch" in out[-1] and w.cr(second)["notes"] == notes, str(out))
     check("a stack batch: two CRs ready with a PR, the guard refuses each one's per-CR ask "
           "(exit 2), nothing is recorded and the Foreman keeps no ask",
           sorted(r[0] for r in fm.refused_asks) == sorted([first, second])

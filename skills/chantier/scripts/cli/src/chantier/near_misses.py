@@ -14,6 +14,7 @@ EPOCH_COMMANDS = (
     "agents",
     "brief",
     "cancel",
+    "conflicts",
     "foreman",
     "gate",
     "inbox",

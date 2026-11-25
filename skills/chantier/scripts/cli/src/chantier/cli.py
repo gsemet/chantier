@@ -16,6 +16,7 @@ from chantier.declare import (
     batch_status,
     brief,
     closing,
+    conflicts,
     cost,
     delivery,
     driver,
@@ -68,6 +69,7 @@ FULL_OUTPUT = {
     "next",  # the due list, one line each
     "inbox",  # the unread messages, one line each
     "judge",  # an ask cut short would drop a gap
+    "conflicts",  # one line per pair, then the ask
     "host",
     "help",
     "log",
@@ -118,6 +120,7 @@ _MODULES = (
     next,
     msg,
     judge,
+    conflicts,
     host,
     rules,
     help,
