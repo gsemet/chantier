@@ -96,7 +96,7 @@ def _line(
         line += f" | owed before the merge: {'; '.join(owed)}"
     if c.head:
         line += f" | long gate {c.id} at {c.head[:7]}: {_result(gate_view(repo, d, c, events))}"
-    return line
+    return line + " | `help merge`"
 
 
 def ready_lines(

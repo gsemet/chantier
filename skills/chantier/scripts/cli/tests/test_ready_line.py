@@ -88,6 +88,7 @@ def test_the_icon_and_word_are_the_labels_own(
     d = _batch(_cr(**cr))
     line = _one(d, [PASS])
     assert line.startswith(f"handed back: {icon} {word} CR-1 the-slug {tail}")
+    assert line.endswith(" | `help merge`")
     assert state_label(REPO, d, d.crs[0], []).startswith(f"{icon} {word}")
 
 
@@ -119,7 +120,7 @@ def test_the_long_gate_clause_says_what_the_record_holds(
     events: list[EventRecord], text: str
 ) -> None:
     line = _one(_batch(_cr()), events)
-    assert line.endswith(f" | long gate CR-1 at abc1234: {text}")
+    assert line.endswith(f" | long gate CR-1 at abc1234: {text} | `help merge`")
     assert "local gate" not in line
 
 

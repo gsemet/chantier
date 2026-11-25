@@ -79,6 +79,9 @@ Each bullet ends with the unit that runs it, `(unit: <name>)`, and/or the pytest
 checks it, `(test: <file>::<test>)`. A bullet with neither fails `test_scenario_coverage.py`, as
 does a unit that is not in `UNITS` and a test that does not exist.
 
+- help topics: `help lease` prints a topic whole with no batch; every topic resolves on both hosts
+  and every topic a CLI line names exists in pytest (unit: parallel)
+  (test: test_help_topics.py::test_every_topic_resolves_on_both_hosts).
 - `push <cr> --lease <n>` of a CR Driver, after a rebase on its base: the CR's own recorded
   branch reaches the bare remote at the worktree's head with one `push` event and a `new branch`
   line, `ship` then prints no "not pushed" line, and a `push` from a dirty worktree is refused with

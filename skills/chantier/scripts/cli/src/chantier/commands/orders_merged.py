@@ -83,9 +83,9 @@ def restack_line(d: BatchRecord, cr_id: str, above: list[str]) -> list[str]:
     if d.stack_agent:
         return [
             head + f"the stack driver {d.stack_agent} restacks them in one pass: "
-            f"send it the note `merged: {cr_id}`"
+            f"send it the note `merged: {cr_id}` (`help stack-merge`)"
         ]
     return [
         head + "the stack driver restacks them in one pass: one `take stack --epoch <n>` "
-        "once every CR this merge merged is recorded"
+        "once every CR this merge merged is recorded (`help stack-merge`)"
     ]

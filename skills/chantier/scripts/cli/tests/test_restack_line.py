@@ -37,7 +37,8 @@ def test_the_bottom_cr_merged_names_the_two_above_in_order_and_who_restacks(
     (line,) = merged(chantier, a)
     assert line == (
         f"restack owed: {b}, {c} stood on {a}'s branch; the stack driver restacks them in one "
-        "pass: one `take stack --epoch <n>` once every CR this merge merged is recorded"
+        "pass: one `take stack --epoch <n>` once every CR this merge merged is recorded "
+        "(`help stack-merge`)"
     )
 
 
@@ -49,7 +50,7 @@ def test_a_recorded_stack_driver_gets_the_note_form(
     assert out[0] == f"merged {a}: moved to 3-done"  # right after it
     assert out[1] == (
         f"restack owed: {b}, {c} stood on {a}'s branch; the stack driver local_stack_1 restacks "
-        f"them in one pass: send it the note `merged: {a}`"
+        f"them in one pass: send it the note `merged: {a}` (`help stack-merge`)"
     )
 
 

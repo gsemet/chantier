@@ -92,6 +92,7 @@ def test_a_guarded_command_needs_the_lease_and_a_stale_one_is_lost(
     argv = [command, *rest.format(cr=one).split()]
     code, _, err = chantier.bare(*argv)
     assert code == EXIT_PRECONDITION and f"{command} " in err and "needs --lease <n>" in err
+    assert err.strip().endswith("(`help lease`)")
     assert f"`lease {one}` prints it" in err
     if command == "ship":
         return
@@ -100,7 +101,7 @@ def test_a_guarded_command_needs_the_lease_and_a_stale_one_is_lost(
     before = record(repo)
     code, _, err = chantier.bare(*argv, "--lease", 1)
     assert code == EXIT_CONFLICT and "claim lost" in err and "was taken again (lease 2)" in err
-    assert "stop now: nothing recorded" in err and record(repo) == before
+    assert "stop now: nothing recorded (`help lease`)" in err and record(repo) == before
 
 
 def test_a_not_confirmed_current_lease_is_accepted_late_and_a_handback_ends_it(

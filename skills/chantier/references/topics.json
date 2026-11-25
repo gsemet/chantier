@@ -1,0 +1,392 @@
+{
+  "version": 1,
+  "paths": "relative to this folder; a reading: file, file#heading (a level-2 heading of that file), or {\"claude\": ..., \"copilot\": ...} (that host only)",
+  "topics": {
+    "lease": {
+      "readings": [
+        "driver-session.md#Means: the lease"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver",
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a `--lease` refusal, `claim lost`, a lease `not confirmed`, a wait over 3 minutes"
+    },
+    "checkpoints": {
+      "readings": [
+        "driver-session.md#Means: checkpoint commits"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "trigger": "a checkpoint commit"
+    },
+    "steering-messages": {
+      "readings": [
+        "driver-session.md#Means: the steering session's messages"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "trigger": "a message from or to the steering session"
+    },
+    "restart": {
+      "readings": [
+        "driver.md#Means: a Driver started again"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "trigger": "a `take` note `resume:`, `rebase:` or `context:`"
+    },
+    "trouble": {
+      "readings": [
+        "driver-trouble.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "trigger": "a worker fails, an escalation, a remote command fails, CI beside the long gate, a gate to stop"
+    },
+    "conflicts": {
+      "readings": [
+        "driver-conflicts.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "trigger": "a `ship` refused `holds a merge commit`, a carry, a conflict, the early push"
+    },
+    "handback-other": {
+      "readings": [
+        "driver-handback-other.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "trigger": "a hand-back out of the ordinary"
+    },
+    "pr-extras": {
+      "readings": [
+        "driver-pr-extras.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver"
+      ],
+      "trigger": "`archive: in the PR at <path>`, images, GitLab forms"
+    },
+    "refused-push": {
+      "readings": [
+        "driver-refused.md",
+        "foreman-refused.md"
+      ],
+      "roles": [
+        "cr-driver",
+        "stack-driver",
+        "qa-driver",
+        "release-driver",
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a force push or rebase the host refuses; `push <cr>: git refused the push`"
+    },
+    "retake": {
+      "readings": [
+        "driver-retake.md"
+      ],
+      "roles": [
+        "cr-driver"
+      ],
+      "trigger": "a first `take` that shows a `PR:` link"
+    },
+    "matrix": {
+      "readings": [
+        "driver-matrix.md"
+      ],
+      "roles": [
+        "cr-driver"
+      ],
+      "trigger": "a matrix probe; the board's write paths"
+    },
+    "stack-restack": {
+      "readings": [
+        "stack-driver-restack.md"
+      ],
+      "roles": [
+        "stack-driver"
+      ],
+      "trigger": "the restack pass after a merge"
+    },
+    "stack-make": {
+      "readings": [
+        "stack-driver-make.md"
+      ],
+      "roles": [
+        "stack-driver"
+      ],
+      "trigger": "making the stack, the five checks"
+    },
+    "stack-joins": {
+      "readings": [
+        "stack-driver-joins.md"
+      ],
+      "roles": [
+        "stack-driver"
+      ],
+      "trigger": "a join, a draft turning ready, a merge, a deadline"
+    },
+    "stack-changes": {
+      "readings": [
+        "stack-driver-changes.md"
+      ],
+      "roles": [
+        "stack-driver"
+      ],
+      "trigger": "an insertion, a drop, a hold, a park, a conflict, heavy CI"
+    },
+    "release-notes": {
+      "readings": [
+        "release-driver-notes.md"
+      ],
+      "roles": [
+        "release-driver"
+      ],
+      "trigger": "the notes, the drafts, the PR body"
+    },
+    "release-ship": {
+      "readings": [
+        "release-driver-ship.md"
+      ],
+      "roles": [
+        "release-driver"
+      ],
+      "trigger": "the release PR"
+    },
+    "release-merged": {
+      "readings": [
+        "release-driver-merged.md"
+      ],
+      "roles": [
+        "release-driver"
+      ],
+      "trigger": "after the release's merge"
+    },
+    "release-end": {
+      "readings": [
+        "release-driver-end.md"
+      ],
+      "roles": [
+        "release-driver"
+      ],
+      "trigger": "the release Driver's end"
+    },
+    "stack": {
+      "readings": [
+        "foreman-stack.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a stack batch"
+    },
+    "stack-merge": {
+      "readings": [
+        "foreman-stack.md#After a merge"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "`restack owed:`"
+    },
+    "merge": {
+      "readings": [
+        "foreman-merge.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a `handed back:` line, `order merged`, the main checkout after a merge"
+    },
+    "hold": {
+      "readings": [
+        "foreman-hold.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "`order hold`, `order unhold`, a park, a mode switch"
+    },
+    "lost-driver": {
+      "readings": [
+        "foreman-lost-driver.md",
+        "concepts.md#Escalation"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a Driver that ended with no hand-back"
+    },
+    "conflict-check": {
+      "readings": [
+        "foreman-conflict.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "an early conflict check (parallel batch)"
+    },
+    "release": {
+      "readings": [
+        "foreman-release.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a release CR in the batch"
+    },
+    "retro": {
+      "readings": [
+        "foreman-pause.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "the retro critic at a pause"
+    },
+    "grill": {
+      "readings": [
+        "chief-of-staff-grill.md",
+        "chief-of-staff-writer.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "the backlog and a grill"
+    },
+    "batch-start": {
+      "readings": [
+        "chief-of-staff-batch-start.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "the trials before the go, starting a batch"
+    },
+    "steering": {
+      "readings": [
+        "chief-of-staff-steering.md",
+        "foreman-refused.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a running batch"
+    },
+    "ready-to-merge": {
+      "readings": [
+        "chief-of-staff-merge.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a PR ready to merge, a merge, a stack"
+    },
+    "batch-end": {
+      "readings": [
+        "chief-of-staff-batch-end.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "the pause, the end of a batch"
+    },
+    "direct": {
+      "readings": [
+        "chief-of-staff-direct.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "steering a batch yourself (direct mode)"
+    },
+    "release-procedure": {
+      "readings": [
+        "chief-of-staff-release.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a release to plan, the project's procedure"
+    },
+    "writer": {
+      "readings": [
+        "chief-of-staff-writer.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a refused write naming no running writer"
+    },
+    "watcher": {
+      "readings": [
+        "session-start-chief-of-staff.md#The watcher"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a watcher's end line (`watch: no event`, no seat, no key)"
+    },
+    "board": {
+      "readings": [
+        "session-start-chief-of-staff.md#The board"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "the board did not start, refused a key or a watcher"
+    },
+    "sync": {
+      "readings": [
+        "sync-checkout.md"
+      ],
+      "roles": [
+        "chief-of-staff",
+        "foreman"
+      ],
+      "trigger": "a sync of the main checkout after a merge"
+    }
+  }
+}

@@ -1167,6 +1167,12 @@ def scenario(w: World) -> None:
     check("`rules` lists the project's instructions and what they link, with line counts",
           out[0].startswith((w.work / "AGENTS.md").as_posix()) and "lines)" in out[0]
           and out[1].startswith((w.work / "CONTRIBUTING.md").as_posix()), str(out))
+    _, out = w.chantier("help", "lease")
+    lease_card = (SKILL / "references" / "driver-session.md").read_text(encoding="utf-8")
+    heading = next(ln for ln in lease_card.splitlines() if ln == "## Means: the lease")
+    check("`help lease` prints the lease section whole, with no batch",
+          out[0].startswith("topic lease:") and "claim lost" in "\n".join(out)
+          and heading in out, str(out[:3]))
 
     section("2. The Chief of Staff opens the batch and starts the Foreman")
     note("\n## 2. The Chief of Staff opens the batch and starts the Foreman")
