@@ -118,6 +118,7 @@ def test_the_idle_end_waits_for_no_batch_in_flight(
     if not flying:
         name = "batch-01" if status == "paused" else f"{found.root.name} (no batch)"
         assert w.lines(IDLE)[-1].startswith(f"watch: no event for {name} in 2 h; ended")
+        assert "(`help watcher`): for the Chief of Staff" in w.lines(IDLE)[-1]
 
 
 def test_the_idle_end_counts_from_the_last_moment_a_batch_was_in_flight(

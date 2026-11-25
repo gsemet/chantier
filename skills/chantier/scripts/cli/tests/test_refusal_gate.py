@@ -27,7 +27,7 @@ FILES = {
 COMMAND_HELPERS = {"reclaim_command"}  # a function whose output is a command
 MIN_REFUSALS = 36  # the count at the base: a broken scan cannot pass empty
 FRAGMENT_MAX = 40  # characters (the limit of M13)
-MAX_ALLOWED = 7  # a growth of the allow-list is a visible edit of this number
+MAX_ALLOWED = 6  # a growth of the allow-list is a visible edit of this number
 # (module, enclosing function, a fragment of the static text of at most 40 characters): reason
 ALLOW = {
     ("rails", "check_take", "nothing for a Driver to do"): "stop now: the CR has ended",
@@ -35,8 +35,6 @@ ALLOW = {
     ("rails", "check_take", "a fix of the release must be merged"): "stop now: the release "
     "starts once its fixes end",
     ("rails_release", "fix_go", "only a ready fix merges"): "stop now: it merges once ready",
-    ("leases", "lost", "stop now: nothing recorded"): "stop now: the unit is no longer the "
-    "caller's",
     ("leases", "ttl_seconds", "is seconds, not"): "test seam: set only by the test suite",
     ("leases", "minute_seconds", "is seconds, not"): "test seam: set only by the test suite",
 }

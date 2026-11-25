@@ -28,7 +28,9 @@ def push(args: argparse.Namespace) -> list[str]:
     unit = _unit(d, c, args.unit)
     _refuse_branch(repo, c)
     if leases.lease_of(d, unit) is None:
-        raise ChantierError(f"push needs a held lease; {unit} has none", EXIT_PRECONDITION)
+        raise ChantierError(
+            f"push needs a held lease; {unit} has none (`help lease`)", EXIT_PRECONDITION
+        )
     leases.require(repo, d, unit, args.lease, what)
     wt = cr_worktree(c)
     _refuse_worktree(c, wt)
@@ -121,7 +123,7 @@ def _run_push(c: CrEntry, wt: Path, remote: str, expected: str) -> None:
     )
     if p.returncode != 0:
         raise ChantierError(
-            f"push {c.id}: git refused the push of {c.branch}; nothing recorded\n"
-            + (p.stderr or p.stdout).strip(),
+            f"push {c.id}: git refused the push of {c.branch}; nothing recorded "
+            "(`help refused-push`)\n" + (p.stderr or p.stdout).strip(),
             EXIT_EXTERNAL,
         )

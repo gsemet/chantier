@@ -130,7 +130,7 @@
   refuses with one line while the surface's writer is not running or stopped, and no agent starts
   it; the board speaks plain HTTP, so on the network the key and every turn's text travel in clear,
   and `chantier serve --new-key` replaces both keys; built on the user's direction of 2026-11-17 and
-  answers "Tout" (2026-11-21) and board-griller-Q4 B and Q20, with no measured cost; a fifth, a client's command: for a client logged in with `chantier login`, the `cli.run` op runs one chantier command (any but `serve`, `webui`, `watch`, `live`, `login`, `logout`, `gate` and `push`) as a child process of the server's own build, never forwarded again, in its planning folder on the server's machine (its worktrees, transcripts and paths), with the client's arguments and its batch, host and session variables, behind the private key, and returns its output, its exit code and its launch form; that command edits the batch and the planning folder exactly as when run locally, but prints no watcher line; built on the user's answers remote-cli-Q2, Q5, Q10, Q12 and Q15 (2026-11-22), with no measured cost; it takes its
+  answers "Tout" (2026-11-21) and board-griller-Q4 B and Q20, with no measured cost; a fifth, a client's command: for a client logged in with `chantier login`, the `cli.run` op runs one chantier command (any but `serve`, `webui`, `watch`, `live`, `login`, `logout`, `gate`, `push` and `help`) as a child process of the server's own build, never forwarded again, in its planning folder on the server's machine (its worktrees, transcripts and paths), with the client's arguments and its batch, host and session variables, behind the private key, and returns its output, its exit code and its launch form; that command edits the batch and the planning folder exactly as when run locally, but prints no watcher line; built on the user's answers remote-cli-Q2, Q5, Q10, Q12 and Q15 (2026-11-22), with no measured cost; it takes its
   dependencies like the rest of the CLI and knows no role but the board's Griller. The same process is the
   forge hub while it runs (one per planning surface and machine, holding the same `chantier/hub.lock` the claim above takes, started by a session's watcher,
   detached, when none runs and the session holds the seat and no chantier dev session of the
@@ -208,7 +208,7 @@
   poller only); `journal add` is the one entry by which an outside poller appends an `issue@1`
   line to a project's journal; built on the user's answer planning-server-Q24 (2026-11-20: issues
   polled from outside), with no measured cost.
-  `login` and `logout`: `login` stores a server's address and key in a profile of the user's config folder for the projects named, after which every command for those projects but `serve`, `watch`, `webui`, `live`, `login` and `logout` runs on that server (`gate` and `push` are refused there), and `logout` removes it; built on the user's answers remote-cli-Q4, Q7, Q8 and Q17 (2026-11-22), with no measured cost.
+  `login` and `logout`: `login` stores a server's address and key in a profile of the user's config folder for the projects named, after which every command for those projects but `serve`, `watch`, `webui`, `live`, `login`, `logout` and `help` runs on that server (`gate` and `push` are refused there), and `logout` removes it; built on the user's answers remote-cli-Q4, Q7, Q8 and Q17 (2026-11-22), with no measured cost.
   `webui`: prints the web board's link with its key, and starts the surface server, detached,
   when none runs (with an active profile, it prints the profile's link and starts nothing); built on the user's answers remote-cli-Q1, Q3 and Q14 (2026-11-22), with no
   measured cost.
@@ -219,6 +219,12 @@
   `access`: read-only, it explains why a session may or may not write the planning folder, claim
   a CR or push its branch, and changes nothing; built on the user's answer of 2026-11-20 ("tout":
   all five of Vercel Board's ideas, planning-server-Q9), with no measured cost.
+  `help`: read-only, it prints a help topic whole from the plugin's own cards
+  (`references/topics.json` names each topic's readings, the roles it serves and the line that
+  names it), lists the topics, or one role's with `--for`, reading roles only as that data; it
+  needs no batch and no project, writes nothing, reads no network and never runs through a
+  profile; the CLI names a topic in a refusal or a line where a rare case starts; built on the
+  user's answer simplify-cards-Q18 (2026-11-24), with no measured cost.
   `live`: a read-only terminal client of the surface server's published API, shipped in
   `clients/tui/`; it reads the server only (the recorded one, or the active profile's) (never the planning folder, the forge or git), writes
   nothing and messages no agent; built on the user's request of 2026-11-20, with no measured

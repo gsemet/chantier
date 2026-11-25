@@ -266,12 +266,13 @@ def check_free(repo: Repo, d: BatchRecord, unit: str, reclaim: bool) -> Lease | 
         raise ChantierError(
             f"{unit} is held: lease {lease.n} live until {hms(lease.expires)}; once the host shows "
             f"its holder ended, `agents set {unit} - --epoch <n>` ends it; "
-            f"`{reclaim_command(unit, lease, short=True)}` only on the user's word",
+            f"`{reclaim_command(unit, lease, short=True)}` only on the user's word (`help lease`)",
             EXIT_CONFLICT,
         )
     raise ChantierError(
         f"{unit}: lease {lease.n} {not_confirmed_text(lease).removeprefix('lease ')}; "
-        f"check with the host that its Driver ended, then `{reclaim_command(unit, lease)}`",
+        f"check with the host that its Driver ended, then `{reclaim_command(unit, lease)}` "
+        "(`help lease`)",
         EXIT_CONFLICT,
     )
 
@@ -296,7 +297,8 @@ def require(  # noqa: PLR0913 - the record, the unit and the command's words
     if number is None and held is not None and not (ended_ok and held.ended):
         raise ChantierError(
             f"{what} needs --lease <n> (the number take printed); `lease {unit}` prints it"
-            + (_late_ship_tail(repo, unit, held) if ended_ok else ""),
+            + (_late_ship_tail(repo, unit, held) if ended_ok else "")
+            + " (`help lease`)",
             EXIT_PRECONDITION,
         )
 
@@ -306,7 +308,9 @@ def lost(unit: str, number: int, lease: Lease) -> ChantierError:
         text = f"{unit} was taken again (lease {lease.n}) at {hm(lease.taken)}"
     else:
         text = f"{unit}'s lease {number} ended at {hm(lease.ended or now())}"
-    return ChantierError(f"claim lost: {text}; stop now: nothing recorded", EXIT_CONFLICT)
+    return ChantierError(
+        f"claim lost: {text}; stop now: nothing recorded (`help lease`)", EXIT_CONFLICT
+    )
 
 
 def renew_read(  # noqa: PLR0913 - the keywords say what each is
@@ -342,7 +346,8 @@ def claim(  # noqa: PLR0913 - the keywords say what each is
         if required and not (ended_ok and lease.ended):
             raise ChantierError(
                 f"{what} needs --lease <n> (the number take printed); `lease {unit}` prints it"
-                + (_late_ship_tail(b.repo, unit, lease) if ended_ok else ""),
+                + (_late_ship_tail(b.repo, unit, lease) if ended_ok else "")
+                + " (`help lease`)",
                 EXIT_PRECONDITION,
             )
         return None

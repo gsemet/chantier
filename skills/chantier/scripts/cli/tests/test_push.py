@@ -77,7 +77,14 @@ REFUSALS: list[tuple[str, Edit | None, Callable[[Path], None] | None, list[str],
     ("stale lease", None, None, ["--lease", "99"], 3, "claim lost"),
     ("dirty worktree", None, _dirty, [], 2, "commit first"),
     ("HEAD elsewhere", None, _other_branch, [], 2, "check out"),
-    ("unit without a lease", lambda d: d["crs"][0].update(lease=None), None, [], 2, "has none"),
+    (
+        "unit without a lease",
+        lambda d: d["crs"][0].update(lease=None),
+        None,
+        [],
+        2,
+        "has none (`help lease`)",
+    ),
     (
         "stack unit outside the chain",
         lambda d: d["crs"][0].update(status="cancelled"),
@@ -177,6 +184,7 @@ def test_a_remote_that_moved_is_refused_by_git_and_nothing_is_recorded(
     git_at(wt, "commit", "-q", "--amend", "-m", "A again", "--allow-empty")
     code, _, err = chantier("push", one["id"])
     assert code == EXIT_EXTERNAL and "git refused the push" in err, err
+    assert "nothing recorded (`help refused-push`)" in err
     assert "stale info" in err or "rejected" in err, err
     assert tip(remote, one["branch"]) == moved
     assert len(pushes(repo)) == 1
