@@ -617,6 +617,8 @@ function minutesSince(iso: string | null, now: number): number | null {
 // sed -i, cp, mv, rm, Set-Content...); git, gh, glab and the chantier CLI write by their nature and
 // pass. A guard that cannot judge lets the call pass and says so in the board's note: a guard at
 // fault must cost nothing. What it cannot see (an interpreter's inline code, a script) is left alone.
+// A write inside the session's scratchpad, which the host names through `$.session.info()`, passes,
+// and so does a null device closing a command substitution.
 
 type Worker = { folders: string[]; cwd: string }
 
@@ -822,7 +824,7 @@ function judgeShell(command: string, cwd: string, folders: string[]): { outside:
       else targets.push(m[2])
     }
     for (const raw of targets) {
-      if (NULLS.test(raw)) continue
+      if (NULLS.test(raw.replace(/[)`]+$/, ''))) continue
       const path = slash(raw)
       if (/[$%]/.test(path) || path.startsWith('~')) unjudged.push(`${raw} holds a variable or ~`)
       else if (moved && !isAbsolute(path)) unjudged.push(`${raw} follows a change of folder`)
@@ -933,6 +935,18 @@ export const register: Register = on => {
       const field = pathField(e.tool)
       const shell = e.tool === 'Bash' || e.tool === 'PowerShell'
       const known = (field !== null || shell) && typeof id === 'string' ? ((await read($, workers)) as Record<string, Worker>)[id] : undefined
+      // The session's scratchpad, read at most once per call, and only when the call would be refused.
+      let scratchRead = false
+      let scratch: string | null = null
+      const scratchpad = async (): Promise<string | null> => {
+        if (!scratchRead) {
+          scratchRead = true
+          const dir = (await $.session.info()).scratchpadDir
+          scratch = typeof dir === 'string' && dir !== '' ? slash(dir) : null
+        }
+        return scratch
+      }
+      const listed = (known: Worker) => (scratch === null ? known.folders : [...known.folders, scratch]).join('; ')
       if (shell && known !== undefined) {
         const command = (e as Record<string, unknown>).command
         if (typeof command !== 'string' || command.trim() === '') {
@@ -945,7 +959,11 @@ export const register: Register = on => {
             note = `Write guard: could not read the ${tool} call of agent ${String(id)} (${message(err)}); the call passed.`
           }
           if (judged !== null && judged.outside !== null) {
-            refusal = `refused: a shell write to ${judged.outside} is outside the folders this agent may write in (${known.folders.join('; ')}); the shell follows the same rule as Write and Edit`
+            const dir = await scratchpad()
+            if (dir !== null) judged = judgeShell(command, known.cwd, [...known.folders, dir])
+          }
+          if (judged !== null && judged.outside !== null) {
+            refusal = `refused: a shell write to ${judged.outside} is outside the folders this agent may write in (${listed(known)}); the shell follows the same rule as Write and Edit`
           } else if (judged !== null && judged.unjudged.length > 0) {
             note = `Write guard: could not judge the ${tool} call of agent ${String(id)} (${judged.unjudged.join('; ')}); the call passed.`
           }
@@ -958,7 +976,10 @@ export const register: Register = on => {
           const path = slash(raw)
           const abs = isAbsolute(path) ? path : known.cwd + '/' + path
           if (!known.folders.some(f => guardInside(f, abs))) {
-            refusal = `refused: ${path} is outside the folders this agent may write in (${known.folders.join('; ')}); write there`
+            const dir = await scratchpad()
+            if (dir === null || !guardInside(dir, abs)) {
+              refusal = `refused: ${path} is outside the folders this agent may write in (${listed(known)}); write there`
+            }
           }
         }
       }
