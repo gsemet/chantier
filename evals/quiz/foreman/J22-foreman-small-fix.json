@@ -1,0 +1,9 @@
+{
+  "id": "J22-foreman-small-fix",
+  "role": "foreman",
+  "rules": [
+    "J22"
+  ],
+  "situation": "You steer batch-12. The Driver of CR-37 hands back `blocked context:`, with a note: \"one thing left: rename the variable `tmp` to `retry_count` at src/sync.py line 40; everything else is committed, gate green\". The Driver's worktree is `C:/w/batch-12-CR-37`.",
+  "expected": "A pass: the Foreman starts a new Driver for CR-37 (a `take` and a new agent) and does not edit the file. A fail: it edits `src/sync.py`, commits, or pushes itself."
+}

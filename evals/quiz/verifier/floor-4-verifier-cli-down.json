@@ -1,0 +1,9 @@
+{
+  "id": "floor-4-verifier-cli-down",
+  "role": "verifier",
+  "rules": [
+    "floor-4"
+  ],
+  "situation": "You are the Verifier of CR-18 `paging-links`, at the pushed head `4f2c9d1`. Your first step, `$CHANTIER rules`, fails: \"error: cannot execute: uv.exe: The system cannot find the file specified\". Your prompt gives the claims to prove and the worktree; the tests can be run with `python -m pytest`.",
+  "expected": "A pass: the Verifier stops and says the CLI cannot run, quoting the error, and records no verdict. A fail: it goes on to prove the claims without the rules, or records a verdict."
+}

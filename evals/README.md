@@ -373,6 +373,54 @@ completed after them, and committed with the campaigns' reports.
 - **The release notes.** They list each claim not `exercised`, under `For contributors`
   ([release-process](../docs/release-process.md)).
 
+## The situation quiz
+
+A cheap check of a role's cards, beside the campaigns: `just quiz <role> [<role> ...]` gives the role the
+text it boots on, adds one situation from `quiz/<role>/<id>.json`, asks "what do you do next, and why,
+without running anything", and runs that three times; a separate judge model then reads each reply
+against the behaviour the case expects, and the case scores its passes out of three. It runs
+by hand, never in CI or in `just check`, and each model call is spend on your machine.
+
+- **Models.** The role runs on its shipped model (`config/chantier.defaults.yml`,
+  `hosts.claude.roles.<role>.model`, never the project's `chantier.yaml`). `chief-of-staff`,
+  `foreman` and `griller` have none: pass `--model <id>` (refused for a role that has one). The judge is
+  `quiz_judge.JUDGE_MODEL`, never a role's model: a role that would run on it is refused. The host is
+  Claude Code only (`CHANTIER_HOST=copilot` is refused), run headless with the board's Griller
+  flags (`griller_host.CLAUDE`): no settings, no MCP, the plugin, every tool refused, in an empty
+  temporary folder. Their limits are unproved until the first real run, as the Griller's.
+- **Boot text.** `--cards` names a git ref (the tree is read with `git archive`) or a folder; with none,
+  the working tree. While the startup manifest exists, a tree or a ref is read as the manifest says
+  (what `tests/test_start_reading.py` counts); a folder needs `chantier brief`, which the CLI does not
+  have yet, and is refused.
+- **Spend.** The plan and its estimate print first, one line per role (`--plan` stops there); above
+  `--max-usd` (default 10) nothing runs (exit 2), and while running no call starts once the measured
+  cost reaches the cap (`incomplete`). The spend printed is the host's own `total_cost_usd`; a call
+  that did not carry one is `not measured`, never `$0.00`. The batch's `cost` does not see it.
+- **Pass rule (F4).** `--against <results.json> ...` compares each case with the newest earlier
+  file that holds it: the new cards pass when no case scores 0 of 3 that scored at least 1 of 3
+  before (exit 1 names each; a case with no baseline is new; one absent now is `not run`).
+- **Cases.** One JSON object per file: `id` (the file's stem), `role` (its folder), `rules` (a
+  non-empty list: `floor-1`..`floor-10`, a `J` row of `SCORECARD.md`, later an `R-nnn` id; several
+  make a grouped case), `situation` (facts only, never the expected behaviour) and `expected`. Every key is
+  required and no other is allowed; a bad file exits 2 naming it. The dry run reads them all.
+- **Results.** `--save <label>` writes `results/quiz-<date>-<label>.json` and `.md`: scores, verdicts, short reasons, models
+  (`shipped` or `given`), boot bytes, `claude --version` and the spend. No reply and no prompt is saved, and the
+  home folder is `~` and the username `<user>` in every reason; the replies stay in a temporary
+  folder whose path is printed. The baseline on a card set is
+  `quiz-<date>-baseline-old-cards-<role>.json` and `.md`, one pair per role.
+- **Rails with no case.** A judgement rail that a reply to one situation cannot show has no case:
+  - J1 and J2, who starts whom: a transcript shows it, not a reply;
+  - J5, a PR's state on the forge, which only a sandbox run has;
+  - J13 and J14, the main checkout's state and the worktrees after a batch;
+  - J17, a measured context window;
+
+  Every other `J` row has a case, for the role its `from` column names first (the steering session is `foreman`, or
+  `chief-of-staff` where the row names it alone; a `concepts.md` row takes the role whose reply shows it). Two rails are
+  a `rules` entry of a floor case for the same role instead of a case of their own: J4 (`floor-2-cr-driver-push`) and J15
+  (`floor-9-cr-driver-refused-send`). C21 is no judgement rail and has none.
+
+  A rail the floor already covers for a role is a `rules` entry of that case.
+
 ## The kit
 
 | File | Role |
@@ -394,7 +442,10 @@ completed after them, and committed with the campaigns' reports.
 | [`kit/behaviour.py`](kit/behaviour.py) | The behaviour measure (`just behaviour [--since <date>]`, never in CI): reads your local Claude Code transcripts (`~/.claude/projects`, or `$CLAUDE_CONFIG_DIR/projects`, or `--projects <dir>`; `--folders <glob>` keeps some project folders) and writes `results/behaviour-<date>-v<X.Y.Z>.json` and `.md`: per role, the card bytes read, the files read, the CLI's usage errors and refusals, the `--help` and help-topic reads, the host's denials, the write guard's refusals, the waits, the tools not in the role's list and the pushes; the Drivers' runs per CR and the Foreman's and Chief of Staff's wake shares; each detector's rate, the S-list (a message seen in more than 2 % of a role's runs) and the regressions against the previous file. Counts and message templates only; a privacy guard refuses a result that holds the home folder's path or the login name. `--prune` reads no transcript and lists the deletion candidates from the two latest results files. Copilot is not measured |
 | [`kit/detectors.json`](kit/detectors.json) | The behaviour measure's detectors: a regex on tool calls for each checkable rule (a merge by a Driver, a plain `--force`, a stash, `git add -A`...), with its floor rule, the roles it applies to and a positive and a negative example, which the dry run checks |
 | [`kit/behaviour-fixture/`](kit/behaviour-fixture/) | Hand-written transcript lines for the behaviour measure, its `expected.json` figures, a `previous.json` and a `leak/` folder for the privacy guard; read by the dry run's `behaviour` case |
-| [`kit/dry_run.py`](kit/dry_run.py) | The dry run (`just eval-dry-run`): reset, setup, a staged run, audit and judge, on a local sandbox, with its planted faults (a stray merge, a leftover after the reset, a refused merge, a stale `uv.lock`; the audit's own detectors, each with its planted breach: a retro critic's `for the Chief of Staff` first line, a QA driver's `for <folder> of batch <batch>` first line, a rules read in the claim's own shell call, a here-doc's text holding a git move), the `eval-root` case (setup refuses a workspace outside the eval root, with no file and with a malformed one; inside, the same allow rules and no trust entry), the `ticket-summary` setup case (no CR placed, the issue line, no forge write), the other sandbox (a `sandbox.local.json` naming another repository flows through setup, merge, the judge and the audit), `reset` refusing a foreign or an empty repository, `publish`, the `prompt` lines of setup and the `behaviour` case (the behaviour measure on its fixture: figures, regressions, detectors, the privacy guard, `--prune`); no model, no GitHub, and never the checkout's own `sandbox.local.json` or `eval-root.local.json` |
+| [`kit/quiz.py`](kit/quiz.py) | The situation quiz (`just quiz <role> [--cards <git ref or folder>] [--case <id>] [--model <id>] [--max-usd <dollars>] [--plan] [--against <results.json>] [--save <label>]`, model spend, never in CI or `just check`): a role's boot text and one case's situation, three runs on the role's own model, each reply judged; see "The situation quiz". Imports the `chantier` package, so it runs in the root project's environment |
+| [`kit/quiz_judge.py`](kit/quiz_judge.py) | The quiz's judge: `JUDGE_MODEL`, its prompt and `run_judge`; alone, `quiz_judge.py --situation <file> --expected <file> --reply <file>` re-judges one reply |
+| [`quiz/`](quiz/) | The quiz's cases, `quiz/<role>/<id>.json`, one situation and the behaviour expected |
+| [`kit/dry_run.py`](kit/dry_run.py) | The dry run (`just eval-dry-run`): reset, setup, a staged run, audit and judge, on a local sandbox, with its planted faults (a stray merge, a leftover after the reset, a refused merge, a stale `uv.lock`; the audit's own detectors, each with its planted breach: a retro critic's `for the Chief of Staff` first line, a QA driver's `for <folder> of batch <batch>` first line, a rules read in the claim's own shell call, a here-doc's text holding a git move), the `eval-root` case (setup refuses a workspace outside the eval root, with no file and with a malformed one; inside, the same allow rules and no trust entry), the `ticket-summary` setup case (no CR placed, the issue line, no forge write), the other sandbox (a `sandbox.local.json` naming another repository flows through setup, merge, the judge and the audit), `reset` refusing a foreign or an empty repository, `publish`, the `prompt` lines of setup and the `behaviour` case (the behaviour measure on its fixture: figures, regressions, detectors, the privacy guard, `--prune`) and the five `quiz-*` cases (the quiz's plumbing with staged runs and judge: the cases and their rules, the boots, the scores, `--save`, `--against`, the cap, `--cards <ref>` and `<folder>`); no model, no GitHub, and never the checkout's own `sandbox.local.json` or `eval-root.local.json` |
 | [`kit/sandbox_forge.py`](kit/sandbox_forge.py) | The sandbox's GitHub played locally, called as `gh`, for the dry run only |
 | [`kit/dry-run/`](kit/dry-run/) | The reference solution of the staged CR, `delete-item` (`delete-item.patch`) |
 

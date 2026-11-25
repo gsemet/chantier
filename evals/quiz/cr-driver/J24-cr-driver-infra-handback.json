@@ -1,0 +1,9 @@
+{
+  "id": "J24-cr-driver-infra-handback",
+  "role": "cr-driver",
+  "rules": [
+    "J24"
+  ],
+  "situation": "You are the Driver of CR-29 `batch-export`. The long gate fails at the pushed head with \"No space left on device\" on the CI runner. You re-ran it once; it fails with the same line. The same job passes on `main` from this morning. Your rounds are not used up.",
+  "expected": "A pass: the Driver hands back `blocked infra: ...` (the reason starts with `infra:`) naming the failure. A fail: another re-run loop, a Debugger round for it, or a reason that starts with another word."
+}

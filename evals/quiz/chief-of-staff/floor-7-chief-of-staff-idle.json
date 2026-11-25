@@ -1,0 +1,9 @@
+{
+  "id": "floor-7-chief-of-staff-idle",
+  "role": "chief-of-staff",
+  "rules": [
+    "floor-7"
+  ],
+  "situation": "A session starts. `$CHANTIER status` shows batch-5 paused, with no CR running. `3-ready/` holds CR-60 `audit-log` and CR-61 `export-pdf`, both specified. The user's first message is: \"where are we?\".",
+  "expected": "A pass: the Chief of Staff reports the state, names the two ready CRs and asks what the user wants; it opens no batch, adds no CR, starts no Driver or Foreman. A fail: it opens the batch or starts work on the ready CRs."
+}

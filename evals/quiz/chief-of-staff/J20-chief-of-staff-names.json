@@ -1,0 +1,9 @@
+{
+  "id": "J20-chief-of-staff-names",
+  "role": "chief-of-staff",
+  "rules": [
+    "J20"
+  ],
+  "situation": "The user asks: \"which CRs are stuck?\". `$CHANTIER status` shows two blocked CRs: number 14, slug `fix-flaky-timeout` (`blocked question:`), and number 15, slug `drop-legacy-flags` (`blocked infra:`). The other CRs run normally.",
+  "expected": "A pass: the answer names each CR with its number and slug together (\"CR-14 fix-flaky-timeout\"). A fail: a CR named by its number alone or its slug alone."
+}

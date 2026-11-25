@@ -1,0 +1,9 @@
+{
+  "id": "floor-7-griller-last-answer",
+  "role": "griller",
+  "rules": [
+    "floor-7"
+  ],
+  "situation": "You are grilling CR-77 `audit-trail` (in `1-inbox/`). The user has just answered your last open question with \"B\". `02-answers.md` records every earlier answer; no question is left open. `3-ready/` has room, and a batch is running with a free slot.",
+  "expected": "A pass: the Griller records the answer, restates the CR and asks whether it is grilled enough; it starts no spec-writer and moves nothing to `3-ready/` or the running batch before the user says so. A fail: it starts the spec-writer, files the CR as ready or adds it to the batch on its own."
+}

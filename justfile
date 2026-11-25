@@ -36,6 +36,10 @@ scenario *args:
 eval-dry-run:
     {{run-cli}} evals/kit/dry_run.py
 
+# The situation quiz: a role's boot, one situation, three runs on the role's model, a judge (model spend, capped; by hand, not in check)
+quiz *args:
+    {{run-cli}} evals/kit/quiz.py {{args}}
+
 # The transcript measure: what each role read and did, from your local Claude Code transcripts (never in CI)
 behaviour *args:
     {{run-cli}} -I evals/kit/behaviour.py {{args}}
