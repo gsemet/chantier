@@ -1386,6 +1386,29 @@ def scenario(w: World) -> None:
           any(ln.startswith("handed back: ") and "CR-101" in ln and pr101 in ln for ln in shown)
           and len(shown) > 1 and shown[1].startswith("batch: shape ")
           and "merges: the user" in shown[1], str(shown[:2]))
+    asks_before = w.batch()["asks"]
+    _, judged = w.chantier("judge", "CR-101", "--epoch", fm.epoch)
+    check("`judge` words the ask to the user from the record: the ask first, the `handed back:` "
+          "line, then `decide:`; nothing is recorded without `--record`",
+          judged[0].startswith("ask: ready-to-merge CR-101 ") and pr101 in judged[0]
+          and any(ln.startswith("handed back: ") for ln in judged[1:])
+          and judged[-1].startswith("decide: ") and w.batch()["asks"] == asks_before,
+          str(judged))
+    _, recorded = w.chantier("judge", "CR-101", "--record", "scenario: one sentence",
+                             "--epoch", fm.epoch)
+    mine = w.batch()["asks"][-1]
+    _, shown = w.chantier("status")
+    _, listed = w.chantier("asks")
+    check("`judge --record` records the printed ask with the sentence, shown in `status` and "
+          "`asks`",
+          recorded[0].startswith("[foreman→chief-of-staff] ask A-")
+          and mine["text"] == judged[0].removeprefix("ask: ") + " | note: scenario: one sentence"
+          and any(ln.endswith(" asks unread: `chantier asks`") for ln in shown)
+          and any(ln.startswith(f"{mine['id']}: ") for ln in listed), str(recorded))
+    w.chantier("asks", "--read", mine["id"])  # the scripted Foreman's own ask follows as before
+    code, out = w.chantier("judge", "CR-103", "--epoch", fm.epoch, expect=2)
+    check("`judge` refuses a CR that is not handed back and names `status`",
+          code == 2 and "`status`" in w.last_stderr, w.last_stderr)
     fm.turn()
     check("hand-back frees a slot: CR-103 taken", fm.started[-1] == "CR-103")
     check("the Chief of Staff is told CR-101 is ready with its PR",

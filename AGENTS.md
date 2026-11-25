@@ -262,6 +262,13 @@
   needs no batch and no project, writes nothing, reads no network and never runs through a
   profile; the CLI names a topic in a refusal or a line where a rare case starts; built on the
   user's answer simplify-cards-Q18 (2026-11-24), with no measured cost.
+  `judge`: it words the steering session's ask to the user for a CR handed back, from the record
+  only (its readiness word, gaps, gate exemption or waiver, local gate clause, open waits and
+  owed items, the facts of the `handed back:` line), and prints the facts with no ask for a
+  blocked hand-back or a CR of a stack that is not alone; it reads no forge and runs no git, and
+  it writes nothing but, with `--record`, the ask that `asks` records, with the steering
+  session's one sentence; it decides no merge and no take-back; built on the user's answers
+  simplify-cards-Q11 and Q22 (F7), with no measured cost.
   `live`: a read-only terminal client of the surface server's published API, shipped in
   `clients/tui/`; it reads the server only (the recorded one, or the active profile's) (never the planning folder, the forge or git), writes
   nothing and messages no agent; built on the user's request of 2026-11-20, with no measured
