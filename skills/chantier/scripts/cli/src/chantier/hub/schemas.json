@@ -307,6 +307,45 @@
     "title": "Merged1",
     "type": "object"
   },
+  "msg@1": {
+    "additionalProperties": false,
+    "properties": {
+      "batch": {
+        "title": "Batch",
+        "type": "string"
+      },
+      "kind": {
+        "title": "Kind",
+        "type": "string"
+      },
+      "steering": {
+        "title": "Steering",
+        "type": "string"
+      },
+      "text": {
+        "title": "Text",
+        "type": "string"
+      },
+      "unit": {
+        "title": "Unit",
+        "type": "string"
+      },
+      "wakes": {
+        "title": "Wakes",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "batch",
+      "unit",
+      "kind",
+      "text",
+      "wakes",
+      "steering"
+    ],
+    "title": "Msg1",
+    "type": "object"
+  },
   "sync-blocked@1": {
     "additionalProperties": false,
     "properties": {

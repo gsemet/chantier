@@ -6,16 +6,15 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 from batch_helpers import changes
 from test_leases import Led, leased  # noqa: F401 - the fixture
 
-from chantier.commands import next_lines, orders
-from chantier.commands.crs import carry_at, last_verdict
+from chantier.commands import driver_checks, next_lines, orders
 from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION
-from chantier.core.heads import gate_passed, same_head
 from chantier.core.records import (
     AskRecord,
     BatchRecord,
@@ -26,7 +25,6 @@ from chantier.core.records import (
     OrderRecord,
 )
 from chantier.core.repo import Repo
-from chantier.stacks import waived_gate
 from chantier.status.advice import Facts, cr_step, driver_step
 from chantier.status.due import due
 
@@ -285,14 +283,24 @@ def test_driver_step_names_the_first_step_not_done(
     assert driver_step(d, d.crs[0], events, FACTS._replace(**facts)).startswith(want)
 
 
-def test_the_handback_step_is_one_the_handbacks_checks_accept() -> None:
+@pytest.mark.parametrize(
+    ("events", "no_gate"), [([ROUND, GATE, VERIFIED], None), ([ROUND, VERIFIED], "the rule")]
+)
+def test_the_handback_step_is_one_the_handbacks_checks_accept(
+    monkeypatch: pytest.MonkeyPatch, events: list[EventRecord], no_gate: str | None
+) -> None:
     d = batch([BASE])
-    c, events, f = d.crs[0], [ROUND, GATE, VERIFIED], FACTS
+    c, f = d.crs[0], FACTS._replace(gates=() if no_gate else FACTS.gates)
     assert driver_step(d, c, events, f).startswith("`handback CR-1 ready")
-    assert same_head(c.head, f.head) and not f.dirty and same_head(c.head, f.pushed)
-    gated = gate_passed(events, c.head) or carry_at(events, c.head, "gate_from")
-    assert gated or waived_gate(d, c) is not None
-    assert last_verdict(events, c.head) == "VERIFIED"
+    heads = {"HEAD": f.head, f"{f.remote}/{c.branch}": f.pushed}
+    monkeypatch.setattr(driver_checks, "cr_events", lambda *_: events)
+    monkeypatch.setattr(driver_checks, "cr_worktree", lambda _: WT)
+    monkeypatch.setattr(driver_checks, "dirty_files", lambda _: f.dirty)
+    monkeypatch.setattr(driver_checks, "git", lambda *a, **_: heads[a[-1]])
+    repo = SimpleNamespace(config={"remote": f.remote})
+    b = SimpleNamespace(id=d.id, record=d)
+    basis = driver_checks.handback_refusals(repo, b, c, no_gate, False)  # type: ignore[arg-type]
+    assert basis.waiver is None and not basis.carried and not basis.verdict_carried
 
 
 @pytest.mark.parametrize(

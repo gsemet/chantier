@@ -2920,6 +2920,32 @@ def forge_hub(w: World) -> None:
               "and stays alive",
               got[:1] == [says(f1, 943, "2026-11-16T10:09:00Z")] and len(got) == 2
               and got[1].startswith(f"watch: {c_batch} told up to cursor") and wf.p.poll() is None, str(got))
+        # SC13 (CR-497): a Driver's `msg steering` reaches this watcher; a note waits for a wake
+        drv = {"CLAUDE_CODE_SESSION_ID": "uuid-driver"}
+
+        def msg(kind: str, text: str, expect: int = 0) -> list[str]:
+            return sw.chantier("msg", "steering", kind, text, "--cr", f2, "--lease", 1, "--batch",
+                               c_batch, project="third", env=drv, expect=expect)[1]
+
+        out = msg("note", "the fake base looks old")
+        check("a Driver's `msg steering note` is delivered to the Foreman's watcher, told at its next wake",
+              re.fullmatch(rf"msg: seq \d+ note from {f2} to the Foreman \({c_batch}\): delivered to its "
+                           r"watcher, told at its next wake", out[0] if out else "") is not None, str(out))
+        got = wf.line(4)
+        check("a note alone wakes nothing", got is None, str(got))
+        out = msg("blocked", "the fake base moved")
+        got = block(wf)
+        check("a `blocked` message wakes it: one block tells the note, then the blocked message",
+              "delivered to its watcher" in "".join(out) and len(got) == 3
+              and got[0].startswith(f"message from {f2}'s Driver (note, seq ")
+              and got[1].startswith(f"message from {f2}'s Driver (blocked, seq ")
+              and wf.p.poll() is None, str(got))
+        _, out = sw.chantier("inbox", "--epoch", 1, "--batch", c_batch, project="third", env=fm)
+        check("`inbox` lists both messages unread", len(out) == 3 and out[-1].startswith("inbox: 2 unread"),
+              str(out))
+        _, out = sw.chantier("inbox", "--read", "all", "--epoch", 1, "--batch", c_batch, project="third",
+                             env=fm)
+        check("`inbox --read all` marks them read", out == ["inbox: 2 read; nothing unread"], str(out))
         sw.chantier("order", "merged", f1, "--epoch", 1, "--batch", c_batch, project="third", env=fm)
         _, out = sw.chantier("status", "--batch", c_batch, project="third", expect=None)
         check("the Chief of Staff's `status` shows the merge recorded by the Foreman, no merged line "
@@ -2943,6 +2969,12 @@ def forge_hub(w: World) -> None:
         got = ended(wf)
         check("a record naming another Foreman ends it with its line",
               got == [FOREMAN_OTHER.format(batch=c_batch)] and wf.p.returncode == 0, str(got))
+        out = msg("anomaly", "no Foreman listens", expect=2)
+        last = journal("third")[-1]
+        check("with no watcher of the recorded Foreman subscribed, `msg` exits 2 `not delivered` and the "
+              "line stays in the journal for it",
+              any(x.startswith("not delivered: no watcher subscribed") for x in out)
+              and last["type"] == "msg@1" and last["audience"] == ["session:uuid-fm-2"], str(out))
     finally:
         surface_kill(sw)
         for proc in reversed(procs):

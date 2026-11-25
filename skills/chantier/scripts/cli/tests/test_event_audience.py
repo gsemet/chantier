@@ -305,7 +305,17 @@ def test_a_problem_in_the_events_block_refuses_the_watcher_and_one_elsewhere_is_
 def test_no_role_is_named_and_the_journal_has_one_writer() -> None:
     named = re.compile(r"role:[A-Za-z]")
     shipped = [*SRC.rglob("*.py"), DEFAULTS]
-    assert [p.name for p in shipped if named.search(p.read_text("utf-8"))] == []
+    # one named exception (CR-497's spec): `msg`'s audience when no steering session is recorded,
+    # a value no watcher subscribes to, which keeps the line for `inbox`
+    spared = {("msg.py", '"role:steering"')}
+
+    def unspared(p: Path) -> str:
+        found = p.read_text("utf-8")
+        for name, value in spared:
+            found = found.replace(value, "") if p.name == name else found
+        return found
+
+    assert [p.name for p in shipped if named.search(unspared(p))] == []
     writing = re.compile(r"open\(|write_text|write_bytes|\.write\(")
     refs = re.compile(r"journal\.FILE|forge-journal\.jsonl|FILE\b")
     writers = []

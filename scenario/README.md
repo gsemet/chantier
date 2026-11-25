@@ -467,6 +467,15 @@ does a unit that is not in `UNITS` and a test that does not exist.
     (test:
     test_watch_foreman.py::test_the_foremans_watcher_tells_its_batchs_three_kinds_and_runs_on,
     test_watch_foreman.py::test_the_foremans_watcher_ends_with_its_line_when_the_batch_no_longer_records_it);
+  - a Driver's message to the steering session (CR-497), on the same Foreman's watcher: a
+    `msg steering note` is delivered to it and wakes nothing, a `msg steering blocked` wakes it and
+    one block tells the note then the blocked message; the Foreman's `inbox --epoch 1` lists both and
+    `inbox --read all` marks them read; once the record names another Foreman, `msg` exits 2
+    `not delivered: no watcher subscribed` and the `msg@1` line stays in the journal, addressed to
+    that Foreman's session (unit: surface-board)
+    (test:
+    test_msg_steering.py::test_a_message_wakes_the_foremans_watcher_by_its_kind_and_no_other,
+    test_msg_steering.py::test_with_no_watcher_subscribed_the_line_is_kept_and_msg_exits_2);
   - the journal is ignored by git (`git check-ignore`), the record (`batch.json`, `events.jsonl`)
     is unchanged by the hub, a forge error lands in the `hub` entry and not in the journal, and no `gh`
     call is made but read-only `api graphql` queries (unit: surface-board) (test:

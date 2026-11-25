@@ -16,6 +16,7 @@ EPOCH_COMMANDS = (
     "cancel",
     "foreman",
     "gate",
+    "inbox",
     "next",
     "order",
     "park",
