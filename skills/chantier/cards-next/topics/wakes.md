@@ -1,7 +1,0 @@
-# What wakes you
-
-- The heartbeat: the wake that runs `chantier status --refresh --batch <batch> --epoch <n>` (the batch's `timing:` line says when, the host row who arms it). With no wake arriving, stop. While the batch is paused with no CR, arm none; the turn that takes the first CR arms it.
-- Your watcher (`$CHANTIER watch`, run by your session): start it in the background with the command your `watch: not running: for the Foreman` line prints, as is, in the turn that arms the heartbeat, and again with the command of its last line whenever it ended (a last line that is not `still watching`). It outlives the heartbeat and a pause. On a switch to direct mode, stop it by its id. That line, and any `watch:` line, is printed outside a Driver prompt block: never copy it into a Driver's prompt.
-- End the heartbeat, never your session, right after the pause, and on the first wake that sees no Driver of any kind run for 30 minutes or more with no order undone. A batch left blocked is such a stop. Stop each background task of yours by its id first, then `status --stop-heartbeat --batch <batch> --epoch <n>`, and cancel the armed wake as the host row says.
-- Keep each turn short: never wait inside a call, start no background task to wait for anything, change no shell's folder into a CR folder or a worktree. A turn ends when `status` shows nothing you can act on.
-The forge lines and the Chief of Staff's own: `help wakes-forge`.

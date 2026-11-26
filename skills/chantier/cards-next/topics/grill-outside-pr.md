@@ -1,7 +1,7 @@
 # An outside PR: archive <link>
 
 Only on the user's word "archive <link>", never offered, never from a forge read of your own.
-- Surface: read the `writer:` line first (`$CHANTIER sync`); `not running`: write nothing, say so, act as the line says. In-project: write in `.agents/changes/5-archives/`.
-- Read the PR read-only: `gh pr view <link> --json number,title,url,author,state,mergedAt,files,body`; GitLab `glab mr view <link>` (unproved). Write nothing and say why when it is not merged, or is a batch CR's (`order merged` records it), or an archive `5-archives/*-outside-<number>-*` exists.
+- Surface: read the `writer:` line first (`$CHANTIER sync`); `not running`: write nothing, say so in one line, act as the line says, then archive. In-project: write in `.agents/changes/5-archives/`.
+- Read the PR read-only: `gh pr view <link> --json number,title,url,author,state,mergedAt,files,body`; GitLab `glab mr view <link>` and its changed files as `glab` allows (unproved). Write nothing and say why when it is not merged, or is a batch CR's (`order merged` records it), or an archive `5-archives/*-outside-<number>-*` exists.
 - Write `5-archives/<YYMMDD-HHMM>-outside-<number>-<slug>/` (UTF-8, no BOM; the merge time in UTC; the forge's number; the title as `file` slugs it, at most 40 characters) with `intake/request.md` (the description, or the title as a `# ` line) and `delivery.md`: `# Delivery`, then `- PR: <link>`, `- Author:`, `- Merged: <YYYY-MM-DDTHH:MM:SSZ>`, `- Archive in the PR: no`, then what changed in a few lines.
-- `summary lint <folder>`, then `summary set <folder> --title "<the PR's title>" --summary "<one line>"`; `sync now` publishes at once; a refused `summary set` (writer stopped) keeps the files for the next writer: tell the user. Reply `archived <link> at 5-archives/<name>/`.
+- `summary lint <folder>`, then `summary set <folder> --title "<the PR's title>" --summary "<one line: what it changed, by whom>"`; `sync now` publishes at once; a refused `summary set` (writer stopped) keeps the files for the next writer: tell the user, run it again once `writer:` is back. Reply `archived <link> at 5-archives/<name>/`.

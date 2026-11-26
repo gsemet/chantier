@@ -20,7 +20,8 @@
     },
     "session-shell": {
       "readings": [
-        "topics/session-shell.md"
+        "topics/session-shell-p1.md",
+        "topics/session-shell-p2.md"
       ],
       "roles": [
         "cr-driver",
@@ -635,7 +636,8 @@
     },
     "main-checkout": {
       "readings": [
-        "topics/main-checkout.md"
+        "topics/main-checkout-p1.md",
+        "topics/main-checkout-p2.md"
       ],
       "roles": [
         "foreman",
@@ -645,7 +647,8 @@
     },
     "sync": {
       "readings": [
-        "topics/main-checkout.md",
+        "topics/main-checkout-p1.md",
+        "topics/main-checkout-p2.md",
         "sync-checkout.md"
       ],
       "roles": [
@@ -815,13 +818,14 @@
     },
     "mode-switch": {
       "readings": [
-        "topics/mode-switch.md"
+        "topics/mode-switch-p1.md",
+        "topics/mode-switch-p2.md"
       ],
       "roles": [
         "foreman",
         "chief-of-staff"
       ],
-      "trigger": "a switch to direct mode",
+      "trigger": "an `order mode` switch",
       "review_by": "0.16.0"
     },
     "conflict-check": {
@@ -893,7 +897,8 @@
     },
     "wakes": {
       "readings": [
-        "topics/wakes.md",
+        "topics/wakes-p1.md",
+        "topics/wakes-p2.md",
         "topics/wakes-forge.md"
       ],
       "roles": [
@@ -1233,6 +1238,16 @@
       ],
       "trigger": "a series of questions to the user, a CR's answers"
     },
+    "grill-example": {
+      "readings": [
+        "topics/grill-example.md"
+      ],
+      "roles": [
+        "chief-of-staff",
+        "griller"
+      ],
+      "trigger": "a worked series of questions, its text and tool call"
+    },
     "grill-options": {
       "readings": [
         "topics/grill-options.md"
@@ -1477,7 +1492,8 @@
     },
     "watcher-lines": {
       "readings": [
-        "topics/watcher-lines.md"
+        "topics/watcher-lines-p1.md",
+        "topics/watcher-lines-p2.md"
       ],
       "roles": [
         "chief-of-staff"
@@ -1486,7 +1502,8 @@
     },
     "watcher-events": {
       "readings": [
-        "topics/watcher-events.md"
+        "topics/watcher-events-p1.md",
+        "topics/watcher-events-p2.md"
       ],
       "roles": [
         "chief-of-staff"
@@ -1495,7 +1512,8 @@
     },
     "watcher-board": {
       "readings": [
-        "topics/watcher-board.md"
+        "topics/watcher-board-p1.md",
+        "topics/watcher-board-p2.md"
       ],
       "roles": [
         "chief-of-staff"
@@ -1543,7 +1561,8 @@
     },
     "forge-permissions": {
       "readings": [
-        "topics/forge-permissions.md"
+        "topics/forge-permissions-p1.md",
+        "topics/forge-permissions-p2.md"
       ],
       "roles": [
         "chief-of-staff"
@@ -1571,7 +1590,8 @@
     "config": {
       "readings": [
         "topics/config-p1.md",
-        "topics/config-p2.md"
+        "topics/config-p2.md",
+        "topics/config-p3.md"
       ],
       "roles": [
         "chief-of-staff"
@@ -1580,7 +1600,8 @@
     },
     "project-rules": {
       "readings": [
-        "topics/project-rules.md"
+        "topics/project-rules-p1.md",
+        "topics/project-rules-p2.md"
       ],
       "roles": [
         "chief-of-staff"
@@ -1638,12 +1659,16 @@
     },
     "batch-start": {
       "readings": [
-        "topics/trials.md",
+        "topics/trials-p1.md",
+        "topics/trials-p2.md",
         "topics/batch-plan.md",
-        "topics/batch-plan-show.md",
+        "topics/batch-plan-show-p1.md",
+        "topics/batch-plan-show-p2.md",
         "topics/batch-plan-mode-p1.md",
         "topics/batch-plan-mode-p2.md",
-        "topics/batch-plan-cut.md",
+        "topics/batch-plan-mode-p3.md",
+        "topics/batch-plan-cut-p1.md",
+        "topics/batch-plan-cut-p2.md",
         "topics/foreman-start-p1.md",
         "topics/foreman-start-p2.md",
         "topics/foreman-start-more.md"
@@ -1655,7 +1680,8 @@
     },
     "trials": {
       "readings": [
-        "topics/trials.md"
+        "topics/trials-p1.md",
+        "topics/trials-p2.md"
       ],
       "roles": [
         "chief-of-staff"
@@ -1673,7 +1699,8 @@
     },
     "batch-plan-show": {
       "readings": [
-        "topics/batch-plan-show.md"
+        "topics/batch-plan-show-p1.md",
+        "topics/batch-plan-show-p2.md"
       ],
       "roles": [
         "chief-of-staff"
@@ -1683,7 +1710,8 @@
     "batch-plan-mode": {
       "readings": [
         "topics/batch-plan-mode-p1.md",
-        "topics/batch-plan-mode-p2.md"
+        "topics/batch-plan-mode-p2.md",
+        "topics/batch-plan-mode-p3.md"
       ],
       "roles": [
         "chief-of-staff"
@@ -1692,7 +1720,8 @@
     },
     "batch-plan-cut": {
       "readings": [
-        "topics/batch-plan-cut.md"
+        "topics/batch-plan-cut-p1.md",
+        "topics/batch-plan-cut-p2.md"
       ],
       "roles": [
         "chief-of-staff"
@@ -1723,11 +1752,16 @@
         "topics/steering-reports-p1.md",
         "topics/steering-reports-p2.md",
         "topics/asks.md",
+        "topics/order-verbs-p1.md",
+        "topics/order-verbs-p2.md",
+        "topics/order-drop.md",
         "topics/driver-question.md",
         "topics/chain-conflict.md",
         "topics/rounds-exception.md",
-        "topics/watcher-events.md",
-        "topics/watcher-lines.md",
+        "topics/watcher-events-p1.md",
+        "topics/watcher-events-p2.md",
+        "topics/watcher-lines-p1.md",
+        "topics/watcher-lines-p2.md",
         "topics/refused-push-chief-p1.md",
         "topics/refused-push-chief-p2.md",
         "topics/refused-push-chief-more-p1.md",
@@ -1804,6 +1838,45 @@
       ],
       "trigger": "`asks`, a report's unread asks"
     },
+    "ready-asks": {
+      "readings": [
+        "topics/ready-asks.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "a readiness ask recorded, `superseded by A-<k>`"
+    },
+    "ask-lines": {
+      "readings": [
+        "topics/ask-lines.md"
+      ],
+      "roles": [
+        "foreman",
+        "chief-of-staff"
+      ],
+      "trigger": "an ask you word yourself, `asks \"<text>\"`"
+    },
+    "order-verbs": {
+      "readings": [
+        "topics/order-verbs-p1.md",
+        "topics/order-verbs-p2.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "the user's word to turn into an `order`"
+    },
+    "order-drop": {
+      "readings": [
+        "topics/order-drop.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a CR to take out of the batch, an `order drop` destination"
+    },
     "cost": {
       "readings": [
         "topics/cost.md"
@@ -1842,8 +1915,10 @@
     },
     "ready-to-merge": {
       "readings": [
-        "topics/merge-words.md",
-        "topics/merge-gaps.md",
+        "topics/merge-words-p1.md",
+        "topics/merge-words-p2.md",
+        "topics/merge-gaps-p1.md",
+        "topics/merge-gaps-p2.md",
         "topics/merge-recorded.md",
         "topics/merge-series-stack-p1.md",
         "topics/merge-series-stack-p2.md",
@@ -1860,7 +1935,8 @@
     },
     "merge-words": {
       "readings": [
-        "topics/merge-words.md"
+        "topics/merge-words-p1.md",
+        "topics/merge-words-p2.md"
       ],
       "roles": [
         "chief-of-staff"
@@ -1869,7 +1945,8 @@
     },
     "merge-gaps": {
       "readings": [
-        "topics/merge-gaps.md"
+        "topics/merge-gaps-p1.md",
+        "topics/merge-gaps-p2.md"
       ],
       "roles": [
         "chief-of-staff"
@@ -2010,7 +2087,12 @@
         "topics/direct-mode-epoch-p1.md",
         "topics/direct-mode-epoch-p2.md",
         "topics/direct-mode-accept-p1.md",
-        "topics/direct-mode-accept-p2.md"
+        "topics/direct-mode-accept-p2.md",
+        "topics/direct-mode-switch-p1.md",
+        "topics/direct-mode-switch-p2.md",
+        "topics/direct-mode-switch-p3.md",
+        "topics/direct-mode-switch-p4.md",
+        "topics/direct-mode-back.md"
       ],
       "roles": [
         "chief-of-staff"
@@ -2021,12 +2103,30 @@
       "readings": [
         "topics/direct-mode-p1.md",
         "topics/direct-mode-p2.md",
-        "topics/direct-mode-p3.md"
+        "topics/direct-mode-p3.md",
+        "topics/direct-mode-switch-p1.md",
+        "topics/direct-mode-switch-p2.md",
+        "topics/direct-mode-switch-p3.md",
+        "topics/direct-mode-switch-p4.md",
+        "topics/direct-mode-back.md"
       ],
       "roles": [
         "chief-of-staff"
       ],
       "trigger": "`open --direct`, a switch to direct mode"
+    },
+    "direct-mode-switch": {
+      "readings": [
+        "topics/direct-mode-switch-p1.md",
+        "topics/direct-mode-switch-p2.md",
+        "topics/direct-mode-switch-p3.md",
+        "topics/direct-mode-switch-p4.md",
+        "topics/direct-mode-back.md"
+      ],
+      "roles": [
+        "chief-of-staff"
+      ],
+      "trigger": "a switch of a batch between Foreman and direct mode"
     },
     "direct-mode-epoch": {
       "readings": [
@@ -2137,7 +2237,8 @@
     },
     "sync-offer": {
       "readings": [
-        "topics/sync-offer.md"
+        "topics/sync-offer-p1.md",
+        "topics/sync-offer-p2.md"
       ],
       "roles": [
         "foreman",

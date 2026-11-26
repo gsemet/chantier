@@ -13,7 +13,8 @@ line); it prints one line:
 3. `sync pending: held by <holders>`: a gate, watcher, board or hub (of any project, this session's
    own included) holds the environment, or the sync failed with os error 32 (`an unlisted
    process`). Stop or kill nothing and ask no one to: go on unsynced and try again at each next
-   turn but a reload.
+   turn but a reload. Judge a sync by this line, never by `$CHANTIER status` (this surface's
+   batch only).
 4. Any other failure (a stale `uv.lock`, a missing `uv`, exit 127): an ordinary failure, never
    `sync pending`; at a session's start a stop, else one line with uv's text and you go on.
 

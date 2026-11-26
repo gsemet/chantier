@@ -1,0 +1,3 @@
+# The main checkout after a merge (part 1 of 2)
+
+On by default unless the project's rules forbid it (an eval or a worktree session: `help options`). A convenience, never a gate: a skip costs nothing, asks nothing, has no workaround. Yours alone. Run it after you handle `order merged <cr>` (before its `order done`) or your own, the last merge's included (its order is already done by the pause); several merges in one turn get one attempt after the last. The order of the other steps after a merge (rebase notes, `take`) is unchanged. With a planning surface: `git -C <clone>` (the clone `take` names), never the surface's checkout. `<remote>`, `<default>`: the project's (`open`'s `--default-branch`). The steps: part 2.

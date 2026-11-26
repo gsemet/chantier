@@ -1,13 +1,15 @@
 # Copilot: what the user configures
 
-All of it unproved on this host until a Copilot batch runs it.
+All of it **unproved** on this host.
 
 - Prerequisites as for Claude Code: `git` and `uv` (P5), `gh` or `glab` logged in (P9, the card's
   check). P10 does not run on Copilot and no allow rule or permission setting is recorded:
   recommend none.
 - The capability table (`hosts/claude-code.md`) holds the commands both hosts run; the trials run
-  as there (the Chief of Staff's own calls, a refusal told with its exact text).
-- A refused force push is reported like any refusal (`help refused-push`). With no route rule
+  as there (the Chief of Staff's own calls, one per used capability, a refusal told and recorded
+  with its exact text).
+- A refused force push is reported like any refusal (`help refused-push`); a CR's branches must
+  stay force-pushable. With no route rule
   known, the Foreman skips the route-rule read and tries the push, as a Driver does. Risk,
   unproved: the host may stop an unwatched session on a prompt, which halts the batch.
 - Name no compacting command or setting to the user.

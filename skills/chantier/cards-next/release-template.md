@@ -24,12 +24,12 @@ Every changelog line (each `feat:` and `fix:` commit since the previous version)
 - Decide the kind from what ships, before writing a line:
   - **feature**: the user can do something they could not do before;
   - **fix**: something that should have worked now works; nothing new;
-  - **restore**: it undoes a mistake of an earlier release;
+  - **restore**: it undoes a mistake of an earlier release (a revert, a behaviour put back);
   - **breaking**: something the user relied on is removed or behaves differently and they must act;
-  - **internal**: nothing the user sees changes.
+  - **internal**: nothing the user sees changes (tooling, tests, docs process).
 - The subtitle names the kind in its first words ("A bug-fix release: ...", "Restores ... that 1.12.0 broke", "A breaking release: ..."), and every highlight and line keeps that tone: a fix release has no "you can now", a restore is never shown as new.
 - Several kinds: the subtitle names first the one that comes first in this order: breaking, feature, restore, fix, internal; each line keeps its own change's tone.
-- When the kind the notes need does not match the version (a patch whose content needs feature wording, a minor that ships only fixes), the notes take the tone of the real kind and the version PR's description says the version is probably wrong and why; the user decides, the Driver never changes the version itself.
+- When the kind the notes need does not match the version (a patch whose content needs feature wording, a minor that ships only fixes), the notes take the tone of the real kind and the version PR's description says the version is probably wrong and why; the user decides, the Driver never changes the version itself: it states this in the PR and asks no question.
 
 ### Writing rules
 
@@ -55,11 +55,11 @@ Every changelog line (each `feat:` and `fix:` commit since the previous version)
 
 ### One line per change
 
-- Each smaller change and folded line is one sentence. A fix starts "Fixed:" and says what works now as the user sees it. A restore owns the earlier release's mistake in one clause ("Restored: copy and paste of whole blocks, which 1.12.0 broke."), no apology, no blame. Say the consequence for the user, not the mechanism.
+- Each smaller change and folded line is one sentence. A fix starts "Fixed:" and says what works now as the user sees it. A restore owns the earlier release's mistake in one clause ("Restored: copy and paste of whole blocks, which 1.12.0 broke."), no apology, no blame. Say the consequence for the user, not the mechanism: what they see or can do, not how the code does it.
 
 ### Bad news
 
-- A removal, a change of behaviour the user relies on and a user-facing known issue each get a labelled line in the visible part, above the folded sections, starting `Removed:`, `Changed:` or `Known issue:`, one sentence, with what the user should do. Never only in a folded section, never inside a paragraph about something else, never softened ("streamlined") when the truth is "removed".
+- A removal, a change of behaviour the user relies on and a user-facing known issue each get a labelled line in the visible part, above the folded sections, starting `Removed:`, `Changed:` or `Known issue:`, one sentence, with what the user should do. Never only in a folded section (a user-facing known issue is not a contributor's detail), never inside a paragraph about something else, never softened ("streamlined", "simplified") when the truth is "removed".
 
 ### Length
 
@@ -67,7 +67,7 @@ A judgement, not a check. Subtitle at most 16 words; each smaller change or fold
 
 ### Self-check
 
-Before the notes are final (before `note --draft` on the last version and before the version PR's body is refreshed), answer yes or no and fix each "no":
+Before the notes are final (before `note --draft` on the last version and before the version PR's body is refreshed from them), answer yes or no and fix each "no":
 
 1. Does the subtitle name the release's kind in its first words?
 2. Does the title carry the full version (`X.Y.Z`)?

@@ -1,0 +1,4 @@
+# What wakes you (part 2 of 2)
+
+- End the heartbeat, never your session (an idle session still receives an order), right after the pause (the CLI's or yours), and on the first wake that sees no Driver of any kind (CR, stack, QA, release) run for 30 minutes or more, whatever the wake's interval, with no order undone. A stack or batch blocked and unfinished is such a stop: it stays running, its asks are recorded, the user wakes you; send nothing more. Stop each background task of yours by its id first, then `status --stop-heartbeat --batch <batch> --epoch <n>`, then cancel the armed wake as the host row says; only then say it stopped (not yours to end: say who does).
+- Keep each turn short: never wait inside a call or run a long command, start no background task to wait (your watcher aside), change no shell's folder into a CR folder or a worktree. A turn ends when `status` shows nothing you can act on.

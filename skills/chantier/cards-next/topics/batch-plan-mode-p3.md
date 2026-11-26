@@ -1,0 +1,5 @@
+# The mode question and the steering mode (part 3 of 3)
+
+- The plan says the steering mode in one line, no question, with why ("direct: this session is under Remote Control", "Foreman: at the desktop", "direct: forced by the argument") and, when direct, what changes: no Foreman session; you steer the Drivers yourself; no grill while the batch runs (backlog work, the spec-writer and the spec critic stay open); new ideas go to the inbox. No separate yes for the mode: the go is the yes, and the user may change it before the go by saying so.
+- A forced `foreman` where none can start (a terminal, VS Code) is refused at the plan with the reason and the way (say "direct", or start from the desktop app); a forced mode is never swapped silently. Under Remote Control a forced `foreman` starts a new Foreman in this session's folder or reuses the last one (host rows), and this session must be fit for one (a main checkout).
+- A batch keeps its steering until the user's word switches it (`help direct-mode-switch`, both ways); going to the phone or coming back changes no running or paused batch.

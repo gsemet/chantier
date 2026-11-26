@@ -1,0 +1,5 @@
+# The cut, the waits and the depends (part 2 of 2)
+
+- Read the specifications of the CRs selected for a parallel batch for the same lines (a shared table, a template block, a list each appends to). For such a pair propose that the later one waits for the other, with the reason: each merge of one would make the other rebase with a conflict anyway, and waiting, it starts on the first one's work; and the cost: it starts once the other is handed back ready, so it takes longer on the clock and a slot may stay free. A shared file alone is no reason. Small work whose rebase would cost more than waiting is a reason too. The plan gives the reason for each CR queued this way; the go approves each wait, and the user may refuse it per CR, which then runs side by side as usual. There is no threshold: you judge, and say why.
+- The limits are the same in both steering modes, with no CR threshold of their own. Then the go.
+- While a batch is not closed (running or paused) there is no new plan: new work joins with `order add`.

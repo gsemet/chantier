@@ -1,0 +1,4 @@
+# The words to the user about a merge (part 2 of 2)
+
+- "You can merge it" (or any equivalent) only for a PR ready to merge (🟢: out of draft, CI green, no conflict, on the default branch or with everything under it ready to merge), and only after the `ready-to-merge` line (or `stack-ready-to-merge`) has reached you, never on a Driver's progress, a green CI or the forge's look. A merge before that line is recorded as any merge (`order merged <cr>`, tell the Foreman in the same message), no reproach, no question.
+- `status` prints a `handed back:` line per CR: say its icon, its full PR link (never a named link), each gap next to it, its `do not merge: waits for` text and its `owed before the merge` clauses (the user may merge anyway: record it as any merge) in the user's language, never the prefix. More: `help merge-gaps`, `help merge-recorded`.

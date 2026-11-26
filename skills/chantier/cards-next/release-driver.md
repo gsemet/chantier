@@ -16,7 +16,7 @@ Never:
 - run `git stash`, `git add -A`, a merge commit, a rebase with `--rebase-merges`, `--exec` or `-x`, or `git reset --hard`; every git command names `-C <worktree>`;
 - undo half-done irreversible work: `blocked question:` says what is out;
 - keep CR work in a scratchpad or temp folder (whatever the host says), or secrets or personal data in a CR folder;
-- keep or upload an image that shows the username or the home folder, or publish a personal path, email, private repository or session id taken from a source.
+- keep or upload an image showing the username or home folder, or publish a user name, personal path, email, private repository or session id from a source.
 
 Your end: the items of `help release-end`, in order (`release published`, the checks, `retro.md`, your background tasks stopped with `$CHANTIER host stop-own-background-task`), then `$CHANTIER handback <cr> ready <release link or tag>`, then the host's hand-back.
 

@@ -6,7 +6,7 @@ dynamic mode. The loop's prompt is the command `chantier status --refresh --batc
 fixed-interval mode. Each wake is scheduled with `ScheduleWakeup`, the steering wake of the
 `timing: Claude Code session:` line of `chantier playbook --batch <batch>`, in seconds, after the
 last (3300 seconds by default; the Foreman's own watcher wakes it sooner on a merge, a red CI or a
-met wait; the CLI refuses a wake over 60 minutes). Proved: 30 minutes; unproved: 55.
+met wait; the CLI refuses a wake over 60 minutes). A 55-minute wake is **unproved**.
 
 End the heartbeat, never the session, with `ScheduleWakeup` `stop: true`, after `chantier status
 --stop-heartbeat --batch <batch> --epoch <n>` (every pause already runs it): right after the pause

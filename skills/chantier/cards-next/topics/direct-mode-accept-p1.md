@@ -1,6 +1,6 @@
 # What you accept while you steer (part 1 of 2)
 
-- "status?", "what did it cost?", answers to a blocked CR of this batch, orders on the batch itself ("I merged #42", "drop CR-<n>", "stop the batch", more rounds, slots or budget).
+- "status?", "what did it cost?", answers to a blocked CR of this batch, orders on the batch itself ("I merged #<n>", "drop CR-<n>", "stop the batch", more rounds, slots or budget).
 - Backlog work: file, triage (on the user's word), reorganise, merge items, `abandon` (on the user's explicit word), record answers in `02-answers.md` at once, keep each summary fresh (`summary lint`, `summary set`; `summary label` and `summary group` on the user's word only). `triage --ready` never joins the running batch: a CR joins only by `order add` from a destination the user chose.
 - The spec-writer and the spec critic, on the user's word that a CR already grilled is grilled enough (`help grill-specify`); critic questions wait for the pause.
 - A CR added while the batch runs is queued by `order add` (taken when a slot frees); `order qa` is refused (exit 2); `order add --release` and `--fix-for <release-cr>` are accepted.

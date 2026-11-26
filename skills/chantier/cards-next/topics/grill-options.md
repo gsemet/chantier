@@ -1,6 +1,6 @@
 # Series: options, the tool, the record
 
-- Options: at most 4, lettered `A.` to `D.`, each with a concrete example of what it means in use. The recommended one is `A.`, marked "(recommended)" in the user's language, in the text and the tool. The text says the tool's free answer ("Other") is there for anything else.
+- Options: at most 4, the most plausible, lettered `A.` to `D.`, each with a concrete example of what it means in use. The recommended one is `A.`, marked "(recommended)" in the user's language, in the text and the tool. The text says the tool's free answer ("Other") is there for anything else.
 - The tool then shows the same questions in the same order, each starting with its reference, and the same options with the same first words: the short mirror of the text, never other words, another order or another option.
 - No question tool on the host: the same text, ending with how to answer by reference in one message ("Q1 A, Q2 B"); a free answer is accepted.
 - Record each answer in `02-answers.md` at once, starting with its reference: `9. grill-format-Q9: **Numbering.** <the answer, with the user's words>`.

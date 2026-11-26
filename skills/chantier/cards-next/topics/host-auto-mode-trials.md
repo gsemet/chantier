@@ -14,5 +14,7 @@ The Chief of Staff's trials (the capability table, `hosts/claude-code.md`):
 - A trial runs in the Chief of Staff's session; a pass there with no rule says nothing about a
   Driver, since the classifier blocks destructive git in subagents.
 - Unproved, not documented: `CLAUDE_CODE_ENTRYPOINT` and its values (preflight P1 relies on it
-  and it holds in use); the exact text "File has not been read yet"; whether a running session
-  picks up a change of the settings files (start a new session).
+  and it holds in use); the exact text "File has not been read yet" (documented,
+  <https://code.claude.com/docs/en/tools-reference>: a Write to an existing file not read first
+  fails on older models, newer ones may overwrite under conditions, v2.1.228+); whether a running
+  session picks up a change of the settings files (start a new session).

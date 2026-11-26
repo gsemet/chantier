@@ -2,12 +2,11 @@
 
 - Allow, ask and deny matches resolve at once in auto mode, without the classifier, except
   protected paths, critical-path `rm`/`rmdir` and per-command domains (documented,
-  <https://code.claude.com/docs/en/permission-modes>). Seen otherwise for a subagent: the
-  classifier refused a Driver's `git -C <worktree> push --force-with-lease -u origin chantier/...`
-  that an allow rule matched. Whether it judges a subagent's command despite a matching rule is
-  **unproved**.
-- The classifier refused a stack driver's rebase and its force push when no rebase rule was set
-  ("Destructive or Unwanted Actions"). P10 now names the rebase rules, and a Driver's prompt
+  <https://code.claude.com/docs/en/permission-modes>). A subagent may differ: whether the
+  classifier judges its command despite a matching rule (a Driver's
+  `git -C <worktree> push --force-with-lease -u origin chantier/...`) is **unproved**.
+- With no rebase rule set, the classifier may refuse a stack driver's rebase and its force push
+  ("Destructive or Unwanted Actions"). P10 names the rebase rules, and a Driver's prompt
   carries a `Rewrites:` line (`concepts.md`, "A Driver's prompt"). Whether that line changes the
   classifier's judgement is **unproved**.
 - The labels "Git Destructive" and `claude auto-mode defaults` are documented
