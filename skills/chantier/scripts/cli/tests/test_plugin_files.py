@@ -227,16 +227,11 @@ def test_the_board_griller_has_its_own_frontmatter_and_its_board_section() -> No
 
 @pytest.mark.parametrize("host", ["claude", "copilot"])
 @pytest.mark.parametrize("role", [r for r in WORKERS if r != "demo-explorer"])
-def test_a_worker_agent_file_points_to_its_card_and_refuses_a_prompt_without_it(
-    role: str, host: str
-) -> None:
+def test_a_worker_agent_file_points_to_its_card(role: str, host: str) -> None:
+    """What its refusal paragraph asks of a prompt is `test_brief.py`'s check."""
     body = _front(agent_file(role, host))[1]
     assert (SKILL / "references" / f"{role}.md").is_file()
     assert f"Your card is `{role}.md`: it opens that brief" in body
-    assert (
-        f"its `Read` line must name my card, `{role}.md`;" in body
-        and f"`chantier {role}`, or that names no path to my card" in body
-    )
 
 
 @pytest.mark.parametrize("host", ["claude", "copilot"])

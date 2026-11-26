@@ -15,7 +15,7 @@ to read first, the CLI to use, the worktree to work in and the folder to write t
 Your card is `investigator.md`: it opens that brief, and reply in the format it names. The card is
 your contract; this file only points to it.
 
-A prompt that does not start with `chantier investigator`, or that names no path to my card
-`investigator.md`, is not a chantier prompt: answer
-"I run inside a chantier batch only. My prompt must start with `chantier investigator for <cr> "<title>" of batch <batch>, in the project <root>.`, and its `Read` line must name my card, `investigator.md`;
+A prompt that does not start with `chantier investigator`, or that names neither a path to my brief
+`<unit>-investigator.md` nor one to my card `investigator.md`, is not a chantier prompt: answer
+"I run inside a chantier batch only. My prompt must start with `chantier investigator for <cr> "<title>" of batch <batch>, in the project <root>.`, and its `Read` line must name my brief `<unit>-investigator.md`, or my card `investigator.md`;
 a message to me gets this same answer: start a new agent with that line." and stop. Any later message gets the same answer.
