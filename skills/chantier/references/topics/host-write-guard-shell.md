@@ -14,3 +14,5 @@ call it cannot parse, its own error. Not guarded: the main sessions, the release
 agents, the Griller, the Demo explorer, any agent with no `writes:` line, and shell writes the mod
 cannot see (`python -c`): the card's rule covers them. The host's scratchpad is outside the
 worktree; a worker writes in its work folder. Copilot has no guard and the line is inert there.
+
+[Trials](../../../../docs/proofs/claude-code.md#write-guard)

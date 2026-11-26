@@ -18,3 +18,5 @@ The Chief of Staff's trials (the capability table, `hosts/claude-code.md`):
   <https://code.claude.com/docs/en/tools-reference>: a Write to an existing file not read first
   fails on older models, newer ones may overwrite under conditions, v2.1.228+); whether a running
   session picks up a change of the settings files (start a new session).
+
+[Trials](../../../../docs/proofs/claude-code.md#auto-mode)

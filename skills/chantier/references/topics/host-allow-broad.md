@@ -17,3 +17,5 @@
   `$CHANTIER forge-stack` or the `gh stack` extension.
 
 The base set and two unchecked rules: `help host-allow-extra`.
+
+[Trials](../../../../docs/proofs/claude-code.md#allow-rules)

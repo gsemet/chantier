@@ -14,3 +14,5 @@ first wake that sees no Driver run for 30 minutes or more; the Chief of Staff th
 to delete the `/every` and arms it again with the next order. Whoever ends it first records it with
 `chantier status --stop-heartbeat --batch <batch> --epoch <n>` (`pause` already does); while an
 `/every` still fires, its next wake clears the mark, which is true.
+
+[Trials](../../../../docs/proofs/copilot.md#heartbeat)

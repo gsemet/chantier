@@ -18,3 +18,5 @@ the starter is the Chief of Staff and the started one the Foreman. **Unproved** 
   **Unproved**.
 - A notice that arrives with a Foreman line or the user's message: handle that line or message as
   its card says; the notice changes nothing.
+
+[Trials](../../../../docs/proofs/claude-code.md#other-the-foremans-turn-end-notice)

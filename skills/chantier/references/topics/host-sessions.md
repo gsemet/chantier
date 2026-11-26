@@ -15,3 +15,5 @@ the Foreman-mode P1 fails (terminal, VS Code), Foreman in the "Desktop, typed" r
 worktree cannot move to the main checkout: the user starts a new session there (`help
 host-for-you`). Whether a surface session may write the project's clone and worktrees outside its
 folder is **unproved**.
+
+[Trials](../../../../docs/proofs/claude-code.md#other-classes-of-session)

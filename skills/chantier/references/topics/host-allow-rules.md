@@ -21,3 +21,5 @@ narrower or other rule of the user's counts when it matches the same commands.
 
 The launcher rule, `launcher_rule(root)`: `uv run --script "<plugin root>/skills/chantier/scripts/chantier.py" *`.
 **Unproved** (matching, auto mode, a Driver).
+
+[Trials](../../../../docs/proofs/claude-code.md#allow-rules)

@@ -16,3 +16,5 @@ All seen in use unless marked.
   steering transcript's `attachment` record `task_status` `killed` with the agent's id as
   `taskId`) and a message to it refused. Unproved: what a stop made by the user in the app leaves
   in the transcript.
+
+[Trials](../../../../docs/proofs/claude-code.md#other-surfaces-and-options)

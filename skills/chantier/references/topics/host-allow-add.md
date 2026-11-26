@@ -16,3 +16,5 @@ user's yes (`help allow-rules`). **Unproved**.
 Fill in only the list: the strings P10 named, in table order, `origin` replaced by the project's
 remote, `<checkout>` and `<plugin root>` by the real path (the check rule's too), no placeholder. A path holding a `'`
 breaks the quoting: say so instead of giving the lines. The shell lines: `help host-allow-add-lines`.
+
+[Trials](../../../../docs/proofs/claude-code.md#allow-rules-to-add)

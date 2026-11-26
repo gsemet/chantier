@@ -17,3 +17,5 @@
   rule matches is told from one with no rule.
 - A loop, a script or a chain matches no prefix rule, so the classifier judges it alone: one
   command per branch.
+
+[Trials](../../../../docs/proofs/claude-code.md#auto-mode)

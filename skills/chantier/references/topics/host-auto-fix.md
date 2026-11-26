@@ -20,3 +20,5 @@ checks, merge the base in). **Unproved** as a rule.
   switches: the PR's menu in the Changes card
   (<https://code.claude.com/docs/en/desktop.md#monitor-pull-request-status>); a global setting
   (Settings > Code) is **unproved**, and may not reach local sessions' PRs.
+
+[Trials](../../../../docs/proofs/claude-code.md#other-auto-fix-events)

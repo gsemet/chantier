@@ -17,3 +17,5 @@ All of it **unproved** on this host.
   dropped at `session.create` (copilot-sdk#1609); an unknown identifier falling back silently
   (copilot-sdk#2856); sub-agents on another model with no sign, fixed in CLI v1.0.62
   (copilot-cli#3824).
+
+[Trials](../../../../docs/proofs/copilot.md#other-configuration)

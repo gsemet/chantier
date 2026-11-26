@@ -17,3 +17,5 @@ No allow rule for these; when the host refuses or asks, the agent reports the ex
   number first, such as `04-result.md`.
 
 What not to add: `help host-allow-not-add`.
+
+[Trials](../../../../docs/proofs/claude-code.md#what-stays-refused)

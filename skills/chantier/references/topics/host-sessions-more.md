@@ -14,3 +14,5 @@ All **unproved**.
 - Claude Desktop limits messages between sessions (10 since someone last typed): a refused send is
   reported, never sent another way. It applies to the lines between a Griller and the Chief of
   Staff and to a hand-over's.
+
+[Trials](../../../../docs/proofs/claude-code.md#griller-in-worktree)
