@@ -83,8 +83,8 @@ CASES = {
         "roles: coder (data): card coder-gone.md: no such file",
     ),
     "reply-heading": (
-        (DATA, "'coder.md#Your part'", "'coder.md#Your parts'"),
-        "roles: coder (data): reply coder.md#Your parts: no heading `Your parts`",
+        (DATA, "'coder.md#Coder'", "'coder.md#Coders'"),
+        "roles: coder (data): reply coder.md#Coders: no heading `Coders`",
     ),
     "extra-wrapper": (None, "roles: extra (claude): agents/extra.md has no entry in roles.yaml"),
     "missing-wrapper": (None, f"roles: coder (copilot): no file {COPILOT}"),

@@ -131,5 +131,6 @@ def batch_line(repo: Repo, d: BatchRecord, events: list[EventRecord], stopped: s
         f"batch: shape {shape_word(d.mode)}; slots {len(held(d))}/{d.slots}; "
         f"steering {steering_word(d.steering)}; {rounds}; {budget}; "
         f"long gate owed: {', '.join(owes) or 'none'}; merges: the user{under}"
-        f"; rules: {skill_dir().as_posix()}/references/reload-rules.md (reread after a compaction)"
+        f"; rules: {skill_dir().as_posix()}/references/floor.md "
+        "(after a compaction, run your brief again)"
     )

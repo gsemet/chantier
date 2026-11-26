@@ -67,8 +67,7 @@ _BUSY = "a Griller turn runs on {project}/{item}: wait for it or stop it"
 GRILLED = re.compile(r"\[griller→board\] grilled enough: (next batch|running batch)\s*$")
 BRIEF = """\
 chantier board-griller for the board, in the project {root}.
-Your card: {skill}/references/griller.md, its section "Started from the board" first; \
-your host's reference: {skill}/references/hosts/{host_file}.md.
+Your card: {skill}/references/griller.md, its section "Started from the board" first.
 The CLI: {cli}.
 The CR's folder: {folder}. You write only there.
 The user speaks to you from the web board; their words follow.
@@ -287,7 +286,6 @@ def _run_of(s: _Start, session: str, first: bool) -> Run:
     brief = BRIEF.format(
         root=repo.root.as_posix(),
         skill=skill.as_posix(),
-        host_file=HEADLESS[host].host_file,
         cli=cli,
         folder=s.folder.resolve().as_posix(),
     )

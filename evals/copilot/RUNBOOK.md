@@ -77,7 +77,8 @@ the Copilot App (on the Copilot SDK) and the Copilot CLI.
    output into the report. When it prints `ran the requested model`, the finding goes to an inbox
    CR, offered by the Chief of Staff to the user, that sets
    `NAMED_AGENT_MODEL_AT_START["copilot"] = True`, removes `model-policy: required` from the files
-   the proof covers and updates `hosts/copilot.md`'s rows; otherwise the report names the recorded
+   the proof covers and updates the model rows of `hosts/copilot.json` (`chantier host
+   model-at-start`, `chantier host models`); otherwise the report names the recorded
    model and the host's exact text, and nothing is worked around.
 3. Where available, record the account's identifiers with
    `copilot --silent -p "/model --list --json"` (it works only sometimes,
@@ -87,7 +88,8 @@ the Copilot App (on the Copilot SDK) and the Copilot CLI.
    refusal message (a plan without the model included): the report names the role, the expected
    identifier, the recorded one and the host's exact text. Nothing is worked around: the agent
    file is not changed to follow the host, no override is passed. The finding goes to
-   `hosts/copilot.md` ("Models" rows) through an inbox CR, which the Chief of Staff offers the user.
+   `hosts/copilot.json` (its `models` row, `chantier host models`) through an inbox CR, which the
+   Chief of Staff offers the user.
 
 ## Still to fill in from a real run
 

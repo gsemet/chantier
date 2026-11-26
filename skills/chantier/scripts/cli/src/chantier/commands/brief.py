@@ -1,6 +1,7 @@
 """`chantier brief`: one role's whole start brief, written in the repository's git folder, and the
-short prompt that points at it. It reads the record and the planning folder only: it records
-nothing, renews no lease and appends no journal line. The roles it knows are data, read from
+short prompt that points at it. It reads the record, the planning folder and, for a Driver's
+`Team:` line, the review steps of the project's `chantier` section: it records nothing, renews
+no lease and appends no journal line. The roles it knows are data, read from
 `roles.yaml` (`roles_data`); the facts come from the builders `take`, `take stack`, `order qa` and
 `handoff` use."""
 
@@ -14,23 +15,21 @@ from pathlib import Path
 from chantier.board.projects import project_name
 from chantier.commands.crs import batch_cr
 from chantier.commands.driver import _cr_driver_block, stack_block
-from chantier.commands.facts import cr_facts, cr_facts_head, worker_writes
+from chantier.commands.facts import cr_facts, unit_facts, worker_writes
 from chantier.commands.orders import qa_block, qa_default_branch
 from chantier.core import leases
 from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.files import write_file
 from chantier.core.ids import normalize_cr
-from chantier.core.records import BatchRecord
+from chantier.core.records import BatchRecord, read_events
 from chantier.core.repo import Repo
 from chantier.driver_prompt import (
-    RULES_LINE,
     DriverBlock,
     DriverRow,
-    driver_body_lines,
+    driver_prompt_lines,
     driver_row,
     needs_line,
-    steering_who,
 )
 from chantier.host_rows import HostRow, load_rows, row_lines
 from chantier.lifecycle.stages import cr_directory
@@ -43,17 +42,18 @@ from chantier.plugin_files import (
     read_escalation,
     read_playbook,
     recorded_timing,
+    review_steps,
     skill_dir,
 )
 from chantier.role_wrappers import first_line_template, role_contract_lines
 from chantier.roles_data import Role, load_roles
+from chantier.stack_shape import shape_line
 from chantier.status.views import shown_title
 
 CLOSING = "`$CHANTIER next` says what is due; `$CHANTIER help <topic>` when a line names one."
 STEERING_ROLES = ("foreman", "chief-of-staff")
 DRIVERS = ("cr-driver", "release-driver", "stack-driver", "qa-driver")
 ORDER, STACK, FOLDER, NONE = "order", "stack", "folder", "none"
-SKILL_CARDS = {"chief-of-staff": "chief-of-staff.md", "griller": "griller-skill.md"}
 FOLDERS = ("1-inbox", "2-backlog/P1", "2-backlog/P2", "2-backlog/P3", "2-backlog/P4", "3-ready")
 
 
@@ -111,6 +111,14 @@ def _check_lease(d: BatchRecord, unit: str, lease: int) -> None:
         raise _refuse(f"lease {lease} is not {unit}'s live lease")
 
 
+def _take_note(repo: Repo, batch: str, cr: str | None, lease: int) -> str:
+    """The note of the `take` that started the unit's lease (`cr` None: the stack's)."""
+    for e in reversed(read_events(repo.store, repo.batch_dir(batch))):
+        if e.kind == "take" and e.cr == cr and e.lease == lease:
+            return str(e.note or "")
+    return ""
+
+
 def _cli(repo: Repo, batch: str | None) -> str:
     return f"CLI ($CHANTIER): {cli_command(repo)} <command>" + (
         f" --batch {batch}" if batch else ""
@@ -140,9 +148,11 @@ def _cr_roles(
         assert lease is not None
         facts = cr_facts(repo, batch, d, c)
         block = _cr_driver_block(repo, batch, c, facts)
-        block.team, block.lease = team_lines(d.playbook), leases.driver_line(c.id, lease)
+        block.team, block.reviews = team_lines(d.playbook), review_steps(repo, host)
+        block.lease, block.number = leases.driver_line(c.id, lease), lease.n
+        block.note = _take_note(repo, batch, c.id, lease.n)
         return _driver_facts(row, d, block, facts[0]), batch, host, d
-    head = cr_facts_head(repo, batch, d, c)
+    head = unit_facts(repo, batch, d, c)
     writes = worker_writes(c, folder)
     lines = [*head, *role_contract_lines(host, role.name, d), writes]
     title = shown_title(repo.store, c.title, folder)
@@ -158,17 +168,8 @@ def _worktree(lines: list[str]) -> str | None:
 def _driver_facts(
     row: DriverRow, d: BatchRecord, block: DriverBlock, head: str | None = None
 ) -> Facts:
-    """A Driver's facts: its prompt's lines after the card lines, de-indented, with the
-    `Steering:` line naming the host rows and no `Note:` line."""
-    body = driver_body_lines(
-        row,
-        d,
-        block,
-        steering=f"{steering_who(d)} (host means: the host rows below)",
-        note=False,
-        indent="",
-    )
-    lines = [*([head] if head else []), RULES_LINE, *body]
+    """A Driver's facts: `head`, when the unit has one, then its prompt's lines."""
+    lines = [*([head] if head else []), *driver_prompt_lines(row, d, block)]
     return Facts(lines, block.fill, block.writes if row.writes else None, _worktree(block.middle))
 
 
@@ -181,7 +182,8 @@ def _stack_driver(
         raise _refuse(f"batch {batch} is not a stack: it has no stack driver")
     _check_lease(d, "stack", args.lease)
     row = driver_row(d.host, "take stack")
-    block, _ = stack_block(repo, batch, d, args.lease, "")
+    note = _take_note(repo, batch, None, args.lease)
+    block, _ = stack_block(repo, batch, d, args.lease, note)
     return _driver_facts(row, d, block), batch, d.host, d
 
 
@@ -195,7 +197,8 @@ def _qa_driver(
         raise _refuse(f"{args.unit} is not an open QA order of {batch}")
     _check_lease(d, order.id, args.lease)
     row = driver_row(d.host, "order qa")
-    block = qa_block(repo, batch, (order.id, order.cr), qa_default_branch(repo), args.lease, "")
+    branch = qa_default_branch(repo)
+    block = qa_block(repo, batch, (order.id, order.cr), branch, args.lease, order.note)
     return _driver_facts(row, d, block), batch, d.host, d
 
 
@@ -234,6 +237,7 @@ def _foreman_lines(repo: Repo, batch: str, d: BatchRecord, epoch: int | None) ->
         f"Repository: {repo.root.as_posix()}",
         f"batch: {batch}",
         f"epoch: {epoch if epoch is not None else d.foreman_epoch}",
+        *shape_line(d),
         *team_lines(d.playbook),
         *timing_lines(recorded_timing(d), d.host),
         *(ln.strip() for ln in needs_line(d.playbook, "foreman")),
@@ -301,8 +305,7 @@ def _card_files(role: Role, cards: str | None) -> tuple[Path, Path]:
         refs = skill_dir() / "references"
         return (refs / role.card).resolve(), refs / "floor.md"
     folder = Path(cards).resolve()
-    name = SKILL_CARDS.get(role.name) or Path(role.card).name
-    return folder / name, folder / "floor.md"
+    return folder / Path(role.card).name, folder / "floor.md"
 
 
 def _rows(role: Role, host: str) -> list[str]:

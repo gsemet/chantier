@@ -1092,8 +1092,20 @@ const compacting = (on: On, seen: any[] = []) =>
     return { messages: SUMMARY }
   })
 const LONG = [{ role: 'user' as const, text: 'A LONG TALK', toolUses: [] }]
-const TAIL = ' in a chantier session; after this compaction, call your chantier skill again with the argument reload.'
-const RELOAD = { cos: `You are the Chief of Staff${TAIL}`, griller: `You are the Griller${TAIL}`, router: `You are${TAIL}` }
+const reload = (who: string, brief: string, role: string) =>
+  `You are ${who}in a chantier session; after this compaction, run ${brief} brief again (\`brief ${role}\` through your skill's \`$CHANTIER\` command; the Foreman with \`--epoch <n>\`) and read the file it names whole; the floor, in that brief, holds.`
+const RELOAD = {
+  cos: reload('the Chief of Staff ', 'your', 'chief-of-staff'),
+  griller: reload('the Griller ', 'your', 'griller'),
+  router: reload('', "your role's", '<role>'),
+}
+
+test('the reload message names the floor and no removed file', () => {
+  for (const text of Object.values(RELOAD)) {
+    expect(text).toContain('floor')
+    expect(text).not.toContain('.md')
+  }
+})
 
 test('a compaction of a session that loaded a role skill ends with the reload line, manual or auto', async ($, on) => {
   mock.clock(on)

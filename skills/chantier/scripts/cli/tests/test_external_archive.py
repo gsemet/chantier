@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from conftest import Chantier, live_writer, sh
 from test_cli_runs import FROM_AGENTS_MD, _prepared
+from test_driver_prompt import brief_of
 
 from chantier import plugin_files
 from chantier.commands import delivery
@@ -15,13 +16,18 @@ from chantier.core.records import CrEntry
 from chantier.core.repo import Repo
 
 
-def _the_cr_drivers_writes_hold_the_folder_then_the_absolute_archive(out: list[str]) -> None:
+def _the_cr_drivers_writes(chantier: Chantier, out: list[str]) -> str:
+    """The `writes:` line of the short prompt that `take`'s `brief:` line prints."""
+    short, _ = brief_of(chantier, out)
+    return next(ln for ln in short if ln.startswith("writes: ")).removeprefix("writes: ")
+
+
+def _the_cr_drivers_writes_hold_the_folder_then_the_absolute_archive(
+    chantier: Chantier, out: list[str]
+) -> None:
     archive = next(ln for ln in out if ln.startswith("archive: in the PR at ")).split(" at ")[1]
     folder = next(ln for ln in out if ln.startswith("folder: ")).split(" (")[0][len("folder: ") :]
-    heading = next(i for i, ln in enumerate(out) if ln.startswith("cr-driver prompt ("))
-    writes = next(ln for ln in out[heading:] if ln.startswith("  writes: ")).removeprefix(
-        "  writes: "
-    )
+    writes = _the_cr_drivers_writes(chantier, out)
     assert writes.startswith(f"{folder}; ") and writes.endswith(archive)
     assert Path(writes.split("; ")[1]).is_absolute()
 
@@ -146,12 +152,10 @@ def test_an_external_surface_gets_the_planning_folder_and_the_project_stays_clea
     )
     if archived:
         assert any(ln.startswith("archive: in the PR at .agents/changes/5-archives/") for ln in out)
-        _the_cr_drivers_writes_hold_the_folder_then_the_absolute_archive(out)
+        _the_cr_drivers_writes_hold_the_folder_then_the_absolute_archive(chantier, out)
     else:
         assert "archive: not in the PR" in out
-        heading = next(i for i, ln in enumerate(out) if ln.startswith("cr-driver prompt ("))
-        writes = next(ln for ln in out[heading:] if ln.startswith("  writes: "))
-        assert "; " not in writes
+        assert "; " not in _the_cr_drivers_writes(chantier, out)
     shown = sh("git", "status", "--porcelain", "-uall", cwd=surface).splitlines()
     assert shown and all(ln.startswith("?? projects/demo/changes/") for ln in shown)
     local = ("batch.json", "events.jsonl", "STATUS", ".lock", ".batch-number", "seat.json")

@@ -23,7 +23,7 @@ from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.ids import normalize_cr
 from chantier.core.records import LIVE, TRASH, OrderRecord
 from chantier.core.repo import Repo
-from chantier.driver_prompt import DriverBlock, DriverRow, driver_prompt_lines, driver_row
+from chantier.driver_prompt import DriverBlock, DriverRow, driver_row, start_lines
 from chantier.hub.autostart import not_running_line
 from chantier.lifecycle.filing import new_request, shown
 from chantier.lifecycle.session import RenderedBatch
@@ -166,12 +166,14 @@ def qa_block(  # noqa: PLR0913, PLR0917 - the order, its branch, lease and note
     )
 
 
-def _qa_skeleton(repo: Repo, b: Batch, qa_row: tuple[DriverRow, str], req: _Req) -> list[str]:
-    """The QA driver's prompt block, after the order's `QA folder:` line."""
+def _qa_start(repo: Repo, b: Batch, qa_row: tuple[DriverRow, str], req: _Req) -> list[str]:
+    """The QA driver's start: the order's lease, then the `brief` command."""
     row, branch = qa_row
     held = leases.lease_of(b.record, req.oid)
-    block = qa_block(repo, b.id, (req.oid, req.cr), branch, held.n if held else 1, req.note)
-    return driver_prompt_lines(row, b.record, block)
+    n = held.n if held else 1
+    block = qa_block(repo, b.id, (req.oid, req.cr), branch, n, req.note)
+    assert block.lease is not None
+    return start_lines(row.role, req.oid, (n, block.lease), cli_command(repo), b.id)
 
 
 @dataclass
@@ -332,7 +334,7 @@ def _ordered(repo: Repo, args: argparse.Namespace, note: str, new_release: bool)
             req.note = note = w.recorded
         cr = req.cr
         oid = _record_order(b, args, req)
-        skeleton = _qa_skeleton(repo, b, qa_row, req) if qa_row else []
+        start = _qa_start(repo, b, qa_row, req) if qa_row else []
         batch_id = b.id
         watch = not_running_line(repo) if args.kind == "qa" and reopened else []
     if w.ended:  # a CR ended: the locks are released, and the batch ends or says why it stays open
@@ -344,7 +346,7 @@ def _ordered(repo: Repo, args: argparse.Namespace, note: str, new_release: bool)
     return [
         f"[chief-of-staff→foreman] order {oid}: {args.kind}{target}{text}{w.clause}",
         *effect,
-        *skeleton,
+        *start,
         *fresh,
         *watch,
     ]

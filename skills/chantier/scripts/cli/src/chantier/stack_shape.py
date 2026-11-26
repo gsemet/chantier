@@ -1,11 +1,10 @@
 """The shape of a stack batch: what makes a per-CR ready ask a stack matter (`shape_blockers`),
-the next step of its Foreman (`next_step`) and the `status --refresh` line that shows both
-(`shape_line`). Read from the record only."""
+the next step of its Foreman (`next_step`) and the lines of `status --refresh` and `brief
+foreman` that show both (`shape_line`). Read from the record only."""
 
 from __future__ import annotations
 
 from chantier.core.records import BatchRecord, CrEntry
-from chantier.plugin_files import skill_dir
 from chantier.stacks import FORMING, chain, forming
 
 
@@ -39,8 +38,8 @@ def next_step(b_data: BatchRecord) -> str:
 
 
 def shape_line(b_data: BatchRecord) -> list[str]:
-    """The `status --refresh` line that shows a stack batch's shape, read from the record only;
-    [] for any batch that is not a stack."""
+    """The lines of `status --refresh` and `brief foreman` for a stack batch: its shape, read
+    from the record only, then the topic to read; [] for any batch that is not a stack."""
     if b_data.mode != "stack":
         return []
     order = chain(b_data)
@@ -53,8 +52,8 @@ def shape_line(b_data: BatchRecord) -> list[str]:
     else:
         alone = "allowed"
     present = f"present ({', '.join(native)})" if native else "absent"
-    rules = f"{skill_dir().as_posix()}/references/foreman-stack.md (reread after a compaction)"
     return [
         f"shape stack: next {next_step(b_data)}; stack driver: {b_data.stack_agent or 'none'}; "
-        f"native stack: {present}; alone asks: {alone}; rules: {rules}"
+        f"native stack: {present}; alone asks: {alone}",
+        "shape: stack: read `$CHANTIER help stack` now and after each compaction",
     ]

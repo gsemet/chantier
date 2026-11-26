@@ -40,7 +40,7 @@ The words "in direct mode" repeat the skill's `direct` argument: the Chief of St
 either one.
 
 The session is new and its own: not a Foreman session. It is the steering session ("Steering a
-batch yourself" in `chief-of-staff-direct.md`): it runs `$CHANTIER preflight --direct`, `open --direct`,
+batch yourself", `chantier help direct-mode`): it runs `$CHANTIER preflight --direct`, `open --direct`,
 claims its epoch, renames itself `[<code>] 💬 Project · CoS (Batch <nn>)`, starts
 the Drivers itself and arms the heartbeat. It also plays the user in full, as in real-foreman.
 
@@ -62,7 +62,8 @@ anyway, report it as `full` and real-foreman say (J15), and never send another w
 
 ## What it proves on top of real-foreman
 
-The direct-mode lines that `hosts/claude-code.md` marks unproved:
+The direct-mode lines that the host rows (`hosts/claude-code.json`, `chantier host`) and the host
+topics mark unproved:
 
 - a Driver's `SendMessage` to `main`;
 - the heartbeat in the Chief of Staff's own session;

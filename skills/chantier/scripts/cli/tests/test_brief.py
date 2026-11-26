@@ -3,14 +3,14 @@ at it. The worlds are built once per host and batch kind; each loops over the ro
 
 from __future__ import annotations
 
-import json
 import re
+import shlex
 from pathlib import Path
 
 import pytest
 from batch_helpers import changes, host, open_batch, prepared, record, write_record
 from conftest import PLUGIN_ROOT, SKILL, Chantier
-from test_driver_prompt import _skeleton
+from test_driver_prompt import brief_of
 from test_plugin_files import agent_file
 
 from chantier.commands.brief import CLOSING, DRIVERS
@@ -135,8 +135,12 @@ def _check_file(path: Path, role: str, name: str, planning: Path, rows_of: set[s
     return text
 
 
-def _check_prompt(out: list[str], role: str, name: str, took: list[str], root: str) -> None:
-    """The short prompt: the filled first line, the hook's own reading of the other lines."""
+def _check_prompt(
+    out: list[str], role: str, facts: list[str], names: tuple[str, str], took: list[str]
+) -> None:
+    """The short prompt: the filled first line, the hook's own reading of the other lines;
+    `names`: the host and the repository's root."""
+    name, root = names
     writes_re, tree_re, root_re = _hook("writesOf"), _hook("worktreeOf"), _hook("rootOf")
     template = (
         FIRST.search(agent_file(role, name).read_text("utf-8")) if _wrapped(role, name) else None
@@ -157,8 +161,7 @@ def _check_prompt(out: list[str], role: str, name: str, took: list[str], root: s
     trees = [m[1] for ln in out if (m := tree_re.match(ln))]
     assert len(out) == (1 if template else 0) + len(guarded) + len(trees) + 1
     if role in ("cr-driver", *WORKERS):
-        on_take = _worker_writes(took) if role in WORKERS else _driver_writes(took, role)
-        assert guarded == [on_take]
+        assert guarded == [_writes(facts, role)]
         on_take_trees = [m[1] for ln in took if (m := tree_re.match(ln))]
         assert trees == on_take_trees[:1]
     else:
@@ -166,16 +169,9 @@ def _check_prompt(out: list[str], role: str, name: str, took: list[str], root: s
         assert bool(trees) == (role == "release-driver")
 
 
-def _check_driver_facts(text: str, took: list[str], role: str) -> None:
-    """A Driver's facts are what `take`, `take stack` and `order qa` print, minus the lines the
-    specification removes: the heading, the first line, the Read and Card lines (the rules line
-    stays), the Steering line (it names the host rows) and the Note."""
-    block = _skeleton(took, role)[4:]
-    printed = [ln[2:] for ln in block if not ln.startswith(("  Steering: ", "  Note: "))]
-    facts = _part(text, "=== facts", "=== host rows: ")
-    body = [ln for ln in facts if not ln.startswith("Steering: ")]
-    assert body[-len(printed) :] == printed
-    assert len(body) - len(printed) <= 1  # a CR's title line, which `take` prints apart
+def _check_driver_facts(facts: list[str]) -> None:
+    """A Driver's facts hold the CLI line and the Steering line, which names the host rows."""
+    assert any(ln.startswith("CLI ($CHANTIER): ") for ln in facts)
     assert "Steering: the Foreman (host means: the host rows below)" in facts
 
 
@@ -199,19 +195,36 @@ def test_every_role_gets_a_stable_brief_in_the_git_folder_and_a_short_prompt(
         raw = path.read_bytes()
         assert _run(chantier, role, unit, lease) == out and path.read_bytes() == raw
         assert _state(changes(repo)) == planning  # nothing written in the planning folder
-        _check_prompt(out, role, name, took, root)
+        facts = _part(text, "=== facts", "=== host rows: ")
+        _check_prompt(out, role, facts, (name, root), took)
         if role in DRIVERS:
-            _check_driver_facts(text, took, role)
+            _check_driver_facts(facts)
 
 
-def _worker_writes(took: list[str]) -> str:
-    at = next(i for i, ln in enumerate(took) if ln.startswith("worker writes line ("))
-    return took[at + 1].strip().removeprefix("writes: ")
+def _writes(facts: list[str], role: str) -> str:
+    """The `writes:` value the brief's folder and worktree lines give: a worker's is the worktree
+    and the CR folder, a Driver's the CR folder."""
+    folder = next(ln for ln in facts if ln.startswith("folder: "))
+    folder = folder.removeprefix("folder: ").removesuffix(" (work/, evidence/)")
+    if role not in WORKERS:
+        return folder
+    tree = next(ln for ln in facts if ln.startswith("worktree: "))
+    return f"{Path(tree[10:].split(' branch ')[0]).as_posix()}; {folder}"
 
 
-def _driver_writes(took: list[str], role: str) -> str:
-    block = _skeleton(took, role)
-    return next(ln for ln in block if ln.startswith("  writes: ")).strip().removeprefix("writes: ")
+def test_takes_brief_line_run_as_printed_prints_the_same_short_prompt(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    open_batch(repo, chantier, monkeypatch, "One")
+    code, took, err = chantier("take", "CR-101", "--note", "why", "--epoch", "1")
+    assert code == 0, err
+    short, _ = brief_of(chantier, took)
+    line = next(ln for ln in took if ln.startswith("brief: ") and " --lease " in ln)
+    code, printed, err = chantier(*shlex.split(line.split(" chantier ", 1)[1]))
+    assert code == 0, err
+    batch = record(repo)["id"]
+    _, direct, _ = chantier("brief", "cr-driver", "CR-101", "--lease", "1", "--batch", batch)
+    assert printed == direct == short
 
 
 @pytest.mark.parametrize("role", NAMES)
@@ -263,9 +276,8 @@ def test_cards_reads_the_card_and_the_floor_from_its_folder(
         _, out, _ = chantier("brief", role)
         path = Path(out[-1].removeprefix("Read ").removesuffix(" whole, first."))
         shipped[role] = path.read_bytes()
-        if (REFS / Path(ROLES[role].card).name).is_file():
-            _, out, _ = chantier("brief", role, "--cards", str(REFS))
-            assert path.read_bytes() == shipped[role]  # the same folder, the same bytes
+        _, out, _ = chantier("brief", role, "--cards", str(REFS))
+        assert path.read_bytes() == shipped[role]  # the same folder, the same bytes
     for name in ("floor.md", "chief-of-staff.md", "griller-skill.md", "coder.md"):
         (tmp_path / name).write_text(f"mine {name}\r\n", encoding="utf-8", newline="")
     for role, card in (("coder", "coder.md"), ("chief-of-staff", "chief-of-staff.md")):
@@ -274,11 +286,10 @@ def test_cards_reads_the_card_and_the_floor_from_its_folder(
         assert text.startswith(f"mine {card}\n\n=== floor\nmine floor.md\n\n=== facts\n")
 
 
-def test_the_role_table_matches_the_shipped_wrappers_the_manifest_and_the_host_rows() -> None:
-    manifest = json.loads((REFS / "startup-manifest.json").read_text("utf-8"))["roles"]
+def test_the_role_table_matches_the_shipped_wrappers_and_the_host_rows() -> None:
     assert len(ROLES) == ROLE_COUNT and list(ROLES) == NAMES
     for name, data in ROLES.items():
-        assert manifest[name] == data.card and (REFS / data.card).resolve().is_file()
+        assert (REFS / data.card).resolve().is_file()
         for host_name in ("claude", "copilot"):
             file = agent_file(name, host_name)
             assert file.is_file() == _wrapped(name, host_name)

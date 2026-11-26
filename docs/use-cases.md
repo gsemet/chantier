@@ -137,7 +137,8 @@ and takes the seat, and the batch follows it.
   it is told who holds it and does not take it.
 - A running batch follows the new Chief of Staff; its cost counts both.
 - The steps above are unproved until followed once by hand; what is proved and what is not is in
-  the [Claude Code reference, "A Chief of Staff and Grillers in remote"](../skills/chantier/references/hosts/claude-code.md#a-chief-of-staff-and-grillers-in-remote).
+  the [Claude Code reference, "Starting a session from Remote Control"](../skills/chantier/references/topics/host-remote.md)
+  (`chantier help host-remote`) and its [trials](proofs/claude-code.md).
 
 ## Plan outside your project's repository
 

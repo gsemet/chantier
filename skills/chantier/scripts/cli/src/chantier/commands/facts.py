@@ -34,10 +34,9 @@ from chantier.plugin_files import (
     cli_command,
     project_instructions,
     recorded_timing,
-    skill_dir,
-    worker_prompt_lines,
 )
 from chantier.rails import ENDED
+from chantier.roles_data import load_roles
 from chantier.stack_apart import parked_lines
 from chantier.stack_words import state_word
 from chantier.stacks import (
@@ -122,24 +121,38 @@ def _stack_ref(d: BatchRecord, c: CrEntry, repo: Repo) -> str:
 
 
 def cr_facts(
-    repo: Repo, batch: str, d: BatchRecord, c: CrEntry, landed: frozenset[str] | None = None
+    repo: Repo,
+    batch: str,
+    d: BatchRecord,
+    c: CrEntry,
+    landed: frozenset[str] | None = None,
 ) -> list[str]:
-    """Everything an agent needs to work on a CR, on one screen: the parent writes its prompt
-    from these lines and the role's card. `landed`: the CRs the forge hub saw merged, from the
-    journal (read here when the caller passes none)."""
-    title = shown_title(repo.store, c.title, cr_directory(repo, c))
+    """Everything an agent needs to work on a CR, on one screen (`unit_facts`), ended by the line
+    naming the command that gives each of a Driver's agents its start."""
+    return [*unit_facts(repo, batch, d, c, landed), _workers_line(batch, c)]
+
+
+def unit_facts(
+    repo: Repo,
+    batch: str,
+    d: BatchRecord,
+    c: CrEntry,
+    landed: frozenset[str] | None = None,
+) -> list[str]:
+    """The facts of a CR that a worker's own brief holds. `landed`: the CRs the forge hub saw
+    merged, from the journal (read here when the caller passes none)."""
     return (
-        cr_facts_head(repo, batch, d, c, landed)
+        _cr_facts_head(repo, batch, d, c, landed)
         + team_lines(d.playbook)
         + ci_lines(d.playbook)
         + timing_lines(recorded_timing(d), d.host)
-        + worker_prompt_lines(repo.root.as_posix(), (c.id, title), batch, d)
-        + [
-            "worker writes line (copy it unchanged, without the two leading spaces, into each "
-            "worker's prompt):",
-            f"  {worker_writes(c, cr_directory(repo, c))}",
-        ]
     )
+
+
+def _workers_line(batch: str, c: CrEntry) -> str:
+    """The `brief` command for the roles `roles.yaml` says a Driver starts, in the file's order."""
+    started = ", ".join(r.name for r in load_roles() if "driver" in r.started_by)
+    return f"workers: $CHANTIER brief <role> {c.id} --batch {batch} (roles: {started})"
 
 
 def worker_writes(c: CrEntry, folder: Path) -> str:
@@ -147,23 +160,21 @@ def worker_writes(c: CrEntry, folder: Path) -> str:
     return f"writes: {Path(c.worktree).as_posix()}; {folder.as_posix()}"
 
 
-def cr_facts_head(
-    repo: Repo, batch: str, d: BatchRecord, c: CrEntry, landed: frozenset[str] | None = None
+def _cr_facts_head(
+    repo: Repo, batch: str, d: BatchRecord, c: CrEntry, landed: frozenset[str] | None
 ) -> list[str]:
-    """The facts of a CR before the team, CI and timing lines and the worker blocks: its title
-    line to its gate lines (the worker's brief)."""
+    """The facts of a CR before the team, CI and timing lines: its title line to its gate log."""
     if landed is None:
         landed = journal.seen_merged(journal.read(repo.store, repo.changes)[0], d)
     folder = cr_directory(repo, c)
     found = project_instructions(repo)
-    skill = skill_dir().as_posix()
     made = Path(c.worktree).is_dir()
     title = shown_title(repo.store, c.title, folder)
     lines = [
         f'{c.id} "{title}" ({c.kind}) {state_word(d, c, repo)} in batch {batch} ({d.mode})',
         f"cli: {cli_command(repo)} <command> --batch {batch}",
-        f"cards: {skill}/references/ (driver.md, concepts.md; each worker's own card, named in "
-        "its opening lines); the project's rules rank above them: `rules`",
+        "brief: `brief <role> <cr>` gives each role its card, the floor and its facts; the "
+        "project's rules rank above them: `rules`",
         f"project instructions: {found.as_posix() if found else 'none'}",
         f"specification: {(folder / c.specification).as_posix()}",
         f"folder: {folder.as_posix()} (work/, evidence/)",
@@ -178,7 +189,7 @@ def cr_facts_head(
     lines += _status_lines(d, c)
     if wait_text := wait_view.wait_line(repo, d, c):
         lines.append(wait_text)
-    if c.kind not in {"release"}:
+    if c.kind != "release":
         lines += _gate_lines(repo, batch, d, c)
     lines += _gate_log(folder)
     return lines

@@ -12,7 +12,9 @@ The model is Markdown OKF-Schema Studio's release process. The generic default t
 get is [release-template](../skills/chantier/references/release-template.md). The split is plain:
 this file holds what is specific to chantier (the release folder, the structure of the notes, the
 links, the anonymisation, the batch) and ranks above the template there; how the notes are written
-and what a picture shows are the template's, and this file does not restate them.
+is the template's and what a picture shows is its pictures topic's
+([`chantier help release-evidence`](../skills/chantier/references/topics/release-evidence.md)), and
+this file does not restate them.
 
 ## The release folder
 
@@ -87,8 +89,8 @@ CR's grill (the release CR's specification then names it). Rendering works like 
   width readable in a post;
 - it saves the PNG into the release folder.
 
-Each image is cropped as the template's
-[Visible evidence](../skills/chantier/references/release-template.md#visible-evidence) says: the
+Each image is cropped as [Release pictures](../skills/chantier/references/topics/release-evidence.md)
+(`chantier help release-evidence`) says: the
 HTML page holds only the part that shows the change, and `--window-size` fits it.
 
 The HTML sources stay in the work folder and are not committed. If headless Chrome is missing,

@@ -12,6 +12,8 @@ from conftest import PLUGIN_ROOT, SKILL, load_script
 
 from chantier import __version__
 from chantier.commands.allow_samples import filled_allow
+from chantier.commands.help import section
+from chantier.connectors import CONNECTORS
 from chantier.core.repo import Repo
 from chantier.playbook.copilot_catalog import normalise
 from chantier.playbook.models import MODELS, resolve
@@ -58,11 +60,6 @@ COPILOT_OPUS_ROLES = {
     "spec-critic",
     "retro-critic",
 }  # Copilot is untouched
-
-
-CARDS = {**{r: "driver" for r in DRIVERS}, **{r: r for r in WORKERS}}
-
-STARTUP_LIMIT = 12_544
 
 
 def agent_file(role: str, host: str) -> Path:
@@ -235,7 +232,7 @@ def test_a_worker_agent_file_points_to_its_card_and_refuses_a_prompt_without_it(
 ) -> None:
     body = _front(agent_file(role, host))[1]
     assert (SKILL / "references" / f"{role}.md").is_file()
-    assert f"Your card is `{role}.md`: read it first" in body
+    assert f"Your card is `{role}.md`: it opens that brief" in body
     assert (
         f"its `Read` line must name my card, `{role}.md`;" in body
         and f"`chantier {role}`, or that names no path to my card" in body
@@ -331,38 +328,46 @@ def test_four_skills_the_router_and_three_thin_ones_listed_by_copilot() -> None:
     assert copilot["skills"] == [f"./skills/{n}" for n in names]
 
 
-def test_every_role_has_its_section_in_its_card() -> None:
-    """Every parent names a real role card and its role section."""
+def test_every_role_has_its_own_card() -> None:
+    """Every parent names a real role card; a Driver's and a worker's card opens with its role."""
     for role in CHIEF_ROLES:
         assert (SKILL / "references" / f"{role}.md").is_file(), role
-    for role, card in CARDS.items():
-        text = (SKILL / "references" / f"{card}.md").read_text(encoding="utf-8")
-        section = role.replace("-", " ").capitalize().replace("Cr ", "CR ").replace("Qa ", "QA ")
-        if role in WORKERS:
-            assert text.startswith(f"# {section}\n"), (role, section)
-        else:
-            assert f"\n## {section}\n" in text, (role, section)
+    for role in DRIVERS + WORKERS:
+        text = (SKILL / "references" / f"{role}.md").read_text(encoding="utf-8")
+        title = role.replace("-", " ").capitalize()
+        title = title.replace("Cr ", "CR ").replace("Qa ", "QA ").replace("driver", "Driver")
+        assert text.startswith(f"# {title}\n"), (role, title)
     assert (SKILL / "references" / "review-step.md").is_file()
 
 
 def test_each_host_has_its_reference_and_the_cards_hold_no_host_tool() -> None:
-    hosts = SKILL / "references" / "hosts"
-    for name in ("claude-code.md", "copilot.md"):
-        assert (hosts / name).is_file(), name
-    for card in (
-        "chief-of-staff",
-        "foreman",
-        "foreman-stack",
-        "driver",
-        *WORKERS,
-        "review-step",
-        *("concepts", "griller", "session-start", "session-start-chief-of-staff"),
-        *("session-start-griller", "titles", "sync-checkout"),
-        "status-layout",
-    ):
-        text = (SKILL / "references" / f"{card}.md").read_text(encoding="utf-8")
+    """The host's tools are named in its rows (`hosts/`) and the host topics alone."""
+    references = SKILL / "references"
+    for name in ("claude-code.md", "claude-code.json", "copilot.json"):
+        assert (references / "hosts" / name).is_file(), name
+    pages = [*references.glob("*.md"), *(references / "topics").glob("*.md")]
+    for page in (p for p in pages if not p.name.startswith("host-")):
+        text = page.read_text(encoding="utf-8")
         body = "\n".join(ln for ln in text.splitlines() if "hosts/" not in ln)
-        assert [t for t in HOST_TOOLS if t in body] == [], card
+        assert [t for t in HOST_TOOLS if t in body] == [], page.name
+
+
+@pytest.mark.parametrize("name", ["griller-skill.md", "griller.md", "sync-checkout.md"])
+def test_the_startup_cards_name_no_forge_tool(name: str) -> None:
+    text = (SKILL / "references" / name).read_text(encoding="utf-8")
+    assert not re.search(r"\b(gh|glab)\b", text), name
+
+
+def test_each_connector_has_its_forge_card_and_the_doc_names_the_step() -> None:
+    for connector in CONNECTORS:
+        card = SKILL / "references" / "forges" / f"{connector.name}.md"
+        assert card.is_file(), card
+        text = card.read_text(encoding="utf-8")
+        assert f"`{connector.program}`" in text, card
+        assert "forge-connectors.md" in text, card
+        assert (card.parent / "../../../../docs/forge-connectors.md").resolve().is_file()
+    doc = section(PLUGIN_ROOT / "docs" / "forge-connectors.md", "Adding a connector")
+    assert "forges/<name>.md" in doc
 
 
 def test_the_check_line_is_one_text_in_the_skills_the_command_and_the_p10_rule(

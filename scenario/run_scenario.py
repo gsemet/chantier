@@ -203,87 +203,98 @@ def check(label: str, ok: bool, detail: str = "") -> None:
         print(f"FAIL {label}: {detail}")
 
 
-def prompt_block(out: list[str], role: str) -> list[str]:
-    """A Driver's skeleton in a command's output: its heading, then the indented lines."""
-    at = next((i for i, ln in enumerate(out) if ln.startswith(f"{role} prompt (")), None)
-    if at is None:
-        return []
-    end = at + 1
-    while end < len(out) and out[end].startswith("  "):
-        end += 1
-    return out[at:end]
+# the `brief:` line that `take`, `take stack` and `order qa` print: how the CLI runs, then the call
+BRIEF_COMMAND = re.compile(r"^brief: (.+) (brief \S+ \S+ --lease (\d+) --batch \S+)$")
+
+
+def brief_start(w, out: list[str], **kw) -> tuple[list[str], str]:
+    """The `brief:` command a command printed, run as printed (its `--project`, if it has one,
+    then its words): the short prompt it prints, which is the Driver's whole prompt, and the
+    brief that prompt names; ([], "") with no such line."""
+    m = next((m for ln in out if (m := BRIEF_COMMAND.match(ln))), None)
+    if m is None:
+        return [], ""
+    project = re.search(r' --project "([^"]+)"', m[1])
+    words = (["--project", project[1]] if project else []) + m[2].split()
+    _, prompt = w.chantier(*words, lease=False, expect=None, **kw)
+    path = Path(prompt[-1].removeprefix("Read ").removesuffix(" whole, first.")) if prompt else None
+    return prompt, path.read_bytes().decode("utf-8") if path and path.is_file() else ""
+
+
+def brief_facts(text: str) -> list[str]:
+    """The lines of a brief's facts part."""
+    return text.partition("\n=== facts\n")[2].partition("\n=== host rows: ")[0].splitlines()
 
 
 def stack_take_rows(out: list[str]) -> list[str]:
-    """`take stack`'s chain line and CR rows: before the skeleton, with no `timing:` line."""
-    at = next((i for i, ln in enumerate(out) if ln.startswith("stack-driver prompt (")), len(out))
+    """`take stack`'s chain line and CR rows: before the `lease:` line, with no `timing:` line."""
+    at = next((i for i, ln in enumerate(out) if ln.startswith("lease: stack ")), len(out))
     return [ln for ln in out[:at] if not ln.startswith("timing: ")]
 
 
-def check_worker_writes_line(w, cr: str, out: list[str], label: str) -> None:
-    """After a `take` or a `round`, the worker `writes:` line is bare: no parenthetical, two
-    absolute paths, the CR's worktree first, then its folder; the Verifier's scratch folder
-    follows `folder:` inside that folder."""
-    at = next((i for i, ln in enumerate(out) if ln.lstrip().startswith("worker writes line (")), -1)
-    line = out[at + 1].strip() if at >= 0 and at + 1 < len(out) else ""
+def check_workers(w, cr: str, out: list[str], label: str) -> None:
+    """After a `take` or a `round`, the `workers:` line gives the `brief` call of the CR's workers.
+    Run for the Verifier, it prints a short prompt whose `writes:` line is bare (no
+    parenthetical), two absolute paths, the CR's worktree first, then its folder; the Verifier's
+    scratch folder follows `folder:` inside that folder; no worker's opening lines are printed."""
+    form = r"^workers: \$CHANTIER brief <role> (\S+) --batch (\S+) \(roles: (.+)\)$"
+    m = next((m for ln in out if (m := re.match(form, ln))), None)
+    prompt: list[str] = []
+    if m is not None:
+        _, prompt = w.chantier("brief", "verifier", m[1], "--batch", m[2], lease=False, expect=None)
+    line = next((ln for ln in prompt if ln.startswith("writes: ")), "")
     paths = line.removeprefix("writes: ").split("; ")
     folder = next((ln.split(" (")[0].removeprefix("folder: ") for ln in out
                    if ln.startswith("folder: ")), "")
     scratch = [ln for ln in out if ln.startswith("scratch: ")]
-    check(f"`{label}` prints the worker `writes:` line bare (no parenthetical), worktree first, "
-          "both paths absolute, and the scratch folder inside the CR folder",
-          line.startswith("writes: ") and "(" not in line and len(paths) == 2
-          and all(Path(p).is_absolute() for p in paths)
+    check(f"`{label}` prints the `workers:` line, whose `brief` gives the Verifier its first line "
+          "and its `writes:` line bare (no parenthetical), worktree first, both paths absolute, "
+          "with the scratch folder inside the CR folder and no worker's opening lines",
+          m is not None and m[1] == cr and "verifier" in m[3].split(", ")
+          and prompt[:1] != [] and prompt[0].startswith(f"chantier verifier for {cr} ")
+          and "(" not in line and len(paths) == 2 and all(Path(p).is_absolute() for p in paths)
           and paths[0] == Path(w.cr(cr)["worktree"]).as_posix() and paths[1] == folder
-          and scratch == [f"scratch: {folder}/work/scratch"], str(out))
+          and scratch == [f"scratch: {folder}/work/scratch"]
+          and not any("worker writes line" in ln or "opening lines" in ln for ln in out),
+          f"{out} {prompt}")
 
 
-def check_brief_driver(w, cr: str) -> None:
-    """`brief cr-driver <cr> --lease <n>` writes the Driver's brief in the git folder and prints
-    the short prompt: the first line, the `writes:` line, the worktree line and the `Read` line;
-    a Driver started from those four lines has what the hook needs and a brief to read."""
-    n = w.leases[unit_name(cr)]
-    _, out = w.chantier("brief", "cr-driver", cr, "--lease", n, lease=False)
-    git_dir = (w.work / w.sh("git", "rev-parse", "--git-common-dir")).resolve()
-    path = Path(out[-1].removeprefix("Read ").removesuffix(" whole, first."))
-    text = path.read_text(encoding="utf-8") if path.is_file() else ""
-    check(
-        f"`brief cr-driver {cr}` prints the four short-prompt lines and writes the brief in the "
-        "git folder, with the card, the floor, the facts and the host rows",
-        len(out) == 4
-        and out[0].startswith(f"chantier cr-driver for {cr} ")
-        and out[1].startswith("writes: ")
-        and out[2].startswith("worktree: ")
-        and out[3].startswith("Read ")
-        and git_dir in path.parents
-        and "=== floor" in text and "=== facts" in text and "=== host rows: " in text
-        and chr(13) not in text,
-        str(out),
-    )
-
-
-def check_driver_skeleton(w, target: str, out: list[str]) -> None:
-    """After a `take`, the skeleton of the CR's Driver: no `writes:` line for a release or stack
-    driver and the stack rows in the stack driver's; for any other CR one `writes:` line naming
-    the CR's folder, with an absolute archive path when `take` printed an `archive:` line."""
+def check_driver_start(w, target: str, out: list[str]) -> None:
+    """A Driver's start from what a `take` or a `take stack` printed: the printed `brief:` command
+    gives the short prompt (the first line, the `writes:` line where the role has one, the worktree
+    line, the `Read` line) and writes the brief it names in the git folder (the card, the floor, the
+    facts, the host rows). The stack driver gets no `writes:` line and the stack's rows, a release
+    driver no `writes:` line; a CR Driver's `writes:` line names the CR folder, then the absolute
+    archive path when `take` printed an `archive:` line, and its `Rewrites:` line the branch."""
     kind = "stack" if target == "stack" else w.cr(target).get("kind", "change")
     role = {"stack": "stack-driver", "release": "release-driver"}.get(kind, "cr-driver")
-    block = prompt_block(out, role)
-    writes = [ln for ln in block if ln.startswith("  writes:")]
-    label = f"`take {target}` prints the {role} prompt, copied whole"
-    if role != "cr-driver":
-        rows = (
-            [ln for ln in out[: out.index(block[0])] if ln.startswith(("the stack of", "CR-"))]
-            if block and role == "stack-driver"
-            else []
-        )
-        check(
-            f"{label}, with no `writes:` line" + (" and the stack's rows" if rows else ""),
-            bool(block)
-            and not writes
-            and (role != "stack-driver" or (rows and all(f"  {ln}" in block for ln in rows))),
-            str(block),
-        )
+    prompt, text = brief_start(w, out)
+    facts = brief_facts(text)
+    writes = [ln for ln in prompt if ln.startswith("writes: ")]
+    check(
+        f"the `brief:` command `take {target}` prints gives the {role}'s short prompt and writes "
+        "its brief in the git folder, with the card, the floor, the facts and the host rows",
+        prompt[:1] != []
+        and prompt[0].startswith(f"chantier {role} for ")
+        and prompt[-1].startswith("Read ")
+        and "/.git/chantier/briefs/" in prompt[-1]
+        and prompt[-1].endswith(f"-{role}.md whole, first.")
+        and "=== floor" in text and "=== facts" in text and "=== host rows: " in text
+        and chr(13) not in text,
+        str(prompt),
+    )
+    label = f"`take {target}`'s {role} prompt"
+    if role == "stack-driver":
+        end = next((i for i, ln in enumerate(out) if ln.startswith("lease: stack ")), 0)
+        rows = [ln for ln in out[:end] if ln.startswith(("the stack of", "CR-"))]
+        check(f"{label} has no `writes:` line, and its brief holds the stack's rows",
+              len(prompt) == 2 and not writes and bool(rows) and all(ln in facts for ln in rows),
+              f"{prompt} {facts}")
+        return
+    if role == "release-driver":
+        check(f"{label} has the worktree line and no `writes:` line",
+              not writes and prompt[-2:-1] != [] and prompt[-2].startswith("worktree: "),
+              str(prompt))
         return
     folder = next(
         (ln.split(" (")[0].removeprefix("folder: ") for ln in out if ln.startswith("folder: ")),
@@ -292,36 +303,39 @@ def check_driver_skeleton(w, target: str, out: list[str]) -> None:
     archive = next(
         (ln.split(" at ", 1)[1] for ln in out if ln.startswith("archive: in the PR at ")), None
     )
-    paths = writes[0].removeprefix("  writes: ").split("; ") if writes else []
+    paths = writes[0].removeprefix("writes: ").split("; ") if writes else []
     check(
-        f"{label}, with one `writes:` line: the CR folder"
+        f"{label} is four lines, with the worktree line and one `writes:` line: the CR folder"
         + (", then the absolute archive path" if archive else ""),
-        bool(block)
+        len(prompt) == 4
+        and prompt[2].startswith("worktree: ")
         and len(writes) == 1
+        and writes[0] in facts
         and paths[:1] == [folder]
         and (
             archive is None
             or (len(paths) == 2 and Path(paths[1]).is_absolute() and paths[1].endswith(archive))
         ),
-        str(block),
+        str(prompt),
     )
     branch = next(
         (ln.split(" branch ")[1].split(" base ")[0] for ln in out if ln.startswith("worktree: ")),
         "",
     )
-    rewrites = [ln for ln in block if ln.startswith("  Rewrites: ")]
+    number = next((m[3] for ln in out if (m := BRIEF_COMMAND.match(ln))), "")
+    rewrites = [ln for ln in facts if ln.startswith("Rewrites: ")]
     check(
-        f"`take {target}` prints the CR Driver's `Rewrites:` line with the CR's branch, between "
+        f"{label}'s brief holds the `Rewrites:` line with the CR's branch and lease, between "
         "`writes:` and `Steering:`",
         bool(branch)
         and len(rewrites) == 1
         and f"({branch})" in rewrites[0]
-        and "$CHANTIER push " in rewrites[0]
-        and " --lease <n>, one command each" in rewrites[0]
-        and bool(writes)
-        and block.index(writes[0]) + 1 == block.index(rewrites[0])
-        and block[block.index(rewrites[0]) + 1].startswith("  Steering: "),
-        str(block),
+        and f"$CHANTIER push {unit_name(target)} --lease {number}, one command each" in rewrites[0]
+        and writes[:1] != []
+        and writes[0] in facts
+        and facts.index(writes[0]) + 1 == facts.index(rewrites[0])
+        and facts[facts.index(rewrites[0]) + 1].startswith("Steering: "),
+        str(facts),
     )
 
 
@@ -363,6 +377,7 @@ class World:
         self.last_out: list[str] = []
         self.name = ""  # the running batch's id, `batch-<n>`: the CLI numbers it
         self.leases: dict[str, int] = {}  # the number `take` printed, by unit (upper case)
+        self.starts: dict[str, list[str]] = {}  # what `take` printed, by unit, until its Driver starts
         self.gate_cmds = {GATE_NAME: GATE}  # the workspace's chantier.yaml: name -> command
         self.yaml_text: str | None = None  # what the harness last wrote into that file
 
@@ -521,14 +536,17 @@ class World:
         said = self.words(args)
         if p.returncode == 0 and said[:1] == ["handback"] and len(said) > 1:
             self.leases.pop(unit_name(said[1]), None)  # a hand-back ends the lease
+            self.starts.pop(unit_name(said[1]), None)
         if p.returncode == 0 and said[:2] == ["agents", "set"] and said[3:4] == ["-"]:
             self.leases.pop(unit_name(said[2]), None)  # the Driver ended: the clearance ends it
+            self.starts.pop(unit_name(said[2]), None)
         if p.returncode == 0 and said[:1] == ["take"] and len(said) > 1 and out:
             # a CR's `take` prints it on its first line, `take stack` in its `lease: stack <n>` fact
             m = (re.search(r", lease (\d+) until", out[0])
                  or next(filter(None, (re.match(r"\s*lease: stack (\d+) ", ln) for ln in out)), None))
             if m:
                 self.leases[unit_name(said[1])] = int(m[1])  # the Driver keeps the number
+            self.starts[unit_name(said[1])] = out
         if expect is not None and p.returncode != expect:
             check(f"chantier {' '.join(map(str, args))} exits {expect}", False,
                   f"exit {p.returncode}: {self.last_stderr[:200]}")
@@ -561,6 +579,7 @@ class World:
         code, out = self.chantier("open", *args, **kw)
         if code == 0:
             self.leases.clear()  # a new batch, new leases
+            self.starts.clear()
             self.name = out[0].split()[1]
         return code, out
 
@@ -569,6 +588,7 @@ class World:
         if (self.state / "4-batch").is_dir():
             shutil.rmtree(self.state / "4-batch")
         self.leases.clear()
+        self.starts.clear()
 
     def cr(self, cr_id):
         return next(c for c in self.batch()["crs"] if c["id"] == cr_id)
@@ -683,7 +703,7 @@ class Foreman:
                               encoding="utf-8")
 
     def fast_forward(self, cr: str) -> str:
-        """foreman.md, "The main checkout after a merge": steps 2 to 5 (step 1 reads the rules,
+        """`help main-checkout`: steps 2 to 5 (step 1 reads the rules,
         which say nothing against it here), then the `main checkout:` note on the CR."""
         remote, default = "origin", "main"
         why = None
@@ -755,8 +775,9 @@ class Foreman:
             self.ask(text)
 
     def take(self, target: str, note_: str | None = None) -> int:
-        """`take`, then the Driver (a scripted one) with the facts in its prompt. The id of the
-        Driver that ended is cleared first, as the card says: `take` refuses a recorded one."""
+        """`take`, then the Driver (a scripted one), started through the `brief:` command `take`
+        printed. The id of the Driver that ended is cleared first, as the card says: `take` refuses
+        a recorded one."""
         if target != "stack" and self.w.cr(target).get("agent"):
             self.w.chantier("agents", "set", target, "-", "--epoch", self.epoch)
         code, facts = self.w.chantier("take", target, "--epoch", self.epoch,
@@ -764,7 +785,8 @@ class Foreman:
         if code:
             return code
         self.facts = facts
-        check_driver_skeleton(self.w, target, facts)
+        if target == "stack":
+            check_driver_start(self.w, "stack", self.w.starts.pop("STACK"))
         self.started.append(f"{target} {note_}" if note_ else target)
         self.w.chantier("agents", "set", target, f"agent-{len(self.started)}",
                         "--epoch", self.epoch)
@@ -901,7 +923,7 @@ class Foreman:
                     word = "ready-to-merge" if c.get("pr_draft") is False else "pr-in-draft"
                     if (d["mode"] == "stack" and word == "ready-to-merge"
                             and self.ask_in_stack(c, word)):
-                        continue  # foreman-stack.md: it waits for the stack, and asks again
+                        continue  # `help stack`: it waits for the stack, and asks again
                     self.told.add((c["id"], "ready", c.get("pr")))
                     self.ask(f"{word} {c['id']} {c['pr']}")
                     if d["mode"] == "parallel":
@@ -934,7 +956,7 @@ class Foreman:
                 self.paused = True
 
     def early_conflicts(self, d: dict, c: dict) -> None:
-        """foreman.md, "An early conflict check (parallel batch)": the new ready CR against each
+        """`help conflict-check`, of a parallel batch: the new ready CR against each
         other ready CR with an open PR, by `git merge-tree` only; one note per conflicting pair,
         one ask for the hand-back; a pair already noted is left out."""
         by_id = {cr["id"]: cr for cr in d["crs"]}
@@ -973,8 +995,10 @@ class Foreman:
 
 
 def start_driver(w: World, cr_id: str) -> None:
-    """A Driver's first step: the worktree its prompt names, on the fresh base, or the one an
-    earlier Driver left."""
+    """A Driver's start and first step: the `brief:` command the `take` printed gives its prompt;
+    then the worktree that prompt names, on the fresh base, or the one an earlier Driver left."""
+    if (out := w.starts.pop(unit_name(cr_id), None)) is not None:
+        check_driver_start(w, cr_id, out)
     c = w.cr(cr_id)
     if Path(c["worktree"]).is_dir():
         return
@@ -1197,11 +1221,12 @@ def scenario(w: World) -> None:
           out[0] == "host: claude (this session)" and any(ln.startswith("start-driver: ") for ln in out),
           str(out[:2]))
     _, out = w.chantier("help", "lease")
-    lease_card = (SKILL / "references" / "driver-session.md").read_text(encoding="utf-8")
-    heading = next(ln for ln in lease_card.splitlines() if ln == "## Means: the lease")
-    check("`help lease` prints the lease section whole, with no batch",
+    wanted = [ln for name in ("lease.md", "lease-steering.md")
+              for ln in (SKILL / "references" / "topics" / name).read_text(encoding="utf-8")
+              .strip().splitlines() if ln.strip()]
+    check("`help lease` prints the lease topic's two readings whole, with no batch",
           out[0].startswith("topic lease:") and "claim lost" in "\n".join(out)
-          and heading in out, str(out[:3]))
+          and bool(wanted) and all(ln in out for ln in wanted), str(out[:3]))
 
     section("2. The Chief of Staff opens the batch and starts the Foreman")
     note("\n## 2. The Chief of Staff opens the batch and starts the Foreman")
@@ -1280,20 +1305,14 @@ def scenario(w: World) -> None:
           all(Path(w.cr(x)["worktree"]).is_dir() and w.sh("git", "rev-parse", "HEAD", cwd=Path(
               w.cr(x)["worktree"])) == w.sh("git", "rev-parse", "origin/main")
               for x in ("CR-101", "CR-102")) and not Path(w.cr("CR-103")["worktree"]).exists())
-    check("`take` prints the facts for the prompt: the CLI, the cards, the base, the rounds",
+    check("`take` prints the facts for the prompt: the CLI, how `brief` gives each role its card, "
+          "the base, the rounds",
           any(ln.startswith("cli: uvx --from ") for ln in fm.facts)
-          and any(ln.startswith("cards: ") and "references/" in ln for ln in fm.facts)
+          and "brief: `brief <role> <cr>` gives each role its card, the floor and its facts; the "
+              "project's rules rank above them: `rules`" in fm.facts
           and any("base origin/main" in ln for ln in fm.facts)
           and any(ln == "rounds: 0 of 3" for ln in fm.facts), str(fm.facts))
-    vi = next((i for i, ln in enumerate(fm.facts)
-               if ln.startswith("verifier prompt, opening lines")), -1)
-    check("`take` prints the Verifier's opening lines: the first line and the card's `Read` line "
-          "(the scripted Driver builds no worker prompt, so it copies none)",
-          vi >= 0 and fm.facts[vi + 1].startswith("  chantier verifier for CR-10")
-          and "references/verifier.md;" in fm.facts[vi + 2]
-          and fm.facts[vi + 2].startswith("  Read "), str(fm.facts))
-    check_worker_writes_line(w, fm.started[-1], fm.facts, "take " + fm.started[-1])
-    check_brief_driver(w, fm.started[0])
+    check_workers(w, fm.started[-1], fm.facts, "take " + fm.started[-1])
     code, _ = w.chantier("take", "CR-103", "--epoch", 1, expect=2)
     check("a third Driver is refused: no free slot", code == 2 and "no free slot" in w.last_stderr)
     check("a taken CR is working", w.cr("CR-101")["status"] == "working")
@@ -1309,7 +1328,7 @@ def scenario(w: World) -> None:
     check("`round` counts the round and prints the facts", w.cr("CR-101")["round"] == 1
           and out[0] == "round 1 of 3 for CR-101" and any(ln == "rounds: 1 of 3" for ln in out),
           str(out))
-    check_worker_writes_line(w, "CR-101", out, "round CR-101")
+    check_workers(w, "CR-101", out, "round CR-101")
     lease_cases(w)
     sheet = lambda cr: json.loads((w.at(w.cr(cr)["path"]) / "STATUS.json").read_text(encoding="utf-8"))
     row = lambda cr: next(r for r in json.loads((w.folder() / "STATUS.json").read_text(
@@ -4979,8 +4998,8 @@ def direct_batch(w: World) -> None:
           "that `take`", "was paused: running again" in "\n".join(fm.facts)
           and "reopen" in kinds and kinds[::-1].index("take") < kinds[::-1].index("reopen"),
           str(kinds[-8:]))
-    check("that `take` ends with the `watch: not running` line, not indented, after the Driver "
-          "prompt block", bool(fm.facts) and fm.facts[-1].startswith(
+    check("that `take` ends with the `watch: not running` line, not indented, after the Driver's "
+          "start lines", bool(fm.facts) and fm.facts[-1].startswith(
               "watch: not running: for the Chief of Staff, start in the background: ")
           and " watch --after " in fm.facts[-1] and "--batch" not in fm.facts[-1]
           and sum(x.startswith("watch: not running") for x in fm.facts) == 1, str(fm.facts[-3:]))
@@ -7155,24 +7174,29 @@ def driver_liveness(w: World) -> None:
           code == 0 and w.cr(two)["status"] == "working" and w.cr(two)["round"] == rounds,
           w.last_stderr)
     cards = HERE.parent / "skills" / "chantier" / "references"
-    # a card is its entry file and its pieces (`foreman-*.md`, `driver-*.md`, `stack-driver-*.md`...)
-    foreman = "\n".join(f.read_text(encoding="utf-8") for f in sorted(cards.glob("foreman*.md")))
-    driver = "\n".join(f.read_text(encoding="utf-8") for f in sorted(cards.glob("*driver*.md")))
-    check("foreman.md names the suspect rule, the two proofs of death, the new-epoch rule, the "
-          "`context:` case and what counts toward `ended twice`; driver.md lists `context:`",
-          all(s in foreman for s in ("**Suspect:**", "**Proof of death**", "new Foreman epoch",
-                                     "blocked context: …", "driver ended twice", "do not."))
-          and "`context: <where it stopped" in driver
-          and "`resume: closing`" in driver and "`context: closing:" in driver
-          and "resume: closing" in foreman)
+    # a role's rules are its card and the topics `help` prints for the rare cases
+    foreman = "\n".join(f.read_text(encoding="utf-8") for f in
+                        [cards / "foreman.md", *sorted(cards.glob("topics/lost-*.md"))])
+    driver = "\n".join((cards / name).read_text(encoding="utf-8") for name in
+                       ("cr-driver.md", "topics/closing.md", "topics/handback-other.md",
+                        "topics/restart.md"))
     flat_driver, flat_foreman = " ".join(driver.split()), " ".join(foreman.split())
-    check("driver.md names the 115,000-token closing threshold and the three `closing:` step notes; "
-          "foreman.md names the second `context: closing:` ask",
+    check("the Foreman's card and lost-Driver topics name the suspect rule, the proof of death, the "
+          "new-epoch rule, the `context:` case and what counts toward `ended twice`; the CR "
+          "Driver's card and topics list `context:`",
+          all(s in flat_foreman for s in ("Suspect:", "Proof of death", "A new epoch",
+                                          "blocked context: …", "driver ended twice",
+                                          "count for nothing"))
+          and "`context: <where it stopped" in flat_driver
+          and "`resume: closing`" in flat_driver and "`context: closing:" in flat_driver
+          and "resume: closing" in flat_foreman)
+    check("the CR Driver's card and topics name the 115,000-token closing threshold and the three "
+          "`closing:` step notes; the Foreman's name the second `context: closing:` ask",
           "115,000 tokens" in flat_driver and "100,000 tokens" not in flat_driver
           and "100,000 tokens" not in flat_foreman and "`closing: body posted at <sha7>`" in flat_driver
           and "`closing: description pass VERIFIED at <sha7>`" in flat_driver
           and "`closing: PR ready`" in flat_driver and "`closing: PR kept draft on <base>`" in flat_driver
-          and "second `context: closing:` hand-back" in flat_foreman
+          and "A second one with no new step note since the first" in flat_foreman
           and "`question <cr> driver out of context twice`" in flat_foreman)
 
 
@@ -8008,14 +8032,11 @@ def stack_batch(w: World) -> None:
           and "base origin/main" in stacked[2]
           and "base origin/main" in stacked[3], str(base) + str(stacked))
     _, empty = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
+    topic_line = "shape: stack: read `$CHANTIER help stack` now and after each compaction"
     check("`status --refresh` of a stack before any CR has a PR prints the empty-state shape line "
-          "third (after the `batch:` line), exactly",
-          len(empty) > 2 and empty[2].startswith(
-              "shape stack: next parallel until 2 ready with a PR; stack driver: none; "
-              "native stack: absent; alone asks: allowed; rules: ")
-          and empty[2].endswith("/references/foreman-stack.md (reread after a compaction)")
-          and Path(empty[2].split("rules: ", 1)[1].removesuffix(" (reread after a compaction)"))
-          .resolve() == (SKILL / "references" / "foreman-stack.md").resolve(), str(empty))
+          "third (after the `batch:` line), exactly, then the line naming the `stack` topic",
+          empty[2:4] == ["shape stack: next parallel until 2 ready with a PR; stack driver: none; "
+                         "native stack: absent; alone asks: allowed", topic_line], str(empty))
     asks_before: list = []
     for i, cr in enumerate((one, two, three)):
         driver_round(w, cr, f"stack{i}.py", f"N = {i}\n")
@@ -8026,7 +8047,8 @@ def stack_batch(w: World) -> None:
             asks_before = w.batch()["asks"]
             check("with exactly one open PR the shape line says `alone asks: allowed for <one> "
                   "only` and `asks ready-to-merge <one> <pr>` is accepted and recorded",
-                  f"alone asks: allowed for {one} only;" in solo[2] and len(asks_before) == 1,
+                  solo[2].endswith(f"alone asks: allowed for {one} only")
+                  and len(asks_before) == 1,
                   str(solo) + str(asks_before))
 
     def ship_bases(cr: str) -> list[str]:
@@ -8040,15 +8062,14 @@ def stack_batch(w: World) -> None:
     ask = f"ready-to-merge {one} {w.cr(one)['pr']}"
     _, shape = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
     check("`status --refresh` of a stack prints one shape line after the batch line: the next "
-          "step, no stack driver, no native stack, alone asks refused, the rules card",
+          "step, no stack driver, no native stack, alone asks refused, then the `stack` topic's line",
           len([ln for ln in shape if ln.startswith("shape stack:")]) == 1
-          and shape[2].startswith("shape stack: next take stack; stack driver: none; native stack: "
-                                  "absent; alone asks: refused; rules: ")
-          and shape[2].endswith("references/foreman-stack.md (reread after a compaction)"),
+          and shape[2:4] == ["shape stack: next take stack; stack driver: none; native stack: "
+                             "absent; alone asks: refused", topic_line],
           str(shape))
-    rules_path = Path(shape[2].split("rules: ", 1)[1].removesuffix(" (reread after a compaction)"))
-    check("the path the `rules:` part names exists",
-          rules_path.is_file() and rules_path.name == "foreman-stack.md", str(rules_path))
+    _, topic = w.chantier("help", "stack")
+    check("the topic the shape's second line names prints",
+          topic[:1] != [] and topic[0].startswith("topic stack:"), str(topic[:3]))
     check("a plain `status` prints no `shape stack:` line",
           not any(ln.startswith("shape stack:") for ln in w.chantier("status")[1]))
     code, _ = w.chantier("asks", "--", *ask.split(" "), expect=2)
@@ -9880,8 +9901,11 @@ def release_last(w: World) -> None:
 
 
 def on_branch(w: World, cr_id: str, base: str) -> None:
-    """A Driver's first step for a CR that starts on another CR's branch: the worktree its
-    prompt names, on the pushed branch of the CR under it."""
+    """A Driver's start and first step for a CR that starts on another CR's branch: the `brief:`
+    command the `take` printed gives its prompt; then the worktree that prompt names, on the
+    pushed branch of the CR under it."""
+    if (out := w.starts.pop(cr_id, None)) is not None:
+        check_driver_start(w, cr_id, out)
     c = w.cr(cr_id)
     Path(c["worktree"]).parent.mkdir(exist_ok=True)
     w.sh("git", "fetch", "--quiet", "origin")
@@ -10183,14 +10207,16 @@ def qa_on_head(w: World) -> None:
           out[0] == f"[chief-of-staff→foreman] order O-2: qa {shown} try the export on a phone"
           and "/1-inbox/qa-" in folder.as_posix()
           and "phone" in (folder / "intake/request.md").read_text(encoding="utf-8"), str(out))
-    qa_prompt = prompt_block(out, "qa-driver")
+    qa_prompt, qa_brief = brief_start(w, out)
+    command = next((i for i, ln in enumerate(out) if BRIEF_COMMAND.match(ln)), -1)
     check(
-        "`order qa` prints the qa-driver prompt after its `QA folder:` line, with no `writes:` line",
-        bool(qa_prompt)
-        and out.index(qa_prompt[0]) > 1
-        and not any(ln.startswith("  writes:") for ln in qa_prompt)
-        and f"  QA folder: {shown}; order O-2" in qa_prompt,
-        str(out),
+        "`order qa` prints the `brief` command after its `QA folder:` line; run, it gives the "
+        "qa-driver's prompt, with no `writes:` line, and a brief that names the folder",
+        command > 1
+        and qa_prompt[:1] != [] and qa_prompt[0].startswith("chantier qa-driver for ")
+        and not any(ln.startswith("writes:") for ln in qa_prompt)
+        and f"QA folder: {shown}; order O-2" in brief_facts(qa_brief),
+        f"{out} {qa_prompt}",
     )
     fm.turn()
     check("the Foreman starts a QA driver on the folder, and the CR goes on without it",
@@ -11883,16 +11909,20 @@ def external_surface(tmp: Path) -> None:
     w.chantier("foreman", "set", "uuid-chief", "--epoch", 1, "--batch", other_batch, project="other")
     code, out = w.chantier("take", "CR-101", "--epoch", 1, "--batch", other_batch, project="other",
                            env=copilot)
-    heading = next((i for i, ln in enumerate(out) if ln.startswith("cr-driver prompt (")), 0)
-    writes = next((ln for ln in out[heading:] if ln.startswith("  writes: ")), "")
+    prompt, _ = brief_start(w, out, project="other", env=copilot)
+    writes = next((ln for ln in prompt if ln.startswith("writes: ")), "")
     check("a project that does not ask for its archive in the PR gets `archive: not in the PR` in the "
           "facts, and its CR Driver writes only the CR folder",
           "archive: not in the PR" in out and any(ln.startswith("clone: ") and "code2" in ln for ln in out)
-          and writes != "" and "; " not in writes, str(out))
-    check("`take` prints the generic Coder's contract after its opening lines, and the team line says "
+          and writes != "" and "; " not in writes, f"{out} {prompt}")
+    _, worker = w.chantier("brief", "coder", "CR-101", "--batch", other_batch, project="other",
+                           env=copilot)
+    path = Path(worker[-1].removeprefix("Read ").removesuffix(" whole, first.")) if worker else None
+    text = path.read_text(encoding="utf-8") if path and path.is_file() else ""
+    check("`brief coder` gives the generic Coder's contract in its brief, and `take`'s team line says "
           "`agent=(generic)`",
-          any(ln.startswith("coder contract (a generic agent: copy it unchanged") for ln in out)
-          and any(ln.startswith("team: coder agent=(generic)") for ln in out), str(out))
+          "\ncoder contract (a generic agent: copy it unchanged" in text
+          and any(ln.startswith("team: coder agent=(generic)") for ln in out), f"{worker} {out}")
     other_yaml.unlink()
     shutil.rmtree(w.surface / "projects" / "other" / "changes" / "4-batch")
     # the demo batch, as a Driver of the project lives it

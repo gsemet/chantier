@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from batch_helpers import name_gate
 from conftest import SKILL, Chantier, sh
+from test_driver_prompt import brief_of
 
 from chantier.commands.allow_samples import RECOMMENDED_ALLOW, SAMPLES, filled_allow
 from chantier.commands.permissions import rule_matches
@@ -63,25 +64,19 @@ def test_the_seat_is_one_file_held_until_taken_over_on_purpose(
     assert chantier("seat", "leave", "s-2")[1] == ["seat none"]
 
 
-def _worker_opening_lines(out: list[str], repo: Path) -> None:
-    """`take` prints each worker's opening lines, the Verifier's exactly, and, after them, the
-    Driver's skeleton (which copies them, indented)."""
-    opening = [
-        i
-        for i, ln in enumerate(out)
-        if " prompt, opening lines (copy them" in ln and not ln.startswith(" ")
-    ]
-    roles = ["coder", "conflict-resolver", "debugger", "inspector", "investigator", "verifier"]
-    assert [out[i].split()[0] for i in opening] == roles
+def _worker_briefs(chantier: Chantier, out: list[str], repo: Path) -> None:
+    """`take` names the command that briefs each worker; the Verifier's is a short prompt that
+    points at the brief file."""
     batch = next(ln for ln in out if ln.startswith("cli: ")).rsplit("--batch ", 1)[1]
-    refs = f"{SKILL.as_posix()}/references"
-    assert [ln.removeprefix("  ") for ln in out[opening[-1] + 1 : opening[-1] + 4]] == [
+    roles = "coder, conflict-resolver, debugger, inspector, investigator, verifier"
+    assert f"workers: $CHANTIER brief <role> CR-101 --batch {batch} (roles: {roles})" in out
+    code, short, err = chantier("brief", "verifier", "CR-101", "--batch", batch)
+    assert code == 0, err
+    assert short[0] == (
         f'chantier verifier for CR-101 "Fix login" of batch {batch}, '
-        f"in the project {repo.resolve().as_posix()}.",
-        f"Read {refs}/verifier.md;",
-        "the project's rules rank above it: run `$CHANTIER rules` first and read what "
-        "touches your work.",
-    ]
+        f"in the project {repo.resolve().as_posix()}."
+    )
+    assert short[-1].endswith("/CR-101-verifier.md whole, first.")
 
 
 @pytest.mark.parametrize("host", ["claude", "copilot"])
@@ -105,9 +100,9 @@ def test_the_plugin_runs_with_no_setup_and_writes_only_in_the_planning_folder(
     assert chantier("gate", "CR-101", "ok")[0] == EXIT_PRECONDITION
     code, out, _ = chantier("take", "CR-101", "--epoch", 0)
     assert code == 0 and out[0].startswith("took CR-101")
-    assert any(ln.startswith("cards: ") and "references/" in ln for ln in out)
+    assert any(ln.startswith("brief: `brief <role> <cr>` gives each role") for ln in out)
     assert any(ln.startswith("worktree: ") and "not created yet" in ln for ln in out)
-    _worker_opening_lines(out, repo)
+    _worker_briefs(chantier, out, repo)
     _, out, _ = chantier("round", "CR-101", "--note", "round 1")
     assert out[0] == "round 1 of 3 for CR-101"
     assert chantier("status")[1][-2].startswith("CR-101 working r1/3")
@@ -163,7 +158,8 @@ def test_a_direct_batch_is_recorded_shown_and_queues_added_work(
     assert chantier("order", "note", "101", "--note", "hello")[0] == 0  # a bare number is a CR
     code, out, err = chantier("take", "CR-101", "--epoch", 0)
     assert code == 0, err
-    assert any(ln.startswith("  Steering: the Chief of Staff") for ln in out)
+    _, facts = brief_of(chantier, out)
+    assert any(ln.startswith("Steering: the Chief of Staff") for ln in facts)
 
 
 def test_a_foreman_batch_takes_added_work_and_a_direct_preflight_leaves_out_p2(

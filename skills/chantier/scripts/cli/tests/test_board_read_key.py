@@ -222,7 +222,7 @@ def test_shipped_texts_name_the_two_keys(tmp_path: Path) -> None:
     shipped = [
         PLUGIN_ROOT / "AGENTS.md",
         *(PLUGIN_ROOT / "docs").glob("*.md"),
-        *(PLUGIN_ROOT / "skills/chantier/references").glob("*.md"),
+        *(PLUGIN_ROOT / "skills/chantier/references").rglob("*.md"),
         *web.glob("*.js"),
     ]
     assert len(shipped) > MIN_SHIPPED

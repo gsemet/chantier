@@ -8,6 +8,7 @@ import pytest
 from batch_helpers import FROM_AGENTS_MD, changes, has, host, open_batch, prepared, record
 from conftest import PLUGIN_ROOT, Chantier
 from cost_world import CostWorld, build
+from test_driver_prompt import brief_facts
 
 from chantier.core.errors import EXIT_PRECONDITION
 from chantier.plugin_files import contract_lines
@@ -35,7 +36,7 @@ TERRA = "gpt-6.1-terra (gpt-6.1-terra, GPT-6.1 Terra)"
 NOT_RESTRICTED = "tools=(the caller's, not restricted)"
 REFUSAL = (
     'role "coder": Copilot cannot start a named agent with a model '
-    '(hosts/copilot.md, "Models at an agent\'s start"): remove "model" for coder under '
+    '(references/hosts/copilot.json, row "model-at-start"): remove "model" for coder under '
     "hosts.copilot.roles, or name the model in your agent's own file"
 )
 REFUSAL_END = REFUSAL.rsplit(", ", 1)[1]
@@ -341,7 +342,7 @@ def test_a_role_starts_the_plugin_agent_a_named_one_or_a_generic_one_per_host(
     assert code == 0 and has(out, line), err
 
 
-def test_a_copilot_batch_records_a_generic_start_and_take_prints_its_contract(
+def test_a_copilot_batch_records_a_generic_start_whose_brief_holds_the_contract(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     host(monkeypatch, "copilot")
@@ -361,11 +362,10 @@ def test_a_copilot_batch_records_a_generic_start_and_take_prints_its_contract(
     )
     agent = PLUGIN_ROOT / "com.github.copilot" / "agents" / "chantier-coder.agent.md"
     body = agent.read_text(encoding="utf-8").split("\n---\n", 1)[1].strip("\n").splitlines()
-    at = took.index(heading)
-    assert took[at - 1].startswith("  the project's rules rank above it")
-    assert took[at + 1 : at + 1 + len(body)] == [f"  {ln}" for ln in body]
-    # the Driver's skeleton copies the facts, the coder's contract with them, once
-    assert [ln for ln in took if "coder contract (a generic" in ln] == [heading, f"  {heading}"]
+    assert not [ln for ln in took if "coder contract (a generic" in ln]
+    facts = brief_facts(chantier("brief", "coder", record(repo)["crs"][0]["id"])[1])
+    at = facts.index(heading)
+    assert facts[at + 1 : at + 1 + len(body)] == [f"  {ln}" for ln in body]
     _, out, _ = chantier("playbook", "--batch", record(repo)["id"])
     assert has(out, f"coder: agent=(generic) model={TERRA} [repository] {NOT_RESTRICTED}")
     for mode, want in (("generic", [heading, "  b"]), ("named", [])):  # a named start escalating

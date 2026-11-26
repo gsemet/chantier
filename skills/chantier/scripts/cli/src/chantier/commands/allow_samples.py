@@ -1,5 +1,6 @@
 """The commands the cards make the agents write and the allow rules that cover them (the table of
-hosts/claude-code.md), with the chantier rows' placeholders and how they are filled."""
+references/hosts/claude-code.md, "Allow rules"), with the chantier rows' placeholders and how they
+are filled."""
 
 from __future__ import annotations
 
@@ -38,7 +39,8 @@ _PLUGIN_SKILL = Path("<plugin root>/skills/chantier")
 
 # (capability, forge, command, recommended rule); ` origin ` stands for the project's remote name.
 # The capability is one of CAPABILITIES; the forge is any, github, gitlab, gh-stack, dev or plugin.
-# The order is the order of the table "Capabilities and their commands" in hosts/claude-code.md;
+# The order is the order of the table "Capabilities and their commands" in
+# references/hosts/claude-code.md;
 # SendMessage, a bare tool, belongs to the capability batch and comes last.
 # P10 counts these commands, not rules.
 SAMPLES = (
@@ -272,7 +274,8 @@ def _allow_for(capabilities: tuple[str, ...]) -> tuple[str, ...]:
     )
 
 
-# The allow rules hosts/claude-code.md recommends, in its table's order (a test compares them):
+# The allow rules references/hosts/claude-code.md recommends under "Allow rules", in its table's
+# order (a test compares them):
 # the capabilities every batch and a stack; the pasteable block holds exactly these.
 RECOMMENDED_ALLOW = (*_allow_for(("batch", "stack")), "SendMessage")
 

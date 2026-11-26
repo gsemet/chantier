@@ -266,6 +266,9 @@ def _slots_from(args: argparse.Namespace, limits: dict[str, Any]) -> str:
     return "" if entry["layer"] == "defaults" else f" [{entry['layer']}]"
 
 
+START_FOREMAN = "start the Foreman: its first step is `brief foreman --batch <b> --epoch <n>`"
+
+
 def _empty_lines(
     repo: Repo, b: Batch, args: argparse.Namespace, shape: tuple[str, Any, Path, str]
 ) -> list[str]:
@@ -274,7 +277,7 @@ def _empty_lines(
     return [
         f"opened {b.id} on {host}: no CR, paused, {args.slots} slots{where}, "
         f"{data.mode}, steering {data.steering}",
-        f"next: complete the brief {shown(repo, brief)}, then start the Foreman (direct mode: "
+        f"next: complete the brief {shown(repo, brief)}, then {START_FOREMAN} (direct mode: "
         f"steer it yourself); each CR joins it by `order add --note <folder> --batch {b.id}`",
     ]
 
@@ -331,7 +334,7 @@ def open_batch(args: argparse.Namespace) -> list[str]:
     # the next step comes before the CR list: past ten lines it is the list that is cut
     lines.append(
         f"next: complete the brief {shown(repo, brief)}, then "
-        + ("steer it yourself" if args.direct else "start the Foreman")
+        + ("steer it yourself" if args.direct else START_FOREMAN)
     )
     for c, src in zip(b.record.crs, selected, strict=False):
         lines.append(f"{c.id} {c.title[:40]}: {_short(src)} -> {_short(c.path or '')}")

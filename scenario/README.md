@@ -155,7 +155,12 @@ does a unit that is not in `UNITS` and a test that does not exist.
 - `verdict VERIFIED` refused without `work/verify.md` naming the head (no file, a stale `Head:`),
   `NOT VERIFIED` accepted without it (unit: gates)
   (test: test_verdict_note.py::test_verified_needs_a_verify_note_naming_the_head);
-- `brief` writes a Driver's brief in the git folder and its short prompt starts the Driver (unit: parallel);
+- `take` prints the `brief` command and the Driver starts from its output: every scripted Driver's
+  start runs the printed `brief:` command, whose short prompt names the brief written in the git
+  folder (the card, the floor, the facts, the host rows), a CR Driver's with its `writes:` and
+  `Rewrites:` lines, the stack driver's with the stack's rows (unit: parallel, stack); `take`'s
+  `brief:` fact and its `workers:` line, whose `brief` gives the Verifier its first line and its
+  bare `writes:` line, after `take` and `round` (unit: parallel);
 - leases (unit: parallel): a stale `--lease` exits 3 `claim lost` and a missing one
   exits 2, nothing recorded; a `lease <cr> hold` keeps the lease live through its minutes (`CHANTIER_LEASE_TEST_MINUTE`), with no process running, and one given a `--` command is refused;
 - the step a working CR is at: `round` recording `coder r1`, `phase` recording the inspector, a
@@ -207,7 +212,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
   stack driver (absent with one recorded, after `stack` marks the CRs, and after a merge is recorded;
   a reminder only) (unit: stack) (test: test_stack_due.py::test_the_first_stack_is_due);
 - a stack batch's shape: `status --refresh` prints one `shape stack:` line (next step, stack driver,
-  native stack, alone asks, the rules card) and none in a parallel batch; a per-CR `ready-to-merge`
+  native stack, alone asks, then the line naming `help stack`) and none in a parallel batch; a per-CR `ready-to-merge`
   for a CR with another open PR in the chain is refused (exit 2, nothing recorded), `--outside-stack`
   without an open order on the CR is a usage error, and the Foreman waits for the stack (unit:
   stack, series-deps, qa-driver) (test: test_stack_shape.py::test_the_guard_refuses_a_cr_that_is_not_alone);
@@ -296,7 +301,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
 - direct mode: `preflight --direct` and `open --direct` (a session id needed), `order add` and
   `order qa` refused, a direct batch from `open` to the pause, two CRs added to the paused batch,
   which stays paused until the first `take` (its output ends with the `watch: not running` line,
-  not indented, after the Driver prompt block), then paused again, and `close` (priced with one
+  not indented, after the Driver's start lines), then paused again, and `close` (priced with one
   `Chief of Staff, steering the batch` row that keeps a turn which only names or reads a
   specification, a grill and specifications line and a whole-session line that holds the
   steering window and names it, `close` not blocked by the Chief of Staff's own transcript but by a Driver

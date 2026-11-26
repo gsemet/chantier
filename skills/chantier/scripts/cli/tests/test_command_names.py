@@ -52,8 +52,9 @@ def test_the_tree_names_the_old_command_nowhere() -> None:
 
 
 def test_the_blocked_sync_steps_name_the_serve_holder_and_its_stop() -> None:
-    text = (ROOT / "skills/chantier/references/sync-checkout.md").read_text(encoding="utf-8")
+    refs = ROOT / "skills/chantier/references"
+    text = (refs / "sync-checkout.md").read_text(encoding="utf-8")
     step4 = next(s for s in text.splitlines() if s.startswith("4. With any holder"))
-    step5 = next(s for s in text.splitlines() if s.startswith("5. Still pending"))
+    offer = (refs / "topics" / "sync-offer-p1.md").read_text(encoding="utf-8")
     assert "PID <n> serve <project> (started by webui)" in step4
-    assert "taskkill /PID <n> /T /F" in step5 and "kill <n>" in step5
+    assert "taskkill /PID <n> /T /F" in offer and "kill <n>" in offer

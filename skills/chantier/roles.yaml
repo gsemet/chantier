@@ -13,8 +13,8 @@ roles:
     kind: driver
     started_by: [foreman, chief-of-staff]
     writes: cr-folder
-    reply: 'driver.md#Means: your end'
-    card: driver.md
+    reply: 'cr-driver.md#CR Driver'
+    card: cr-driver.md
     first: 'chantier cr-driver for <cr> "<title>" of batch <batch>, in the project <root>.'
     description: 'Drives one chantier change request through rounds, ship, CI and hand-back, updating its branch by rebase only. Started by the steering session (the Foreman, or the Chief of Staff in direct mode).'
     unit: cr
@@ -30,8 +30,8 @@ roles:
     kind: driver
     started_by: [foreman, chief-of-staff]
     writes: none
-    reply: 'release-driver-end.md#Release driver: the end'
-    card: driver.md
+    reply: 'release-driver.md#Release Driver'
+    card: release-driver.md
     first: 'chantier release-driver for <cr> "<title>" of batch <batch>, in the project <root>.'
     description: 'Runs a chantier release CR by the project''s own release procedure, updating its branch by rebase only; asks the user before each irreversible action. Started by the steering session (the Foreman, or the Chief of Staff in direct mode).'
     unit: cr
@@ -47,8 +47,8 @@ roles:
     kind: driver
     started_by: [foreman, chief-of-staff]
     writes: none
-    reply: 'driver.md#Means: your end'
-    card: driver.md
+    reply: 'stack-driver.md#Stack Driver'
+    card: stack-driver.md
     first: 'chantier stack-driver for the stack of batch <batch>, in the project <root>.'
     description: 'Orders, restacks by rebase only and ships a chantier stack of pull requests, and makes one stack on the forge, merged in one go. Started by the steering session (the Foreman, or the Chief of Staff in direct mode).'
     unit: stack
@@ -64,8 +64,8 @@ roles:
     kind: driver
     started_by: [foreman, chief-of-staff]
     writes: none
-    reply: 'driver.md#Means: your end'
-    card: driver.md
+    reply: 'qa-driver.md#QA Driver'
+    card: qa-driver.md
     first: 'chantier qa-driver for <folder> of batch <batch>, in the project <root>.'
     description: 'Uses the project''s head as its user would and leaves its findings in a work folder. Started by the steering session (the Foreman, or the Chief of Staff in direct mode).'
     unit: order
@@ -81,7 +81,7 @@ roles:
     kind: worker
     started_by: [driver]
     writes: worktree
-    reply: 'coder.md#Your part'
+    reply: 'coder.md#Coder'
     card: coder.md
     first: 'chantier coder for <cr> "<title>" of batch <batch>, in the project <root>.'
     description: 'Implements one round of one chantier CR in its worktree; never commits. Started by a Driver.'
@@ -98,7 +98,7 @@ roles:
     kind: worker
     started_by: [driver]
     writes: worktree
-    reply: 'conflict-resolver.md#Your part'
+    reply: 'conflict-resolver.md#Conflict resolver'
     card: conflict-resolver.md
     first: 'chantier conflict-resolver for <cr> "<title>" of batch <batch>, in the project <root>.'
     description: 'Rebases one chantier CR branch (never a merge) and resolves its conflicts, keeping both intents. Started by a Driver.'
@@ -115,7 +115,7 @@ roles:
     kind: worker
     started_by: [driver]
     writes: worktree
-    reply: 'debugger.md#Your part'
+    reply: 'debugger.md#Debugger'
     card: debugger.md
     first: 'chantier debugger for <cr> "<title>" of batch <batch>, in the project <root>.'
     description: 'Finds and proves why a chantier CR''s check is red; hands over a diagnosis, not a fix. Started by a Driver.'
@@ -132,7 +132,7 @@ roles:
     kind: review-step
     started_by: [driver]
     writes: worktree
-    reply: 'inspector.md#Your part'
+    reply: 'inspector.md#Inspector'
     card: inspector.md
     first: 'chantier inspector for <cr> "<title>" of batch <batch>, in the project <root>.'
     description: 'Reviews one chantier round''s diff and returns a JSON verdict; read-only. Started by a Driver.'
@@ -149,7 +149,7 @@ roles:
     kind: worker
     started_by: [driver]
     writes: worktree
-    reply: 'investigator.md#Your part'
+    reply: 'investigator.md#Investigator'
     card: investigator.md
     first: 'chantier investigator for <cr> "<title>" of batch <batch>, in the project <root>.'
     description: 'Maps the code a chantier CR touches before its first round; read-only. Started by a Driver.'
@@ -166,7 +166,7 @@ roles:
     kind: worker
     started_by: [driver]
     writes: worktree
-    reply: 'verifier.md#Your part'
+    reply: 'verifier.md#Verifier'
     card: verifier.md
     first: 'chantier verifier for <cr> "<title>" of batch <batch>, in the project <root>.'
     description: 'Proves at the pushed head that a chantier CR does what its specification says. Started by a Driver.'
@@ -183,7 +183,7 @@ roles:
     kind: worker
     started_by: [chief-of-staff]
     writes: none
-    reply: 'spec-writer.md#End'
+    reply: 'spec-writer.md#Spec-writer'
     card: spec-writer.md
     first: 'chantier spec-writer for the Chief of Staff, in the project <root>.'
     description: 'Writes one chantier CR''s Change Specification from its grill. Started by the Chief of Staff.'
@@ -200,7 +200,7 @@ roles:
     kind: critic
     started_by: [chief-of-staff, griller]
     writes: none
-    reply: 'spec-critic.md#Reply'
+    reply: 'spec-critic.md#Spec critic'
     card: spec-critic.md
     first: 'chantier spec-critic for the Chief of Staff, in the project <root>.'
     description: 'Checks one chantier CR''s Change Specification before it is final; read-only. Started by the Chief of Staff or a Griller.'
@@ -234,7 +234,7 @@ roles:
     kind: critic
     started_by: [foreman, chief-of-staff]
     writes: none
-    reply: 'retro-critic.md#Reply'
+    reply: 'retro-critic.md#Retro critic'
     card: retro-critic.md
     first: 'chantier retro-critic for the Chief of Staff, in the project <root>.'
     description: 'Judges the points of a list of changes chantier proposes on its own (a retro, a report''s suggestions), keep, merge or drop; read-only. Started by the Foreman or the Chief of Staff.'
@@ -251,7 +251,7 @@ roles:
     kind: worker
     started_by: [chief-of-staff]
     writes: none
-    reply: 'demo-explorer.md#Your part'
+    reply: 'demo-explorer.md#Demo explorer'
     card: demo-explorer.md
     first: 'chantier demo-explorer for the Chief of Staff of batch <batch>, in the project <root>.'
     description: 'Studies a stack ready to merge and writes the demo of what it delivers; read-only on the code. Started by the Chief of Staff.'
@@ -269,7 +269,7 @@ roles:
     started_by: [user]
     writes: none
     reply: none
-    card: ../../chief-of-staff/SKILL.md
+    card: chief-of-staff.md
     first: null
     description: 'Steers the user''s chantier project: grills, plans and runs its batches. Started by the user.'
     unit: none
@@ -286,7 +286,7 @@ roles:
     started_by: [user]
     writes: none
     reply: none
-    card: ../../griller/SKILL.md
+    card: griller-skill.md
     first: null
     description: 'Grills one chantier CR with the user until its specification can be written. Started by the user.'
     unit: none

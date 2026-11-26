@@ -65,7 +65,8 @@ def test_open_with_no_cr_is_born_paused(
     assert "none yet" in brief and "Factory" not in brief
     assert "no CR, paused" in out[0] and "factory" not in out[0]
     assert "each CR joins it by `order add --note <folder>" in out[1]
-    assert "start the Foreman (direct mode: steer it yourself)" in out[1]
+    assert "start the Foreman: its first step is `brief foreman --batch <b> --epoch <n>`" in out[1]
+    assert "(direct mode: steer it yourself)" in out[1]
     # a second open, with or without a CR, names the empty batch
     item = prepared(repo, chantier, "Second")
     for more in ((), (str(item),)):

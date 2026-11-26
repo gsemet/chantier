@@ -9,6 +9,7 @@ import pytest
 from conftest import PLUGIN_ROOT, SKILL
 
 from chantier.core.repo import Repo
+from chantier.host_rows import load_rows
 from chantier.launch import is_chantier_project
 from chantier.plugin_files import cli_command, sync_check_command, sync_command
 
@@ -130,8 +131,8 @@ def test_the_four_skills_hold_one_launch_paragraph() -> None:
         assert phrase in paragraphs[0], phrase
     sync = (SKILL / "references" / "sync-checkout.md").read_text(encoding="utf-8")
     assert 'uv sync --locked --project "<plugin root>"' in sync
-    core = (SKILL / "references" / "startup-core.md").read_text(encoding="utf-8")
-    assert "never in a shell variable" in " ".join(core.split())
+    for topic in ("worker-shell.md", "session-shell-p1.md"):
+        assert "never in a shell variable" in _flat(SKILL / "references" / "topics" / topic), topic
 
 
 STALE_BUILD = (
@@ -151,18 +152,21 @@ STALE_BUILD = (
 def test_the_shipped_docs_state_the_dev_mode_rule_and_the_stale_build() -> None:
     """The dev mode only for chantier itself, in the same words, and the accepted stale build."""
     refs = SKILL / "references"
-    docs = {
-        "AGENTS.md": PLUGIN_ROOT / "AGENTS.md",
-        "CONTRIBUTING.md": PLUGIN_ROOT / "CONTRIBUTING.md",
-        "concepts.md": refs / "concepts.md",
-        "claude-code.md": refs / "hosts" / "claude-code.md",
-        "session-start-chief-of-staff.md": refs / "session-start-chief-of-staff.md",
-    }
-    for name, path in docs.items():
-        text = " ".join(path.read_text(encoding="utf-8").split())
-        assert "when the session's project is chantier" in text, name
-        if name in ("AGENTS.md", "CONTRIBUTING.md", "session-start-chief-of-staff.md"):
-            assert text.count(STALE_BUILD) == 1, name
+    for path in (
+        PLUGIN_ROOT / "AGENTS.md",
+        PLUGIN_ROOT / "CONTRIBUTING.md",
+        SKILL / "SKILL.md",
+        refs / "hosts" / "claude-code.md",
+    ):
+        assert "when the session's project is chantier" in _flat(path), path.name
+    for name in ("AGENTS.md", "CONTRIBUTING.md"):
+        assert _flat(PLUGIN_ROOT / name).count(STALE_BUILD) == 1, name
+    surface = _flat(refs / "topics" / "session-start-surface-p2.md")
+    assert "the session's project being chantier" in surface
+    assert (
+        "A board started from another project's session runs that build for every project, "
+        "chantier too, with no notice at equal versions."
+    ) in _flat(refs / "topics" / "board-restart.md")
 
 
 def _flat(path: Path) -> str:
@@ -178,21 +182,24 @@ SYNC_PARAGRAPH_PHRASES = (
     "3 minutes",
     "but a reload",
     "`sync-checkout.md`",
-    "Any failure of the sync or of `$CHANTIER`, in either mode, at any call, follows "
-    "`startup-core.md`, except a sync held as above (`sync pending`).",
+    "Any failure of the sync or of `$CHANTIER`, in either mode, at any call, is a stop: report "
+    "its exact error (floor 4), except a sync held as above (`sync pending`).",
 )
 
 SYNC_SECTION_PHRASES = (
-    "on your yes",
-    "own board and watcher",
-    "No third line",
-    "no second question",
-    "is no longer own",
-    "unless another session's watcher takes it",
-    "Name the holders of the checkout's environment",
+    "Name the holders before syncing",
     "never stop or kill",
     "sync pending: held by",
     "but a reload",
+)
+
+SYNC_OFFER_PHRASES = (
+    "stop them on the user's yes",
+    "own board or watcher",
+    "Anything else is not own.",
+    "unless another session's watcher takes the hub",
+    "no third line",
+    "the yes covers the restart",
 )
 
 
@@ -205,58 +212,45 @@ def test_the_four_skills_hold_the_checked_sync_that_waits_and_never_kills() -> N
         for phrase in SYNC_PARAGRAPH_PHRASES:
             assert phrase in paragraph, f"{name}/SKILL.md lacks: {phrase}"
         assert "once, before the first" not in paragraph, name
-    section = _flat(SKILL / "references" / "sync-checkout.md")
+    refs = SKILL / "references"
+    section = _flat(refs / "sync-checkout.md")
     for phrase in SYNC_SECTION_PHRASES:
         assert phrase in section, f"sync-checkout.md lacks: {phrase}"
+    offer = " ".join(_flat(refs / "topics" / f"sync-offer-p{n}.md") for n in (1, 2))
+    for phrase in SYNC_OFFER_PHRASES:
+        assert phrase in offer, f"sync-offer lacks: {phrase}"
 
 
 def test_the_cards_and_hosts_state_the_exception_the_row_and_the_for_you_item() -> None:
     refs = SKILL / "references"
-    core = (refs / "startup-core.md").read_text(encoding="utf-8").replace("\r\n", "\n")
-    first = " ".join(core.split("\n\n")[1].split())
-    assert "report the exact error and stop" in first
-    assert "One named exception: in the dev mode, a `uv sync` that chantier's own" in first
-    assert "the session goes on unsynced with `sync pending`" in first
-    for host in ("claude-code", "copilot"):
-        lines = (refs / "hosts" / f"{host}.md").read_text(encoding="utf-8").splitlines()
-        row = next(ln for ln in lines if ln.startswith("| Name the holders of the checkout's env"))
-        assert "Get-CimInstance Win32_Process" in row, host
-        assert 'grep -F "<plugin root>/.venv/"' in row, host
-        assert "--seat <this session's id>" in row and "board already running" in row, host
-        assert host != "copilot" or row.endswith("untested |")
-    assert "the one exception is your own board and watcher, on the user's yes" in _flat(
-        refs / "chief-of-staff-steering.md"
+    assert "4. A CLI that cannot run is a stop." in _flat(refs / "floor.md")
+    held = _flat(refs / "sync-checkout.md")
+    assert "go on unsynced, saying `sync pending: held by <holders>`" in held
+    for host in ("claude", "copilot"):
+        row = next(r for r in load_rows(host) if r.capability == "name-env-holders")
+        means = " ".join(row.means)
+        assert "Get-CimInstance Win32_Process" in means, host
+        assert 'grep -F "<plugin root>/.venv/"' in means, host
+        assert host != "copilot" or row.mark == "untested"
+    own = _flat(refs / "topics" / "sync-offer-p1.md")
+    assert "`--seat <this session's id>`" in own and "`board already running`" in own
+    assert "stop none but your own board and watcher, on the user's yes" in _flat(
+        refs / "topics" / "session-start-surface-p2.md"
     )
-    layout = _flat(refs / "status-layout.md")
-    paragraph = next(p for p in layout.split("When a CR merged since") if "nothing waits on" in p)
+    notes = _flat(refs / "topics" / "status-notes-more.md")
     for phrase in (
-        "It is not a **For you** item: nothing waits on the user",
-        "but a sync pending more than 3 minutes",
-        "until the user answers",
-        "a later yes still counts",
+        "Not a **For you** item",
+        "except a sync pending over 3 minutes",
+        "until answered",
+        '"a later yes still counts"',
     ):
-        assert phrase in paragraph, phrase
+        assert phrase in notes, phrase
 
 
-@pytest.mark.parametrize(
-    ("name", "sentence"),
-    [
-        (
-            "chief-of-staff-steering.md",
-            "A `board runs another build` or `board runs a build of chantier <v> older than this "
-            "notice` line (on `status`, the start line or `serve`): say it once to the user as "
-            "printed, with the offer of the restart.",
-        ),
-        (
-            "session-start-chief-of-staff.md",
-            "and an added `board runs another build` line: say it once to the user as printed, "
-            'with the offer of the restart ("Restart the board", below)',
-        ),
-    ],
-)
-def test_the_cards_tell_the_chief_of_staff_to_pass_on_a_foreign_build(
-    name: str, sentence: str
-) -> None:
-    """The foreign-build lines are said once, as printed, and the board is never restarted."""
-    text = " ".join((SKILL / "references" / name).read_text(encoding="utf-8").split())
-    assert text.count(sentence) == 1, name
+def test_the_restart_topic_tells_the_chief_of_staff_to_pass_on_a_foreign_build() -> None:
+    """The foreign-build lines bring one offer of the restart."""
+    text = _flat(SKILL / "references" / "topics" / "board-restart.md")
+    assert (
+        "On `board runs another build`, `board runs a build of chantier <v> older than this notice`"
+    ) in text
+    assert "offer the restart once, in one line with its cost" in text

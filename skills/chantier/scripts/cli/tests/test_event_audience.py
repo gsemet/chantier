@@ -30,7 +30,7 @@ from chantier.plugin_files import read_wake_rules
 
 SRC = Path(__file__).resolve().parents[1] / "src" / "chantier"
 DEFAULTS = PLUGIN_ROOT / "config" / "chantier.defaults.yml"
-CARD = PLUGIN_ROOT / "skills" / "chantier" / "references" / "chief-of-staff-steering.md"
+EVENTS_TOPIC = PLUGIN_ROOT / "skills/chantier/references/topics/watcher-events-p2.md"
 BOARD = {"type": "board@1", "action": "move", "items": ["x"], "text": "x", "wakes": True}
 MERGED = {
     "type": "merged@1",
@@ -330,10 +330,7 @@ def test_no_role_is_named_and_the_journal_has_one_writer() -> None:
     assert writers == []
 
 
-def test_the_card_states_the_end_rule_in_its_watcher_line_outside_the_startup_core() -> None:
-    lines = CARD.read_text("utf-8").splitlines()
-    at = next(i for i, x in enumerate(lines) if x.startswith("- **The watcher**"))
-    bullet = " ".join(x.strip() for x in lines[at : at + 8])
-    assert "for it" in bullet and "events.wake_every" in bullet and "20 s" in bullet
-    heading = next(x for x in reversed(lines[:at]) if x.startswith("## "))
-    assert heading == "## While it runs" and "Startup core" not in heading
+def test_the_watcher_topic_states_the_end_rule_in_one_line() -> None:
+    lines = EVENTS_TOPIC.read_text("utf-8").splitlines()
+    bullet = next(x for x in lines if x.startswith("- What it tells:"))
+    assert "this session's" in bullet and "events.wake_every" in bullet and "20 s" in bullet

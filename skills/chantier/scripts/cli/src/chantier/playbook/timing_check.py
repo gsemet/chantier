@@ -19,7 +19,7 @@ TIMING_READS = {
     ("copilot", "claude"): TIMING_SETTINGS,
     ("copilot", "gpt"): TIMING_SETTINGS,
 }
-MAX_STEERING_WAKE_CLAUDE = 3600  # seconds: unproved above (hosts/claude-code.md)
+MAX_STEERING_WAKE_CLAUDE = 3600  # seconds: unproved above (the host row `steering-wake-bound`)
 _DURATION = re.compile(r"([0-9]+)(s|m|h)")
 _UNIT_SECONDS = {"s": 1, "m": 60, "h": 3600}
 

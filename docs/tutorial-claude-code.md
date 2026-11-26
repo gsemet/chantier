@@ -136,8 +136,9 @@ For fewer auto-mode interruptions, when the preflight finds allow rules missing 
 asks you whether to add them (the rules of a release on its own, or of fixes on a grant, only when
 you grant it), and adds them to `~/.claude/settings.json` on your yes, and nothing
 else there; when the host refuses that edit, it gives you one command line to run at your
-computer. The rules, the risk each accepts and what must stay refused are in the host reference's
-section "Configuration" ([claude-code.md](../skills/chantier/references/hosts/claude-code.md)).
+computer. The rules and the risk each accepts are in the host reference's "Allow rules"
+([claude-code.md](../skills/chantier/references/hosts/claude-code.md)), and what must stay refused
+in `chantier help host-refused` ([host-refused.md](../skills/chantier/references/topics/host-refused.md)).
 
 Say "go". It opens the batch (each CR is named a branch `chantier/batch-<n>/…` and a worktree
 next to your repository, which its Driver creates when it starts), then starts the **Foreman**
@@ -257,7 +258,7 @@ included.
 - Anything refused (a permission, a tool, a model) is reported with its exact text: chantier
   never works around a refusal.
 - **The classifier refused a chantier command** (a push, a `$CHANTIER` command, a PR): say yes
-  when the Chief of Staff asks to add the allow rules of the "Configuration" section of the
+  when the Chief of Staff asks to add the allow rules of the "Allow rules" section of the
   [host reference](../skills/chantier/references/hosts/claude-code.md) to your settings, or run
   the one command line it gives you at your computer when the host refuses that edit. A Driver's
   force push the host refuses climbs on its own: the Foreman pushes it, then the Chief of Staff;

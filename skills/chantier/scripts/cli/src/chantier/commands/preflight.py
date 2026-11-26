@@ -24,6 +24,7 @@ from chantier.plugin_files import (
     detect_host,
     project_instructions,
     read_playbook,
+    skill_dir,
     skill_version,
     surface_instructions,
     sync_command,
@@ -215,8 +216,8 @@ def _check_allow(r: _Report, repo: Repo | None, wanted: set[str]) -> None:
                 f"{label}: {gap.missing} of {gap.total} commands its agents run are not allowed "
                 f"by your settings ({SETTINGS_SHOWN}){note}: {'; '.join(gap.named)}"
                 f"{'; denied: ' + '; '.join(gap.blocked) if gap.blocked else ''}; "
-                f"{_WHY.format(cap=label)}; the rules are in hosts/claude-code.md, "
-                '"Capabilities and their commands"'
+                f"{_WHY.format(cap=label)}; the rules are in "
+                f'{skill_dir().as_posix()}/references/hosts/claude-code.md, "Allow rules"'
                 if gap.missing
                 else f"{label}: the commands its agents run are allowed by your settings{note}"
             )

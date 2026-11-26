@@ -21,11 +21,11 @@ score is its passes out of three. `--against` reads earlier results files and ap
 cards pass when no case scores 0 of 3 that the old cards scored at least 1 of 3 on (each case from
 the newest file that holds it).
 
-Boot text: the old cards (a tree or a git ref that holds `references/startup-manifest.json`) are
-walked as `tests/test_start_reading.py` walks them, each byte once in LF form, each part under a
-`=== <path>` header; a folder (`--cards <folder>`), or the working tree once the manifest is gone,
-asks `chantier brief <role>`, which this head does not have yet. Claude Code only: with
-`CHANTIER_HOST=copilot` the quiz refuses. Hidden options for the dry run: `--cases-dir`,
+Boot text: the working tree, and a folder of cards (`--cards <folder>`), ask `chantier brief <role>`:
+the short prompt it prints, then the brief file it names. A git ref from before the cards were
+swapped (it holds `references/startup-manifest.json`) is walked by that manifest, each byte once in
+LF form, each part under a `=== <path>` header; a ref with no manifest is refused. Claude Code only:
+with `CHANTIER_HOST=copilot` the quiz refuses. Hidden options for the dry run: `--cases-dir`,
 `--results-dir`.
 
 Exit codes, as the kit's other tools: 0 done (and F4 holds when `--against` is given); 1 F4
@@ -46,7 +46,6 @@ and `HOST_PROMPT_TOKENS`.
 from __future__ import annotations
 
 import argparse
-import ast
 import datetime
 import getpass
 import io
@@ -272,7 +271,7 @@ def _resolve(reading, refs: Path) -> tuple[Path, str | None]:
 
 
 def build_old_boot(role: str, root: Path, label: str, sha: str) -> Boot:
-    """The role's start reading under the old cards (`tests/test_start_reading.py`'s `_boot`)."""
+    """The role's start reading under a ref from before the swap, walked by its startup manifest."""
     refs = root / "skills" / "chantier" / "references"
     manifest_path = refs / "startup-manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -387,11 +386,13 @@ Source.close = _close  # type: ignore[attr-defined]
 
 
 def brief_boot(role: str, source: Source) -> Boot:
-    """`chantier brief <role> [--cards <folder>]`: the short prompt, then the brief file it names."""
+    """`chantier brief <role> [--cards <folder>]`: the short prompt, then the brief file it names.
+    A role-only brief on Claude: the caller's `CHANTIER_BATCH` is not passed on."""
     argv = [sys.executable, "-m", "chantier", "--project", str(ROOT), "brief", role]
     if source.folder is not None:
         argv += ["--cards", str(source.folder)]
-    done = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    env = {k: v for k, v in os.environ.items() if k != "CHANTIER_BATCH"} | {"CHANTIER_HOST": "claude"}
+    done = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
     said = (done.stderr or done.stdout).strip()
     if done.returncode != 0:
         print(said, file=sys.stderr)
@@ -876,15 +877,6 @@ def main(argv=None) -> int:
     except Stop as stop:
         print(f"quiz.py: {stop}", file=sys.stderr)
         return stop.code
-
-
-def after_table() -> dict[tuple[str, str], int]:
-    """`AFTER` of `tests/test_start_reading.py`, read as text (the kit does not import `tests/`)."""
-    path = ROOT / "skills" / "chantier" / "scripts" / "cli" / "tests" / "test_start_reading.py"
-    for node in ast.parse(path.read_text(encoding="utf-8")).body:
-        if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "AFTER":
-            return ast.literal_eval(node.value)
-    raise Stop(f"{path}: no AFTER table", EXTERNAL)
 
 
 if __name__ == "__main__":

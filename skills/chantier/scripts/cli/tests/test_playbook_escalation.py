@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from batch_helpers import FROM_AGENTS_MD, host, open_batch, prepared, record, write_record
 from conftest import PLUGIN_ROOT, Chantier
+from test_driver_prompt import brief_facts
 from test_playbook_config import (
     COPILOT_HEAD,
     ESCALATE,
@@ -133,7 +134,7 @@ def test_defaults_that_carry_no_escalation_print_none_on_this_host(
 
 
 @pytest.mark.parametrize("user", ["", A + "escalation: gpt-6.1-sol\n"], ids=["shipped", "user"])
-def test_a_generic_escalation_prints_the_contract_with_or_without_a_user_file(
+def test_a_generic_escalation_gives_the_contract_with_or_without_a_user_file(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, user: str
 ) -> None:
     host(monkeypatch, "copilot")
@@ -150,11 +151,9 @@ def test_a_generic_escalation_prints_the_contract_with_or_without_a_user_file(
         "coder contract (a generic agent: copy it unchanged, without the two leading spaces, "
         "after the opening lines):"
     )
-    for args, want in (
-        (("take", crid, "--epoch", 1), [heading, f"  {heading}"]),  # the Driver's copy, once
-        (("round", crid), [heading]),
-        (("handoff", crid), [heading]),
-    ):
+    for args in (("take", crid, "--epoch", 1), ("round", crid), ("handoff", crid)):
         code, out, err = chantier(*args)
         assert code == 0, err
-        assert [ln for ln in out if "coder contract (a generic" in ln] == want, args
+        assert not [ln for ln in out if "coder contract (a generic" in ln], args
+    _, short, _ = chantier("brief", "coder", crid)
+    assert [ln for ln in brief_facts(short) if "coder contract (a generic" in ln] == [heading]

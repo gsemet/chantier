@@ -1,5 +1,5 @@
 """A stack batch keeps its shape: the criterion `shape_blockers`, the guard of a per-CR
-`ready-to-merge` ask, the flag `--outside-stack`, the shape line and the shipped cards."""
+`ready-to-merge` ask, the flag `--outside-stack`, and the shape lines."""
 
 from __future__ import annotations
 
@@ -11,15 +11,14 @@ import pytest
 from batch_helpers import open_batch, record, write_record
 from conftest import Chantier
 
+from chantier.commands.help import load_topics
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.records import BatchRecord, CrEntry
-from chantier.plugin_files import skill_dir
 from chantier.rails_release import check_shape
 from chantier.stack_shape import shape_blockers, shape_line
 
 PR = "https://github.com/o/r/pull/"
-REFS = skill_dir() / "references"
-RULES = f"{skill_dir().as_posix()}/references/foreman-stack.md (reread after a compaction)"
+RULES = "shape: stack: read `$CHANTIER help stack` now and after each compaction"
 
 
 def cr(n: int, **kw: Any) -> CrEntry:
@@ -114,8 +113,8 @@ def test_only_a_stack_batch_is_guarded(mode: str) -> None:
 
 
 def start_of(line: list[str]) -> str:
-    assert len(line) == 1 and line[0].endswith(f"; rules: {RULES}")
-    return line[0].removesuffix(f"; rules: {RULES}")
+    assert line[1:] == [RULES]
+    return line[0]
 
 
 def shape(next_: str, driver: str, native: str, alone: str) -> str:
@@ -178,11 +177,9 @@ def test_the_shape_line(crs: list[CrEntry], extra: dict[str, Any], line: str) ->
     assert start_of(shape_line(batch(crs, **extra))) == line
 
 
-def test_the_shape_line_is_for_a_stack_and_names_a_card_that_exists() -> None:
-    nothing = f"{shape(WAIT, 'none', 'absent', 'allowed')}; rules: {RULES}"
-    assert shape_line(batch([])) == [nothing]
-    path = RULES.split(" ", maxsplit=1)[0]
-    assert Path(path).is_file() and path.startswith(REFS.as_posix())
+def test_the_shape_line_is_for_a_stack_and_names_a_topic_that_exists() -> None:
+    assert shape_line(batch([])) == [shape(WAIT, "none", "absent", "allowed"), RULES]
+    assert "stack" in load_topics()
     assert shape_line(batch([cr(1), cr(2)], mode="parallel")) == []
     assert shape_line(batch([cr(1), cr(2)], mode="series")) == []
 
@@ -220,40 +217,3 @@ def test_the_flag_through_the_real_command(
     sent = [e for e in map(json.loads, log.splitlines()) if e.get("outside_stack")]
     assert [e["outside_stack"] for e in sent] == [f"O-5: {word}"]
     assert chantier("asks", f"pr-in-draft {a} x")[0] == 0
-
-
-def card(name: str) -> str:
-    return " ".join((REFS / name).read_text(encoding="utf-8").split())
-
-
-def test_the_shipped_cards() -> None:
-    manifest = json.loads((REFS / "startup-manifest.json").read_text(encoding="utf-8"))
-    assert manifest["actions"]["batch:stack"] == ["foreman-stack.md"]
-    stack, foreman = card("foreman-stack.md"), card("foreman.md")
-    chief = card("chief-of-staff-merge.md") + " " + card("chief-of-staff-batch-start.md")
-    for words in (
-        "The five checks of a stack ready to merge",
-        "--outside-stack",
-        "shape: through the stack",
-        "The final-order take",
-        "again as before its first stack",
-    ):
-        assert words in stack, words
-    first = next(s for s in stack.split(". ") if "again as before its first stack" in s)
-    assert '"The first take"' in first
-    assert "A folded CR" in stack and "A folded CR" not in foreman
-    assert "The final-order take" not in foreman and "[foreman-stack](foreman-stack.md)" in foreman
-    assert "A held CR" in foreman
-    assert "even with CRs before it in the order still working" not in foreman + stack
-    assert "`batch:stack`" in card("session-start.md").split("## 5. Reload")[1]
-    assert "shape: through the stack" in chief and "sent back through the stack" in chief
-    qualifiers = (
-        ("as it comes, before the stack is made", "while that CR is the only open PR of the stack"),
-        (
-            "Before the stack is made on the forge, each CR handed back `ready`",
-            "while that CR is the only open PR of the stack's chain "
-            "(the shape line's `alone asks`)",
-        ),
-    )
-    for sentence, qualifier in qualifiers:
-        assert qualifier in chief[chief.index(sentence) :][:600], sentence

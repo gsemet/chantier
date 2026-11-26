@@ -1,10 +1,10 @@
-"""A Driver's prompt skeleton: the table "A Driver's prompt" of `concepts.md`, read by the CLI,
-and the lines `take`, `take stack` and `order qa` print for the Driver the table names."""
+"""A Driver's prompt: the table "A Driver's prompt" of `concepts.md`, read by the CLI, and the
+facts `brief` prints for the Driver the table names."""
 
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
@@ -14,6 +14,7 @@ from chantier.plugin_files import (
     recorded_escalation,
     skill_dir,
 )
+from chantier.roles_data import load_roles
 
 if TYPE_CHECKING:
     from chantier.core.records import BatchRecord
@@ -25,8 +26,9 @@ BACKTICKED = re.compile(r"`([^`]+)`")
 
 @dataclass(frozen=True)
 class DriverRow:
-    """A row of the "A Driver's prompt" table in `concepts.md`, with the role's first line, read
-    from its agent file on the batch's host, and its contract text."""
+    """A row of the "A Driver's prompt" table in `concepts.md`, with the role's card, as
+    `roles.yaml` names it, its first line, read from its agent file on the batch's host, and its
+    contract text."""
 
     role: str
     card: str
@@ -41,15 +43,18 @@ class DriverRow:
 class DriverBlock:
     """What a command gives for a Driver's prompt: the first line's `<…>` fills, the `CLI` value,
     the lines its command printed for the Driver, and, when the table gives the role those lines,
-    the `writes:` value and the `Team:` lines (`None`: the placeholder)."""
+    the `writes:` value, the `team:` lines and the project's extra review steps. `note` says why
+    the unit is with this Driver."""
 
     fill: dict[str, str]
     cli: str
     middle: list[str]
     writes: str | None = None
-    team: list[str] | None = None
+    team: list[str] = field(default_factory=list)
+    reviews: list[str] = field(default_factory=list)  # `<name>: <what it checks>`, in order
     note: str = ""
     lease: str | None = None  # the `lease:` line, when the command started one
+    number: int = 0  # the lease's number, set with `lease`
     remote: str = "origin"  # the project's remote, as P10 fills it
 
 
@@ -90,7 +95,7 @@ def driver_row(host: str, started: str, kind: str | None = None) -> DriverRow:
             if (m := pattern.search(text)) and "Started by the steering session" in text:
                 return DriverRow(
                     role,
-                    cells[2].strip("`"),
+                    next(r.card for r in load_roles() if r.name == role),
                     cells[3].strip("`").lower() != "none",
                     cells[4].strip("`").lower() != "none",
                     cells[5].strip("`").lower(),
@@ -115,38 +120,35 @@ _WORKTREE_LINE = re.compile(r"^worktree: (.+) branch (\S+) base ([^\s;]+)")
 
 def _rewrites_line(row: DriverRow, block: DriverBlock) -> list[str]:
     """The `Rewrites:` line the table's column asks for: the rebase and the push of a CR branch
-    that the Driver may run, and their scope; the path, branch and base from the `worktree:` line
-    the command printed, `<…>` when it printed none."""
+    that the Driver may run, and their scope. A CR's Driver gets its path, branch and base from
+    the `worktree:` line the command printed; the stack's driver, one branch per row above."""
     if row.rewrites == "none":
         return []
-    tree, branch, base = "<worktree>", "<branch>", "<base>"
-    cr = block.fill.get("<cr>", "<cr>")
-    for line in block.middle:
-        if m := _WORKTREE_LINE.match(line):
-            tree, branch = m[1], m[2]
-            base = m[3] if m[3] != "?" else base  # `base ?`: the read of the forge failed
     flow = (
         "chantier's normal flow, pre-authorized by the playbook; never the default branch, "
         "a protected branch, another branch, a plain --force or a rebase --exec."
     )
     if row.rewrites == "batch branches":
         return [
-            f"  Rewrites: for each CR branch of the stack listed above (chantier/*), "
-            f"git -C <worktree> rebase <base>, then $CHANTIER push <cr> --lease <n> --unit stack, "
-            f"one command per branch, on that branch only: {flow}"
+            "Rewrites: for each CR branch of the stack listed above (chantier/*), git -C its "
+            "row's worktree rebase its row's base, then $CHANTIER push with its row's CR "
+            f"--lease {block.number} --unit stack, one command per branch, on that branch only: "
+            f"{flow}"
         ]
+    tree, branch, base = next(
+        m.groups() for line in block.middle if (m := _WORKTREE_LINE.match(line))
+    )
     return [
-        f"  Rewrites: git -C {tree} rebase {base}, then $CHANTIER push {cr} --lease <n>, "
-        f"one command each, on your own CR branch only ({branch}): {flow}"
+        f"Rewrites: git -C {tree} rebase {base}, then $CHANTIER push {block.fill['<cr>']} "
+        f"--lease {block.number}, one command each, on your own CR branch only ({branch}): {flow}"
     ]
 
 
-def first_line(row: DriverRow, block: DriverBlock) -> str:
-    """The role's first line, its `<…>` filled from the block."""
-    first = row.first
-    for key, value in block.fill.items():
-        first = first.replace(key, value)
-    return first
+def _team_line(block: DriverBlock) -> str:
+    """Who runs each worker: the `team:` lines, as printed, or the plugin's agents, then each
+    extra review step, in the order the Driver runs them after the Inspector."""
+    team = [t.removeprefix("team: ") for t in block.team] or ["the plugin's agents"]
+    return "Team: " + "; ".join([*team, *(f"review step {r}" for r in block.reviews)])
 
 
 RULES_LINE = (
@@ -159,68 +161,33 @@ def steering_who(d: BatchRecord) -> str:
     return "the Chief of Staff" if d.steering == "direct" else "the Foreman"
 
 
-def driver_body_lines(  # noqa: PLR0913 - the keywords say what each is
-    row: DriverRow,
-    d: BatchRecord,
-    block: DriverBlock,
-    *,
-    steering: str | None = None,
-    note: bool = True,
-    indent: str = "  ",
-) -> list[str]:
-    """The lines of a Driver's prompt after its card lines: the contract lines (a role the
-    playbook starts generic), `CLI`, the command's lines, `writes:` and `Team:` only where the
-    table gives them, `Rewrites:`, `Steering:`, `Needs:` and `Note:`. Each is led by `indent`
-    (the contract lines keep their own). `steering` replaces the text after `Steering: `; `note`
-    False leaves the `Note:` line out."""
-    team = [f"{indent}Team: <the team: lines, as printed, then the review steps>"]
-    if block.team:
-        printed = "; ".join(t.removeprefix("team: ") for t in block.team)
-        team = [f"{indent}Team: {printed}; <review steps>"]
-    if steering is None:
-        steering = (
-            f"{steering_who(d)} <the host's means, from its reference's row \"A Driver "
-            'messages its steering session">'
-        )
-    rewrites = [f"{indent}{ln[2:]}" for ln in _rewrites_line(row, block)]
+def start_lines(role: str, unit: str, lease: tuple[int, str], run: str, batch: str) -> list[str]:
+    """What `take`, `take stack` and `order qa` print for a Driver's start: the `lease:` line of
+    `lease`, its number and its line, then the `brief` command (`run`: how the CLI runs), whose
+    output is the Driver's whole prompt."""
+    number, line = lease
     return [
-        *contract_lines(row.role, row.text, d.playbook, recorded_escalation(d)),
-        f"{indent}CLI ($CHANTIER): {block.cli}",
-        *(f"{indent}{line}" for line in block.middle),
-        *([f"{indent}{block.lease}"] if block.lease else []),
-        *([f"{indent}writes: {block.writes}"] if row.writes and block.writes else []),
-        *rewrites,
-        f"{indent}Steering: {steering}",
-        *(team if row.team else []),
-        *(f"{indent}{ln[2:]}" for ln in needs_line(d.playbook, row.role)),
-        *([f"{indent}Note: {block.note or '<why this is with the Driver>'}"] if note else []),
+        line,
+        f"brief: {run} brief {role} {unit} --lease {number} --batch {batch}",
+        "next: run it and pass its output, unchanged, as the Driver's whole prompt",
     ]
 
 
 def driver_prompt_lines(row: DriverRow, d: BatchRecord, block: DriverBlock) -> list[str]:
-    """The whole prompt skeleton of a Driver, to copy: the heading, then the prompt's lines with
-    two leading spaces, filled in where the CLI can and left as `<…>` otherwise. The opening
-    lines, the card, the rules line, the contract lines (a role the playbook starts generic),
-    `CLI`, the command's lines, `writes:` and `Team:` only where the table gives them,
-    `Steering:`, `Needs:` and `Note:`. The CLI reads roles only as data: the table is read."""
-    refs = f"{skill_dir().as_posix()}/references"
-    heading = (
-        f"{row.role} prompt (copy it whole, without the two leading spaces, and fill each <…>; "
-        "add no line and drop none):"
-    )
-    if not row.writes:
-        heading = heading.replace(
-            f"{row.role} prompt (",
-            f"{row.role} prompt (no writes: line: this Driver gets none; ",
-            1,
-        )
+    """A Driver's prompt after its card, which its brief holds: the rules line, the contract
+    lines (a role the playbook starts generic), `CLI`, the command's lines, `writes:` and
+    `Team:` only where the table gives them, `Rewrites:`, `Steering:`, `Needs:` and, when there
+    is one, `Note:`. The CLI reads roles only as data: the table is read."""
     return [
-        heading,
-        f"  {first_line(row, block)}",
-        f"  Read {refs}/startup-core.md, the host core, role core, and the short startup section "
-        f"named by {refs}/startup-manifest.json; defer the rest until an action names it.",
-        f"  Card: {refs}/{row.card}: its Startup core now, each other section when its step "
-        "comes, as the card's opening says;",
-        f"  {RULES_LINE}",
-        *driver_body_lines(row, d, block),
+        RULES_LINE,
+        *contract_lines(row.role, row.text, d.playbook, recorded_escalation(d)),
+        f"CLI ($CHANTIER): {block.cli}",
+        *block.middle,
+        *([block.lease] if block.lease else []),
+        *([f"writes: {block.writes}"] if row.writes and block.writes else []),
+        *_rewrites_line(row, block),
+        f"Steering: {steering_who(d)} (host means: the host rows below)",
+        *([_team_line(block)] if row.team else []),
+        *(line.strip() for line in needs_line(d.playbook, row.role)),
+        *([f"Note: {block.note}"] if block.note else []),
     ]

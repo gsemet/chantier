@@ -21,6 +21,7 @@ from chantier.board import griller_host as gh
 from chantier.board.projects import Project, project_name
 from chantier.commands.permissions import rule_matches
 from chantier.core.repo import Repo
+from chantier.host_rows import load_rows
 from chantier.hub import journal
 from chantier.hub import state as hub_state
 
@@ -296,8 +297,8 @@ def test_a_result_with_no_json_is_a_failed_turn_with_the_last_lines() -> None:
 
 
 def test_the_refusal_words_are_those_of_the_host_reference() -> None:
-    text = (SKILL / "references" / "hosts" / "copilot.md").read_text(encoding="utf-8")
-    assert griller.NOT_PROVED_COPILOT in text
+    row = next(r for r in load_rows("copilot") if r.capability == "board-griller")
+    assert griller.NOT_PROVED_COPILOT.partition(": ")[2] in " ".join(row.means)
     assert "grill" in journal.WAKING_ACTIONS  # the journal line wakes the watcher
 
 

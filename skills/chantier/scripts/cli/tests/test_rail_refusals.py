@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 from batch_helpers import FROM_AGENTS_MD, changes, open_batch, prepared, record, write_record
 from conftest import Chantier
+from test_driver_prompt import brief_of
 
 from chantier.core.batch import resolve_batch
 from chantier.core.errors import (
@@ -305,7 +306,8 @@ def test_the_chief_of_staff_claiming_a_foreman_batch_makes_it_direct(
     assert chantier("status", "--refresh", "--epoch", 1)[0] == EXIT_CONFLICT  # the old number
     code, out, err = chantier("take", "CR-101", "--epoch", 2)
     assert code == 0, err
-    assert any(ln.startswith("  Steering: the Chief of Staff") for ln in out)
+    _, facts = brief_of(chantier, out)
+    assert any(ln.startswith("Steering: the Chief of Staff") for ln in facts)
 
 
 @pytest.mark.parametrize("granted", [False, True])

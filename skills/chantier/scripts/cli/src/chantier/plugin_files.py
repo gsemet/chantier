@@ -26,6 +26,9 @@ if TYPE_CHECKING:
 HOSTS = ("claude", "copilot")
 AGENT_VERSION = re.compile(r"^# chantier-agent: (\S+)$", re.M)
 INSTRUCTIONS = ("AGENTS.md", "CLAUDE.md", ".github/copilot-instructions.md")
+CHANTIER_SECTION = re.compile(r"^## chantier[ \t]*$(.*?)(?=^##? |\Z)", re.M | re.S)
+SECTION_ENTRY = re.compile(r"^[-*] +`?([\w.-]+)`?[ \t]*:(.*)$")
+SECTION_POINTERS = ("planning", "release")
 SKILL: str | None = None  # `--skill`, set by the CLI before the command runs
 
 
@@ -133,6 +136,30 @@ def detect_host(explicit: str | None = None) -> str:
 
 def project_instructions(repo: Repo) -> Path | None:
     return next((repo.root / name for name in INSTRUCTIONS if (repo.root / name).is_file()), None)
+
+
+def review_steps(repo: Repo, host: str) -> list[str]:
+    """The extra review steps of the `chantier` section of the project's instructions, in their
+    order, each as `<name>: <what the section says>`, wrapped lines joined: every `- name: …`
+    entry there but `planning:`, `release:` and one named like a role of the plugin."""
+    found = project_instructions(repo)
+    if found is None:
+        return []
+    section = CHANTIER_SECTION.search(found.read_text(encoding="utf-8-sig", errors="replace"))
+    if section is None:
+        return []
+    entries: list[list[str]] = []
+    open_entry = False
+    for line in section[1].splitlines():
+        if m := SECTION_ENTRY.match(line):
+            entries.append([m[1], m[2].strip()])
+            open_entry = True
+        elif open_entry and line[:1].isspace() and line.strip():
+            entries[-1][1] = f"{entries[-1][1]} {line.strip()}".strip()
+        elif line.strip():
+            open_entry = False
+    others = {*SECTION_POINTERS, *plugin_roles(host)}
+    return [f"{name}: {text}" for name, text in entries if name not in others]
 
 
 def surface_instructions(repo: Repo) -> Path | None:
@@ -257,48 +284,6 @@ def chief_prompt_lines(
         if m and (started_by is None or f"Started by the {started_by}" in text):
             lines.append(f"{m[2]} prompt, first line: {m[1].replace('<root>', root)}")
             lines += contract_lines(m[2], text, resolved, escalated)
-    return lines
-
-
-WORKER_FIRST_LINE = re.compile(
-    r"Prompt starts with: `(chantier ([a-z-]+) for <cr> \"<title>\" of batch <batch>, "
-    r"in the project <root>\.)`"
-)
-WORKER_CARD_LINE = re.compile(r"^Your card is `([^`]+)`", re.M)
-
-
-def worker_prompt_lines(root: str, cr: tuple[str, str], batch: str, record: Any) -> list[str]:
-    """The opening three lines of each worker's prompt (a Driver starts it; `cr` is its id and
-    title), read from the agent files of the batch `record`'s host: the description says
-    `Started by a Driver.`, its first line holds `<cr> "<title>" of batch <batch>` and its body
-    names its card. A role the record's playbook starts generic, or that escalates as a generic
-    agent (its playbook or its escalation map, the shipped defaults' included), gets its contract
-    lines after them. The CLI reads roles only as data: here the agent files."""
-    lines: list[str] = []
-    refs = f"{skill_dir().as_posix()}/references"
-    resolved, escalated = record.playbook, recorded_escalation(record)
-    for p in _agent_files(record.host)[1]:
-        text = p.read_text(encoding="utf-8")
-        first, card = WORKER_FIRST_LINE.search(text), WORKER_CARD_LINE.search(text)
-        if "Started by a Driver." not in text or not first or not card:
-            continue
-        filled = first[1]
-        for key, value in (
-            ("<cr>", cr[0]),
-            ("<title>", cr[1]),
-            ("<batch>", batch),
-            ("<root>", root),
-        ):
-            filled = filled.replace(key, value)
-        lines += [
-            f"{first[2]} prompt, opening lines (copy them unchanged, without the two leading "
-            "spaces, at the top of the prompt):",
-            f"  {filled}",
-            f"  Read {refs}/{card[1]};",
-            "  the project's rules rank above it: run `$CHANTIER rules` first and read what "
-            "touches your work.",
-            *contract_lines(first[2], text, resolved, escalated),
-        ]
     return lines
 
 
