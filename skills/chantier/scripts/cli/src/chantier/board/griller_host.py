@@ -34,7 +34,7 @@ CLEARED_ENV = (
     "CHANTIER_BATCH",
 )
 
-# the reasons (hosts/copilot.md and hosts/claude-code.md say the same words)
+# the reasons (the host rows `board-griller`, references/hosts/*.json)
 NOT_PROVED_COPILOT = (
     "the board's Griller is not proved on Copilot yet: grill in a session with the Griller skill"
 )
@@ -74,7 +74,7 @@ class Run:
     cli_command: str  # `$CHANTIER`, as the brief names it
 
 
-# --- Claude Code: the candidate flags, one table (hosts/claude-code.md: unproved until the trial)
+# --- Claude Code: the candidate flags, one table (unproved until the trial)
 
 CLAUDE: dict[str, Any] = {
     "print": ["-p", "--output-format", "json"],
@@ -134,12 +134,9 @@ class Headless:
     cli: str
     build: Callable[[Run, str], list[str]]
     saved: Callable[[str], bool]
-    host_file: str
 
 
-HEADLESS: dict[str, Headless] = {
-    "claude": Headless("claude", _claude, _claude_saved, "claude-code")
-}
+HEADLESS: dict[str, Headless] = {"claude": Headless("claude", _claude, _claude_saved)}
 
 
 # --- the seam ---------------------------------------------------------------------------------

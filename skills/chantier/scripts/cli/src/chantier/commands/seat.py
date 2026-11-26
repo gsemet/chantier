@@ -52,7 +52,11 @@ def _claim(b: RenderedBatch, args: argparse.Namespace) -> list[str]:
     b.record.foreman_epoch = args.epoch
     b.record.foreman_transcript = None
     b.log("foreman", None, session=args.value, epoch=b.record.foreman_epoch)
-    return [f"foreman {args.value} epoch {b.record.foreman_epoch}"]
+    epoch = b.record.foreman_epoch
+    return [
+        f"foreman {args.value} epoch {epoch}",
+        f"next: $CHANTIER brief foreman --batch {b.id} --epoch {epoch}",
+    ]
 
 
 def _transcript(repo: Repo, b: RenderedBatch, args: argparse.Namespace) -> list[str]:

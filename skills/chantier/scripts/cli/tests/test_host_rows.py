@@ -87,15 +87,6 @@ def test_every_capability_is_a_heading_in_the_proof_file(name: str) -> None:
     ]
 
 
-@pytest.mark.parametrize("name", HOSTS)
-def test_the_proof_file_keeps_every_date_and_batch_of_the_card(name: str) -> None:
-    card = (SKILL / "references" / "hosts" / f"{CARDS[name]}.md").read_text(encoding="utf-8")
-    proof = (PLUGIN_ROOT / "docs" / "proofs" / f"{CARDS[name]}.md").read_text(encoding="utf-8")
-    kept = set(re.findall(r"\d{4}-\d{2}-\d{2}|batch-\d+", card))
-    assert kept
-    assert sorted(w for w in kept if w not in proof) == []
-
-
 def test_an_unknown_capability_lists_the_known_ones(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
 ) -> None:

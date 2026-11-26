@@ -50,7 +50,7 @@ MODELS = {
 
 # Whether this host starts a named agent with a model given at the start, so that model runs and
 # the agent keeps its file's tools: only what the host's reference marks proved
-# (hosts/claude-code.md, hosts/copilot.md, row "Models at an agent's start"). A host added later
+# (the host row `model-at-start`, references/hosts/*.json). A host added later
 # declares its own value. Copilot's turns True once the eval's probe (evals/copilot/RUNBOOK.md,
 # "Models") shows a named agent ran the requested model, together with the removal of
 # `model-policy: required` from the agent files the proof covers. It is the one switch.

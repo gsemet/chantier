@@ -1,4 +1,4 @@
-"""The rebase rules of P10, their commands and the cards of the refused rebase and force push."""
+"""The rebase rules of P10, their commands and the cards' wording of a refused rebase."""
 
 import json
 import re
@@ -79,15 +79,11 @@ def test_preflight_names_the_rebase_rules_and_a_deny_of_them(
     assert line.startswith("P10 warn") and "denied: git -C" in line and "rebase" in line
 
 
-def test_the_refusal_sections_hold_and_no_card_asks_the_user_without_the_rebase() -> None:
+def test_no_card_asks_the_user_about_a_refused_push_without_the_rebase() -> None:
     refs = SKILL / "references"
-    foreman = (refs / "foreman-refused.md").read_text(encoding="utf-8")
-    assert "## A Driver's refused force push" in foreman
-    assert "## A Driver's refused rebase" in foreman
     said = re.compile(r"asked only if (both|the host refuses you too)|only if both are refused")
-    for card in ("chief-of-staff.md", "chief-of-staff-steering.md", "hosts/claude-code.md"):
-        text = (refs / card).read_text(encoding="utf-8")
-        for para in re.split(r"\n\s*\n", text):
+    for card in sorted(refs.rglob("*.md")):
+        for para in re.split(r"\n\s*\n", card.read_text(encoding="utf-8")):
             flat = " ".join(para.split())
             if said.search(flat):
-                assert "rebase" in flat, (card, flat[:120])
+                assert "rebase" in flat, (card.name, flat[:120])

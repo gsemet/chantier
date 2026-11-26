@@ -34,13 +34,13 @@ from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.records import LIVE, BatchRecord, CrEntry, Lease
 from chantier.core.repo import Repo
 from chantier.core.waits import hhmm
-from chantier.driver_prompt import DriverBlock, driver_prompt_lines, driver_row
+from chantier.driver_prompt import DriverBlock, driver_row, start_lines
 from chantier.hub import journal
 from chantier.hub.autostart import not_running_line
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock, cr_directory, done_cr, start_cr
 from chantier.playbook.lines import team_lines, timing_lines
-from chantier.plugin_files import archive_path, cli_command, recorded_timing
+from chantier.plugin_files import archive_path, cli_command, recorded_timing, review_steps
 from chantier.rails import (
     check_budget,
     check_round,
@@ -69,8 +69,8 @@ def _reopen(b: Batch) -> list[str]:
 def stack_block(
     repo: Repo, batch: str, d: BatchRecord, n: int, note: str
 ) -> tuple[DriverBlock, list[str]]:
-    """The stack driver's block, with lease `n`, and the lines it prints before the prompt: the
-    stack's chain line and one row per CR, then the timing lines (what `take stack` prints)."""
+    """The stack driver's block, with lease `n`, and the state lines `take stack` prints: the
+    stack's chain line and one row per CR, then the timing lines."""
     head, *rows = stack_lines(repo, batch, d)
     rows += timing_lines(recorded_timing(d), d.host)  # after the CR rows, as `take <cr>` prints
     block = DriverBlock(
@@ -78,8 +78,10 @@ def stack_block(
         f"{cli_command(repo)} <command> --batch {batch}",
         [head, *rows],
         team=team_lines(d.playbook),
+        reviews=review_steps(repo, d.host),
         note=note,
         remote=project_remote(repo),
+        number=n,
         lease=(
             f"lease: stack {n} (pass --lease {n} on stack <crs>, --out-of-draft, "
             f"--draft, forge-stack create|rebuild|unstack and push <cr> --unit stack; renew at "
@@ -112,7 +114,9 @@ def _take_stack(
     b.log("take", None, note=note, lease=lease.n)
     block, [head, *rows] = stack_block(repo, batch, d, lease.n, note)
     watch = not_running_line(repo) if reopened else []
-    return [head, *reopened, *rows, *driver_prompt_lines(row, d, block), *fresh, *watch]
+    assert block.lease is not None
+    start = start_lines(row.role, "stack", (lease.n, block.lease), cli_command(repo), batch)
+    return [head, *reopened, *rows, *start, *fresh, *watch]
 
 
 def _cr_driver_block(repo: Repo, batch: str, c: CrEntry, facts: list[str]) -> DriverBlock:
@@ -197,16 +201,14 @@ def take(args: argparse.Namespace) -> list[str]:
         back, landed = _record_take(repo, b, c, args, lease)
         _start_work(repo, b, c)
         facts = cr_facts(repo, batch, d, c, landed)
-        block = _cr_driver_block(repo, batch, c, facts)
-        block.team, block.note = team_lines(d.playbook), args.note
-        block.lease = leases.driver_line(c.id, lease)
-        skeleton = driver_prompt_lines(row, d, block)
+        line = (lease.n, leases.driver_line(c.id, lease))
+        start = start_lines(row.role, c.id, line, cli_command(repo), batch)
     return [
         f"took {c.id} ({len(held(d))} of {d.slots} slots held), lease {lease.n} until "
         f"{leases.hms(lease.expires)}{back}",
         *reopened,
         *facts,
-        *skeleton,
+        *start,
         *fresh,
         *(not_running_line(repo) if reopened else []),
     ]

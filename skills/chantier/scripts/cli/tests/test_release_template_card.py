@@ -1,4 +1,3 @@
-import json
 import re
 from collections.abc import Callable
 
@@ -9,6 +8,8 @@ REFS = SKILL / "references"
 TEMPLATE = REFS / "release-template.md"
 PROCESS = PLUGIN_ROOT / "docs" / "release-process.md"
 QUESTIONS = 10
+EVIDENCE = REFS / "topics" / "release-evidence.md"
+PR_EXTRAS = REFS / "topics" / "pr-extras.md"
 IMAGE_BULLET = "A Driver never opens an image file"
 
 
@@ -21,13 +22,8 @@ def _template() -> str:
 
 
 def _driver_bullet() -> str:
-    for path in sorted(REFS.glob("driver*.md")):
-        text = _norm(path.read_text(encoding="utf-8"))
-        if IMAGE_BULLET in text:
-            start = text.index(IMAGE_BULLET)
-            end = text.find(" - ", start)
-            return text[start : end if end != -1 else len(text)]
-    raise AssertionError("the driver card's image bullet is not in any driver*.md")
+    lines = PR_EXTRAS.read_text(encoding="utf-8").splitlines()
+    return next(line for line in lines if line.startswith(f"- {IMAGE_BULLET}"))
 
 
 def _self_check_questions() -> list[str]:
@@ -60,10 +56,12 @@ def _check_labels(t: str) -> None:
 
 
 def _check_budgets(t: str) -> None:
-    for words in ("16", "20", "40", "120", "250"):
-        assert f"at most {words} words" in t or f"at most {words} for" in t
-    for px in ("900", "1200", "600 px"):
-        assert px in t
+    budgets = ("at most 16 words", "at most 20;", "at most 40 (", "at most 120 words")
+    for words in (*budgets, "and 250 for"):
+        assert words in t
+    evidence = _norm(EVIDENCE.read_text(encoding="utf-8"))
+    for px in ("900 to 1200 px", "600 px"):
+        assert px in evidence
 
 
 def _check_order(t: str) -> None:
@@ -75,7 +73,7 @@ def _check_ten_questions(_: str) -> None:
 
 
 def _check_anchors(t: str) -> None:
-    for heading in ("### Writing rules", "### A highlight", "## Visible evidence"):
+    for heading in ("### Writing rules", "### A highlight"):
         assert heading in t
 
 
@@ -85,9 +83,7 @@ def _check_gone(t: str) -> None:
 
 
 def _check_driver_exception(_: str) -> None:
-    bullet = _driver_bullet()
-    assert "Release Driver" in bullet
-    assert "release-template" in bullet
+    assert "The release driver reads the images it produced" in _driver_bullet()
 
 
 def _check_process_title(_: str) -> None:
@@ -118,10 +114,3 @@ def _check_process_contributors(_: str) -> None:
 )
 def test_release_template_card(check: Callable[[str], None]) -> None:
     check(_template())
-
-
-def test_release_template_is_an_action_reading_only() -> None:
-    manifest = json.loads((REFS / "startup-manifest.json").read_text(encoding="utf-8"))
-    assert "release-template.md" not in json.dumps(manifest["startup_sections"])
-    assert manifest["common"] != "release-template.md"
-    assert manifest["role_core"] != "release-template.md"

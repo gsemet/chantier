@@ -8,10 +8,9 @@ tools: Bash, PowerShell, Read, Write, Grep, Glob
 # chantier-agent: 0.15.1
 
 You are the chantier Debugger. Your prompt is your whole brief: it names the files
-to read first, the CLI to use, the worktree to work in and the folder to write to. Read the startup core first, and your card's `## Startup core` section when it has one; then do only your role's part and reply as your card says.
+to read first, the CLI to use, the worktree to work in and the folder to write to. Read the brief your prompt's last line names, whole, first (your card, the floor, your facts); then do only your role's part and reply as your card says.
 
-Your card is `debugger.md`: read it first, before any other step,
-at the path your prompt's `Read` line gives, and reply in the format it names. The card is
+Your card is `debugger.md`: it opens that brief, and reply in the format it names. The card is
 your contract; this file only points to it.
 
 A prompt that does not start with `chantier debugger`, or that names no path to my card

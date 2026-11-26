@@ -158,8 +158,9 @@ from this checkout, with the [prerequisites](#prerequisites) met.
   real-direct run 3 of 2026-11-15 did after Auto-fix events arrived on a sandbox PR. When the tool
   is refused or absent, the user turns the monitor off from the PR's menu (the three dots) in the
   operator's Changes card, and the report records the refusal as a finding.
-- **A merge** is the user's, and the operator plays the user: `chief-of-staff.md`'s "Never merge"
-  is about the real user's PRs, which an eval has none of. (The Foreman still merges the release
+- **A merge** is the user's, and the operator plays the user: the floor's "Never merge without
+  the user's word" ([floor.md](../skills/chantier/references/floor.md)) is about the real user's
+  PRs, which an eval has none of. (The Foreman still merges the release
   PR itself, as the card says.) The operator merges with `uv run --no-project python <this
   checkout>/evals/kit/sandbox.py merge <n>` (the `merge` line `setup.py` prints), from the
   workspace, alone, never chained; it never uses a raw `gh pr merge`. The sandbox's `main` is not
@@ -172,8 +173,8 @@ from this checkout, with the [prerequisites](#prerequisites) met.
   run: after each merge it records, the steering session fast-forwards it to the sandbox's `main`
   (a clean checkout on `main`, `merge --ff-only --no-overwrite-ignore` only, J26); the operator
   leaves the workspace's tracked files alone, so it does. In parallel mode the operator merges in the order the CRs become
-  ready; in series, in the series' order; in a stack, from the bottom up, as `chief-of-staff-merge.md`
-  says for the mode.
+  ready; in series, in the series' order; in a stack, from the bottom up, as the merge topics say
+  for the mode (`chantier help merge`, `chantier help merge-series-stack`).
 - **A question** (`blocked question:`): the frozen CRs leave none open, so a question is a
   finding. The operator answers `Follow the specification as written; where it is silent, choose
   the simplest behaviour and say so in the PR.`, records it in the CR's `02-answers.md`, and sends
@@ -236,9 +237,9 @@ What the [prerequisites](#prerequisites) do not hold:
 - Auto-fix (Claude Desktop, a real campaign on the sandbox: `full`, `real-foreman`, `real-direct`):
   its events skew the measured cost and the run's record, so it is turned off before the run
   (global setting, **unproved**) and by the operator on each of the run's PRs, as the
-  [prerequisites](#prerequisites) and "Auto-fix during the run" say. The hosts card,
-  [`skills/chantier/references/hosts/claude-code.md`](../skills/chantier/references/hosts/claude-code.md),
-  "Auto-fix events", has the rule.
+  [prerequisites](#prerequisites) and "Auto-fix during the run" say. The topic
+  [`skills/chantier/references/topics/host-auto-fix.md`](../skills/chantier/references/topics/host-auto-fix.md),
+  "Claude Code: Auto-fix events" (`chantier help host-auto-fix`), has the rule.
 - On Claude, for a sandbox campaign, `setup.py` writes the workspace's
   `.claude/settings.local.json` (ignored by the sandbox's git) with the rules the user's own
   settings may lack: the merge command's rule, `mcp__ccd_pr__set_monitor` for the operator's
@@ -266,9 +267,10 @@ Claude Desktop sets these and no setting changes them: a campaign is written to 
   user starts the session and pastes the Foreman's prompt; the Foreman claims its epoch itself.
   The trusted eval root removes only the trust step. It does not lift the host's rule that a
   session started or driven under Remote Control cannot start another session, so a Foreman
-  campaign needs the desk, to start the Foreman and type the go. See the hosts card's "Classes of
-  session" table, row "Desktop, driven by Remote Control"
-  ([hosts/claude-code.md](../skills/chantier/references/hosts/claude-code.md)).
+  campaign needs the desk, to start the Foreman and type the go. See the "classes of session"
+  table, row "Desktop, Remote Control"
+  ([topics/host-sessions.md](../skills/chantier/references/topics/host-sessions.md), `chantier help
+  host-sessions`).
 
 ### The steps
 
@@ -279,7 +281,7 @@ These steps are for `claude-planted`.
    `uv run --no-project python evals/kit/setup.py <campaign> <workspace>`.
 2. **Be the Chief of Staff** in that workspace: load the chantier skill, run its CLI from the
    workspace (`$CHANTIER` is `uv run --locked --project "<this checkout>" chantier`),
-   and start the batch as `chief-of-staff-batch-start.md` says (preflight, plan, go), with the `open`
+   and start the batch as `chantier help batch-plan` says (preflight, plan, go), with the `open`
    command of the runbook. The Foreman's session starts with the workspace as its folder. The
    operator's shell lacks the workspace's `.claude/settings.local.json`: set its `env` before
    running `$CHANTIER`.

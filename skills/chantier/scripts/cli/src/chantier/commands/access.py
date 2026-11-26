@@ -21,7 +21,7 @@ from chantier.rails import held, usd_text
 from chantier.writer import lines as writer
 
 ACTIONS = ("write", "claim", "push")
-REWRITE = "a rewrite uses --force-with-lease (driver.md)"
+REWRITE = "a rewrite uses --force-with-lease (floor rule 2)"
 
 
 def access(args: argparse.Namespace) -> list[str]:

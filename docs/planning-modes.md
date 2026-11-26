@@ -158,7 +158,8 @@ lands in its own main checkout. A session you create from the remote client land
 (desktop, no worktree), then put it in remote (Remote Control): its batches stay direct with no
 argument, a forced `foreman` starts the Foreman in its own folder, and on your word it starts a
 Griller the same way. See the
-[Claude Code reference](../skills/chantier/references/hosts/claude-code.md). On Copilot: not tried.
+[Claude Code reference](../skills/chantier/references/topics/host-remote.md) (`chantier help
+host-remote`). On Copilot: not tried.
 
 ## Privacy
 

@@ -25,7 +25,7 @@ SHORT_CHARS = 60
 SETTINGS_SHOWN = "~/.claude/settings.json, .claude/settings.json, .claude/settings.local.json"
 
 
-# Rules auto mode drops on entry (hosts/claude-code.md, "What not to add"): they do not count.
+# Rules auto mode drops on entry (`help host-allow-not-add`): they do not count.
 _DROPPED = re.compile(
     r"\*?|(python3?|node|ruby|perl|bash|sh|zsh|pwsh|powershell|cmd|php|deno|bun|env|sudo|xargs"
     r"|npx|bunx)( ?\*)?|(uv|npm|pnpm|yarn|pip|pipx|poetry|bun)( run)?( ?\*)?",

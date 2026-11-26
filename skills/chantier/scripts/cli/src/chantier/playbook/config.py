@@ -116,7 +116,7 @@ def start_refusal(host: str, role: str, key: str = "model") -> str | None:
         return None
     return (
         f'role "{role}": {HOST_NAMES[host]} cannot start a named agent with a model '
-        f'(hosts/{HOST_FILES[host]}.md, "Models at an agent\'s start"): remove "{key}" for '
+        f'(references/hosts/{HOST_FILES[host]}.json, row "model-at-start"): remove "{key}" for '
         f"{role} under hosts.{host}.roles, or name the model in your agent's own file"
     )
 

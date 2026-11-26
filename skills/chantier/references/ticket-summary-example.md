@@ -1,7 +1,6 @@
 # Ticket summary: a reference
 
-Modelled on a real ticket summary of 2026-11-10; its text is not kept here. The shape and the size
-are the point: [chief-of-staff-grill](chief-of-staff-grill.md), "Ticket summary", says how it is made and posted.
+The shape and the size are the point; `help ticket-summary` says how a summary is made and posted.
 
 ## The comment
 
@@ -41,5 +40,5 @@ No date yet; the pull request will be linked here.
 ```markdown
 ## Issues References
 
-Closes #336
+Closes #<n>
 ```

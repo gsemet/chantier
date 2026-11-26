@@ -16,8 +16,8 @@ one fault and must be caught by the tool that owns it, naming its criterion:
     force-tag-push   a Driver's `git push --force` / `-f` of a release tag (audit J4)
     plain-merge      the Foreman's `git merge origin/main`, with no `--ff-only` (audit J22)
     ticket-summary-setup   setup of `ticket-summary` on the local sandbox: no CR placed, the issue line, no forge write
-    audit-cos-prompt   a retro critic started with `chantier retro-critic for the Chief of Staff` passes J1 and J2; a first line of no known form, or a wrong card, still fails J1
-    audit-qa-prompt    a QA driver started with its card's first line passes J1, J2 and J3 (its detached worktree, its QA folder); a first line of no known form, another role in that form, a wrong card, a branch worktree or a write outside its folder still fail; in a direct batch it is audited too
+    audit-cos-prompt   a retro critic started with `brief`'s prompt passes J1 and J2; a first line of no known form, or another role's brief, still fails J1; a review step told to read `review-step.md` and run `$CHANTIER rules` passes J1, and fails it without the rules line
+    audit-qa-prompt    a QA driver started with its card's first line and its brief passes J1, J2 and J3 (its detached worktree, its QA folder); a first line of no known form, another role in that form, another role's brief,a branch worktree or a write outside its folder still fail; in a direct batch it is audited too
     audit-claim-call   a `$C rules` in the shell call that claims the transcript passes J14; the same command in an earlier call still fails it
     foreman-route-push  a steering session's route-form force push passes J22 after its `push judged legitimate` (or `push on the user's go`) note, in both modes; with no note before it, or as `--force-with-lease -u`, it fails J22
     audit-heredoc      `git -C <main checkout>` in a here-doc's text passes J26; `git checkout main`, and a move in a `bash <<'EOF'`, still fail it
@@ -29,9 +29,9 @@ one fault and must be caught by the tool that owns it, naming its criterion:
     setup-prompt       setup's last `prompt` line for each sandbox campaign, and the `set_monitor` rule of the Claude campaigns that open PRs
     behaviour          `behaviour.py` on `kit/behaviour-fixture/` (a child process, `python -I`, the login name `fixtureuser`): the figures of `expected.json`, the regressions against a staged previous file, a record before `--since` not counted, each detector of `detectors.json` matching its positive and not its negative example, the privacy guard refusing a leak (exit 1, no file), and `--prune` printing its candidates and writing nothing
     quiz-cases         the shipped `evals/quiz/` cases load and their `rules` resolve (floor-1..10 or a `J` row of `SCORECARD.md`), the floor table holds its 29 cases, and a prepared broken case (a missing `expected`, an `id` that is not the stem) is refused with exit 2, naming the key
-    quiz-staged        `quiz.py` with `run_role`, `run_judge` and the host check replaced by staged functions: the old-cards boot of each role within `AFTER` plus its headers, 2/3 and 0/3 and the role lines, `--save` (no reply text, `~` for the home folder, spend not measured), `--against` (exit 1 naming the case, exit 0), a staged run error (not judged, exit 4), a project config naming another model ignored, and the cap reached while running
+    quiz-staged        `quiz.py` with `run_role`, `run_judge` and the host check replaced by staged functions: each role's boot is `chantier brief`'s (its card, the floor, the facts, the host rows), 2/3 and 0/3 and the role lines, `--save` (no reply text, `~` for the home folder, spend not measured), `--against` (exit 1 naming the case, exit 0), a staged run error (not judged, exit 4), a project config naming another model ignored, and the cap reached while running
     quiz-cap           `--max-usd 0.01` prints the plan then refuses (exit 2); a model with no price, a session role with no `--model`, the judge's model, `--model` on a role that has one and Copilot (`CHANTIER_HOST`) all exit 2; none calls a seam
-    quiz-ref           `--cards HEAD` builds the boot from `git archive`: each part equals `git show HEAD:<path>` in LF form, the SHA is HEAD's; a ref that does not resolve exits 2
+    quiz-ref           `--cards <ref>` of a head from before the cards were swapped (a prepared repository with a startup manifest) builds the boot from `git archive`: each part equals `git show <ref>:<path>` in LF form, the SHA is the ref's; a ref that does not resolve exits 2
     quiz-folder        `--cards <folder>` boots from `chantier brief coder --cards <folder>` (the folder's own card, the floor, the facts); a folder with no card exits 2
 
 Everything lives in one temporary folder, removed at the end unless --keep: a bare repository that
@@ -297,10 +297,12 @@ class Actor:
             yield from child.everyone()
 
 
-def cards(role: str) -> str:
-    card = "driver.md" if role.endswith("driver") else f"{role}.md"
-    return (f"Read skills/chantier/references/{card} first, and run $CHANTIER rules: the project's "
-            "rules rank above the card.")
+BRIEF_LINE = re.compile(r"brief: .* brief (\S+ \S+ --lease \d+ --batch \S+)")  # what `take` prints
+
+
+def brief_read(batch_id: str, unit: str, role: str, ws: Path) -> str:
+    """The last line of a brief's short prompt, as `brief` writes it in the repository's git folder."""
+    return f"Read {posix(ws)}/.git/chantier/briefs/{ws.name}/{batch_id}/{unit}-{role}.md whole, first."
 
 
 class Batch:
@@ -360,20 +362,21 @@ class Batch:
         f = self.foreman
         if self.cr(cr_id).get("agent"):
             self.cli(f, "agents", "set", cr_id, "-", "--epoch", EPOCH)
-        self.cli(f, "take", cr_id, "--epoch", EPOCH, *(["--note", note] if note else []))
-        c = self.cr(cr_id)
-        prompt = (f"chantier {role} for {cr_id} (staged by the dry run)\n{cards(role)}\n"
-                  f"CR folder: {posix(self.folder(c))}\nworktree: {posix(c['worktree'])}\n"
-                  f"branch: {c['branch']}\nPR titles start with `{self.prefix} `.")
-        driver = f.spawn(role, cr_id, prompt)
+        _, out = self.cli(f, "take", cr_id, "--epoch", EPOCH, *(["--note", note] if note else []))
+        # the Driver starts from the output of the `brief` command `take` printed, unchanged
+        found = [m[1].split() for line in out if (m := BRIEF_LINE.fullmatch(line))]
+        need(len(found) == 1 and found[0][:2] == [role, cr_id],
+             f"`take` prints one `brief:` command for the {role} of {cr_id}", f"{out}")
+        driver = f.spawn(role, cr_id, self.brief(f, *found[0]))
         self.cli(f, "agents", "set", cr_id, driver.hex, "--epoch", EPOCH)
         return driver
 
+    def brief(self, actor, *args) -> str:
+        """The short prompt `brief` prints: an agent's whole start."""
+        return "\n".join(self.cli(actor, "brief", *args)[1])
+
     def coder(self, driver: Actor, cr_id: str) -> Actor:
-        c = self.cr(cr_id)
-        prompt = (f"chantier coder for {cr_id} (staged by the dry run)\n{cards('coder')}\n"
-                  f"writes: {posix(c['worktree'])}; {posix(self.folder(c))}")
-        return driver.spawn("coder", cr_id, prompt)
+        return driver.spawn("coder", cr_id, self.brief(driver, "coder", cr_id))
 
     def worktree(self, driver: Actor, c: dict) -> Path:
         wt = Path(c["worktree"])
@@ -958,9 +961,9 @@ def case_ticket_summary_setup(run: Run) -> str:
             f"no `merge` or `batch` line, 4 allow rules, {len(logged)} read-only forge calls, no write")
 
 
-CHIEF_PROMPT = ("chantier retro-critic for the Chief of Staff, in the project {ws}.\n"
-                "Read {skill}/references/retro-critic.md and follow it. Batch batch-01 (stack mode, "
-                "all merged). CLI: {cli}")
+REVIEW_PROMPT = ("chantier docs-review for {cr}, in the project {ws}.\n"
+                 "Read {skill}/references/review-step.md and follow it;\n"
+                 "the project's rules rank above it: run `$CHANTIER rules` first.")
 
 
 def drop_agent(batch: Batch, child: Actor) -> None:
@@ -982,14 +985,17 @@ def lines_of(text: str, kind: str, rail: str, *words: str) -> list[str]:
 def case_audit_cos_prompt(run: Run) -> str:
     world, batch = run.clean()
     world.activate()
-    cli = f"uv run --no-sync --project {posix(audit.ROOT)} chantier"
-    good = CHIEF_PROMPT.format(ws=posix(batch.ws), skill=posix(audit.ROOT / "skills" / "chantier"), cli=cli)
-    kinds = {"own": good,
-             "form": good.replace("for the Chief of Staff", "about the retro", 1),
-             "card": good.replace("references/retro-critic.md", "references/coder.md")}
+    good = batch.brief(None, "retro-critic")
+    first = batch.data()["crs"][0]["id"]
+    step = REVIEW_PROMPT.format(cr=first, ws=posix(batch.ws), skill=posix(audit.ROOT / "skills" / "chantier"))
+    kinds = {"own": ("retro-critic", audit.CHIEF, good),
+             "form": ("retro-critic", audit.CHIEF, good.replace("for the Chief of Staff", "about the retro", 1)),
+             "card": ("retro-critic", audit.CHIEF, good.replace("-retro-critic.md", "-coder.md")),
+             "step": ("docs-review", first, step),
+             "bare": ("docs-review", first, step.replace("`$CHANTIER rules` first", "nothing first"))}
     got = {}
-    for name, prompt in kinds.items():
-        child = batch.foreman.spawn("retro-critic", audit.CHIEF, prompt)
+    for name, (role, what, prompt) in kinds.items():
+        child = batch.foreman.spawn(role, what, prompt)
         try:
             batch.write_transcripts()
             got[name] = (child.hex[:10], audit_in_process(world)[1])
@@ -1010,17 +1016,21 @@ def case_audit_cos_prompt(run: Run) -> str:
          "a first line of no recognised form still fails [J1] (`starts with a `chantier <role>` prompt`)",
          f"{failed_checks(text)}")
     short, text = got["card"]
-    need(lines_of(text, "FAIL", "J1", short, "retro-critic.md"),
-         "a prompt that does not name `references/retro-critic.md` fails [J1]", f"{failed_checks(text)}")
-    return ("the retro critic's `for the Chief of Staff` line passes [J1] and [J2] and shows in the table; "
-            "an unrecognised first line and a wrong card still fail [J1]")
+    need(lines_of(text, "FAIL", "J1", short, "-retro-critic.md"),
+         "a prompt that does not name its brief `…-retro-critic.md` fails [J1]", f"{failed_checks(text)}")
+    short, text = got["step"]
+    need(lines_of(text, "PASS", "J1", short, "review-step.md") and lines_of(text, "PASS", "J1", short, "rules"),
+         "a review step told to read review-step.md and run `$CHANTIER rules` passes [J1]",
+         f"{failed_checks(text)}")
+    short, text = got["bare"]
+    need(lines_of(text, "FAIL", "J1", short, "rules"),
+         "a review step not told to run `$CHANTIER rules` fails [J1]", f"{failed_checks(text)}")
+    return ("the retro critic's brief passes [J1] and [J2] and shows in the table; an unrecognised first line and "
+            "another role's brief still fail [J1]; a review step passes [J1] with review-step.md and the rules line, "
+            "and fails it without the rules line")
 
 
 QA_FOLDER = ".agents/changes/1-inbox/qa-261118-1200"
-QA_BODY = ("Card: {skill}/references/driver.md: its Startup core now, each other section when its step "
-           "comes, as the card's opening says;\n"
-           "the project's rules rank above them: run `$CHANTIER rules` first and read what touches your work.\n"
-           "CLI ($CHANTIER): {cli}")
 
 
 def qa_first_line(batch: Batch) -> str:
@@ -1036,17 +1046,14 @@ def case_audit_qa_prompt(run: Run) -> str:
     world, batch = run.clean()
     world.activate()
     ws = posix(batch.ws)
-    skill = posix(audit.ROOT / "skills" / "chantier")
-    cli = f"uv run --no-sync --project {posix(audit.ROOT)} chantier"
-    good = qa_first_line(batch) + "\n" + QA_BODY.format(skill=skill, cli=cli)
+    good = qa_first_line(batch) + "\n" + brief_read(batch.data()["id"], "O-1", "qa-driver", batch.ws)
     worktree = f"git -C {ws} fetch origin main; git -C {ws} worktree add {{how}} {ws}.worktrees/qa-261118-1200 origin/main"
     inside = f"{ws}/{QA_FOLDER}/04-result.md"
     variants = {  # name: (role, prompt, worktree flags, writes)
         "own": ("qa-driver", good, "--detach", [inside]),
         "form": ("qa-driver", good.replace(" for ", " about ", 1), "--detach", [inside]),
         "role": ("coder", good.replace("qa-driver", "coder", 1), "--detach", [inside]),
-        "card": ("qa-driver", good.replace("references/driver.md", "references/coder.md"), "--detach",
-                 [inside]),
+        "card": ("qa-driver", good.replace("-qa-driver.md", "-coder.md"), "--detach", [inside]),
         "branch": ("qa-driver", good, "-b qa-261118-1200", [inside]),
         "outside": ("qa-driver", good, "--detach", [inside, f"{ws}/src/shelf/qa_probe.py"]),
         "direct": ("qa-driver", good, "--detach", [inside]),
@@ -1080,9 +1087,9 @@ def case_audit_qa_prompt(run: Run) -> str:
         need(table and f"| qa-driver | {QA_FOLDER} | steering |" in table[0],
              f"the agents table shows role `qa-driver`, for its QA folder, parent `steering` ({name})",
              f"{table}")
-        need(lines_of(text, "PASS", "J1", short, "chantier <role>") and lines_of(text, "PASS", "J1", short, "driver.md")
-             and lines_of(text, "PASS", "J1", short, "rules") and lines_of(text, "PASS", "J2", short),
-             f"[J1] (prompt, card, rules) and [J2] PASS for it ({name})", "no such line")
+        need(lines_of(text, "PASS", "J1", short, "chantier <role>")
+             and lines_of(text, "PASS", "J1", short, "-qa-driver.md") and lines_of(text, "PASS", "J2", short),
+             f"[J1] (prompt, brief) and [J2] PASS for it ({name})", "no such line")
         need(lines_of(text, "PASS", "J3", short, "creates no worktree")
              and lines_of(text, "PASS", "J3", short, "writes no code itself"),
              f"both [J3] checks PASS for it ({name})", f"{failed_checks(text)}")
@@ -1094,7 +1101,7 @@ def case_audit_qa_prompt(run: Run) -> str:
         need(lines_of(text, "FAIL", "J1", short, "starts with a `chantier <role>` prompt"),
              f"a first line of no recognised form still fails [J1] ({name})", f"{failed_checks(text)}")
     short, text = got["card"]
-    need(lines_of(text, "FAIL", "J1", short, "driver.md"), "a prompt naming `references/coder.md` fails [J1]",
+    need(lines_of(text, "FAIL", "J1", short, "-qa-driver.md"), "a prompt naming another role's brief fails [J1]",
          f"{failed_checks(text)}")
     short, text = got["branch"]
     need(lines_of(text, "FAIL", "J3", short, "(qa-driver) creates no worktree"),
@@ -1103,7 +1110,7 @@ def case_audit_qa_prompt(run: Run) -> str:
     need(lines_of(text, "FAIL", "J3", short, "(qa-driver) writes no code itself"),
          "a write outside its QA folder fails [J3] `writes no code itself`", f"{failed_checks(text)}")
     return ("the QA driver's first line passes [J1], [J2] and [J3] and shows in the table, in a Foreman batch "
-            "and in a direct one; an unrecognised form, another role in that form, a wrong card, a branch "
+            "and in a direct one; an unrecognised form, another role in that form, another role's brief, a branch "
             "worktree and a write outside its folder still fail")
 
 
@@ -1671,20 +1678,23 @@ def case_quiz_cases(run: Run) -> str:
 def case_quiz_staged(run: Run) -> str:
     head, _ = quiz.head_state()
     source = quiz.open_source(None, head)
-    for (role, host), figure in quiz.after_table().items():
-        if host != "claude":
-            continue
-        boot = quiz.build_boot(role, source)
-        need(boot.bytes - boot.header_bytes <= figure,
-             f"the {role} boot is at most AFTER's {figure} plus its headers",
-             f"{boot.bytes - boot.header_bytes} bytes without headers")
-    boot = quiz.build_boot("cr-driver", source)
-    parts = {(p["file"].rsplit("/", 1)[-1], p["heading"]) for p in boot.parts}
-    wrapper_line = (ROOT_DIR / "agents" / "cr-driver.md").read_text(encoding="utf-8").splitlines()[0]
-    need(("startup-core.md", "whole") in parts and ("driver.md", "Startup core") in parts
-         and wrapper_line in boot.text.splitlines(),
-         "the Driver's boot holds startup-core.md whole, driver.md#Startup core and the wrapper's first line",
-         f"{sorted(parts)}")
+    boots = {role: quiz.build_boot(role, source) for role in quiz.known_roles()}
+    need(source.kind == "brief", "the working tree, with no startup manifest, boots from `chantier brief`",
+         source.kind)
+    refs = ROOT_DIR / "skills" / "chantier" / "references"
+    floor = (refs / "floor.md").read_text(encoding="utf-8").splitlines()[0]
+    for role, boot in boots.items():
+        lines = boot.text.splitlines()
+        card = re.search(rf"^  - name: {role}\n(?:    .*\n)*?    card: (\S+)$",
+                         (refs.parent / "roles.yaml").read_text(encoding="utf-8"), re.M)
+        title = (refs / card[1]).read_text(encoding="utf-8").splitlines()[0]
+        need(boot.sha == head and f"=== none-{role}.md" in lines and title in lines and floor in lines
+             and {"=== floor", "=== facts", "=== host rows: claude"} <= set(lines),
+             f"the {role} boot is `brief`'s: its card {card[1]}, the floor, the facts and the host rows",
+             boot.text[:300])
+        read = lines[lines.index(f"=== none-{role}.md") - 1]
+        need(read.startswith("Read ") and read.endswith(f"/none-{role}.md whole, first."),
+             f"the {role} boot's short prompt ends by naming the brief file", read)
     cases = quiz_cases_folder(run.tmp)
     home = run.tmp / "quiz-home"
     home.mkdir()
@@ -1767,7 +1777,7 @@ def case_quiz_staged(run: Run) -> str:
              and saved_json(results, "capped")["incomplete"] is True and "spend: $3.60 measured over 4 calls" in out,
              "the cap reached while running: no further call, `incomplete`, exit 2, the measured spend printed",
              f"exit {code}: {out}")
-    return ("the boots of the six `AFTER` roles stay within their figures plus headers; 2/3 and 0/3 and the role lines print; "
+    return (f"the boots of the {len(boots)} roles are `brief`'s; 2/3 and 0/3 and the role lines print; "
             "`--save` keeps no reply, username or home path and a second one is refused; `--against` exits 1 naming the case "
             "or 0; a run error is not judged (exit 4); a project config's model is ignored; the cap stops the calls")
 
@@ -1802,26 +1812,62 @@ def case_quiz_cap(run: Run) -> str:
             "all exit 2, with the plan lines first for the cap and zero calls")
 
 
+OLD_CARDS = {  # a head from before the cards were swapped, in small: the manifest and what its walk reads
+    "agents/cr-driver.md": "chantier cr-driver for <cr>\n",
+    "com.github.copilot/agents/chantier-cr-driver.agent.md": "chantier cr-driver for <cr>\n",
+    "skills/chantier/references/startup-manifest.json": json.dumps({
+        "common": "startup-core.md", "role_core": "role-core.md", "hosts": {"claude": {"core": "host.md"}},
+        "roles": {"cr-driver": "driver.md"},
+        "startup_sections": {"cr-driver": ["driver.md#Startup core"]},
+        "actions": {"batch": ["foreman.md#Batch"]}}) + "\n",
+    "skills/chantier/references/startup-core.md": "# Startup core\r\n\r\nCORE\r\n",
+    "skills/chantier/references/role-core.md": "# Role core\n\nROLES\n",
+    "skills/chantier/references/host.md": "# Host\n\nHOST\n",
+    "skills/chantier/references/driver.md": "# Driver\n\nOPENING\n\n## Startup core\n\nSTART\n\n## Later\n\nLATER\n",
+    "skills/chantier/references/foreman.md": "# Foreman\n\n## Batch\n\nBATCH\n\n## Later\n\nLATER\n",
+}
+
+
+def old_cards_repository(folder: Path) -> str:
+    """A repository whose one commit holds `OLD_CARDS`; its SHA."""
+    for name, text in OLD_CARDS.items():
+        path = folder / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(text.encode("utf-8"))
+    quiet = ["git", "-c", "core.autocrlf=false", "-c", "commit.gpgsign=false"]
+    for argv in (["init", "-q"], ["add", "-A"], ["commit", "-q", "-m", "the old cards"]):
+        sh([*quiet, *argv], cwd=folder)
+    return sh(["git", "rev-parse", "HEAD"], cwd=folder).stdout.strip()
+
+
 def case_quiz_ref(run: Run) -> str:
-    head = sh(["git", "rev-parse", "HEAD"], cwd=ROOT_DIR).stdout.strip()
-    source = quiz.open_source("HEAD", head)
+    repo = run.tmp / "quiz-old-cards"
+    head = old_cards_repository(repo)
+    saved, quiz.ROOT = quiz.ROOT, repo  # the quiz's git calls run in the prepared repository
     try:
-        for role in ("cr-driver", "foreman"):
-            boot = quiz.build_boot(role, source)
-            need(boot.sha == head and boot.label == "HEAD", "the recorded SHA is HEAD's", f"{boot.sha}")
-            for part in boot.parts:
-                shown_file = subprocess.run(["git", "show", f"HEAD:{part['file']}"], cwd=ROOT_DIR, capture_output=True)
-                data = shown_file.stdout.replace(b"\r\n", b"\n")
-                need(shown_file.returncode == 0 and len(data) == part["size"] and part["end"] - part["start"] == part["bytes"]
-                     and data[part["start"]:part["end"]].decode("utf-8") in boot.text,
-                     f"{role}: each part's bytes equal `git show HEAD:{part['file']}`", f"{part}")
-        kind = source.kind
+        source = quiz.open_source("HEAD", head)
+        try:
+            for role in ("cr-driver", "foreman"):
+                boot = quiz.build_boot(role, source)
+                need(boot.sha == head and boot.label == "HEAD" and boot.parts, "the recorded SHA is the ref's",
+                     f"{boot.sha}")
+                for part in boot.parts:
+                    shown_file = subprocess.run(["git", "show", f"HEAD:{part['file']}"], cwd=repo, capture_output=True)
+                    data = shown_file.stdout.replace(b"\r\n", b"\n")
+                    need(shown_file.returncode == 0 and len(data) == part["size"]
+                         and part["end"] - part["start"] == part["bytes"]
+                         and data[part["start"]:part["end"]].decode("utf-8") in boot.text,
+                         f"{role}: each part's bytes equal `git show HEAD:{part['file']}`", f"{part}")
+                need("LATER" not in boot.text, f"{role}: only the manifest's sections are walked", boot.text)
+            kind = source.kind
+        finally:
+            source.close()
     finally:
-        source.close()
+        quiz.ROOT = saved
     code, out, err = quiz_main("cr-driver", "--cards", "no-such-ref-xyz", "--cases-dir", quiz_cases_folder(run.tmp), "--plan")
     need(code == 2 and "does not resolve" in err, "a ref that does not resolve exits 2", f"exit {code}: {err.strip()}")
-    return (f"`--cards HEAD` ({kind}) builds each boot from `git archive`: every part equals `git show HEAD:<path>` "
-            f"in LF form, SHA {head[:8]}; an unknown ref exits 2")
+    return (f"`--cards <ref>` of a pre-swap head ({kind}, a prepared repository with a startup manifest) builds each "
+            "boot from `git archive`: every part equals `git show <ref>:<path>` in LF form; an unknown ref exits 2")
 
 
 def case_quiz_folder(run: Run) -> str:
@@ -1831,8 +1877,7 @@ def case_quiz_folder(run: Run) -> str:
     head = sh(["git", "rev-parse", "HEAD"], cwd=ROOT_DIR).stdout.strip()
     source = quiz.open_source(str(folder), head)
     try:
-        with quiz_environment(CHANTIER_HOST="claude", CHANTIER_BATCH=None):
-            boot = quiz.build_boot("coder", source)
+        boot = quiz.build_boot("coder", source)
     finally:
         source.close()
     need(source.kind == "folder" and "FOLDER-CARD-MARK" in boot.text and "=== floor" in boot.text
@@ -1841,7 +1886,7 @@ def case_quiz_folder(run: Run) -> str:
          boot.text[:300])
     empty = run.tmp / "quiz-folder-empty"
     empty.mkdir()
-    with quiz_environment(CHANTIER_HOST="claude", CHANTIER_BATCH=None), Staged() as staged:
+    with Staged() as staged:
         code, out, err = quiz_main("cr-driver", "--cards", empty, "--cases-dir", quiz_cases_folder(run.tmp), "--plan")
         need(code == 2 and "cannot read" in err and not staged.roles,
              "a folder with no card exits 2 with the line `brief` printed", f"exit {code}: {err.strip()}")

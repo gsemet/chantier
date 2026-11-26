@@ -59,16 +59,22 @@ chantier is four things in one repository:
 1. **Four skills.** [`skills/chantier/`](skills/chantier/) holds the router (`SKILL.md` asks
    which role the session takes), the cards, the CLI and the assets; the entries
    [`skills/chief-of-staff/`](skills/chief-of-staff/), [`skills/griller/`](skills/griller/) and
-   [`skills/status/`](skills/status/) are thin and load the same cards. [`references/`](skills/chantier/references/) holds one file per
-   running context: `concepts.md` (read by the steering sessions and the Drivers), `session-start.md` (the start checks, the
-   seat and the role change), `session-start-chief-of-staff.md` (the board and the watcher), `session-start-griller.md`, `titles.md` (the session titles), `sync-checkout.md` (the dev-mode sync), `forges/` (one reference per forge), `chief-of-staff.md`, `griller.md`, `status-layout.md`, `reload-rules.md` (the rules re-read after a compaction), `foreman.md`, `driver.md`, each entry card's pieces read at their moment (`chief-of-staff-grill.md`, `chief-of-staff-batch-start.md`, `chief-of-staff-steering.md`, `chief-of-staff-merge.md`, `chief-of-staff-batch-end.md`, `chief-of-staff-direct.md`, `chief-of-staff-release.md`, `chief-of-staff-writer.md`; `foreman-merge.md`, `foreman-hold.md`, `foreman-lost-driver.md`, `foreman-conflict.md`, `foreman-release.md`, `foreman-refused.md`, `foreman-pause.md`, `foreman-stack.md`; `driver-trouble.md`, `driver-refused.md`, `driver-conflicts.md`, `driver-handback-other.md`, `driver-pr-extras.md`, `driver-session.md`, `driver-retake.md`, `driver-matrix.md`, `stack-driver-make.md`, `stack-driver-restack.md`, `stack-driver-joins.md`, `stack-driver-changes.md`, `release-driver-notes.md`, `release-driver-ship.md`, `release-driver-merged.md`, `release-driver-end.md`), the worker cards (`investigator.md`, `coder.md`,
-   `inspector.md`, `debugger.md`, `verifier.md`, `conflict-resolver.md`, `demo-explorer.md` and
-   `review-step.md`, each read by its own role) and `routing.md`; `pr-template.md` is the default PR description a CR Driver writes and the
-   Inspector audits; `release-template.md` is the default release notes and announcement thread the
-   release Driver writes when the project has none of its own; `hosts/claude-code.md` and
-   `hosts/copilot.md` hold what is proper to a host (tools, heartbeat, sessions), each behaviour
-   marked proved, documented or unproved, and the cards only point to them. They are written for agents: short, exact, one meaning per word. A card
-   says what a role judges and how; the project's own rules (`chantier rules`) rank above it.
+   [`skills/status/`](skills/status/) are thin and load the same cards. [`references/`](skills/chantier/references/) holds the card set:
+   `floor.md` (the ten rules no role, card, order or message overrides) and `concepts.md` (the shared
+   words); one card per role (`chief-of-staff.md`, `griller-skill.md`, `foreman.md`, `cr-driver.md`,
+   `release-driver.md`, `stack-driver.md`, `qa-driver.md`, the worker cards `investigator.md`,
+   `coder.md`, `inspector.md`, `debugger.md`, `verifier.md`, `conflict-resolver.md` and
+   `demo-explorer.md`, `spec-writer.md`, `spec-critic.md`, `retro-critic.md` and `review-step.md`,
+   and `griller.md` for the board's Griller); `topics/` (the pieces read at their moment, with
+   `chantier help <name>`, each listed in `topics.json`); `status-layout.md`, `sync-checkout.md` (the
+   dev-mode sync), `routing.md`, `init.md` and `forges/` (one reference per forge); `pr-template.md` is
+   the default PR description a CR Driver writes and the Inspector audits; `release-template.md` is the
+   default release notes and announcement thread the release Driver writes when the project has none of
+   its own; `hosts/claude-code.json` and `hosts/copilot.json` hold what is proper to a host (tools,
+   heartbeat, sessions), each behaviour marked proved or untested, which `chantier host` prints, and
+   `hosts/claude-code.md` holds the recommended allow rules. They are written for agents: short, exact,
+   one meaning per word. A card says what a role judges and how; the project's own rules
+   (`chantier rules`) rank above it.
 2. **A CLI** ([`skills/chantier/scripts/cli/`](skills/chantier/scripts/cli/)): a Python package
    declared in the root `pyproject.toml` and locked in `uv.lock`, on Linux, macOS and Windows. Installed
    as a plugin, it runs by `uvx --from "<plugin root>" chantier --skill "<skill folder>"`, from the
@@ -97,8 +103,8 @@ chantier is four things in one repository:
    `3-ready/`, `4-batch/` (`1-pending/`, `2-actives/`, `3-done/`), `5-archives/` and `6-trash/`
    (each with a `work/` folder while it runs), and the batch's own files at the root of
    `4-batch/` (`batch.json`, `events.jsonl`, the brief, `STATUS.md`). The one write elsewhere is not the CLI's: on the user's yes, the Chief of Staff adds to `~/.claude/settings.json` the allow rules preflight's P10 named, and nothing else there. The agents read the project's `AGENTS.md`, and the optional `chantier.yaml` files (the project's root and, with an external planning surface, the surface's) set the team, the models and the limits above the plugin's shipped defaults.
-   The CLI knows no role: the cards hold each role's contract, and the Foreman and the Drivers
-   write the prompts. One named exception among the tools: `serve`, the web board's server, for
+   The CLI knows no role: the cards hold each role's contract, and `brief` builds each
+   prompt from them and the facts. One named exception among the tools: `serve`, the web board's server, for
    the user on this machine and the local network, behind a key (in its URL for the web client, in
    a header or a WebSocket's first message for any other client), through one published API over a
    WebSocket, and over HTTP as the same protocol behind a proxy for instance (it serves the record
@@ -168,8 +174,10 @@ chantier is four things in one repository:
    [`com.github.copilot/agents/`](com.github.copilot/agents/) for Copilot (`chantier-<role>`, a
    prefix a project agent named after the role cannot shadow). An agent file holds only its
    host's frontmatter (model, tools) and a short body; both hosts' bodies are identical, which the
-   tests check. The Foreman is a session, not an agent: its model is in
-   [`chief-of-staff-batch-start.md`](skills/chantier/references/chief-of-staff-batch-start.md), where it is started.
+   tests check. The Foreman is a session, not an agent: its model is in the host row
+   `start-foreman` of [`hosts/claude-code.json`](skills/chantier/references/hosts/claude-code.json)
+   and [`hosts/copilot.json`](skills/chantier/references/hosts/copilot.json), which
+   `chantier host start-foreman` prints where it is started.
 
 4. **A mod** ([`hooks/`](hooks/), Claude Code only): the CR board, a read-only pane over
    `.agents/changes/STATUS.json`. `hooks/hooks.json` names `register.tsx`, which
@@ -206,13 +214,13 @@ skills/griller/             ← the Griller's entry point (thin)
 skills/status/              ← `/chantier:status`, the progress report (thin: it loads status-layout.md)
 skills/chantier/
 ├── SKILL.md                ← the router: asks which role this session takes
-├── references/             ← one file per running context: concepts, session-start,
-│                             session-start-chief-of-staff, session-start-griller, titles,
-│                             sync-checkout, forges/ (one reference per forge: GitHub,
-│                             GitLab), chief-of-staff, griller, report, foreman, driver, worker, routing,
-│                             spec-writer, spec-critic, retro-critic, init,
-│                             pr-template, release-template, and hosts/ (one
-│                             reference per host: Claude Code, Copilot)
+├── references/             ← the cards: floor, concepts, one card per role, topics/ and
+│                             topics.json (`chantier help`), status-layout, sync-checkout,
+│                             routing, init, forges/ (one reference per forge: GitHub,
+│                             GitLab), pr-template, release-template, and hosts/ (one
+│                             data file per host: Claude Code, Copilot, and Claude Code's
+│                             allow rules)
+├── roles.yaml              ← the roles as data (`brief`, `help --for`, `just roles`)
 └── scripts/cli/            ← the `chantier` CLI's source (its web client in `clients/web/`,
                               its terminal client in `clients/tui/`), its tests and
                               `session_usage.py`

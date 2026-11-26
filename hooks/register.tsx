@@ -27,8 +27,10 @@ const COMMAND = 'chantier-board'
 const PANE_SKILLS = ['chantier', 'chief-of-staff']
 const ROLE_SKILLS = ['chantier', 'chief-of-staff', 'griller']
 const WHO: Record<string, string> = { 'chief-of-staff': 'the Chief of Staff', griller: 'the Griller' }
-const reloadLine = (role: string) =>
-  `You are ${role in WHO ? `${WHO[role]} in` : 'in'} a chantier session; after this compaction, call your chantier skill again with the argument reload.`
+const reloadLine = (role: string) => {
+  const known = role in WHO
+  return `You are ${known ? `${WHO[role]} in` : 'in'} a chantier session; after this compaction, run ${known ? 'your' : "your role's"} brief again (\`brief ${known ? role : '<role>'}\` through your skill's \`$CHANTIER\` command; the Foreman with \`--epoch <n>\`) and read the file it names whole; the floor, in that brief, holds.`
+}
 const SCHEMA = 3
 const EVERY_MS = 15000
 const SILENT_MINUTES = 40

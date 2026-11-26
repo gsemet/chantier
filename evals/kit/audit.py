@@ -34,9 +34,11 @@ if a check fails, or names a rail that `SCORECARD.md` does not hold. It reads; i
   cmdlet, .NET or a redirection) as a write; a throwaway repository the agent `git init`-ed is
   not the CR's. A here-doc's body is data (J26's moves skip it) unless the here-doc feeds a shell.
   The steering session's commands count from the shell call that made its claim (`foreman
-  transcript <uuid>`), that call included. A prompt `chantier <role> for the Chief of Staff`
-  (the Retro critic, the Spec-writer, the Demo explorer...) is a Chief-of-Staff subagent: audited
-  by its own card, with no rules line asked and outside the review steps. A prompt `chantier
+  transcript <uuid>`), that call included. A role of `skills/chantier/roles.yaml` is told to read
+  its brief (`…/chantier/briefs/…-<role>.md whole, first.`, written by `brief`); a review step (a
+  role the project names) is told to read `references/review-step.md` and to run `$CHANTIER rules`
+  (J1). A prompt `chantier <role> for the Chief of Staff` (the Retro critic, the Spec-writer, the
+  Demo explorer...) is a Chief-of-Staff subagent, outside the review steps. A prompt `chantier
   qa-driver for <folder> of batch <batch>, in the project <root>.` is the QA driver's: its `what`
   is its QA folder, as written, and it is audited as a Driver (its detached worktree and its
   writes inside its QA folder are lawful).
@@ -61,6 +63,9 @@ import judge  # noqa: E402  (the hidden tests and the release judge)
 import sandbox  # noqa: E402  (the merge's rule of a green PR, shared with J5)
 
 SCORECARD = ROOT / "evals" / "SCORECARD.md"
+# the plugin's roles, whose start `brief` writes; read by line, for this script runs with no package
+ROLES = frozenset(re.findall(r"^  - name: ([\w-]+)$", (ROOT / "skills" / "chantier" / "roles.yaml")
+                             .read_text(encoding="utf-8"), re.M))
 HANDBACK_WORDS = ("question:", "approval:", "merge:", "fix:", "infra:", "budget:", "rounds:",
                   "refused", "waits:", "context:")  # what `chantier handback ... blocked` takes
 CHIEF = "the Chief of Staff"  # `chantier <role> for the Chief of Staff[ of batch <batch>], in the project <root>.`
@@ -561,14 +566,15 @@ def claude_checks(data: dict, loaded: tuple, check: Checks) -> None:
             check(a.type == PLUGIN_AGENT.format(role=a.role) or not a.type.startswith("chantier:"),
                   f"{a.id[:10]} runs the plugin's agent for {a.role}, or the project's own ({a.type})",
                   "J1")
-            chief = a.what == CHIEF  # the CLI gives these a first line only: no rules line asked
-            card = ("driver.md" if a.role in DRIVERS else f"{a.role}.md" if chief or a.role in WORKERS
-                    else "review-step.md")
-            check(f"references/{card}" in a.prompt, f"{a.id[:10]} is told to read {card}", "J1")
-            if not chief:
+            if a.role in ROLES:  # its brief holds the card, and the rules line where one applies
+                check("/chantier/briefs/" in a.prompt and f"-{a.role}.md whole, first." in a.prompt,
+                      f"{a.id[:10]} is told to read its brief (`…-{a.role}.md`)", "J1")
+            else:  # a review step, a role the project names
+                check("references/review-step.md" in a.prompt,
+                      f"{a.id[:10]} is told to read review-step.md", "J1")
                 check("$CHANTIER rules" in a.prompt,
                       f"{a.id[:10]} is told the project's rules rank first", "J1")
-            by_steering = a.role in DRIVERS or chief
+            by_steering = a.role in DRIVERS or a.what == CHIEF
             parent_ok = (a.parent in steering) if by_steering else \
                 (a.parent is not None and a.parent.role in DRIVERS)
             check(parent_ok, f"{a.id[:10]} ({a.role}) was started by "

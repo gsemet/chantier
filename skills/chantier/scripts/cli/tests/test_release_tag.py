@@ -1,4 +1,4 @@
-"""`just tag` and the release hand-off: ff-main, the recipe and the cards."""
+"""`just tag` and the release hand-off: ff-main and the recipe."""
 
 import re
 import shutil
@@ -8,7 +8,7 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
-from conftest import PLUGIN_ROOT, SKILL, load_script, shared_state
+from conftest import PLUGIN_ROOT, load_script, shared_state
 from stack_world import rewrite_paths
 
 
@@ -129,8 +129,8 @@ def test_ff_main_command_runs_the_shipped_script(ff_world: tuple[Path, Path, Pat
     assert "main checkout: already at" in done.stdout
 
 
-def test_tag_recipe_and_release_cards() -> None:
-    """`just tag` fast-forwards first; the driver hand-back and foreman take-back match."""
+def test_the_tag_recipe_fast_forwards_first() -> None:
+    """`just tag` fast-forwards main before it checks the tag."""
     recipe = re.search(
         r"^tag:\r?\n((?:    .*\r?\n)+)", (PLUGIN_ROOT / "justfile").read_text("utf-8"), re.M
     )
@@ -138,8 +138,3 @@ def test_tag_recipe_and_release_cards() -> None:
     lines = [line.strip() for line in recipe.group(1).splitlines()]
     assert lines[0] == "uv run --script scripts/version.py ff-main"
     assert lines[1] == "uv run --script scripts/version.py check-tag"
-    refs = SKILL / "references"
-    section = " ".join((refs / "release-driver-merged.md").read_text("utf-8").split())
-    foreman = " ".join((refs / "foreman-release.md").read_text("utf-8").split())
-    assert "blocked waits: the steering session runs" in section
-    assert "tag done: steering session" in foreman

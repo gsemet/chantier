@@ -19,5 +19,5 @@ Table and block to paste: `hosts/claude-code.md`. Documented
 P10 asks whether some allow rule lets through each command the cards make agents write; a
 narrower or other rule of the user's counts when it matches the same commands.
 
-The launcher rule, `launcher_rule(root)`: `uv run --script "<plugin root>/skills/chantier/scripts/chantier.py" *`,
-the one `$CHANTIER` form of both modes. **Unproved** (matching, auto mode, a Driver).
+The launcher rule, `launcher_rule(root)`: `uv run --script "<plugin root>/skills/chantier/scripts/chantier.py" *`.
+**Unproved** (matching, auto mode, a Driver).

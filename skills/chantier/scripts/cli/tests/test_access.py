@@ -359,7 +359,7 @@ def test_push_follows_the_lease(  # noqa: PLR0913, PLR0917 - one prepared state 
     out = ask(*args)
     assert len(out) == TWO_LINES and out[1].startswith(says.format(b=_branch(world)))
     if "allowed" in out[1]:
-        assert out[1].endswith("a rewrite uses --force-with-lease (driver.md)")
+        assert out[1].endswith("a rewrite uses --force-with-lease (floor rule 2)")
 
 
 def test_a_cr_the_batch_does_not_hold_is_refused_with_exit_zero(world: Path, ask: Ask) -> None:

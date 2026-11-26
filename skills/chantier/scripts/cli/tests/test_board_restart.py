@@ -26,6 +26,7 @@ from chantier.board.api import ops
 from chantier.board.projects import open_projects
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE
 from chantier.core.repo import Repo
+from chantier.host_rows import load_rows
 from chantier.hub import autostart, lock, state
 from chantier.hub.watch import RETRY_S, Watch
 from chantier.hub.watch_lines import NO_BOARD
@@ -254,15 +255,11 @@ def _flat(path: Path) -> str:
 
 def test_the_cards_offer_the_restart_and_the_hosts_run_it() -> None:
     refs = SKILL / "references"
-    for name in ("session-start-chief-of-staff.md", "chief-of-staff-steering.md"):
+    for name in ("chief-of-staff.md", "topics/board-restart.md"):
         text = _flat(refs / name)
         assert "never stop or restart the board" not in text, name
         assert "serve --restart" in text or "Restart the board" in text, name
-    assert "serve --restart --seat <id>" in _flat(refs / "session-start-chief-of-staff.md")
-    for host in ("claude-code.md", "copilot.md"):
-        row = next(
-            line
-            for line in (refs / "hosts" / host).read_text("utf-8").splitlines()
-            if line.startswith("| Run the board")
-        )
-        assert "serve --restart --seat <id>" in row, host
+    assert "serve --restart --seat <id>" in _flat(refs / "topics/board-restart.md")
+    for host in ("claude", "copilot"):
+        row = next(r for r in load_rows(host) if r.capability == "run-board")
+        assert "serve --restart --seat <id>" in " ".join(row.means), host

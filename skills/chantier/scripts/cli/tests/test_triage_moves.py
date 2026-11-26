@@ -14,8 +14,10 @@ import pytest
 from batch_helpers import FROM_AGENTS_MD, changes, host, prepared
 from conftest import Chantier
 
+from chantier.commands.help import load_topics
 from chantier.core import files as core_files
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION
+from chantier.roles_data import load_roles
 
 SPEC = "03-change-spec.md"
 
@@ -64,10 +66,6 @@ HOLDS = 3
 SHIPPED_WAIT_S = 10.0
 LONGEST_PAUSE_S = 0.5
 REFERENCES = Path(__file__).resolve().parents[3] / "references"
-CLAUSE = (
-    "No shell call changes its folder (`cd`, `Set-Location`, `pushd`, alone or chained before a "
-    "command) into a CR folder (any stage)"
-)
 
 
 @pytest.fixture
@@ -154,14 +152,12 @@ def test_any_other_error_is_one_attempt_with_todays_text(
 
 
 def test_every_role_is_told_to_keep_its_shell_out_of_cr_folders() -> None:
-    def flat(name: str) -> str:
-        return " ".join((REFERENCES / name).read_text("utf-8").split())
-
-    core, concepts = flat("startup-core.md"), flat("concepts.md")
-    assert CLAUSE in core and CLAUSE in concepts
-    assert "whatever your role: name the target with absolute paths." in core
-    assert "(WinError 32), so the CR's next move fails." in core
-    assert "Every role holds this rule: [startup core](startup-core.md)." in concepts
+    topics = load_topics()
+    told = {*topics["worker-shell"].roles, *topics["session-shell"].roles}
+    untold = {r.name for r in load_roles()} - told
+    assert untold == {"board-griller"}  # it runs its four chantier commands alone
+    for name in ("session-shell-p2.md", "worker-shell.md"):
+        assert "into a CR folder" in (REFERENCES / "topics" / name).read_text("utf-8"), name
 
 
 windows_only = pytest.mark.skipif(

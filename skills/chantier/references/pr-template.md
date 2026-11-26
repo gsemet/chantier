@@ -4,121 +4,27 @@ The default description of a CR's PR, written by the CR Driver and checked by th
 
 ## Scope and precedence
 
-- It is the description of a CR's PR, on GitHub and on GitLab (merge request), written by the CR
-  Driver in `<work folder>/pr-body.md` and checked by the Inspector. A fix CR is a CR: its PR
-  follows it too. A stack driver opens no PR; a release PR keeps its form.
-- The project ranks above it: a template file the forge reads (GitHub: `pull_request_template.md`
-  in the root, `docs/` or `.github/`, any case, or a template in `.github/PULL_REQUEST_TEMPLATE/`;
-  GitLab: `.gitlab/merge_request_templates/`, `Default.md` when there are several and the rules
-  name none), or a template or PR rule that the project's rules (`$CHANTIER rules`) give. Then
-  the project's template is used as written, and this file only fills where the project is
-  silent. With a project template, the Issues References lines go where that template puts its
-  issue links; with no such place, the `## Issues References` section is added after its first
-  section. A project rule on the reference ranks above this file.
+- It is the description of a CR's PR (GitHub) or MR (GitLab), written in `<work folder>/pr-body.md`. A fix CR follows it too; a stack driver opens no PR; a release PR keeps its form.
+- The project ranks above it: a template file the forge reads (GitHub `pull_request_template.md` in the root, `docs/` or `.github/`, or `.github/PULL_REQUEST_TEMPLATE/`; GitLab `.gitlab/merge_request_templates/`, `Default.md` when several), or a template or PR rule from `$CHANTIER rules`. Then that template is used as written and this file fills only where it is silent; the Issues References lines go where it puts issue links, else in a `## Issues References` section after its first section.
 
 ## The rules
 
-- Title and body in English, for a reader outside the team: reviewers, stakeholders, future
-  maintainers. They do not know the backlog, and `.agents/changes/` is not in git (but see the
-  archive below).
-- When `take` says `archive: in the PR at <path>`, that archive folder is part of the diff: the
-  description names it only in its Internal references section, as any `.agents/changes/` path,
-  and the Verifier's check of the description against the diff takes it as expected, not as an
-  unexplained file.
-- When `take` says `archive: not in the PR`, the diff holds no archive folder and the description
-  names none.
-- Explain the change from the reader's side: what was wrong or missing, what the PR changes, what
-  they will notice. Name features by what they do, not by internal ids. Define a project term on
-  first use.
-- No internal reference in the title or the body text: no CR name, number or slug, no batch,
-  round or order, no path under `.agents/changes/`, and no agent role of chantier (Chief of
-  Staff, Foreman, Griller, Driver, Coder, Inspector, Verifier, Investigator, Debugger, Conflict
-  resolver, Spec-writer, Spec critic, Demo explorer) as the one who did the work or made the PR ("the Verifier
-  checked…", "the Driver chose…"). The CR's name ("CR-142 grill-rules") and any other reference
-  that helps maintainers go in the last section, "Internal references", and nowhere else.
-- A role name may appear in any section when it is a term of the project's own product: the diff
-  changes that role's behaviour, card or agent file (as in chantier's own repository, where the
-  roles are what the cards define). It is then a project term, defined on first use. In a project
-  whose product defines no such role, this never applies. A file path the diff changes (for
-  instance `skills/chantier/references/driver.md`) may be named in Changes whatever its name.
-- When the CR's specification has an `issue:` line, the body has a section `## Issues References`,
-  one line per ticket; when it has none, the section is left out entirely (no heading, no "None").
-  The form of each line, the project's rules first (form, keyword, title or body, for instance
-  `Closes JIRAJPT-1245`); where they say nothing, chantier's default:
-  - Jira: `Closes <KEY>-<n>` (for instance `Closes JIRAJPT-1245`);
-  - GitHub and GitLab: `Closes #<n>` for an issue of the PR's own repository;
-    `Closes owner/repo#<n>` (GitHub) or `Closes group/project#<n>` (GitLab) for another one;
-  - any other tracker: the ticket's link.
-
-  The verb is what closes the issue at the merge (a bare `#<n>` only links it); a project that
-  wants a link only says so in its rules. The ticket's reference is not an internal reference: it
-  is allowed there, and it is the only place the PR names the ticket; the Driver never comments on
-  the issue.
-- The title says what changes; where the project's rules give no style, a Conventional Commit
-  subject (`feat: …`, `fix: …`).
-- Every section is kept and filled; "None" rather than a deleted section. One exception: Human
-  decisions is omitted, never written "None", when the CR has no decision to show: it had no grill
-  (for instance a quick fix, or a fix CR, whose specification is a `fix-<n>.md` and which has no
-  `02-answers.md`), or it was grilled but its answers hold no decision that shapes the change.
-- The layout: Summary, Issues References (when present), Deliverables, Blast radius, Autonomous
-  decisions and Known gaps are visible, in that order; the rest goes in one
-  `<details><summary>Details</summary>` block, in this order: Changes,
-  Human decisions, Impacts, Test plan, Internal references. A blank line after `</summary>` and
-  before `</details>`, or the forge does not render the Markdown inside; nothing follows
-  `</details>`. The before/after screenshots of a visible change stay in Deliverables, outside the
-  fold.
-- Deliverables, right after Summary: what the reader gets, shown with one or more small visuals,
-  each next to the one or two sentences it supports, and the impactful choices the change made, by
-  kind of change: for a UI, the important aesthetic and behaviour choices; for an architecture, the
-  architecture choices; for a rework or refactoring, the targets set (for instance scores to
-  reach). The visuals are one kind, sometimes several, rarely all:
-  - a Mermaid `flowchart` of the modules or layers that change, arrows for the calls or allowed
-    imports (about 10 nodes at most);
-  - a Mermaid `sequenceDiagram` of one real flow, before and after when the order is the fix;
-  - a before/after tree or table (files moved or split, sizes, settings);
-  - before/after screenshots for a visible change, its main visual, side by side, attached as
-    [driver](driver.md) says (the forge's own CLI); a link into a commit of the CR's branch
-    (`/blob/<sha>/`, `raw.githubusercontent.com/.../<sha>/`, GitLab's `/-/raw/<sha>/`) is not an
-    upload: a restack drops that commit and the forge may delete it;
-  - a 5 to 15 line code sketch of the new interface, message or registration a contributor will
-    reuse, with `...` for the rest.
-
-  Only the calls, files, props and boundaries the reviewer needs, with real names checked against
-  the diff. A one-line fix may write "None"; a structural change never does.
-- Impacts, inside the fold: what users and developers will notice. The Verifier's before/after
-  screenshots are in Deliverables, not here; Impacts says in one line what they show. A file the
-  forge's CLI cannot upload is named under "Internal references" (its path is under `work/`),
-  not in the text. With nothing visible: one line, e.g. "No visual change".
-- Each proof names the SHA it covers (seven characters): the Test plan items, and the captions of
-  the before/after visuals in Deliverables (before at the base's SHA, after at the head's). A
-  proof carried over a move says so (`at <head7> (carried from <sha7>)`: it names the head it now
-  stands at and the SHA it came from; only the SHA after `carried from` may lie outside the head's
-  history, and `ship` names any other); a clean rebase carries every proof whose patch it left unchanged. A proof the head has moved past, not
-  yet judged again, is marked `STALE (judged at <sha7>, head now <sha7>)`. A claim in Summary,
-  Deliverables, Changes or Impacts with no proof (no test, no gate, no Verifier claim, no
-  evidence) starts with `**UNVERIFIED:**`, or is narrowed to what is proven; it is never left as a
-  plain fact. The Review item cites the SHA of a pass the Driver recorded with `$CHANTIER note`,
-  and stays unchecked while none is recorded.
-- Human decisions, inside the fold: the impactful decisions the user took during the grill,
-  extracted from the CR's `02-answers.md` (in the CR's folder, the parent of the work folder):
-  only the decisions that shape the change, not every answer; one bullet each. No internal
-  reference (no CR, batch, round, agent role, `.agents/changes/` path), written for a reader
-  outside the team. Omitted when there is no such decision (no grill, or a grill with none).
-- Blast radius: one grade kept, explained in one or two lines (what could break, how to roll
-  back).
-- Autonomous decisions, visible right after Blast radius: each decision an agent took without the
-  user (in the investigation, a round, a conflict resolution), one bullet each, with its reason;
-  "None" when there is none.
-- Known gaps, visible right after Autonomous decisions: each gap the PR leaves on purpose, one
-  bullet each, saying what is missing and why it was left (and, when known, what would close it).
-  A gap is anything not done or not proven that the PR knowingly ships that way: a part of the
-  specification not delivered; a claim marked `**UNVERIFIED:**` (each such mark has its bullet
-  here); evidence the plan named and the Verifier could not capture (`before-after.md` says why);
-  a defect a review or the Verifier reported that the Driver accepted rather than fixed, a
-  cosmetic defect included. A `STALE` proof is never a gap: it is fixed before the hand-back.
-  "None" when there is none; the section is never deleted. No internal reference in it.
-- The body describes the PR as it is now, not its history: it is updated whenever the scope
-  changes (a new round, a dropped item, a rebase that changes what the PR holds).
+- English, for a reader outside the team who does not know the backlog; `.agents/changes/` is not in git. Explain from the reader's side: what was wrong or missing, what changes, what they will notice. Name features by what they do; define a project term on first use.
+- `archive: in the PR at <path>`: the archive folder is part of the diff, named only in Internal references; the check of the description against the diff takes it as expected. `archive: not in the PR`: the description names none.
+- No internal reference in the title or the body text: no CR name, number or slug, no batch, round or order, no `.agents/changes/` path, no chantier role (Chief of Staff, Foreman, Griller, Driver, Coder, Inspector, Verifier, Investigator, Debugger, Conflict resolver, Spec-writer, Spec critic, Demo explorer) as the one who did the work. The CR's name ("CR-<n> <slug>") goes in the last section, "Internal references", and nowhere else.
+- A role name may appear anywhere when it is a term of the project's own product (the diff changes that role's behaviour, card or agent file), defined on first use. A path the diff changes may be named in Changes.
+- With an `issue:` line in the specification, the body has `## Issues References`, one line per ticket, in the form the project's rules give, else: Jira `Closes <KEY>-<n>`; GitHub and GitLab `Closes #<n>` (another repository `Closes owner/repo#<n>` or `Closes group/project#<n>`); any other tracker, the ticket's link. The verb closes the issue at merge; a project that wants a link only says so. This is the only place the PR names the ticket, and the Driver never comments on the issue. With no `issue:` line, no section.
+- The title says what changes; with no project style, a Conventional Commit subject (`feat: …`, `fix: …`).
+- Every section is kept and filled, "None" rather than deleted. Human decisions is the exception: omitted when the CR had no grill (a quick fix, a fix CR) or its answers hold no decision that shapes the change.
+- Layout: Summary, Issues References (when present), Deliverables, Blast radius, Autonomous decisions and Known gaps are visible, in that order; the rest is in one `<details><summary>Details</summary>` block: Changes, Human decisions, Impacts, Test plan, Internal references. A blank line after `</summary>` and before `</details>`; nothing after `</details>`. Before/after screenshots stay in Deliverables.
+- Deliverables, right after Summary: what the reader gets, as one or more small visuals each next to the sentence it supports, and the impactful choices made (UI: aesthetic and behaviour; architecture: the choices; refactoring: the targets). A visual is one of: a Mermaid `flowchart` of the modules that change (about 10 nodes); a `sequenceDiagram` of one real flow; a before/after tree or table; before/after screenshots of a visible change, side by side, attached with the forge's own CLI (a link into a commit of the branch is no upload: a restack drops it); a 5 to 15 line code sketch of the new interface. Only what the reviewer needs, with real names checked against the diff. A one-line fix may write "None"; a structural change never does.
+- Impacts: what users and developers will notice; one line on what the screenshots show. A file the forge's CLI cannot upload is named in Internal references. Nothing visible: "No visual change".
+- Each proof names its SHA (seven characters): the Test plan items and the screenshot captions (before at the base's SHA, after at the head's). A clean rebase carries every proof whose patch it left unchanged; a carried proof reads `at <head7> (carried from <sha7>)`; a proof the head has moved past is `STALE (judged at <sha7>, head now <sha7>)`. A claim with no proof starts with `**UNVERIFIED:**` or is narrowed to what is proven. The Review item cites the SHA of a pass recorded with `$CHANTIER note`, and stays unchecked while none is.
+- Human decisions: the decisions the user took in the grill that shape the change, from `02-answers.md` (in the CR's folder), one bullet each, no internal reference.
+- Blast radius: one grade, explained in one or two lines (what could break, how to roll back).
+- Autonomous decisions: each decision an agent took without the user, one bullet with its reason; "None" when none.
+- Known gaps: each gap the PR leaves on purpose, one bullet with what is missing and why (and what would close it): a part of the specification not delivered, each `**UNVERIFIED:**` claim, evidence the Verifier could not capture, a defect accepted rather than fixed, a cosmetic one included. A `STALE` proof is never a gap: it is fixed first. "None" when none; never deleted; no internal reference.
+- The body describes the PR as it is now, not its history: update it whenever the scope changes.
 
 ## The template
 
@@ -204,60 +110,29 @@ say here in one line what they show. With nothing visible, one line, e.g. "No vi
 
 ## Internal references
 
-<!-- Always last: the CR's name (number and slug, e.g. "CR-142 grill-rules"), work files,
+<!-- Always last: the CR's name (number and slug, e.g. "CR-<n> <slug>"), work files,
 anything only the maintainers need. -->
 
 </details>
 ```
 
-The studio's Test plan item on requirements (SwRS, `just requirements-update`) is specific to
-that project and is left out; an Evidence item replaces it, as chantier's Verifier produces the
-before/after.
-
 ## The audit
 
 What the Inspector checks, one line each, so a defect names its section:
 
-1. Every section of the template present (Known gaps included), in order, each filled or "None",
-   except Human
-   decisions, present when the CR's `02-answers.md` records a decision that shapes the change and
-   absent otherwise, and Issues References, present when the specification has an `issue:` line
-   and absent otherwise; Internal references last.
-2. The fold in place: one `<details><summary>Details</summary>` block, after Autonomous
-   decisions, holding Changes, Human decisions (when present), Impacts, Test plan and Internal
-   references, with a blank line after `</summary>` and before `</details>`, nothing after it;
-   Summary, Issues References (when present), Deliverables, Blast radius, Autonomous decisions and
-   Known gaps outside it; the before/after
-   screenshots of a visible change in Deliverables.
-3. No internal reference, the CR's name included, in the title or outside Internal references
-   (Human decisions included): no CR name, batch, round or `.agents/changes/` path outside it; no
-   role name as the doer of the work outside it; a role name elsewhere only as a product term of a
-   change to that role.
-4. Deliverables has at least one visual, unless the change is a one-line fix; the names in it
-   exist in the diff or the code; it shows the impactful choices the change made.
-5. Changes and Impacts match the diff and the specification (nothing claimed that the diff does
-   not do, nothing the diff does left out).
+1. Every section of the template present (Known gaps included), in order, each filled or "None"; Human decisions present only when `02-answers.md` records a decision that shapes the change; Issues References present only when the specification has an `issue:` line; Internal references last.
+2. The fold in place: one `<details><summary>Details</summary>` block after Autonomous decisions, holding Changes, Human decisions (when present), Impacts, Test plan and Internal references, a blank line after `</summary>` and before `</details>`, nothing after it; the other sections outside it; the screenshots in Deliverables.
+3. No internal reference, the CR's name included, in the title or outside Internal references (Human decisions included); no role name as the doer of the work; a role name elsewhere only as a product term of a change to that role.
+4. Deliverables has at least one visual unless the change is a one-line fix; its names exist in the diff or the code; it shows the impactful choices.
+5. Changes and Impacts match the diff and the specification: nothing claimed that the diff does not do, nothing the diff does left out.
 6. Blast radius has one grade and its explanation.
-7. Autonomous decisions lists the decisions the round's notes record as taken without the user,
-   or says "None".
-8. Human decisions matches the CR's `02-answers.md`: each decision that shapes the change is
-   there, nothing dropped, nothing invented; absent only when there is no such decision.
-9. When the CR's specification has an `issue:` line, Issues References holds one line per ticket in
-   the form the rules give (else the default), and the body names the ticket nowhere else; when it
-   has none, no Issues References section.
-10. Known gaps present, visible, right after Autonomous decisions; one bullet per `**UNVERIFIED:**`
-    claim of the body and per gap the CR's notes record as left; "None" only when there is none.
+7. Autonomous decisions lists the decisions the round's notes record as taken without the user, or says "None".
+8. Human decisions matches `02-answers.md`: each decision that shapes the change is there, nothing dropped, nothing invented.
+9. With an `issue:` line, Issues References holds one line per ticket in the form the rules give, and the body names the ticket nowhere else; without one, no section.
+10. Known gaps present, visible, right after Autonomous decisions; one bullet per `**UNVERIFIED:**` claim and per gap the notes record as left; "None" only when none.
 
-With a project template, the audit is: that template's sections, filled as it asks, and the
-project's PR rules.
+With a project template, the audit is that template's sections, filled as it asks, and the project's PR rules.
 
 ## A customised version
 
-When the user asks for their own version, the Chief of Staff files it as a CR (`$CHANTIER
-file`), grilled and specified like any CR; a CR Driver delivers it by PR. The CR writes a
-guideline (the rules) and a template in the user's project, starting from this file and the
-user's wishes, at the place the agent judges right unless the user's answers name one (for
-instance the forge's template file, and a guideline next to the project's other rules), and
-links the guideline from the project's instruction file so `$CHANTIER rules` lists it: what
-`rules` does not reach, a Driver does not read. Once merged, the project's version ranks above
-this file.
+On the user's request the Chief of Staff files it as a CR (`$CHANTIER file`), grilled and specified like any CR; a CR Driver delivers it by PR. The CR writes a guideline (the rules) and a template in the user's project, starting from this file and the user's wishes, at the place the agent judges right unless the user's answers name one, and links the guideline from the project's instruction file so `$CHANTIER rules` lists it. Once merged, the project's version ranks above this file.

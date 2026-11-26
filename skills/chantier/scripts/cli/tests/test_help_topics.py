@@ -1,4 +1,4 @@
-"""`help`: the topic index (`references/topics.json`) resolves on both hosts, every piece has a
+"""`help`: the topic index (`references/topics.json`) resolves on both hosts, every topic file has a
 topic, every topic a CLI line names exists, and the command prints what it says. The shipped
 files are read at the head under test; the prepared files cover only what none of them can hold."""
 
@@ -24,9 +24,8 @@ from chantier.core.errors import ChantierError
 REFERENCES = SKILL / "references"
 SRC = Path(chantier.__file__).resolve().parent
 MIN_NAMED = 19  # 5 lease refusals, 2 push, 2 restack, 1 handed back, 9 watcher lines, as written
-PIECE = re.compile(r"(driver|foreman|stack-driver|release-driver|chief-of-staff)-[a-z-]+\.md")
 ROLES = list(roles_data.names())  # the roles `help --for` takes, from roles.yaml
-LEASE_SECTION = section(REFERENCES / "driver-session.md", "Means: the lease")
+LEASE_TEXT = (REFERENCES / "topics" / "lease.md").read_text(encoding="utf-8")
 
 
 def _run(
@@ -55,17 +54,15 @@ def test_every_topic_resolves_on_both_hosts(host: str) -> None:
         assert t.review_by is None or re.fullmatch(r"\d+\.\d+\.\d+", t.review_by), t.name
 
 
-def test_every_piece_has_a_topic() -> None:
+def test_every_topic_file_has_a_topic() -> None:
     read = {
         r.partition("#")[0]
         for t in load_topics().values()
         for reading in t.readings
         for r in ([*reading.values()] if isinstance(reading, dict) else [reading])
     }
-    pieces = {p.name for p in REFERENCES.iterdir() if PIECE.fullmatch(p.name)} - {
-        "chief-of-staff-any.md"
-    }
-    assert pieces and pieces <= read, sorted(pieces - read)
+    files = {f"topics/{p.name}" for p in (REFERENCES / "topics").iterdir()}
+    assert files and files <= read, sorted(files - read)
 
 
 def test_every_topic_a_line_names_exists() -> None:
@@ -87,10 +84,12 @@ def test_for_lists_only_that_roles_topics(capsys: pytest.CaptureFixture[str], ro
     }
 
 
-def test_for_a_worker_and_for_an_unknown_role(capsys: pytest.CaptureFixture[str]) -> None:
-    assert _run(capsys, "help", "--for", "coder")[:2] == (
+def test_for_a_role_with_no_topic_and_for_an_unknown_role(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert _run(capsys, "help", "--for", "board-griller")[:2] == (
         0,
-        ["no topic for coder; help lists them all"],
+        ["no topic for board-griller; help lists them all"],
     )
     code, _, err = _run(capsys, "help", "--for", "nobody")
     assert code == 1 and "no role nobody; roles: cr-driver" in err
@@ -104,7 +103,7 @@ def test_help_lists_them_all(capsys: pytest.CaptureFixture[str]) -> None:
     assert len(out) == 1 + len(load_topics())
 
 
-def test_help_lease_prints_the_section_whole_with_no_project(
+def test_help_lease_prints_the_topic_whole_with_no_project(
     capsys: pytest.CaptureFixture[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
@@ -112,8 +111,8 @@ def test_help_lease_prints_the_section_whole_with_no_project(
     assert code == 0, err
     assert out[0].startswith("topic lease: ")
     text = "\n".join(out)
-    assert LEASE_SECTION.rstrip("\n") in text
-    assert "## Means: checkpoint commits" not in text
+    assert LEASE_TEXT.rstrip("\n") in text
+    assert "# Commits and checkpoints" not in text
 
 
 def test_help_refuses_a_near_name_and_a_topic_with_for(capsys: pytest.CaptureFixture[str]) -> None:

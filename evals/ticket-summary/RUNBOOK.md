@@ -1,13 +1,15 @@
 # Campaign ticket-summary
 
 A short campaign on the sandbox (`shelf`), the Chief of Staff only, no batch: the ticket summary
-of [chief-of-staff-grill](../../skills/chantier/references/chief-of-staff-grill.md) ("Ticket summary"), from
+of the topics [ticket-summary](../../skills/chantier/references/topics/ticket-summary-p1.md) and
+[ticket-summary-post](../../skills/chantier/references/topics/ticket-summary-post-p1.md)
+(`chantier help ticket-summary`, `chantier help ticket-summary-post`), from
 the grill to the post on a real issue. About $1.
 
 **What it proves:** nothing is posted before the user's yes; the draft holds the comment, the plan
 and a demo (or the reason for none); a CR with no ticket gets no draft; after the yes the comment
 and the artifacts are on the issue, and the user is told what is visible to whom. It is also the
-first trial of the card's unproved GitHub lines (`gh issue artifact`, a comment from a file).
+first trial of the topic's unproved GitHub lines (`gh issue artifact`, a comment from a file).
 
 Follow the sandbox campaign text in [the evals README](../README.md#a-sandbox-campaign) (the
 preparation, the run's number and prefix, the operator), with these differences: no batch is
