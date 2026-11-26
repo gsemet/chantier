@@ -19,3 +19,5 @@ Remote Control session is **unproved**. The rest is **unproved** unless marked s
 | The remote board (`chantier serve`) | yes | from the local network once `board.host: network` (or `--host`) | yes |
 | Review and merge a PR | yes | yes | yes |
 | A host feature (wake, start a session) | where it exists | `start_session` with no `cwd` or `preset` works; with either, refused (seen) | where it exists |
+
+[Trials](../../../../docs/proofs/claude-code.md#other-surfaces-and-options)

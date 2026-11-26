@@ -14,3 +14,5 @@ path (anything after it is part of the name: every write is refused). A Git Bash
 (`/c/Users/...`) is read as its drive form.
 
 The shell calls and what is not guarded: `help host-write-guard-shell`.
+
+[Trials](../../../../docs/proofs/claude-code.md#write-guard)

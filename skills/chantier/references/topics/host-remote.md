@@ -17,3 +17,5 @@ chosen folder.
 Documented, unproved here: Worktree is off by default in the desktop app
 (<https://code.claude.com/docs/en/desktop>); `claude remote-control --spawn same-dir` keeps the
 folder (<https://code.claude.com/docs/en/remote-control>).
+
+[Trials](../../../../docs/proofs/claude-code.md#other-classes-of-session)

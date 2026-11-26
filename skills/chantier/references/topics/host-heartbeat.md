@@ -15,3 +15,5 @@ the first wake that sees no Driver of any kind run for 30 minutes or more with n
 order's line or a `ping` starts a turn; if it leaves a Driver running, arm the heartbeat again. On a
 batch born paused with no CR, arm the loop only in the turn of the first `take`. No wake ever
 arriving is a stop.
+
+[Trials](../../../../docs/proofs/claude-code.md#heartbeat)

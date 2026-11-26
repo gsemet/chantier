@@ -7,3 +7,5 @@
   here: no card uses it, to arm or disarm; its risk is a session that arms Auto-fix on a PR.
   `Edit(<folder holding the repository and its worktrees>/**)` lets agents edit in the CR
   worktrees next to the repository, at the risk of every file below it (the path is the user's).
+
+[Trials](../../../../docs/proofs/claude-code.md#allow-rules)

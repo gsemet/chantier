@@ -17,3 +17,5 @@ known, and what would settle it); any other mark means seen.
 - Windows PowerShell 5.1: a `gh` or `glab` argument with spaces or double quotes (a `--jq`
   expression) can arrive split (`accepts 1 arg(s), received 3`): print `--json <fields>` alone and
   read it, or write the expression with no space and no double quote.
+
+[Trials](../../../../docs/proofs/claude-code.md#other-configuration)

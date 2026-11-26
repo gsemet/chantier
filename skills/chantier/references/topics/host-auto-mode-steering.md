@@ -18,3 +18,5 @@ the user's permission mode:
   the Driver's own branch without asking you; you are asked only if the host refuses me too or a
   push is not legitimate; a push of a branch that is not chantier's is never run, you are told;
   in a remote session nobody may be there to answer."
+
+[Trials](../../../../docs/proofs/claude-code.md#auto-mode)

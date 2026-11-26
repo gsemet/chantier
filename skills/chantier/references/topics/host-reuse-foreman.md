@@ -12,3 +12,5 @@ epoch. Its title names the old batch, so the prompt's title makes it rename itse
 Say the cost first: a new session starts with an empty context; a reused Foreman carries its old
 context, and the batch pays for it. Before a reuse, recommend `/compact` in the Foreman's session,
 never `/clear`.
+
+[Trials](../../../../docs/proofs/claude-code.md#other-reusing-the-last-foreman)

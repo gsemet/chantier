@@ -18,3 +18,5 @@ After a compaction the plugin's mod adds a message naming the role (`help reload
 skill again with the argument `reload`, then run the brief again. **Unproved**. The
 mod is Claude Code's only; a session without it reloads by hand (`/chantier:chantier reload`,
 `/chantier:chief-of-staff reload`, `/chantier:griller reload`).
+
+[Trials](../../../../docs/proofs/claude-code.md#compact)

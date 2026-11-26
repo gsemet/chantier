@@ -11,3 +11,5 @@ Same four parts as `help host-for-you`.
   client, start a new session on the repository's folder with Worktree off (documented:
   <https://code.claude.com/docs/en/desktop>); Paste `/chantier:chief-of-staff` or
   `/chantier:griller`; See: the introduction with no start-check failure, else say what it shows.
+
+[Trials](../../../../docs/proofs/claude-code.md#other-the-for-you-block)

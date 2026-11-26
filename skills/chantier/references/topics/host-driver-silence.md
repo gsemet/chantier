@@ -16,3 +16,5 @@ session. Silence is no sign of a lost Driver, however long, and no reason to sta
   (`help lost-restart`), after a proof of death or the first one's final report: never on silence
   alone. For the stack, `agents set stack -` only once its report arrived or a proof of death
   holds.
+
+[Trials](../../../../docs/proofs/claude-code.md#other-a-drivers-silence)

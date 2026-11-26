@@ -17,3 +17,5 @@ screen, in order), **Paste** (the text in its own code block, complete, no place
   a minute.
 
 A reused Foreman and a session on the main checkout: `help host-for-you-sessions`.
+
+[Trials](../../../../docs/proofs/claude-code.md#other-the-for-you-block)

@@ -7,3 +7,5 @@ leaving, `Bash(*)`, `PowerShell(*)`, interpreter wildcards, package-manager run 
 `Agent(chantier:cr-driver)` rule is recommended: starting a Driver in auto mode is the
 classifier's call. The `Agent(Name)` form is documented; plugin agent names in it
 (`chantier:<role>`) are **unproved**.
+
+[Trials](../../../../docs/proofs/claude-code.md#allow-rules)
