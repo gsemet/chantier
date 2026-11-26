@@ -1,12 +1,12 @@
 # Claude Code: the steering session's push in auto mode
 
 The classifier blocks destructive git in subagents; the steering session's
-`git -C <worktree> push --force-with-lease=...` went through in a direct batch (proved by use,
-Chief of Staff's case; once refused as a loop). The Foreman is a session of its own, started with
+`git -C <worktree> push --force-with-lease=...` goes through (not always) for the Chief of Staff in direct
+mode. The Foreman is a session of its own, started with
 the user's permission mode:
 
 - **With the route rule set** an allow rule resolves a matching command before the classifier for
-  a steering session (documented); not yet seen for the Foreman.
+  a steering session (documented); **unproved** for the Foreman.
 - **Without it** (P10 names it missing) the Foreman does not try: `push not tried: route rule
   missing`. Whether it would pass is **unproved**.
 - **The user's yes**, in the Chief of Staff's conversation to a question naming the exact command,

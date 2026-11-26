@@ -40,5 +40,5 @@ No date yet; the pull request will be linked here.
 ```markdown
 ## Issues References
 
-Closes #336
+Closes #<n>
 ```

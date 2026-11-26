@@ -5,4 +5,4 @@ Orders are the user's word. `status` lists them until you mark each `order done`
 - A dropped live CR: `cancel <cr> --epoch <n>` moves it to the destination its drop order recorded; you never choose one. A `cancel` refused for a missing destination goes up as an ask. Then `help drop`.
 - An order note `evidence: <path>` (the user's screenshot of the board pane) becomes `take <cr> --note "evidence: <path>"`.
 - A refusal you do not understand: `access <cr> --epoch <n>` explains it and changes nothing.
-The queue and an order that adds work: `help orders-queue`.
+The queue and an order that adds work: `help orders-queue`. The Chief of Staff's: `help order-verbs`.

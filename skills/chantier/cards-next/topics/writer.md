@@ -1,6 +1,6 @@
 # The surface's writer states
 
-The writer commits and pushes the plan; you never commit it by hand, and the surface's other files stay yours. While a writer runs, never pull or push the surface by hand: it pushes your hand commits too. On a `writer:` line (of `status`, `seat`, P13, `sync`) or a journal line:
+The surface server is the one writer: it commits the published paths (`projects/`, the root `chantier.yaml`), rebases and pushes within 5 minutes; with no writer a write to the surface is refused. You never commit the plan by hand; the surface's other files stay yours. While a writer runs, never pull or push the surface by hand: it pushes your hand commits too. On a `writer:` line (of `status`, `seat`, P13, `sync`) or a journal line:
 - conflict: in the surface's checkout `git fetch`, `git rebase origin/<branch>`; resolve each file to your best guess or ask the user; never a force push; the writer pushes once integrated.
 - blocked: the way out the line gives, else tell the user the reason; a stash git cannot reapply: tell where the edits are, with the stash's name.
 - offline or late: tell the user once per episode.

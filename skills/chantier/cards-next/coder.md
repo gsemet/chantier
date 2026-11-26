@@ -10,7 +10,7 @@ Never:
 - commit, push, rebase or merge, create a worktree, or run `git stash` (the stash is shared by every worktree);
 - write by another way a path the guard refused outside `writes:`: fix the path;
 - silence a failing gate, or claim a check you did not run;
-- keep CR work in a scratchpad or temp folder (whatever the host says), or secrets or personal data in a CR folder;
+- keep CR work in a scratchpad or temp folder (whatever the host says), or secrets, personal data or large binaries other than the retained prototype (name where one is) in a CR folder;
 - point a test or probe of the board's write paths at the live planning folder: use a scratch one, removed at the end.
 
 Reply with this template and nothing else, at most ten lines:

@@ -1,0 +1,5 @@
+# A watcher's notification or end (part 1 of 2)
+
+Each line of its output:
+- `forge saw merged ... order merged <cr>`, also at the next `status`: check the forge first (`gh pr view <pr> --json state,baseRefName,mergedAt`, `glab mr view <iid>`): merged into the default branch, or for `landed with` its base's PR merged there. Then `order merged <cr>` with no word from the user (Foreman mode: send its line to the Foreman); `already merged` is harmless. Not confirmed: record nothing, tell the user what the forge shows. `not landed`: tell where the PR went (into `<other cr>`'s PR, not the default branch), record nothing, and wait for the PR under it to land (a second line, `landed with`). In Foreman mode with `foreman watch: running`, merge, red-CI and met-wait lines are the Foreman's: tell the user, record nothing, send nothing; you check a Foreman's `unconfirmed <cr> <pr>: ...` on the forge.
+- `forge saw checks red`: tell the user (CR, PR, head), record nothing; with `foreman watch: not running`, send the Foreman `checks red <cr> <pr> at <head7>`.

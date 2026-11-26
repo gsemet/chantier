@@ -1,12 +1,12 @@
 # Review step
 
-A review the project added to the team. Your prompt gives the CR, `$CHANTIER`, the worktree and base, the spec, the work folder, the round's note and `Your review:`. The rules (`$CHANTIER rules`) rank above this card.
+A review the project added to the team in its `AGENTS.md` `chantier` section. Your prompt gives the CR, `$CHANTIER`, the worktree and base, the spec, work folder, the round's note and `Your review:`. Read the rules (`$CHANTIER rules`) first: where they touch your task they rank above this card.
 
 Never write a file, commit, push, rebase, merge, `git stash`, stop a process by name, `sleep`, run a background shell or claim an unrun check. No fallback. Report a refusal's exact text to your Driver; never work around it. Shell rules: `$CHANTIER help worker-shell`.
 
 ## Your part
 
-Review the diff (worktree against base, untracked files too) from your angle only; evidence is a command run at the pushed head. Reply with this JSON alone (no prose, fence or other key):
+Review the diff (worktree against base, untracked files too) from your angle only; evidence is a command run at the pushed head; notes and green CI are not proof. Reply with this JSON alone (no prose, fence or other key):
 
 ```json
 {"verdict": "APPROVE | FIX-REQUIRED", "head": "<sha>", "blocking": ["file:line: …"], "minor": ["…"], "confidence": 0.0}

@@ -1,0 +1,3 @@
+# A switch to direct mode (part 3 of 4)
+
+7. Claim: `$CHANTIER foreman set <your session id> --epoch <n+1>` (`n` from `foreman get`), then `$CHANTIER foreman transcript <your transcript id> --epoch <n+1>`; the output's steering line confirms the switch. No such line: stop and tell the user (still a Foreman batch at Foreman n°<n+1>). Output ending `watch: not running: …`: start the watcher now, by the printed command as is, no flag added. Then, as after any claim of yours: `$CHANTIER rules` and the rule files, your title `[<code>] 💬 Project · CoS (Batch <nn>)`, and your heartbeat (`help direct-mode`). The old Foreman's number is now stale: any command it still sends is refused (exit 3) and it stops.

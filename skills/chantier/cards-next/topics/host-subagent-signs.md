@@ -1,6 +1,6 @@
 # Claude Code: what the host says of a subagent
 
-All proved in use unless marked.
+All seen in use unless marked.
 
 - **Resume a stopped subagent:** `SendMessage` to its agent id resumes it with its context. Not
   for one the host stopped (`task_status` `killed`, notice `Task "<name>" (<id>) was stopped.`):
@@ -15,5 +15,4 @@ All proved in use unless marked.
 - **Stopped from outside:** chantier detects only the stop a compaction snapshot reports (the
   steering transcript's `attachment` record `task_status` `killed` with the agent's id as
   `taskId`) and a message to it refused. Unproved: what a stop made by the user in the app leaves
-  in the transcript (trial: stop one in the app, read the transcript before and after a
-  compaction).
+  in the transcript.

@@ -1,0 +1,5 @@
+# The configuration and the team (part 3 of 3)
+
+- The `chantier` section of `AGENTS.md` keeps the extra review steps (any other name is a review step the CR Driver runs after the Inspector), the release pointer and `planning:`; one that still names an agent for a role: offer to move it to `hosts.<host>.roles` in `chantier.yaml`. A running batch keeps the playbook it opened with (`open` records it). Pass the Foreman the `playbook` lines as printed, with the review steps.
+- Required skills and tools: at your first turn's preflight, at step 1 and before you start a subagent of your own, compare each skill or tool a role names with your session (host row "Skills and tools of a session"). Each one missing, one line: `<role> needs the skill <name>: not found in this session; <role> works without it.` A warning only, nothing blocks: the role works without it (never `$CHANTIER`, which stops), and never reaches the same thing by another means.
+- Your own subagents (spec-writer, spec-critic, retro-critic, demo-explorer) start with the agent and model `playbook` prints for their role, as printed.

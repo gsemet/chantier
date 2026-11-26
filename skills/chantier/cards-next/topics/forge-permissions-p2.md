@@ -1,0 +1,6 @@
+# Forge permissions (P9), GitHub (part 2 of 2)
+
+4. A stack (made by `forge-stack` or by the extension): the stacks API, `gh api repos/<owner>/<repo>/stacks -X GET -F per_page=1`. A 404 or 403 means no native stack on this repository: warn that `forge-stack create` or the extension will fail there, and that the stack then stays a chain.
+5. A merge by the steering session (a release on its own, fixes on a grant), and a stack (merged by the user in one action): the default branch's rules, `gh api repos/<owner>/<repo>/rules/branches/<default branch>`, and the methods, `gh repo view --json mergeCommitAllowed,rebaseMergeAllowed,squashMergeAllowed`. Warn on: a `pull_request` rule with required approving reviews (a steering session's merge of its own account's PR waits for a review it cannot give: the grant's merge stops); a `required_status_checks` rule (the merge waits for those checks: said, not a problem); a `merge_queue` rule (a merge enqueues instead of merging, and a stack's one-action merge may not apply); the project's merge method (its rules, for instance "merge by rebase") not among the allowed ones. The legacy branch protection is read as item 3 says (an `ADMIN` account only).
+
+GitLab: `help forge-permissions-gitlab`. What the user hears: `help forge-permissions-say`.

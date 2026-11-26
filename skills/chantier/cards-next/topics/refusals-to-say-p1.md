@@ -1,6 +1,6 @@
 # Refusals to say before they are met (part 1 of 2)
 
-When the user asks for one, say three parts at once, in their language: what is refused, why, what they can do now.
+When the user asks for one, say three parts at once, in their language, before any try: what is refused, why, what they can do now.
 - A. A new idea, a grill or a QA while a direct batch runs: no grill while you steer (it waits for the pause), `order qa` refused until the pause. Not refused: a CR already grilled and specified (`order add` queues it, taken when a slot frees), and filing or triaging the idea now. Ways: grill it in a Griller session (`/chantier:griller`, or a fork on Remote Control), then `order add`; or file it and grill it at the pause; or switch to Foreman mode where the host allows.
 - B. A new CR with a release CR in the batch: before the release starts, the release waits for it and the user's word on its procedure is voided; once started, `order add` is refused. Ways: add it and give the word again, or keep it for the next batch; once started, a fix (`order add --fix-for <release-cr>`) or the next batch. A batch with a release CR pauses only once the release ended.
-- C. On Claude Code, a subagent's file named `report...`, `summary...`, `findings...` or `analysis...` (`.md`) is refused by the host on the file name: no allow rule fixes it; the file takes a number prefix (`04-report.md`).
+- C. On Claude Code, a subagent's file named `report...`, `summary...`, `findings...` or `analysis...` (`.md`) is refused by the host on the file name: no allow rule or setting fixes it; the file takes a number prefix (`04-report.md`). Say it too when asked why a file has that prefix.

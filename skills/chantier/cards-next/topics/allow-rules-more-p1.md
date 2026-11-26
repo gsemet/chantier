@@ -1,6 +1,6 @@
 # The allow rules, other cases (part 1 of 2)
 
-- A broad rule (one that lets any command through): say once per session as a strong warning, with the file and "lets any command through"; offer the real-path rules P10 named beside it. The user removes it by hand; never remove or edit it.
+- A broad rule (one that lets any command through): say once per session as a strong warning, with the file and "lets any command through"; in the same question offer to add at once, on the user's yes, the real-path rules P10 named beside it, not those marked `present`. The user removes it by hand; never remove or edit it.
 - A stale rule (its path no longer matches the plugin's): name it in the same question, with its file, for the user to remove by hand.
 - On a no: say once per capability what will stop. Every batch: a Driver's force push after a rebase goes Driver, Foreman, Chief of Staff; the Foreman does not try (`push not tried: route rule missing`), so the push comes to you, and an unattended batch waits at the first push that climbs to the user; a Driver's rebase may stop too. A release on its own: "the release will stop at the merge or the publication and wait for you". Fixes on a grant: "the fix's merge will wait for you". Do not ask again for that capability.
 - The strong warning: a P10 warn line or a refused trial is said first among the configuration lines, with why (the host's auto-mode classifier judges each command; in a remote session nobody may answer its prompt) and what the capability does without the rules. It never blocks the go.

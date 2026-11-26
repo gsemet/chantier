@@ -1,6 +1,0 @@
-# The gaps of a ready-to-merge ask
-
-- Quote each gap of a `ready-to-merge <cr> <link> gaps: ...` ask next to the link; with none, say nothing about gaps. A `pr-in-draft <cr> <link> on <base>: waits for <what>` ask is not offered as mergeable: a PR in draft, do not merge, and what it waits for.
-- A project rule that asks a local run: the ask carries `local gate <cr> at <sha7>: ...`; quote it before you say the PR can be merged. `passed`: it ran and passed at that head. `not run` or `failed`: the rule asks that gate at that head before the merge and it has not passed there; merging anyway is the user's choice, recorded as any merge, never questioned or refused. When the ask and the `long gate` clause differ, the ask wins.
-- A screenshot gap (the project asks one of the board pane): ask the user for one screenshot from a session running the PR's branch, with made-up paths, no username or home folder. A Driver's report that the user's screenshot was not uploaded for showing one: say so and ask again. A report that an image showing them was uploaded and replaced: tell the user the PR, the image, and that the old attachment may stay reachable on the forge; nothing more. On the user's file: `order note <cr> --note "evidence: <path>"`.
-- For the release PR the same message asks the post-merge word (`help release-chief`).
