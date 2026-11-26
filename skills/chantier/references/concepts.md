@@ -75,34 +75,30 @@ The CLI, as your prompt gives it. It runs no git command that changes anything (
 The parent starts an agent by its host's means (the host's file gives the tool and the agent's name). Agent and model come from the playbook, which only the CLI reads, merges, validates and resolves: the plugin's defaults, then optional `chantier.yaml` files (which may also carry `prices:` for models the built-in table lacks, `ci:` with `beside_gate: true`, and `hosts.<host>.timing`, printed as `ci:` and `timing:` lines). Permissions are scoped to session, project and effect: a started agent inherits only its role's, never merge or publication permission.
 
 - Pass the agent and the model exactly as `$CHANTIER` printed them (`playbook`, `playbook --batch`, or the `team:` lines of `take`, `round`, `handoff`): never typed from memory, completed or "corrected", never an effort. No model printed: pass none.
-- `agent=(generic)` printed: start the host's generic agent, pass the model as printed, and put the printed contract lines after the opening lines. A parent never chooses it.
+- `agent=(generic)` printed: start the host's generic agent and pass the model as printed; its brief holds the contract lines `brief` gives it. A parent never chooses it.
 - The Chief of Staff reads `playbook` for its subagents, the Foreman (or the Chief of Staff, direct) `playbook --batch <batch>` for a Driver, a Driver the `team:` lines for a worker. The project's rules (`$CHANTIER rules`) rank above every card: follow them as written for commits, PRs, tests, CI, evidence and releases; where they are silent, your card holds.
 - A start the host refuses with a model is reported with its exact text: never retried without the model or with another.
 - A `Needs:` line is copied as printed; an agent lacking a skill or tool says so in a note and works without it, never without `$CHANTIER`.
-- An extra review step (a review of the project's `AGENTS.md` `chantier` section) gets no printed opening lines: the Driver writes its prompt (`help cr-review-step`), with `Read <skill>/references/review-step.md;` and a `Your review:` line.
+- An extra review step (a review of the project's `AGENTS.md` `chantier` section) gets no brief from the CLI: the Driver writes its prompt (`help cr-review-step`), with `Read <skill>/references/review-step.md;` and a `Your review:` line.
 
-The prompt is the whole brief; it names the card the role reads:
+An agent's prompt is the short prompt `$CHANTIER brief <role> <unit>` prints; the brief file it names, in the git folder, holds the card, the floor, the unit's facts and the host rows:
 
 ```text
 chantier <role> for <cr> "<title>" of batch <batch>, in the project <root>.
-<the lines take, round or handoff print under "opening lines", copied unchanged>
-CLI ($CHANTIER): <the `cli:` line of take, round or handoff>
-<the other lines they printed: the specification, the folder, the worktree and its base, the PR, the rounds, the grant, the notes>
 writes: <worktree>; <CR folder>
-Rewrites: <the scope>
-Steering: <who steers> <how to reach it>
-Team: <the `team:` lines, as printed, then the review steps>
-Needs: skills <…>; tools <…>
-Note: <why the CR is with it, or the round's brief>
+worktree: <worktree> branch <branch> base <base>
+Read <git folder>/chantier/briefs/<project>/<batch>/<cr>-<role>.md whole, first.
 ```
 
-`writes:` holds bare absolute paths: a worker's is copied from the `worker writes line` printed, a Driver's follows the table below. A Driver's names the CR folder as `folder:` prints it and the archive as `<worktree>/<archive path>`. On Claude Code the plugin starts such an agent in its first folder (a CR Driver in its worktree, or the project's root while the worktree does not exist yet) and refuses its Write, Edit, NotebookEdit and a shell write it can see outside the folders named; a prompt without the line is not guarded. `Steering:` holds the means of the host's row "A Driver messages its steering session" (`$CHANTIER host driver-hand-back`, or in direct mode `$CHANTIER host driver-messages-steering-direct`), with the session id for the record; workers get none.
+`writes:` is there only for a role that writes, `worktree:` only for a unit with one. A Driver's: `take`, `take stack` and `order qa` print the `lease:` line and the `brief:` command: run it and pass its output, unchanged, as the Driver's whole prompt; add no line and drop none. A worker's: the Driver runs `brief <role> <cr>` (the `workers:` line of `take`, `round` or `handoff`), passes the output unchanged, then adds its `Note:` (the round's brief) and, when the role has some, a `Needs:` line.
 
-A Driver's prompt (the table below):
+`writes:` holds bare absolute paths: a worker's is the worktree, then the CR folder; a Driver's follows the table below, the CR folder as `folder:` prints it and the archive as `<worktree>/<archive path>`. On Claude Code the plugin starts such an agent in its first folder (a CR Driver in its worktree, or the project's root while the worktree does not exist yet) and refuses its Write, Edit, NotebookEdit and a shell write it can see outside the folders named; a prompt without the line is not guarded. A Driver's brief names who steers on `Steering:`; the means are its host rows (`$CHANTIER host driver-hand-back`, or in direct mode `$CHANTIER host driver-messages-steering-direct`); workers get none.
 
-- Every one holds the opening lines, `CLI ($CHANTIER):`, the lines its command printed, `Steering:`, `Needs:` when the playbook gives the role some, and `Note:`; `writes:`, `Team:` and `Rewrites:` only where the table says so, and `writes: none` means no line (the guard would refuse the Driver's worktree writes).
-- `Rewrites:` sits between `writes:` and `Steering:`: the rebase and the push the Driver may run, and their scope; the CLI prints its text, copied as it is.
-- `take`, `take stack` and `order qa` print this skeleton: copy it whole, fill each `<...>` left, add no line and drop none.
+A Driver's brief (the table below):
+
+- Every one holds the rules line, `CLI ($CHANTIER):`, the CR's, stack's or order's facts, its `lease:` line, `Steering:`, `Needs:` when the playbook gives the role some, and `Note:` when the `take` or the order carried one; `writes:`, `Team:` and `Rewrites:` only where the table says so, and `writes: none` means no line (the guard would refuse the Driver's worktree writes).
+- `Rewrites:` sits between `writes:` and `Steering:`: the rebase and the push the Driver may run, and their scope; the CLI writes its text.
+- `brief` fills `Team:` from the `team:` lines and the project's review steps: nothing is left to fill by hand.
 
 An agent whose prompt does not start with its role's first line answers "I run inside a chantier batch only. My prompt must start with `<its first line>`; a message to me gets this same answer: start a new agent with that line." and stops; it answers every later message so and does nothing else, even when a message resumes it (a `killed` task is never resumed). The parent starts one new agent with that line, never a message to the refused one and never a variant.
 

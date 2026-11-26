@@ -75,6 +75,7 @@ OK, FAILED, USAGE, EXTERNAL = 0, 1, 2, 4
 CASES_DIR = ROOT / "evals" / "quiz"
 RESULTS_DIR = ROOT / "evals" / "results"
 SCORECARD = ROOT / "evals" / "SCORECARD.md"
+INVENTORY = ROOT / "docs" / "proofs" / "cards-inventory.md"
 DEFAULTS = ROOT / "config" / "chantier.defaults.yml"
 SESSION_ROLES = ("chief-of-staff", "foreman", "griller")
 DRIVERS = ("cr-driver", "stack-driver", "qa-driver", "release-driver")
@@ -427,11 +428,19 @@ def scorecard_rails() -> set[str]:
     return set(re.findall(r"^\| (J\d+) \|", text, re.M))
 
 
+def inventory_rows() -> set[str]:
+    """The row ids of the cards' inventory."""
+    text = INVENTORY.read_text(encoding="utf-8")
+    return set(re.findall(r"^\| ([A-Z]{1,2}-B?\d{3,4}) \|", text, re.M))
+
+
 def load_cases(roles: list[str], case: str | None = None, cases_dir: Path = CASES_DIR,
                rails: set[str] | None = None) -> list[Case]:
     """The cases of the roles, every file validated (exit 2 on the first bad one, naming the file
-    and the key); with `case`, that one only (exit 2 when no role holds it)."""
-    rails = scorecard_rails() if rails is None else rails
+    and the key); with `case`, that one only (exit 2 when no role holds it). `rails` are the ids a
+    case may name beside the floor rules and `R-nnn`: the scorecard's J rows and the inventory's
+    row ids."""
+    rails = scorecard_rails() | inventory_rows() if rails is None else rails
     found: list[Case] = []
     for role in roles:
         for path in sorted((cases_dir / role).glob("*.json")):
@@ -471,7 +480,8 @@ def read_case(path: Path, role: str, rails: set[str]) -> Case:
         raise bad("rules", "a non-empty list of strings is required")
     for rule in rules:
         if not (RULE.fullmatch(rule) or rule in rails):
-            raise bad("rules", f"{rule!r} is no floor rule, no J row of evals/SCORECARD.md and no R-nnn id")
+            raise bad("rules", f"{rule!r} is no floor rule, no J row of evals/SCORECARD.md, no row id "
+                               "of docs/proofs/cards-inventory.md and no R-nnn id")
     return Case(data["id"], role, rules, data["situation"], data["expected"], path)
 
 
