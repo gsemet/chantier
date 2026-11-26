@@ -240,6 +240,30 @@ def test_a_role_with_no_unit_gets_a_role_only_brief(
     assert text.count("=== floor\n") == 1 and "Repository: " in text
 
 
+# The wrapped roles that get a brief file (the board's Griller gets none), and those of them whose
+# wrapper also refuses a prompt that names no path to the brief or the card.
+BRIEFED = [n for n in NAMES if _wrapped(n, "claude") and n != "board-griller"]
+ASKS_A_PATH = (*WORKERS, "demo-explorer")
+
+
+@pytest.mark.parametrize("role", BRIEFED)
+def test_a_wrappers_refusal_paragraph_accepts_the_short_prompt_brief_prints(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, role: str
+) -> None:
+    for name in ("claude", "copilot"):
+        host(monkeypatch, name)
+        out = _run(chantier, role, None, None)
+        body = agent_file(role, name).read_text("utf-8")
+        refusal = body[body.index("A prompt that does not start with ") :]
+        assert out[0].startswith(f"chantier {role} ") and f"`chantier {role}" in refusal
+        # the condition and the quoted answer both name the brief and the card, or no file at all
+        times = 2 if role in ASKS_A_PATH else 0
+        suffixes = re.findall(r"`<unit>(-[a-z-]+\.md)`", refusal)
+        assert len(suffixes) == times and refusal.count(f"`{role}.md`") == times
+        read = re.fullmatch(r"Read (.+) whole, first\.", out[-1])
+        assert read is not None and all(Path(read[1]).name.endswith(s) for s in suffixes)
+
+
 def test_the_refusals_name_the_word_that_is_wrong(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

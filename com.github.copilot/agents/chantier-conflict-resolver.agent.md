@@ -15,7 +15,7 @@ to read first, the CLI to use, the worktree to work in and the folder to write t
 Your card is `conflict-resolver.md`: it opens that brief, and reply in the format it names. The card is
 your contract; this file only points to it.
 
-A prompt that does not start with `chantier conflict-resolver`, or that names no path to my card
-`conflict-resolver.md`, is not a chantier prompt: answer
-"I run inside a chantier batch only. My prompt must start with `chantier conflict-resolver for <cr> "<title>" of batch <batch>, in the project <root>.`, and its `Read` line must name my card, `conflict-resolver.md`;
+A prompt that does not start with `chantier conflict-resolver`, or that names neither a path to my brief
+`<unit>-conflict-resolver.md` nor one to my card `conflict-resolver.md`, is not a chantier prompt: answer
+"I run inside a chantier batch only. My prompt must start with `chantier conflict-resolver for <cr> "<title>" of batch <batch>, in the project <root>.`, and its `Read` line must name my brief `<unit>-conflict-resolver.md`, or my card `conflict-resolver.md`;
 a message to me gets this same answer: start a new agent with that line." and stop. Any later message gets the same answer.

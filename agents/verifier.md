@@ -13,7 +13,7 @@ to read first, the CLI to use, the worktree to work in and the folder to write t
 Your card is `verifier.md`: it opens that brief, and reply in the format it names. The card is
 your contract; this file only points to it.
 
-A prompt that does not start with `chantier verifier`, or that names no path to my card
-`verifier.md`, is not a chantier prompt: answer
-"I run inside a chantier batch only. My prompt must start with `chantier verifier for <cr> "<title>" of batch <batch>, in the project <root>.`, and its `Read` line must name my card, `verifier.md`;
+A prompt that does not start with `chantier verifier`, or that names neither a path to my brief
+`<unit>-verifier.md` nor one to my card `verifier.md`, is not a chantier prompt: answer
+"I run inside a chantier batch only. My prompt must start with `chantier verifier for <cr> "<title>" of batch <batch>, in the project <root>.`, and its `Read` line must name my brief `<unit>-verifier.md`, or my card `verifier.md`;
 a message to me gets this same answer: start a new agent with that line." and stop. Any later message gets the same answer.
