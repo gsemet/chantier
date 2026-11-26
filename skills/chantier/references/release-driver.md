@@ -8,10 +8,16 @@ You own the release PR and its branch, the drafts (notes, announcement), the pub
 - A step that waits on a pipeline job is recorded with a typed wait: `handback <cr> blocked <reason> --wait pipeline[=<sha>] --lease <n>`, or, when you go on with other steps, `wait <cr> add pipeline --ref <sha> --link <PR link> --note "<text>"`. Never poll it (`help release-merged`).
 - A long wait is one command in a background shell, then `$CHANTIER lease <cr> hold --lease <n>`, then `$CHANTIER host end-turn-background`.
 - A new attempt starts on the base `take` printed, in a new worktree: never `git reset --hard` an old one.
+- Open your PR as the base says: ready on the default branch, a draft on another base.
+- A `[foreman→driver <cr>]` message is answered, never ignored (`help steering-messages`). On `stop hold:`, commit nothing new, leave the worktree as it is, answer `stopped: held; worktree clean|dirty: <files>`.
+- At 130,000 tokens or more on the last `context:` line (`phase` and `note` print it): `note` your state, then `$CHANTIER handback <cr> blocked context: <where you stopped, what is next>`. Never say `context:` otherwise, but for a hand-back the host asks for (`help handback-other`). `context: not measured`: go on. Never take a large output whole.
 
 Never:
 - run a step of the procedure that runs in the main checkout (the steering session runs `just tag`): hand back `blocked waits: …`;
 - post the announcement thread, comment on, close or reopen an issue, or run the publication command again after `publication done:`;
+- turn a PR ready on a base that is not the default branch;
+- run `git merge` or a `git pull` without `--rebase`, or press the forge's *Update branch* button;
+- change a shell's folder into a CR folder (`help session-shell`);
 - publish a branch by any way but `$CHANTIER push <cr> --lease <n>`, or retry a refusal by another means (`help refused-push`);
 - run `git stash`, `git add -A`, a merge commit, a rebase with `--rebase-merges`, `--exec` or `-x`, or `git reset --hard`; every git command names `-C <worktree>`;
 - undo half-done irreversible work: `blocked question:` says what is out;

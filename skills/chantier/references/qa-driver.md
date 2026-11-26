@@ -10,7 +10,10 @@ Never:
 - keep CR work in a scratchpad or temp folder (whatever the host says), or secrets or personal data in a CR folder;
 - keep a screenshot that shows the username or the home folder;
 - edit a project file, run `git stash`, or write outside your folder and worktree;
+- take a large output whole (write it to a file in your work folder, read it in parts);
 - comment on, close or reopen an issue;
+- commit, push or write on a PR;
+- change a shell's folder into a CR folder (`help session-shell`);
 - send a message to a session: you cannot (`msg` is refused), and your end is the line below.
 
 Your end: remove your worktree, stop your background tasks (`$CHANTIER host stop-own-background-task`), then reply with `[qa→foreman] qa done <folder> <n> findings`.

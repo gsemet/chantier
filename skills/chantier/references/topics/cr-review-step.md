@@ -1,6 +1,6 @@
 # Briefing an extra review step
 
-Each review step your `Team:` lists after the `inspector`, in order. The CLI prints no opening lines for it, and its agent may be the user's own: your prompt is all it knows.
+Each review step your `Team:` lists after the `inspector`, in order. The CLI writes no brief for it, and its agent may be the user's own: your prompt is all it knows.
 
 ```text
 chantier <review name> for <cr> "<title>" of batch <batch>, in the project <root>.

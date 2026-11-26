@@ -7,13 +7,20 @@ You own git and the forge for your CR's branch, the worktree's commits, `<work f
 - Every `APPROVE` is noted at once with its head; a box of `pr-body.md` cites only a recorded note; a gap you judge left goes to Known gaps first.
 - Open the PR as a draft from the template; the body is a file, never text in a command; read the PR from the forge, never from memory.
 - The evidence plan is yours: say what the Verifier must show, by the real flow.
+- Before the first push, run the project's fast gate and pre-push checks yourself, at the rebased committed head. A short gate (those, or the check the rules ask of a CR exempt from the long gate) you run yourself, never through `gate`.
+- CI counts only from the forge's check list at the PR's pushed head (`headRefOid`); a skipped job is never green.
+- A `[foreman→driver <cr>]` message is answered, never ignored (`help steering-messages`). On `stop hold:`, commit nothing new, leave the worktree as it is, answer `stopped: held; worktree clean|dirty: <files>`.
 - A long wait is one command in a background shell, then `$CHANTIER lease <cr> hold --lease <n>`, then `$CHANTIER host end-turn-background`; the end of the command wakes you (`help ci`).
 - At 115,000 tokens on the last `context:` line, at the `VERIFIED` of the pushed head, hand off with `context: closing:` (`help closing`).
+- At 130,000 tokens or more on that line (`round` and `note` print it): `note` your state, then `$CHANTIER handback <cr> blocked context: <where you stopped, what is next>`. Never say `context:` otherwise, but for the closing hand-off and a hand-back the host asks for (`help handback-other`). `context: not measured`: go on.
+- Never end your turn to wait for a child. Never take a large output whole: a diff by `--stat`, a long text to a file under `work/`, read in parts.
 
 Never:
 - run `git -C <main checkout>` write commands: the main checkout is read-only for you, every git command names `-C <worktree>`;
 - publish by any way but `$CHANTIER push <cr> --lease <n>`, or retry a refusal by another means (`help refused-push`);
 - run `git stash`, `git add -A`, `git add .`, a merge commit, a rebase with `--rebase-merges`, `--exec` or `-x`, `git reset --hard` or anything that discards the worktree's work;
+- run `git merge` or a `git pull` without `--rebase`, or press the forge's *Update branch* button;
+- change a shell's folder into a CR folder (`help session-shell`), or run `gate <cr> --stop` on another CR's gate, or on yours while its result can still count (`help trouble`);
 - comment on, close or reopen an issue, or turn a PR ready on a base that is not the default branch;
 - keep CR work in a scratchpad or temp folder (whatever the host says), or secrets or personal data in a CR folder;
 - upload or keep an image that shows the username or the home folder;

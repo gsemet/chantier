@@ -1,6 +1,7 @@
 """A role's start reading is its brief: the card `roles.yaml` names for it first, and its bytes at
-or below the figure measured on the swapped cards (CR-510). The paths of the run are counted as one
-byte each, so the figures hold on every machine."""
+or below the figure measured on the swapped cards (CR-510), raised for the Drivers and the Foreman
+by the rules CR-511 restored. The paths of the run are counted as one byte each, so the figures
+hold on every machine."""
 
 from __future__ import annotations
 
@@ -12,10 +13,10 @@ from test_brief import NAMES, ROLES, _run, _world
 
 # role -> the brief's bytes on the claude host, rounded up to the next 100
 BRIEF_BYTES: dict[str, int] = {
-    "cr-driver": 9_900,
-    "release-driver": 9_600,
-    "stack-driver": 9_200,
-    "qa-driver": 6_100,
+    "cr-driver": 11_100,
+    "release-driver": 10_500,
+    "stack-driver": 10_300,
+    "qa-driver": 6_300,
     "coder": 4_000,
     "conflict-resolver": 3_900,
     "debugger": 3_700,
@@ -29,7 +30,7 @@ BRIEF_BYTES: dict[str, int] = {
     "demo-explorer": 2_800,
     "chief-of-staff": 24_400,
     "griller": 6_500,
-    "foreman": 22_200,
+    "foreman": 22_600,
 }
 
 

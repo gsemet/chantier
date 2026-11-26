@@ -1,0 +1,330 @@
+id	kind	reason
+W-010	b	inferable: no quiz case names it
+W-025	b	inferable: no quiz case names it
+W-047	b	inferable: no quiz case names it
+W-085	b	inferable: no quiz case names it
+W-117	b	inferable: no quiz case names it
+W-144	b	inferable: no quiz case names it
+W-157	b	inferable: no quiz case names it
+W-200	b	inferable: no quiz case names it
+W-206	b	inferable: no quiz case names it
+W-220	b	inferable: no quiz case names it
+W-243	b	inferable: no quiz case names it
+W-254	b	inferable: no quiz case names it
+W-263	b	inferable: no quiz case names it
+W-271	b	inferable: no quiz case names it
+W-292	b	inferable: no quiz case names it
+W-307	b	inferable: no quiz case names it
+W-323	e	no home found at the head; seed: card verifier.md (Cite the gate pass by its log's first line and `handoff`); refusal: `handback` without a gate pass
+W-362	e	inferable: no quiz case names it
+D-009	b	inferable: no quiz case names it
+D-010	a	reading discipline, no effect a refusal does not catch; not serious
+D-011	a	token economy of reading, topics only; not serious
+D-012	a	token economy of reading, topics only; not serious
+D-013	a	token economy of reading, topics only; not serious
+D-016	a	worker replies and outputs, topics only; not serious
+D-018	a	worker model as printed, concepts.md only; floor 3 forbids a look-alike; not serious
+D-019	a	worker replies and outputs, topics only; not serious
+D-020	a	worker replies and outputs, topics only; not serious
+D-021	a	the worker prompt lines, concepts.md only; `brief` and `take` print them; not serious
+D-025	a	raw-log place, topic cr-prompt only; not serious
+D-031	a	section pointer, its rules in topic handback-other; not serious
+D-036	a	background tasks: the card's end line stops them; not serious
+D-037	a	background tasks: the card's end line stops them; not serious
+D-039	a	output economy of git listings, topic only; not serious
+D-040	a	rebase-first order, topic cr-ship; floor 10 holds the process rule; not serious
+D-053	a	CI procedure, topics; the card holds what makes CI green; not serious
+D-054	a	CI procedure, topics; the card holds what makes CI green; not serious
+D-056	a	CI procedure, topics; the card holds what makes CI green; not serious
+D-058	a	commit message style, topic cr-ship only; not serious
+D-064	a	hand-back reasons and closing steps, topics; `handback` refuses; not serious
+D-065	a	wait types, refused hand-backs: CLI, topic handback-other; not serious
+D-066	a	round and ship order, topics; `ship` and `handback` refuse; not serious
+D-068	a	round and ship order, topics; `ship` and `handback` refuse; not serious
+D-070	a	hand-back reasons and closing steps, topics; `handback` refuses; not serious
+D-078	a	restack reading order, topic stack-restack; `ship` refuses a break; not serious
+D-080	a	restack reading order, topic stack-restack; `ship` refuses a break; not serious
+D-090	a	release notes choice, topic release-notes only; not serious
+P-002	a	lease renewal, held by the CLI's commands and topic lease; not serious
+P-003	a	checkpoint message, topic checkpoints only; not serious
+P-006	a	pointer to the re-take notes, topic restart; not serious
+P-007	a	re-take inside a stack, topic retake-stack only; not serious
+P-008	a	matrix probe, topic matrix only; not serious
+P-010	a	remote failures, topic trouble-remote only; not serious
+P-013	a	carry and conflict, topic conflicts only; not serious
+P-014	a	unusual hand-backs, topic handback-other only; not serious
+FM-005	e	no home found at the head; seed: card foreman.md:6
+FM-010	e	no home found at the head; seed: card foreman.md:3
+FM-012	e	no home found at the head; seed: card foreman.md:3
+FM-034	f	pointer to a removed old reading, no single head home; not serious
+FM-035	e	pointer to a removed old reading, no single head home; not serious
+FM-046	e	pointer to a removed old reading, no single head home; not serious
+FM-047	e	pointer to a removed old reading, no single head home; not serious
+FM-048	e	pointer to a removed old reading, no single head home; not serious
+FM-050	b	inferable: no quiz case names it
+FM-062	e	superseded: `brief` writes the whole Driver prompt (CR-510); not serious
+FM-064	e	no home found at the head; seed: card foreman.md:13 ("copy whole the prompt"); card concepts.md:105
+FM-101	e	no home found at the head; seed: card foreman.md:38
+FM-115	b	inferable: no quiz case names it
+FM-129	b	inferable: no quiz case names it
+FM-163	f	pointer to a removed old reading, no single head home; not serious
+FM-B012	d	dropped (unproved bookkeeping, kind d; no host row holds it)
+FM-B017	d	dropped (unproved bookkeeping, kind d; no host row holds it)
+FM-B039	b	inferable: no quiz case names it
+FM-B047	b	inferable: no quiz case names it
+FM-168	b	inferable: no quiz case names it
+FM-263	b	inferable: no quiz case names it
+FM-264	b	inferable: no quiz case names it
+FM-291	b	inferable: no quiz case names it
+FM-292	b	inferable: no quiz case names it
+FM-312	b	inferable: no quiz case names it
+FM-313	b	inferable: no quiz case names it
+FM-315	b	inferable: no quiz case names it
+FM-316	b	inferable: no quiz case names it
+FM-334	b	inferable: no quiz case names it
+FM-335	b	inferable: no quiz case names it
+FM-349	b	inferable: no quiz case names it
+FM-393	b	inferable: no quiz case names it
+FM-404	e	no home found at the head; seed: topic lost-driver
+FM-436	b	inferable: no quiz case names it
+FM-486	b	inferable: no quiz case names it
+FM-489	d	host row (Copilot reference: `hosts/copilot.md`)
+FM-492	b	inferable: no quiz case names it
+FM-552	e	no home found at the head; seed: topic refused-push-route
+FM-577	a	record each refusal once, not in floor or card; not serious
+FM-578	a	record each refusal once, not in floor or card; not serious
+FM-586	a	P10 rebase rule read first, topic only; a miss is a host refusal
+FM-595	a	record each refusal once, not in floor or card; not serious
+C-003	e	no home found at the head; seed: card chief-of-staff.md:22
+C-008	b	inferable: no quiz case names it
+C-010	b	inferable: no quiz case names it
+C-011	e	no home found at the head; seed: topic first-turn
+C-014	e	no home found at the head; seed: topic batch-plan
+C-023	e	no home found at the head; seed: topic watcher; no rule: an entry-point table row
+C-024	e	no home found at the head; seed: topic pr-template-own
+C-027	e	no home found at the head; seed: topic config; the rule it applies: card chief-of-staff.md:13
+C-034	e	no home found at the head; seed: topic board-restart; no rule: a fact about the CLI, the host or the forge
+C-046	b	inferable: no quiz case names it
+C-098	e	host row; no rule: wording of a message or report
+C-154	e	no home found at the head; seed: card chief-of-staff.md:41
+C-155	f	pointer to a removed old reading, no single head home; not serious
+C-156	e	no home found at the head; seed: card chief-of-staff.md:41; no rule: a pointer
+C-161	e	no home found at the head; seed: card chief-of-staff.md:35; no rule: a pointer
+C-165	e	no home found at the head; seed: card chief-of-staff.md:35; no rule: a pointer
+C-190	b	inferable: no quiz case names it
+C-255	e	no home found at the head; seed: topic first-turn
+C-286	d	host row (unproved bookkeeping dropped from the topic)
+C-315	e	no home found at the head; seed: topic compacting
+C-345	b	inferable: no quiz case names it
+C-375	b	inferable: no quiz case names it
+C-472	d	host row (unproved bookkeeping dropped from the topic)
+C-495	e	no home found at the head; seed: card chief-of-staff.md:39
+C-625	e	no home found at the head; seed: topic seat; the rule it applies: card chief-of-staff.md:3
+C-643	e	no home found at the head; seed: topic watcher-lines
+C-659	e	no home found at the head; seed: topic watcher-events
+C-669	e	no home found at the head; seed: topic watcher-board; topic watcher-events
+C-697	e	no home found at the head; seed: topic merge-words; the rule it applies: floor 1
+C-748	e	no home found at the head; seed: topic merge-series-stack; no rule: procedure
+C-902	e	no home found at the head; seed: topic direct-mode
+C-1014	e	no home found at the head; seed: topic grill-backlog; the rule it applies: card chief-of-staff.md:26
+C-1027	b	inferable: no quiz case names it
+C-1039	e	no home found at the head; seed: topic grill-surface
+C-1047	e	no home found at the head; seed: topic grill-series
+C-1048	b	inferable: no quiz case names it
+C-1053	e	no home found at the head; seed: topic grill-series
+C-1059	b	inferable: no quiz case names it
+C-1065	e	no home found at the head; seed: topic grill-series; no rule: wording of a message or report
+C-1079	b	inferable: no quiz case names it
+C-1082	b	inferable: no quiz case names it
+C-1084	b	inferable: no quiz case names it
+C-1087	b	inferable: no quiz case names it
+C-1090	b	inferable: no quiz case names it
+C-1095	b	inferable: no quiz case names it
+C-1097	b	inferable: no quiz case names it
+C-1101	b	inferable: no quiz case names it
+C-1105	b	inferable: no quiz case names it
+C-1106	b	inferable: no quiz case names it
+C-1143	e	no home found at the head; seed: topic where-cr-goes
+C-1157	e	no home found at the head; seed: topic grill-backlog
+C-1161	a	ask a pasted image as a file, not in floor or card; floor 8 holds
+C-1164	b	inferable: no quiz case names it
+C-1196	b	inferable: no quiz case names it
+C-1203	b	inferable: no quiz case names it
+C-1238	e	no home found at the head; seed: topic grill-critic-steps
+C-1244	e	no home found at the head; seed: topic grill-series
+C-1254	b	inferable: no quiz case names it
+C-1292	f	duplicate: the card's pointers and `help`
+C-1295	b	inferable: no quiz case names it
+C-1309	e	no home found at the head; seed: topic release-chief-after
+C-1312	e	no home found at the head; seed: topic grill-backlog
+C-1412	b	inferable: no quiz case names it
+C-1413	b	inferable: no quiz case names it
+C-1442	e	no home found at the head; seed: topic allow-rules
+C-1443	e	no home found at the head; seed: topic forge-permissions
+C-1479	b	inferable: no quiz case names it
+C-1542	e	no home found at the head; seed: topic board-lines
+C-1602	e	no home found at the head; seed: card ticket-summary-example.md:1; no rule: the sample's provenance, dropped
+C-1603	e	no home found at the head; seed: card ticket-summary-example.md:3
+C-1606	e	no home found at the head; seed: card ticket-summary-example.md:9
+C-1607	b	inferable: no quiz case names it
+C-1610	b	inferable: no quiz case names it
+C-1613	b	inferable: no quiz case names it
+C-1614	b	inferable: no quiz case names it
+C-1616	b	inferable: no quiz case names it
+C-1617	b	inferable: no quiz case names it
+G-009	e	no home found at the head; seed: topic grill-restate; topic grill-critic-steps
+G-010	b	inferable: no quiz case names it
+G-017	e	no home found at the head; seed: topic first-turn; the rule it applies: card griller-skill.md:5
+G-050	e	no home found at the head; seed: topic titles
+H-001	b	inferable: no quiz case names it
+H-002	b	inferable: no quiz case names it
+H-003	b	inferable: no quiz case names it
+H-004	b	inferable: no quiz case names it
+H-005	b	inferable: no quiz case names it
+H-006	b	inferable: no quiz case names it
+H-007	b	inferable: no quiz case names it
+H-008	b	inferable: no quiz case names it
+H-009	b	inferable: no quiz case names it
+H-010	b	inferable: no quiz case names it
+H-042	e	no home found at the head; seed: card concepts.md:14
+H-050	e	no home found at the head; seed: card concepts.md:41
+H-071	b	inferable: no quiz case names it
+H-075	b	inferable: no quiz case names it
+H-076	b	inferable: no quiz case names it
+H-077	b	inferable: no quiz case names it
+H-081	b	inferable: no quiz case names it
+H-090	b	inferable: no quiz case names it
+H-111	e	no home found at the head; seed: card concepts.md:43
+H-113	e	a remark on the old text, no single head home; not serious
+H-115	b	no home found at the head; seed: card concepts.md:55
+H-145	e	no home found at the head; seed: topic stack-grows
+H-201	b	inferable: no quiz case names it
+H-207	b	inferable: no quiz case names it
+H-223	e	no home found at the head; seed: topic release-ship
+H-243	b	inferable: no quiz case names it
+H-301	a	work without a missing skill or tool, in concepts.md and worker-shell; not serious
+H-304	e	no home found at the head; seed: card concepts.md:87
+H-305	e	superseded: `brief` writes a worker's prompt (CR-510); not serious
+H-313	e	no home found at the head; seed: card concepts.md:99
+H-314	b	inferable: no quiz case names it
+H-315	e	no home found at the head; seed: card concepts.md:107
+H-318	e	no home found at the head; seed: card concepts.md:107
+H-320	b	inferable: no quiz case names it
+H-330	e	no home found at the head; seed: card concepts.md:119
+H-331	e	no home found at the head; seed: card concepts.md:119
+H-356	e	no home found at the head; seed: card concepts.md:129
+H-357	e	no home found at the head; seed: card concepts.md:129
+H-373	a	model escalation wording, concepts.md only; floor 3 forbids a look-alike; not serious
+H-379	e	no home found at the head; seed: card concepts.md:140
+H-387	b	inferable: no quiz case names it
+H-401	b	inferable: no quiz case names it
+H-402	a	work without a missing skill or tool, in concepts.md and worker-shell; not serious
+H-433	b	inferable: no quiz case names it
+H-440	b	inferable: no quiz case names it
+H-441	b	inferable: no quiz case names it
+H-446	b	inferable: no quiz case names it
+H-449	c	no home found at the head; seed: topic session-shell
+H-459	e	no home found at the head; seed: card pr-template.md:12
+H-470	e	no home found at the head; seed: card pr-template.md:15
+H-473	e	no home found at the head; seed: card pr-template.md:16
+H-491	e	no home found at the head; seed: card pr-template.md:20
+H-503	e	no home found at the head; seed: card pr-template.md:22
+H-507	e	no home found at the head; seed: card pr-template.md:22
+H-527	b	inferable: no quiz case names it
+H-528	b	inferable: no quiz case names it
+H-581	e	no home found at the head; seed: card release-template.md:44
+H-582	e	no home found at the head; seed: card release-template.md:45
+H-584	e	no home found at the head; seed: card release-template.md:46
+H-706	a	the sync-pending report item, topic only; the offer still asks a yes; not serious
+H-750	e	no home found at the head; seed: topic compacting
+H-833	a	init's forge-tool recommendation, topic only; not serious
+H-848	e	no home found at the head; seed: card review-step.md:3
+H-850	b	inferable: no quiz case names it
+H-853	b	inferable: no quiz case names it
+H-854	b	inferable: no quiz case names it
+H-855	a	held at review-step.md, the added review step's card, not a roles.yaml card; not serious
+H-856	a	held at review-step.md, the added review step's card, not a roles.yaml card; not serious
+H-858	b	inferable: no quiz case names it
+H-860	a	held at review-step.md, the added review step's card, not a roles.yaml card; not serious
+H-863	a	held at review-step.md, the added review step's card, not a roles.yaml card; not serious
+H-864	a	held at review-step.md, the added review step's card, not a roles.yaml card; not serious
+H-865	a	held at review-step.md, the added review step's card, not a roles.yaml card; not serious
+H-878	e	no home found at the head; seed: card review-step.md:9
+H-881	b	inferable: no quiz case names it
+H-885	e	no home found at the head; seed: card review-step.md:17
+H-889	b	inferable: no quiz case names it
+H-895	a	held at sync-checkout.md and topic sync-offer-p1, not a role card; not serious
+H-897	a	held at sync-checkout.md and topic sync-offer-p1, not a role card; not serious
+H-899	a	held at sync-checkout.md and topic sync-offer-p1, not a role card; not serious
+H-905	a	held at sync-checkout.md and topic sync-offer-p1, not a role card; not serious
+H-907	a	held at sync-checkout.md and topic sync-offer-p1, not a role card; not serious
+H-929	b	inferable: no quiz case names it
+H-930	b	inferable: no quiz case names it
+H-931	b	inferable: no quiz case names it
+H-932	b	inferable: no quiz case names it
+H-938	b	inferable: no quiz case names it
+H-1002	e	no home found at the head; seed: topic host-auto-fix
+H-1006	b	inferable: no quiz case names it
+H-1010	b	inferable: no quiz case names it
+H-1011	e	no home found at the head; seed: topic host-auto-fix
+H-1014	b	inferable: no quiz case names it
+H-1015	d	no home found at the head; seed: topic host-auto-fix
+H-1025	e	no home found at the head; seed: topic host-turn-end
+H-1033	e	no home found at the head; seed: topic host-turn-end
+H-1070	b	inferable: no quiz case names it
+H-1071	b	inferable: no quiz case names it
+H-1073	b	inferable: no quiz case names it
+H-1080	b	inferable: no quiz case names it
+H-1105	e	no home found at the head; seed: card hosts/claude-code.md:24
+H-1120	e	no home found at the head; seed: card hosts/claude-code.md:39
+H-1123	e	no home found at the head; seed: card hosts/claude-code.md:42
+H-1124	e	no home found at the head; seed: card hosts/claude-code.md:43
+H-1129	e	no home found at the head; seed: card hosts/claude-code.md:48
+H-1130	e	no home found at the head; seed: card hosts/claude-code.md:49
+H-1131	e	no home found at the head; seed: card hosts/claude-code.md:50
+H-1134	e	no home found at the head; seed: card hosts/claude-code.md:53
+H-1175	b	inferable: no quiz case names it
+H-1181	d	no home found at the head; seed: topic host-refused
+H-1187	e	no home found at the head; seed: topic host-auto-mode
+H-1215	e	no home found at the head; seed: topic host-auto-mode-trials
+H-1233	d	no home found at the head; seed: topic host-auto-mode-trials; no rule: a measurement, not carried
+H-1252	b	inferable: no quiz case names it
+H-1254	d	no home found at the head; seed: topic host-compact
+H-1260	b	inferable: no quiz case names it
+H-1265	e	no home found at the head; seed: topic host-compact
+H-1285	b	inferable: no quiz case names it
+H-1293	b	inferable: no quiz case names it
+H-1295	e	no home found at the head; seed: topic host-sessions
+H-1340	e	no home found at the head; seed: topic host-surfaces
+H-1341	e	no home found at the head; seed: topic host-surfaces
+H-1344	e	no home found at the head; seed: topic host-surfaces
+H-1346	e	no home found at the head; seed: topic host-surfaces
+H-1360	a	dropped by sc21-Q1, owner to confirm; the card bars widening a grant; not serious
+H-1391	e	no home found at the head; seed: topic host-for-you
+H-1429	b	inferable: no quiz case names it
+H-1430	e	no home found at the head; seed: topic host-for-you
+H-1437	d	no home found at the head; seed: topic host-allow-add
+H-1453	b	inferable: no quiz case names it
+H-1454	b	inferable: no quiz case names it
+H-1455	b	inferable: no quiz case names it
+H-1456	b	inferable: no quiz case names it
+H-1461	b	inferable: no quiz case names it
+H-1526	d	no home found at the head; seed: topic host-compact
+H-1542	e	no home found at the head; seed: card skills/chantier-SKILL.md:23
+H-1547	b	inferable: no quiz case names it
+H-1549	b	inferable: no quiz case names it
+H-1552	b	inferable: no quiz case names it
+H-1553	b	inferable: no quiz case names it
+H-1554	b	inferable: no quiz case names it
+H-1556	b	inferable: no quiz case names it
+H-1577	a	held in the skill's SKILL.md launch paragraph, not a role card; not serious
+H-1590	b	inferable: no quiz case names it
+H-1612	e	no home found at the head; seed: card skills/chief-of-staff-SKILL.md:35
+H-1621	a	held in the skill's SKILL.md launch paragraph, not a role card; not serious
+H-1641	a	held in the skill's SKILL.md launch paragraph, not a role card; not serious
+H-1649	a	held at skills/status/SKILL.md:19, the status skill's file, not a role card; not serious
+H-1650	b	inferable: no quiz case names it
+H-1737	a	held in the copilot host row; floor 3 forbids a look-alike model; not serious
+X-003	e	topic cr-workers
+X-006	e	topic stack-record
+X-008	e	pointer to a removed old reading, no single head home; not serious
