@@ -402,8 +402,8 @@ by hand, never in CI or in `just check`, and each model call is spend on your ma
   file that holds it: the new cards pass when no case scores 0 of 3 that scored at least 1 of 3
   before (exit 1 names each; a case with no baseline is new; one absent now is `not run`).
 - **Cases.** One JSON object per file: `id` (the file's stem), `role` (its folder), `rules` (a
-  non-empty list: `floor-1`..`floor-10`, a `J` row of `SCORECARD.md`, a row id of
-  `docs/proofs/cards-inventory.md`, later an `R-nnn` id; several make a grouped case), `situation` (facts only, never the expected behaviour) and `expected`. Every key is
+  non-empty list: `floor-1`..`floor-10`, a `J` row of `SCORECARD.md`,
+  later an `R-nnn` id; several make a grouped case), `situation` (facts only, never the expected behaviour) and `expected`. Every key is
   required and no other is allowed; a bad file exits 2 naming it. The dry run reads them all.
 - **Results.** `--save <label>` writes `results/quiz-<date>-<label>.json` and `.md`: scores, verdicts, short reasons, models
   (`shipped` or `given`), boot bytes, `claude --version` and the spend. No reply and no prompt is saved, and the
