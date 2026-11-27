@@ -1,6 +1,8 @@
 """The profiles file: where `chantier login` keeps a server's address and key for the projects it
 was logged in for. One file, `profiles.json`, in the user's config folder, outside any project;
-nothing else is read or written here."""
+nothing else is read or written here. The same folder also holds `live.json`, the column widths of
+`chantier live`, which `clients/tui/widths.py` reads and writes with the path `commands/live.py`
+passes it."""
 
 from __future__ import annotations
 
@@ -8,7 +10,6 @@ import json
 import os
 import sys
 import tempfile
-from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -41,19 +42,18 @@ class Profiles:
         return ", ".join(sorted(self.items)) or "none"
 
 
-def config_dir(platform: str | None = None, environ: Mapping[str, str] | None = None) -> Path:
+def config_dir() -> Path:
     """The folder of the user's chantier configuration: `$CHANTIER_CONFIG_HOME` as it is, else
-    `%APPDATA%\\chantier` on Windows, else `$XDG_CONFIG_HOME/chantier`, else
-    `~/.config/chantier`."""
-    platform = sys.platform if platform is None else platform
-    env = os.environ if environ is None else environ
-    if env.get(HOME_ENV):
-        return Path(env[HOME_ENV])
-    if platform == "win32" and env.get("APPDATA"):
-        return Path(env["APPDATA"]) / "chantier"
-    if env.get("XDG_CONFIG_HOME") and platform != "win32":
-        return Path(env["XDG_CONFIG_HOME"]) / "chantier"
-    return Path.home() / ".config" / "chantier"
+    `platformdirs`' roaming user configuration folder. On Windows that is `chantier` in the
+    roaming application data folder (`%APPDATA%`, asked of Windows itself, not read from the
+    variable). On macOS it is `~/Library/Application Support/chantier`, elsewhere
+    `~/.config/chantier`; on both, an absolute `XDG_CONFIG_HOME` gives
+    `$XDG_CONFIG_HOME/chantier` instead, and a relative one is ignored."""
+    if home := os.environ.get(HOME_ENV):
+        return Path(home)
+    import platformdirs
+
+    return Path(platformdirs.user_config_dir("chantier", appauthor=False, roaming=True))
 
 
 def path() -> Path:

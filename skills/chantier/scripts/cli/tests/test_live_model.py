@@ -243,7 +243,7 @@ def test_the_footer_says_which_keys_there_are() -> None:
 
 
 class Term:
-    """A stand-in terminal: `cbreak()` recorded, `inkey` scripted."""
+    """A stand-in terminal with no mouse: `cbreak()` recorded, `inkey` scripted."""
 
     def __init__(self, keys: list[Any]) -> None:
         self.log: list[str] = []
@@ -256,6 +256,9 @@ class Term:
             yield
         finally:
             self.log.append("out")
+
+    def does_mouse(self, **_asked: Any) -> bool:
+        return False
 
     def inkey(self, timeout: float) -> Any:
         if not self.keys:

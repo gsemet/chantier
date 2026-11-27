@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import io
 import re
+from pathlib import Path
 
 import pytest
 from live_world import HIGH, NARROW, WIDE, fed, journal, keyed, numbered, watching
@@ -164,6 +165,56 @@ def test_a_narrower_screen_closes_the_columns_up_before_the_left_one_goes(  # no
     text = _plain(watching(case), view, width)
     assert _columns(text) == (left, project, who, event)
     assert (" Projects " in text) is bool(left)
+
+
+@pytest.mark.parametrize(
+    ("case", "kept", "width", "drawn"),
+    [  # `drawn`: (left, right, Project, Who)
+        ("one", (42, 44), 200, (42, 44, None, 15)),  # the defaults
+        ("one", (42, 60), 157, (42, 60, None, 15)),
+        ("one", (42, 60), 150, (42, 53, None, 15)),  # the right column gives way first, to 44
+        ("one", (42, 60), 141, (42, 44, None, 15)),
+        ("one", (42, 60), 127, (28, 44, None, 15)),  # then the left one, then Who
+        ("one", (42, 60), 122, (28, 44, None, 10)),
+        ("one", (22, 30), 200, (22, 30, None, 15)),  # kept under the floors: never widened
+        ("one", (22, 30), 107, (22, 30, None, 15)),  # nor narrowed
+        ("one", (22, 30), 102, (22, 30, None, 10)),
+        ("one", (22, 30), 101, (0, 30, None, 15)),
+        # no left column: Who takes back first, then the right column, up to its kept width
+        ("one", (42, 70), 98, (0, 44, None, 14)),
+        ("one", (42, 70), 99, (0, 44, None, 15)),
+        ("one", (42, 70), 100, (0, 45, None, 15)),
+        ("one", (42, 70), 121, (0, 66, None, 15)),
+        ("one", (42, 60), 121, (0, 60, None, 15)),
+        # several projects: Who, then Project close up before a left column kept at 22 goes
+        ("projects", (22, 30), 123, (22, 30, 20, 10)),
+        ("projects", (22, 30), 113, (22, 30, 10, 10)),
+        ("projects", (22, 30), 112, (0, 30, 20, 15)),
+        ("boards", (22, 30), 115, (22, 30, 12, 10)),
+        ("boards", (22, 30), 114, (0, 30, 22, 15)),
+        # no left column: Project is back at its default, then Who, before the right column
+        # widens past 44
+        ("projects", (42, 70), 115, (0, 44, 20, 10)),
+        ("projects", (42, 70), 120, (0, 44, 20, 15)),
+        ("projects", (42, 70), 121, (0, 45, 20, 15)),
+        ("projects", (42, 50), 130, (0, 50, 20, 15)),
+    ],
+)
+def test_a_narrow_terminal_draws_the_kept_widths_narrower_and_writes_nothing(
+    case: str,
+    kept: tuple[int, int],
+    width: int,
+    drawn: tuple[int, int, int | None, int],
+    tmp_path: Path,
+) -> None:
+    view = View()
+    view.left, view.right = kept
+    view.file = tmp_path / "live.json"
+    text = _plain(watching(case), view, width)
+    left, project, who, _ = _columns(text)
+    top = next(x for x in text.splitlines() if FLOW_BOX in x)
+    assert (left, width - top.index("╭─ Ready"), project, who) == drawn
+    assert (view.left, view.right) == kept and not view.file.exists()
 
 
 @pytest.mark.parametrize(("width", "left"), [(122, 28), (121, 0)])

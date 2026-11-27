@@ -1,6 +1,6 @@
 """The drawing of `chantier live`: one function from the models (one per board) and a size to a Rich
 renderable, and the loop that redraws it once a second, so the lease times count down between
-events, and reads the keys. Rich and `blessed` load here, when `live` runs.
+events, and reads the keys and the mouse. Rich and `blessed` load here, when `live` runs.
 
 A header (the board or boards, the transport, the link's state, the server's time with its UTC
 offset and the four counts), a left column (projects, agents), the flow in the centre (newest
@@ -11,13 +11,14 @@ it only, `m` maximizes it over the whole body. The Flow's `Ago` column is as wid
 time drawn (3 to 8 columns) and right-aligned. Text is only cut with `…`, never wrapped; no colour
 carries a meaning alone (each state has its word).
 
-The left column is 42 wide, the Flow's `Who` 15 and its `Project` (with several projects watched)
-20, plus 2 for the board's label with several boards. A narrower screen closes up in this order, so
-that the Flow's `Event` keeps 20 columns: the left column down to 28, then `Who` down to 10, then
-`Project` down to 10. When even that does not fit, the left column is not drawn, and `Project`,
-then `Who`, take back what leaves `Event` its 20; so does a maximized Flow, which spans the body.
-The `Time` column's width counts in both modes, so `t` never hides the left column. Ready and Tasks
-never shrink (`widths.py`)."""
+The widths of the left and right columns and of the Flow's `Project` and `Who`, and how a narrow
+screen closes them up, are `widths.py`'s. The `Time` column's width counts in both modes, so `t`
+never hides the left column.
+
+The mouse is turned on just after the first screen, when the terminal handles it, and off before
+the screen is given back: a drag of a border between two columns sizes the left or the right one,
+the width kept in `live.json`, and the wheel scrolls the active panel (`mouse.py`). While it is on,
+the footer and the help say what it does."""
 
 from __future__ import annotations
 
@@ -28,15 +29,11 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from chantier.clients.tui.boxes import project_lines, projects_table, tasks
-from chantier.clients.tui.model import (
-    LATE,
-    Model,
-    merged,
-)
+from chantier.clients.tui import mouse
+from chantier.clients.tui.boxes import agents_table, project_lines, projects_table, tasks
+from chantier.clients.tui.model import Model, merged
 from chantier.clients.tui.parts import (
     COUNT_COLOURS,
-    RIGHT_W,
     STATE_COLOURS,
     dim,
     grid,
@@ -47,7 +44,7 @@ from chantier.clients.tui.parts import (
 )
 from chantier.clients.tui.ready import ready, ready_rows
 from chantier.clients.tui.times import since
-from chantier.clients.tui.view import HELP, View
+from chantier.clients.tui.view import HELP, MOUSE_FOOTER, MOUSE_HELP, View
 from chantier.clients.tui.widths import TIME_W, Widths, column_widths
 
 CR_W = 9
@@ -130,27 +127,6 @@ def header(models: Model | list[Model]) -> Any:
     return text
 
 
-def agent_lines(models: list[Model]) -> list[str]:
-    """The Agents box's lines: each project's sessions (with its name when several are watched)."""
-    several = len(watched(models)) > 1
-    found = [(m.named(project), text) for m in models for project, text in m.agents()]
-    return [f"{project} {text}" if several else text for project, text in found]
-
-
-def agents_table(models: list[Model], view: View | None = None, rows: int | None = None) -> Any:
-    from rich.text import Text
-
-    t = grid(None)
-    lines = (view or View()).page("agents", agent_lines(models) or ["none"], rows)
-    for line in lines:
-        late = line.endswith(LATE)
-        text = Text(line[: -len(LATE)] if late else line, no_wrap=True, overflow="ellipsis")
-        if late:
-            text.append(LATE, style=f"bold {STATE_COLOURS['blocked']}")
-        t.add_row(text)
-    return t
-
-
 def flow(models: Model | list[Model], rows: int, view: View | None, widths: Widths) -> Any:
     """The window of the lines the view gives (the newest first; the newest lines while it
     follows live): time (or time since, as wide as its widest text and right-aligned), project
@@ -188,9 +164,6 @@ def tasks_height(models: list[Model]) -> int:
     return 2 * working + blocked or 1
 
 
-# Ready
-
-
 def footer(models: Model | list[Model], view: View | None = None) -> Any:
     from rich.text import Text
 
@@ -203,12 +176,14 @@ def footer(models: Model | list[Model], view: View | None = None) -> Any:
     more = [m.named(p) for m in models for p in m.not_watched()]
     if more:
         text += f"   {len(more)} more projects not watched: {', '.join(more)}"
+    if view.tracking:  # last, so that a narrow footer cuts them first
+        text += f"   {MOUSE_FOOTER}"
     return Text(text, no_wrap=True, overflow="ellipsis")
 
 
-def _help_panel() -> Any:
+def _help_panel(view: View) -> Any:
     t = grid(14, None)
-    for key, effect in HELP:
+    for key, effect in HELP + (MOUSE_HELP if view.tracking else ()):
         t.add_row(key, effect)
     t.add_row("", "")
     t.add_row("", "any key closes this help")
@@ -225,7 +200,7 @@ def _plan(
 ) -> tuple[list[str], dict[str, int], int, int]:
     """The panels drawn at this width, the lines each shows, and the two heights the layout gives
     (Ready's box, Projects' box)."""
-    drawn = ["projects", "agents"] if column_widths(models, width).left else []
+    drawn = ["projects", "agents"] if column_widths(models, width, view).left else []
     drawn += ["flow", "ready", "tasks"]
     total = body_height(models, height)
     half = total // 2
@@ -249,7 +224,8 @@ def _plan(
 def _maximized(models: list[Model], width: int, rows: dict[str, int], view: View) -> Any:
     """The active panel alone, over the whole body."""
     if view.active == "flow":
-        return flow(models, rows["flow"], view, column_widths(models, width, maximized=True))
+        widths = column_widths(models, width, view, maximized=True)
+        return flow(models, rows["flow"], view, widths)
     if view.active == "ready":
         return ready(models, view, width, rows["ready"])
     if view.active == "tasks":
@@ -279,18 +255,18 @@ def render(
     drawn, rows, ready_h, projects_h = _plan(models, width, height, view)
     view.settle(drawn)
     if view.help:
-        root["body"].update(_help_panel())
+        root["body"].update(_help_panel(view))
         return root
     if view.maximized:
         root["body"].update(_maximized(models, width, rows, view))
         view.moves.clear()
         return root
-    right = Layout(size=RIGHT_W)
+    widths = column_widths(models, width, view)
+    right = Layout(size=widths.right)
     right.split_column(
-        Layout(ready(models, view, RIGHT_W, rows["ready"]), size=ready_h),
+        Layout(ready(models, view, widths.right, rows["ready"]), size=ready_h),
         Layout(tasks(models, view, rows["tasks"])),
     )
-    widths = column_widths(models, width)
     columns = [Layout(flow(models, rows["flow"], view, widths)), right]
     if widths.left:
         column = Layout(size=widths.left)
@@ -352,6 +328,16 @@ def key_name(key: Any) -> str:
     return text if len(text) == 1 and text.isprintable() else ""
 
 
+def _event(models: list[Model], view: View, key: Any, size: tuple[int, int]) -> tuple[bool, bool]:
+    """One keystroke, a key or a mouse event, on a screen of this size (columns, lines): whether
+    the screen should quit, and whether what is drawn changes."""
+    if name := key_name(key):
+        return view.press(name), True
+    width, height = size
+    body = range(header_height(models), height - FOOTER_H)
+    return False, mouse.handle(models, view, key, width, body)
+
+
 def run(  # noqa: PLR0913, PLR0917 - the arguments the loop is given
     models: list[Model],
     view: View,
@@ -360,11 +346,10 @@ def run(  # noqa: PLR0913, PLR0917 - the arguments the loop is given
     term: Any = None,
     console: Any = None,
 ) -> None:
-    """Redraw the screen once a second until `alive` is false, `q` or Ctrl-C (an interrupt the
-    caller handles); a key redraws at once. The terminal (`cbreak`, then Rich's alternate screen)
-    is given back on every way out. With no `term` and a stdin that is not a terminal there are no
-    keys and the loop sleeps; `term` is a `blessed.Terminal` or a stand-in with `cbreak()` and
-    `inkey(timeout)`."""
+    """Redraw once a second until `alive` is false, `q` or Ctrl-C (an interrupt the caller
+    handles); a key, or a mouse event that changes the screen, redraws at once. Every way out gives
+    the terminal back. With no `term` and no terminal on stdin there are no keys; `term` is a
+    `blessed.Terminal` or a stand-in (`cbreak`, `inkey`, `does_mouse`, `mouse_enabled`)."""
     from rich.console import Console
     from rich.live import Live
 
@@ -386,15 +371,20 @@ def run(  # noqa: PLR0913, PLR0917 - the arguments the loop is given
                 time.sleep(REDRAW_S)
                 live.update(frame(), refresh=True)
                 continue
-            name = key_name(term.inkey(timeout=max(0.0, next_at - time.monotonic())))
-            if name and view.press(name):
+            key = term.inkey(timeout=max(0.0, next_at - time.monotonic()))
+            with lock:
+                quits, changed = _event(models, view, key, console.size)
+            if quits:
                 return
             now = time.monotonic()
-            if name or now >= next_at:
+            if changed or now >= next_at:
                 live.update(frame(), refresh=True)
                 if now >= next_at:
                     next_at = now + REDRAW_S
 
-    keyed = term.cbreak() if term is not None else contextlib.nullcontext()
-    with keyed, Live(frame(), console=console, screen=True, auto_refresh=False) as live:
+    with (
+        term.cbreak() if term is not None else contextlib.nullcontext(),
+        Live(frame(), console=console, screen=True, auto_refresh=False) as live,
+        mouse.tracked(term, view),  # only now: the first screen is drawn
+    ):
         loop(live)

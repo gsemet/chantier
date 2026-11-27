@@ -25,7 +25,7 @@
   the dev mode, uv's sync of chantier's own checkout's `.venv`, and the project's `chantier.yaml` in an
   external planning surface's project folder, from the board's Configuration page, and a CR's
   cleaned archive in its PR when the project asks for it, and fast-forwards a clean main checkout
-  after a merge it records, and `chantier push` updates a CR's recorded branch on the remote (and the worktree's tracking ref), the surface server keeps its two keys, and the user's profiles (`chantier login`, `logout`), in one file outside any project, `chantier/profiles.json` in the user's config folder (`$CHANTIER_CONFIG_HOME`, else `%APPDATA%` on Windows, else `$XDG_CONFIG_HOME` or `~/.config`), mode 0600; a profile applies only to the projects it was logged in for, and to none served by another surface on this machine, the host CLI that the board's Griller runs keeps its own
+  after a merge it records, and `chantier push` updates a CR's recorded branch on the remote (and the worktree's tracking ref), the surface server keeps its two keys, and the user's profiles (`chantier login`, `logout`), in `chantier/profiles.json` (mode 0600), and `live` keeps the two column widths the user dragged in `chantier/live.json` (the user's default mode, written by `live` only), two files outside any project, in the user's config folder (`$CHANTIER_CONFIG_HOME`, else `platformdirs`' user configuration folder: `%APPDATA%` on Windows, `~/Library/Application Support` on macOS unless an absolute `$XDG_CONFIG_HOME` is set, `$XDG_CONFIG_HOME` or `~/.config` elsewhere); a profile applies only to the projects it was logged in for, and to none served by another surface on this machine, the host CLI that the board's Griller runs keeps its own
   session files, as for any session of the user, and while it serves its PID, address
   and version, and the forge hub's PID, version and last reads, in the repository's git folder
   (`chantier/server.json`, with its write lock `chantier/server.json.lock`; the hub's lock is
@@ -287,10 +287,13 @@
   that file has no draft section, never touching the author's text; it reads no forge, runs no
   git, logs no event and files no point; built on the user's answers simplify-cards-Q9 (M5) and
   Q22 (F14), with no measured cost.
-  `live`: a read-only terminal client of the surface server's published API, shipped in
-  `clients/tui/`; it reads the server only (the recorded one, or the active profile's) (never the planning folder, the forge or git), writes
-  nothing and messages no agent; built on the user's request of 2026-11-20, with no measured
-  cost.
+  `live`: a terminal client of the surface server's published API, read-only toward the server,
+  shipped in `clients/tui/`; it reads the server only (the recorded one, or the active profile's)
+  (never the planning folder, the forge or git), writes one file only, `live.json` in the user's
+  chantier configuration folder (the two column widths the user dragged), on a drag's release and
+  at no other moment, and messages no agent; `--once` reads no `live.json` and writes nothing (it
+  still reads `profiles.json` and `server.json`); built on the user's request of 2026-11-20, with
+  no measured cost.
   The forge calls of the batch's commands, with the user's own `gh` or `glab`, and the network for
   them: `ship` reads the base branch and the draft state of the PR it records, once per call, and
   `take`, `round` and `handoff` read the base branch of a stacked CR's PR (a CR of a `stack`

@@ -19,7 +19,7 @@ browser, phone
 
 ```md
 ⌨️ chantier live
-terminal, reads only
+terminal, reads the server only
 ```
 
 ```md

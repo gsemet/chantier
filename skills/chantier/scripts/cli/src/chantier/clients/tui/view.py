@@ -1,8 +1,14 @@
-"""What the keys of `chantier live` change: a plain object fed with key names, with no Rich, no
-terminal library and no network in it.
+"""What the keys and the mouse of `chantier live` change: a plain object fed with key names, with no
+Rich, no terminal library and no network in it.
 
 Key names: `up`, `down`, `pgup`, `pgdn`, `home`, `end`, `tab`, `btab`, `enter`, `esc`,
 `backspace`, `ctrl-c`, or one printable character. `press` says whether to quit.
+
+The view keeps the widths of the two side columns, read from `live.json` at the start. While mouse
+tracking is on (turned on just after the first screen), the footer and the help say what the mouse
+does: a drag of a border between two columns (`mouse.py`) sizes a side column, and the wheel is the
+`up` and `down` keys. A key press drops a drag under way (its release may never come), so none
+lasts under the help or a maximized panel.
 
 One panel is active (`projects`, `agents`, `flow`, `ready` or `tasks`; the Flow at the start): Tab
 and Shift-Tab move it among the panels the last drawing drew, the scroll keys move it only, and
@@ -14,7 +20,10 @@ top."""
 
 from __future__ import annotations
 
-from typing import Any
+from pathlib import Path
+from typing import Any, NamedTuple
+
+from chantier.clients.tui.parts import LEFT_W, RIGHT_W
 
 PANELS = ("projects", "agents", "flow", "ready", "tasks")
 MARK = "▸ "  # the active panel's title starts with it: no colour carries it alone
@@ -34,11 +43,28 @@ HELP = (
     ("q, Ctrl-C", "quit"),
 )
 MOVES = {"up", "down", "pgup", "pgdn", "home", "end"}
+# the words added while mouse tracking is on: the footer's, and the help's rows
+MOUSE_FOOTER = "drag a border: resize  Shift-drag: select  Ctrl-click: open a PR"
+MOUSE_HELP = (
+    ("Drag a border", "resize the left or the right column (kept for the next start)"),
+    ("Wheel", "the active panel one line up / down"),
+    ("Shift-drag", "select text (Ctrl-click opens a PR link in Ready)"),
+)
+
+
+class Drag(NamedTuple):
+    """A drag of a border under way: the side column it sizes (`left` or `right`), the pointer's
+    column at the press, and the two side widths drawn then and now."""
+
+    side: str
+    x: int
+    start: tuple[int, int]
+    now: tuple[int, int]
 
 
 class View:
     """The active panel, each panel's scroll (the Flow's with the lines that came while paused),
-    the maximized state, the filter and the help."""
+    the maximized state, the filter, the help, the side columns' widths and the mouse."""
 
     def __init__(self) -> None:
         self.keys = False  # a keyboard is attached: the footer names the keys
@@ -54,10 +80,16 @@ class View:
         self.gap = 0  # lines newer than the anchor when it was set
         self.offsets: dict[str, int] = {}  # the first line shown of each panel but the Flow
         self.moves: list[tuple[str, int | None, str]] = []  # (key, page or None, panel)
+        self.left, self.right = LEFT_W, RIGHT_W  # the side columns' kept widths
+        self.file: Path | None = None  # `live.json`, written on a drag's release; None: no write
+        self.tracking = False  # mouse tracking is on
+        self.drag: Drag | None = None
 
     def press(self, name: str, page: int | None = None) -> bool:
-        """Give one key; true when the screen should quit. A `page` of None is the active
-        panel's visible rows at the drawing."""
+        """Give one key; true when the screen should quit. A key drops a drag under way, nothing
+        kept: a terminal that never delivers the release would leave the widths frozen. A `page`
+        of None is the active panel's visible rows at the drawing."""
+        self.drag = None
         if name == "ctrl-c":
             return True
         if self.help:
@@ -67,6 +99,14 @@ class View:
         else:
             return self._command(name, page)
         return False
+
+    def wheel(self, name: str) -> bool:
+        """One line of the wheel, as the `up` or `down` key moves the active panel; nothing, and
+        false, under the help or while a filter is typed. It is no key: a drag goes on."""
+        if self.help or self.typing is not None:
+            return False
+        self._command(name, None)
+        return True
 
     def _command(self, name: str, page: int | None) -> bool:
         if name == "q":

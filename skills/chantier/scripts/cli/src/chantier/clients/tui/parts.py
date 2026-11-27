@@ -6,7 +6,7 @@ from typing import Any
 
 from chantier.clients.tui.model import Model
 
-LEFT_W, RIGHT_W = 42, 44
+LEFT_W, RIGHT_W = 42, 44  # the side columns' widths until a drag sizes them
 
 # the board's state colours: the `--state-<name>` values of `clients/web/css/tokens.css`
 STATE_COLOURS = {

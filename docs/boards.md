@@ -76,9 +76,11 @@ The web board is a small web server, `chantier serve`, for any device. Every vie
 
 ## The live terminal view
 
-`chantier live` watches one to four running boards in the terminal, read-only: the second client
-of [the server's API](server-api.md), beside the web page. It never starts a board, writes nothing
-and messages no agent. Its keys only change what its own screen shows.
+`chantier live` watches one to four running boards in the terminal, read-only toward them: the
+second client of [the server's API](server-api.md), beside the web page. It never starts a board,
+writes nothing but its column widths and messages no agent. Its keys only change what its own
+screen shows; the mouse does the same, and a drag of a column's border also saves that width
+([below](#the-mouse-and-the-column-widths)).
 
 What it shows, redrawn once a second:
 
@@ -87,9 +89,10 @@ What it shows, redrawn once a second:
   with its UTC offset (`2026-11-23 12:26:25 UTC+01:00`), and four counts in the board's colours:
   working, ready (to review), held (blocked), done (merged). Every time on the screen is in the
   local zone;
-- on the left, two rounded boxes. The column is 42 columns wide; on a narrower terminal it
-  shrinks to 28, then the Flow's `Who` and `Project` close up from their defaults to 10, so that
-  `Event` keeps 20 columns, and the left column is drawn only where that fits. Projects: each
+- on the left, two rounded boxes. The column is 42 columns wide by default (a drag changes it); on
+  a narrower terminal it shrinks to 28, then the Flow's `Who` and `Project` close up from their
+  defaults to 10, so that `Event` keeps 20 columns, and the left column is drawn only where that
+  fits. Projects: each
   project watched with its batch and its backlog. Agents: the project's sessions, in this order:
   `Chief of Staff (seat) <title>` (who holds the seat; it says nothing of whether that session
   runs), `Foreman` with its heartbeat (`beat <n> min ago`, followed by `late` in red when it is
@@ -105,16 +108,18 @@ What it shows, redrawn once a second:
   `3 days`. The `Ago` column is as wide as the widest time drawn (3 to 8 columns) and
   right-aligned, and the columns it frees go to `Event`. It starts on the date and time at every
   start. `Who` is 15 columns wide and `Project` 20 (22 with several boards, for the board's label),
-  and `Event` takes the rest. Where `Event` would get under 20 columns, the left column shrinks
-  first, then `Who` down to 10, then `Project` down to 10 (12 with several boards); without the
-  left column, and in the maximized Flow, `Project` then `Who` take back as much as leaves `Event`
-  its 20. These widths are always counted with the date and time column, so `t` never shows or
-  hides the left column;
-- on the right, Ready above Tasks;
+  and `Event` takes the rest. Where `Event` would get under 20 columns, a right column dragged
+  wider than 44 narrows first, down to 44, then the left column shrinks, then `Who` down to 10,
+  then `Project` down to 10 (12 with several boards); without the left column, `Project` then
+  `Who` take back as much as leaves `Event` its 20, then the right column takes back up to its
+  kept width. In the maximized Flow, `Project` then `Who` take back the same way. These widths are
+  always counted with the date and time column, so `t` never shows or hides the left column;
+- on the right, Ready above Tasks, 44 columns wide by default (a drag changes it);
   - Ready is a table (`PR`, `CR`, `State`, `Age`, `Title`) of the CRs the record says are to
     review or to merge, in the batch's merge order, in a running or a paused batch. The PR is `#<n>`
     (`!<n>` for a GitLab MR); where the terminal knows OSC 8 links, the number opens the PR on a
-    click, for an `http(s)` address only. `Age` is the time since the hand-back. The `State` word
+    click (with mouse tracking on, a Ctrl-click in Windows Terminal; other terminals have their own
+    modifier), for an `http(s)` address only. `Age` is the time since the hand-back. The `State` word
     comes from the server's `prs` topic, with the board's colours: `ready to merge` (green),
     `checks running` (amber), `to review` (grey), `draft` (brown), `conflicting`, `checks
     failing` and `closed` (red), `merged, not recorded` (green), and `not read` (grey) when the
@@ -153,7 +158,8 @@ How to start it:
   board's address (never its key).
 - `--once` prints the screen once as plain text (no colour, no link, no control code) and exits,
   once every board has answered: for a script, a test or a bug report. It reads no key and
-  always prints the clock form of the Flow's time. When the forge has not answered the `prs`
+  always prints the clock form of the Flow's time. It reads no `live.json`, writes nothing and
+  draws the default widths. When the forge has not answered the `prs`
   subscription within 10 s, it prints anyway and the Ready rows read `not read`; any other
   missing first answer exits 4. Without it, a stdout that is not a terminal is
   refused. `q` or Ctrl-C leaves the screen.
@@ -176,6 +182,9 @@ Keys:
 | `?` | show the keys over the screen; any key closes them |
 | Esc | clear the filter; leave the help |
 | `q`, Ctrl-C | quit, exit 0 |
+| Drag a border | with mouse tracking on: resize the left or the right column (kept for the next start) |
+| Wheel | with mouse tracking on: the active panel one line up / down |
+| Shift-drag | with mouse tracking on: select text (Ctrl-click opens a PR link in Ready) |
 
 - The scroll keys move the active panel only; each panel keeps its own place when another one
   becomes active. Projects, Agents, Ready and Tasks scroll by line, from their first line to their
@@ -194,8 +203,9 @@ Keys:
   local: nothing more is asked of the server (`--only` watches fewer projects).
 - With no keyboard (the input is not a terminal), there are no keys and the footer reads
   `Ctrl-C to quit`; the screen runs as before.
-- The terminal is given back on every way out (`q`, Ctrl-C, a refused key, an error, SIGTERM on
-  POSIX) but a killed process (SIGKILL, a closed terminal window), which cannot.
+- The terminal is given back, mouse tracking off, on every way out (`q`, Ctrl-C, a refused key,
+  an error, SIGTERM on POSIX) but a killed process (SIGKILL, a closed terminal window), which
+  cannot.
 
 One `--once` capture, on a running batch of a scratch project with a working CR, two CRs to
 review (one ready to merge, one with its checks running) and a held one (140 columns, the zone
@@ -217,3 +227,37 @@ working 1  ready 2  held 1  done 0
 ╰───────────────────────────────────────╯╰─────────────────────────────────────────────────────╯╰──────────────────────────────────────────╯
 Ctrl-C to quit
 ```
+
+### The mouse and the column widths
+
+- `live` turns mouse tracking on just after the first screen is drawn, when the terminal handles
+  it; the keys typed meanwhile are kept. On POSIX the terminal is asked, each question waiting at
+  most 1 second, and one that does not answer in time gets no mouse; on Windows, where the terminal
+  does not answer, the console's own mouse input is used. Apple Terminal gets no mouse.
+- Two borders drag, on any row of the body: the one between the left column and the Flow sizes the
+  left column (at least 20 columns), the one between the Flow and Ready and Tasks sizes the right
+  column (at least 30). Either of the two panel borders drawn there takes the drag. A drag also
+  stops where the Flow would get under its narrowest (`Who` and `Project` at 10, `Event` at 20);
+  on a terminal already narrower than that, a drag can only narrow its column. No drag starts
+  while the help is open or a panel is maximized. Any key pressed during a drag drops it, nothing
+  saved: a terminal that never delivers the release does not leave the widths frozen.
+- The wheel scrolls the active panel one line up or down; it does nothing while the help is open or
+  a filter is typed.
+- While tracking is on, the footer ends with `drag a border: resize  Shift-drag: select
+  Ctrl-click: open a PR` (these words are cut first on a narrow footer) and `?` lists the same.
+  The terminal's own selection then needs Shift, and in Windows Terminal a link opens on a
+  Ctrl-click.
+- The two widths are kept in `live.json`, as `{"left": 42, "right": 44}`, in chantier's user
+  configuration folder: `$CHANTIER_CONFIG_HOME`, else `%APPDATA%\chantier` on Windows,
+  `~/Library/Application Support/chantier` on macOS (unless an absolute `XDG_CONFIG_HOME` is set),
+  else `$XDG_CONFIG_HOME/chantier` or `~/.config/chantier`. It is written only on a drag's
+  release, when the dragged column's width changed: the dragged column's width as drawn, and the
+  other one's kept width. Delete it to get the defaults back.
+- `live` reads it at start, before it connects. A file that cannot be read, is not a JSON object,
+  or holds an unknown key, a value that is not an integer, a `left` under 20 or a `right` under 30,
+  refuses the start (exit 2): `live: <path>: <fault>: fix or delete it`. A write that fails ends
+  `live` with one line naming the file and the error (exit 2).
+- A terminal too narrow for the kept widths draws them narrower, without changing the file; it
+  never narrows a left column kept at 28 or less, nor a right column kept at 44 or less.
+- On a terminal without mouse reporting there are no drags, no wheel keys and no mouse words;
+  the kept widths still apply.
