@@ -369,8 +369,9 @@ does a unit that is not in `UNITS` and a test that does not exist.
   route of the versions before protocol 1 (`/api/autosync`) answers 404 (unit: surface-board);
 - the live terminal view (CR-418): with the real `serve --seat` running over a batch with a working
   CR, `chantier live --once` and `chantier live --once --transport http` each exit 0 with the CR in
-  Tasks, the Agents and Ready boxes drawn, a Flow line's date and time, and `working 1` in the
-  header, the planning folder's git status and `forge-journal.jsonl`
+  Tasks, the Ready box drawn (and, on a screen wide enough for the left column, the Agents box), a
+  Flow line's date and time, and `working 1` in the header, the planning folder's git status and
+  `forge-journal.jsonl`
   unchanged; once the board has stopped, `live --once` exits 4 with `no board runs for this
   surface` (unit: surface-board) (test:
   test_live_link.py::test_live_once_prints_the_working_cr_and_its_lease_and_a_journal_line_comes_once);

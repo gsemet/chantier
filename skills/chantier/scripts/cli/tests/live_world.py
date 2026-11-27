@@ -58,6 +58,19 @@ def fed(clock: list[float]) -> Model:
     return m
 
 
+def watching(case: str) -> list[Model]:
+    """The boards of a case: `one` project, two `projects` of one board, or two `boards`."""
+    if case == "boards":
+        a, b = fed([0.0]), fed([0.0])
+        a.label, b.label = "a", "b"
+        return [a, b]
+    m = fed([0.0])
+    if case == "projects":
+        board = {"version": "0.15.0", "served": "/work/p", "projects": [{"id": "p"}, {"id": "q"}]}
+        m.feed(Event("board", "board", board, NOW))
+    return [m]
+
+
 def drawn(m: Model, width: int) -> str:
     out = io.StringIO()
     screen.plain(m, width, HIGH, out)
