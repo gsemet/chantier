@@ -1,7 +1,10 @@
-"""`chantier live`: one to four running boards watched live in the terminal, read-only, through the
-server's published API (`clients/tui/`). A board is the one recorded as running for this surface or
-project, called on the loopback address, or each `--url`; `live` never starts one and never writes
-`server.json`. It prints through its own console and returns no lines."""
+"""`chantier live`: one to four running boards watched live in the terminal, through the server's
+published API (`clients/tui/`), read-only toward the server. A board is the one recorded as running
+for this surface or project, called on the loopback address, or each `--url`; `live` never starts
+one and never writes `server.json`. The one file it writes is `live.json` in the user's chantier
+configuration folder, the two column widths, on a mouse drag's release; it reads it at its start,
+before it connects, and `--once` does neither. It prints through its own console and returns no
+lines."""
 
 from __future__ import annotations
 
@@ -17,8 +20,10 @@ from typing import Any
 
 from chantier.board.address import loopback_base
 from chantier.board.projects import open_projects
+from chantier.clients import profiles
 from chantier.clients.remote import profile_for
-from chantier.clients.tui import screen
+from chantier.clients.tui import screen, widths
+from chantier.clients.tui.boxes import agent_lines
 from chantier.clients.tui.link import Link
 from chantier.clients.tui.model import Model, merged
 from chantier.clients.tui.ready import ready_height
@@ -92,7 +97,7 @@ def height_for(models: Model | list[Model]) -> int:
     models = [models] if isinstance(models, Model) else models
     box, head = screen.BORDERS, screen.HEADER_ROW
     projects = box + 2 * sum(len(m.watched()) for m in models)
-    agents = box + max(len(screen.agent_lines(models)), 1)
+    agents = box + max(len(agent_lines(models)), 1)
     ready = box + head + ready_height(models)
     tasks = box + head + screen.tasks_height(models)
     flow = box + head + min(len(merged(models)), FLOW_SHOWN)
@@ -238,9 +243,19 @@ def _boards(args: argparse.Namespace) -> tuple[list[tuple[str, str]], bool]:
     return [recorded()], False
 
 
+def _kept_view() -> View:
+    """A view with the column widths `live.json` keeps, which it writes there at a drag's release;
+    a file with a fault is refused."""
+    view = View()
+    view.file = profiles.config_dir() / widths.FILE
+    view.left, view.right = widths.load(view.file)
+    return view
+
+
 def live(args: argparse.Namespace) -> list[Any]:
     if not args.once and not sys.stdout.isatty():
         raise ChantierError(NO_TERMINAL, EXIT_USAGE)
+    view = None if args.once else _kept_view()  # before any connection
     boards, explicit = _boards(args)
     links = [Link(b, k, args.transport, proxies=explicit) for b, k in boards]
     labels = list(LABELS[: len(boards)]) if len(boards) > 1 else [""]
@@ -248,8 +263,8 @@ def live(args: argparse.Namespace) -> list[Any]:
         Model(only=list(args.only), label=label, base=base)
         for (base, _), label in zip(boards, labels, strict=True)
     ]
-    if args.once:
+    if view is None:
         once(links, models)
     else:
-        watch(links, models)
+        watch(links, models, view)
     return []

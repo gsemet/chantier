@@ -1,5 +1,7 @@
-"""`chantier live`'s terminal client: a read-only client of the surface server's published API
-(`docs/server-api.md`), the second one after the web board. Three parts, each tested alone:
+"""`chantier live`'s terminal client: a client of the surface server's published API
+(`docs/server-api.md`), read-only toward the server, the second one after the web board; it writes
+only `live.json`, the column widths, on a drag's release (`widths.py`). Three parts, each tested
+alone:
 `link.py` (the transport: the WebSocket, else the HTTP long-poll), `model.py` (the screen's data,
 fed with each event; no Rich, no network) and `screen.py` (the drawing, with Rich).
 

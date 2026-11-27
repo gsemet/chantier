@@ -11,9 +11,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import platformdirs  # noqa: TID253
 import pytest
 from api_client import call_op
 from conftest import Chantier
+from platformdirs import macos, unix, windows  # noqa: TID253
 from test_board_prs import Board
 
 from chantier.board import cli_run
@@ -84,17 +86,34 @@ def _project(repo: Path) -> str:
     return repo.name
 
 
+MAC_FOLDER = Path.home() / "Library" / "Application Support" / "chantier"
+LINUX_FOLDER = Path.home() / ".config" / "chantier"
+
+
 @pytest.mark.parametrize(
-    ("platform", "environ", "want"),
+    ("rules", "environ", "want"),
     [
-        ("linux", {"CHANTIER_CONFIG_HOME": "/c"}, Path("/c")),
-        ("win32", {"APPDATA": "/a"}, Path("/a/chantier")),
-        ("linux", {"XDG_CONFIG_HOME": "/x"}, Path("/x/chantier")),
-        ("linux", {}, Path.home() / ".config" / "chantier"),
+        (unix.Unix, {"CHANTIER_CONFIG_HOME": "/c", "XDG_CONFIG_HOME": "/x"}, Path("/c")),
+        (windows.Windows, {}, Path("/a/chantier")),
+        (unix.Unix, {"XDG_CONFIG_HOME": "/x"}, Path("/x/chantier")),
+        (unix.Unix, {}, LINUX_FOLDER),
+        (unix.Unix, {"XDG_CONFIG_HOME": "relative"}, LINUX_FOLDER),
+        (macos.MacOS, {}, MAC_FOLDER),
+        (macos.MacOS, {"XDG_CONFIG_HOME": "/x"}, Path("/x/chantier")),
     ],
 )
-def test_the_config_folder(platform: str, environ: dict[str, str], want: Path) -> None:
-    assert store.config_dir(platform, environ) == want
+def test_the_config_folder(
+    monkeypatch: pytest.MonkeyPatch, rules: type, environ: dict[str, str], want: Path
+) -> None:
+    """Each platform's `platformdirs` rules, run here. Windows asks the system for its folder, so
+    the case stands in for that question."""
+    for name in ("CHANTIER_CONFIG_HOME", "XDG_CONFIG_HOME"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in environ.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setattr(platformdirs, "PlatformDirs", rules)
+    monkeypatch.setattr(windows, "get_win_folder", {"CSIDL_APPDATA": "/a"}.__getitem__)
+    assert store.config_dir() == want
 
 
 @pytest.mark.parametrize(

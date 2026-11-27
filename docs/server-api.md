@@ -293,10 +293,12 @@ own with `--ui <folder>`, none with `--ui none`. The shipped client's folder
 
 ## A terminal client
 
-`chantier live` is the API's second client: a read-only terminal view of one to four running boards (the
+`chantier live` is the API's second client: a terminal view of one to four running boards (the
 counts, the projects, the agents, the flow of events, the PRs ready to review or to merge, the
-tasks with their lease time left). It sends `hello`, `sub`, `unsub` and the poll, and nothing else,
-over the WebSocket first and the HTTP long-poll when the WebSocket does not open. Besides `board`,
+tasks with their lease time left), read-only toward them; the one file it writes is its own
+`live.json`, the column widths, on a drag's release. It sends `hello`, `sub`, `unsub` and the
+poll, and nothing else, over the WebSocket first and the HTTP long-poll when the WebSocket does
+not open. Besides `board`,
 `project` and `events`, it watches `prs` for each project with a batch in `4-batch/` (the key
 names the batch); the server's read of the forge for it is the one it makes for the web page, at
 most once every 10 s per project and batch while a client asks, and it may append the same

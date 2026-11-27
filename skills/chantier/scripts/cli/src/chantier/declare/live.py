@@ -5,8 +5,9 @@ from __future__ import annotations
 from chantier.commands.registry import NO_BATCH, Subparsers, add_command
 
 HELP = (
-    "watch a running board live in the terminal, read-only: counts, projects and Drivers, the "
-    "flow of events, the tasks with their lease time left"
+    "watch a running board live in the terminal, read-only toward it: counts, projects and "
+    "Drivers, the flow of events, the tasks with their lease time left; a mouse drag resizes "
+    "the side columns, kept in live.json"
 )
 
 

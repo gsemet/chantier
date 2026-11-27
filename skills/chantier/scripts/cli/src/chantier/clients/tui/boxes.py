@@ -1,11 +1,20 @@
-"""The Projects and Tasks boxes of `chantier live`, each scrolled by the view's offset."""
+"""The Projects, Agents and Tasks boxes of `chantier live`, each scrolled by the view's offset."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from chantier.clients.tui.model import Model
-from chantier.clients.tui.parts import coloured, cr_cell, grid, models_of, panel, table, watched
+from chantier.clients.tui.model import LATE, Model
+from chantier.clients.tui.parts import (
+    STATE_COLOURS,
+    coloured,
+    cr_cell,
+    grid,
+    models_of,
+    panel,
+    table,
+    watched,
+)
 from chantier.clients.tui.times import lease_left
 from chantier.clients.tui.view import View
 
@@ -32,6 +41,27 @@ def projects_table(models: list[Model], view: View | None = None, rows: int | No
     t = grid(None)
     for line in view.page("projects", lines, rows):
         t.add_row(line)
+    return t
+
+
+def agent_lines(models: list[Model]) -> list[str]:
+    """The Agents box's lines: each project's sessions (with its name when several are watched)."""
+    several = len(watched(models)) > 1
+    found = [(m.named(project), text) for m in models for project, text in m.agents()]
+    return [f"{project} {text}" if several else text for project, text in found]
+
+
+def agents_table(models: list[Model], view: View | None = None, rows: int | None = None) -> Any:
+    from rich.text import Text
+
+    t = grid(None)
+    lines = (view or View()).page("agents", agent_lines(models) or ["none"], rows)
+    for line in lines:
+        late = line.endswith(LATE)
+        text = Text(line[: -len(LATE)] if late else line, no_wrap=True, overflow="ellipsis")
+        if late:
+            text.append(LATE, style=f"bold {STATE_COLOURS['blocked']}")
+        t.add_row(text)
     return t
 
 

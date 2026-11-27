@@ -17,7 +17,7 @@
   <text x="40" y="198" font-size="12.5" fill="#475569">browser, phone</text>
   <rect x="24" y="226" width="240" height="62" rx="10" fill="#ffffff" stroke="#64748b" stroke-width="1.8"/>
   <text x="40" y="252" font-size="15" font-weight="700" fill="#0f172a">⌨️ <tspan font-family="ui-monospace, Menlo, monospace" font-size="14">chantier live</tspan></text>
-  <text x="40" y="272" font-size="12.5" fill="#475569">terminal, reads only</text>
+  <text x="40" y="272" font-size="12.5" fill="#475569">terminal, reads the server only</text>
   <rect x="24" y="300" width="240" height="62" rx="10" fill="#ffffff" stroke="#64748b" stroke-width="1.8"/>
   <text x="40" y="326" font-size="15" font-weight="700" fill="#0f172a">🔌 Any API client</text>
   <text x="40" y="346" font-size="12.5" fill="#475569">scripts, other tools</text>
