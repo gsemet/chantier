@@ -87,21 +87,29 @@ What it shows, redrawn once a second:
   with its UTC offset (`2026-11-23 12:26:25 UTC+01:00`), and four counts in the board's colours:
   working, ready (to review), held (blocked), done (merged). Every time on the screen is in the
   local zone;
-- on the left (from 100 columns), two rounded boxes. Projects: each project watched with its
-  batch and its backlog. Agents: the project's sessions, in this order: `Chief of Staff (seat)
-  <title>` (who holds the seat; it says nothing of whether that session runs), `Foreman` with its
-  heartbeat (`beat <n> min ago`, followed by `late` in red when it is more than 5 minutes past the
-  steering wake, or `heartbeat stopped`) while the batch runs under a Foreman, one `Driver <cr>
-  <phase>` per working CR (the phase names the worker the Driver runs), and `Stack driver`. A
-  paused batch lists no Foreman and no Driver. QA drivers are not shown; the server's `project`
-  topic does not carry them;
-- in the centre, the flow, a table (`Time`, `Who`, `Event`): the record's events and the journal's
-  lines of every project watched, newest first (the live end is the top); it keeps the last 2000
-  lines of each board, merged by time. Each line's time reads `MM-DD HH:MM:SS` in the local zone
-  (the year is in the header); the key `t` switches the column to `Ago`, the time since the event,
-  rounded down: `46 s`, `2 min`, `1 h`, `1 day`, `3 days`. The `Ago` column is as wide as the
-  widest time drawn (3 to 8 columns) and right-aligned, and the columns it frees go to `Event`.
-  It starts on the date and time at every start;
+- on the left, two rounded boxes. The column is 42 columns wide; on a narrower terminal it
+  shrinks to 28, then the Flow's `Who` and `Project` close up from their defaults to 10, so that
+  `Event` keeps 20 columns, and the left column is drawn only where that fits. Projects: each
+  project watched with its batch and its backlog. Agents: the project's sessions, in this order:
+  `Chief of Staff (seat) <title>` (who holds the seat; it says nothing of whether that session
+  runs), `Foreman` with its heartbeat (`beat <n> min ago`, followed by `late` in red when it is
+  more than 5 minutes past the steering wake, or `heartbeat stopped`) while the batch runs under a
+  Foreman, one `Driver <cr> <phase>` per working CR (the phase names the worker the Driver runs),
+  and `Stack driver`. A paused batch lists no Foreman and no Driver. QA drivers are not shown; the
+  server's `project` topic does not carry them;
+- in the centre, the flow, a table (`Time`, `Project` when several projects are watched, `Who`,
+  `Event`): the record's events and the journal's lines of every project watched, newest first (the
+  live end is the top); it keeps the last 2000 lines of each board, merged by time. Each line's
+  time reads `MM-DD HH:MM:SS` in the local zone (the year is in the header); the key `t` switches
+  the column to `Ago`, the time since the event, rounded down: `46 s`, `2 min`, `1 h`, `1 day`,
+  `3 days`. The `Ago` column is as wide as the widest time drawn (3 to 8 columns) and
+  right-aligned, and the columns it frees go to `Event`. It starts on the date and time at every
+  start. `Who` is 15 columns wide and `Project` 20 (22 with several boards, for the board's label),
+  and `Event` takes the rest. Where `Event` would get under 20 columns, the left column shrinks
+  first, then `Who` down to 10, then `Project` down to 10 (12 with several boards); without the
+  left column, and in the maximized Flow, `Project` then `Who` take back as much as leaves `Event`
+  its 20. These widths are always counted with the date and time column, so `t` never shows or
+  hides the left column;
 - on the right, Ready above Tasks;
   - Ready is a table (`PR`, `CR`, `State`, `Age`, `Title`) of the CRs the record says are to
     review or to merge, in the batch's merge order, in a running or a paused batch. The PR is `#<n>`
@@ -157,7 +165,7 @@ Keys:
 
 | Key | Effect |
 |---|---|
-| Tab / Shift-Tab | the next / previous panel drawn, wrapping (under 100 columns: Flow, Ready, Tasks) |
+| Tab / Shift-Tab | the next / previous panel drawn, wrapping (without the left column: Flow, Ready, Tasks) |
 | Up / Down | the active panel one line up / down (the Flow: one line newer / older) |
 | PgUp / PgDn | the active panel one page up / down (its own page) |
 | Home | the first line of the active panel (the Flow: the newest, follows live again) |
@@ -190,22 +198,22 @@ Keys:
   POSIX) but a killed process (SIGKILL, a closed terminal window), which cannot.
 
 One `--once` capture, on a running batch of a scratch project with a working CR, two CRs to
-review (one ready to merge, one with its checks running) and a held one (120 columns, the zone
+review (one ready to merge, one with its checks running) and a held one (140 columns, the zone
 Europe/Paris):
 
 ```text
 chantier live  /work/demo  v0.15.1  ws  live  2026-11-23 12:26:25 UTC+01:00
 working 1  ready 2  held 1  done 0
-╭─ Projects ───────────────╮╭─ ▸ Flow ─────────────────────────────────────╮╭─ Ready ──────────────────────────────────╮
-│ demo  batch-01 running … ││ Time           Who        Event              ││ PR  CR     State          Age Title      │
-│   inbox 0 backlog 2      ││ 11-23 12:14:00 foreman    handback CR-102    ││ #13 CR-103 ready to merge 35m Add the a… │
-╰──────────────────────────╯│ 11-23 11:51:00 foreman    handback CR-103    ││ #12 CR-102 checks running 12m Fix the l… │
-╭─ Agents ─────────────────╮│ 11-23 10:02:31 foreman    take CR-101        │╰──────────────────────────────────────────╯
-│ Chief of Staff (seat)  … ││ 11-22 18:40:12 chief-of-… open               │╭─ Tasks ──────────────────────────────────╮
-│ Foreman  beat 3 min ago  ││                                              ││ State   Task                             │
-│ Driver CR-101 coder r1   ││                                              ││ working CR-101  Export the report as CSV │
-│                          ││                                              ││         lease 08:55  round 1/3  coder r1 │
-│                          ││                                              ││ blocked CR-104  Rename the config key    │
-╰──────────────────────────╯╰──────────────────────────────────────────────╯╰──────────────────────────────────────────╯
+╭─ Projects ────────────────────────────╮╭─ ▸ Flow ────────────────────────────────────────────╮╭─ Ready ──────────────────────────────────╮
+│ demo  batch-01 running batch          ││ Time           Who             Event                ││ PR  CR     State          Age Title      │
+│   inbox 0 backlog 2                   ││ 11-23 12:14:00 foreman         handback CR-102      ││ #13 CR-103 ready to merge 35m Add the a… │
+╰───────────────────────────────────────╯│ 11-23 11:51:00 foreman         handback CR-103      ││ #12 CR-102 checks running 12m Fix the l… │
+╭─ Agents ──────────────────────────────╮│ 11-23 10:02:31 foreman         take CR-101          │╰──────────────────────────────────────────╯
+│ Chief of Staff (seat)  Demo, the Chi… ││ 11-22 18:40:12 chief-of-staff  open                 │╭─ Tasks ──────────────────────────────────╮
+│ Foreman  beat 3 min ago               ││                                                     ││ State   Task                             │
+│ Driver CR-101 coder r1                ││                                                     ││ working CR-101  Export the report as CSV │
+│                                       ││                                                     ││         lease 08:55  round 1/3  coder r1 │
+│                                       ││                                                     ││ blocked CR-104  Rename the config key    │
+╰───────────────────────────────────────╯╰─────────────────────────────────────────────────────╯╰──────────────────────────────────────────╯
 Ctrl-C to quit
 ```

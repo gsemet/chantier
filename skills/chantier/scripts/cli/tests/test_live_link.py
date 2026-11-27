@@ -157,8 +157,10 @@ def live(repo_template: Path, tmp_path_factory: pytest.TempPathFactory) -> Itera
 
 @pytest.mark.parametrize("transport", ["ws", "http"])
 def test_live_once_prints_the_working_cr_and_its_lease_and_a_journal_line_comes_once(
-    live: Live, transport: str, capsys: pytest.CaptureFixture[str]
+    live: Live, transport: str, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # the 120 columns printed with no terminal hold no left column for one project: a wider one
+    monkeypatch.setattr(live_command, "ONCE_W", 140)
     assert main(["live", "--once", "--transport", transport]) == 0  # the recorded board
     out = capsys.readouterr().out
     assert "working 1" in out and live.cr in out and LEASE.search(out), out

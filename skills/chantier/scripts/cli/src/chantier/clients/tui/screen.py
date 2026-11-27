@@ -3,13 +3,21 @@ renderable, and the loop that redraws it once a second, so the lease times count
 events, and reads the keys. Rich and `blessed` load here, when `live` runs.
 
 A header (the board or boards, the transport, the link's state, the server's time with its UTC
-offset and the four counts), a left column (projects, agents; not drawn under 100 columns), the
-flow in the centre (newest first, the live end at the top) and, on the right, Ready (the PRs to
-review or to merge) above the tasks. Boxes are rounded; the Flow, Ready and Tasks are tables with
-a header row. One panel is active (its title starts with `▸`, so it reads without colour): Tab
-moves it, the scroll keys move it only, `m` maximizes it over the whole body. The Flow's `Ago`
-column is as wide as the widest time drawn (3 to 8 columns) and right-aligned. Text is only cut
-with `…`, never wrapped; no colour carries a meaning alone (each state has its word)."""
+offset and the four counts), a left column (projects, agents), the flow in the centre (newest
+first, the live end at the top) and, on the right, Ready (the PRs to review or to merge) above the
+tasks. Boxes are rounded; the Flow, Ready and Tasks are tables with a header row. One panel is
+active (its title starts with `▸`, so it reads without colour): Tab moves it, the scroll keys move
+it only, `m` maximizes it over the whole body. The Flow's `Ago` column is as wide as the widest
+time drawn (3 to 8 columns) and right-aligned. Text is only cut with `…`, never wrapped; no colour
+carries a meaning alone (each state has its word).
+
+The left column is 42 wide, the Flow's `Who` 15 and its `Project` (with several projects watched)
+20, plus 2 for the board's label with several boards. A narrower screen closes up in this order, so
+that the Flow's `Event` keeps 20 columns: the left column down to 28, then `Who` down to 10, then
+`Project` down to 10. When even that does not fit, the left column is not drawn, and `Project`,
+then `Who`, take back what leaves `Event` its 20; so does a maximized Flow, which spans the body.
+The `Time` column's width counts in both modes, so `t` never hides the left column. Ready and Tasks
+never shrink (`widths.py`)."""
 
 from __future__ import annotations
 
@@ -28,7 +36,6 @@ from chantier.clients.tui.model import (
 )
 from chantier.clients.tui.parts import (
     COUNT_COLOURS,
-    LEFT_W,
     RIGHT_W,
     STATE_COLOURS,
     dim,
@@ -41,10 +48,9 @@ from chantier.clients.tui.parts import (
 from chantier.clients.tui.ready import ready, ready_rows
 from chantier.clients.tui.times import since
 from chantier.clients.tui.view import HELP, View
+from chantier.clients.tui.widths import TIME_W, Widths, column_widths
 
-NARROW = 100  # under this many columns, no left column
-PROJECT_W, WHO_W, CR_W = 10, 10, 9
-TIME_W = 14
+CR_W = 9
 AGO_MIN, AGO_MAX = 3, 8  # the Flow's `Ago` column: as wide as its widest text, within these
 FOOTER_H, BORDERS, HEADER_ROW = 1, 2, 1
 REDRAW_S = 1.0
@@ -145,13 +151,13 @@ def agents_table(models: list[Model], view: View | None = None, rows: int | None
     return t
 
 
-def flow(models: Model | list[Model], rows: int, view: View | None = None) -> Any:
+def flow(models: Model | list[Model], rows: int, view: View | None, widths: Widths) -> Any:
     """The window of the lines the view gives (the newest first; the newest lines while it
     follows live): time (or time since, as wide as its widest text and right-aligned), project
-    (when several), who, text."""
+    (when several), who, text. `Project` and `Who` are as wide as `widths` says (`column_widths`:
+    `Who` closes up first, then `Project`); the text takes the rest."""
     models, view = models_of(models), view or View()
     several = len(watched(models)) > 1
-    project_w = PROJECT_W + (2 if len(models) > 1 else 0)
     kept = [x for x in merged(models) if x.holds(view.text)]
     shown, title = view.window(kept, rows)
     first = models[0]
@@ -162,10 +168,11 @@ def flow(models: Model | list[Model], rows: int, view: View | None = None) -> An
     else:
         time_head = ("Time", TIME_W)
     right = ("Ago",) if view.ago else ()
+    who = ("Who", widths.who)
     if several:
-        t = table(time_head, ("Project", project_w), ("Who", WHO_W), ("Event", None), right=right)
+        t = table(time_head, ("Project", widths.project), who, ("Event", None), right=right)
     else:
-        t = table(time_head, ("Who", WHO_W), ("Event", None), right=right)
+        t = table(time_head, who, ("Event", None), right=right)
     for line, when in zip(shown, whens, strict=True):
         project = f"{line.board}/{line.project}" if line.board else line.project
         cells = [dim(when), project, dim(line.who), line.text]
@@ -218,7 +225,7 @@ def _plan(
 ) -> tuple[list[str], dict[str, int], int, int]:
     """The panels drawn at this width, the lines each shows, and the two heights the layout gives
     (Ready's box, Projects' box)."""
-    drawn = ["projects", "agents"] if width >= NARROW else []
+    drawn = ["projects", "agents"] if column_widths(models, width).left else []
     drawn += ["flow", "ready", "tasks"]
     total = body_height(models, height)
     half = total // 2
@@ -242,7 +249,7 @@ def _plan(
 def _maximized(models: list[Model], width: int, rows: dict[str, int], view: View) -> Any:
     """The active panel alone, over the whole body."""
     if view.active == "flow":
-        return flow(models, rows["flow"], view)
+        return flow(models, rows["flow"], view, column_widths(models, width, maximized=True))
     if view.active == "ready":
         return ready(models, view, width, rows["ready"])
     if view.active == "tasks":
@@ -283,9 +290,10 @@ def render(
         Layout(ready(models, view, RIGHT_W, rows["ready"]), size=ready_h),
         Layout(tasks(models, view, rows["tasks"])),
     )
-    columns = [Layout(flow(models, rows["flow"], view)), right]
-    if width >= NARROW:
-        column = Layout(size=LEFT_W)
+    widths = column_widths(models, width)
+    columns = [Layout(flow(models, rows["flow"], view, widths)), right]
+    if widths.left:
+        column = Layout(size=widths.left)
         column.split_column(
             Layout(
                 panel(
