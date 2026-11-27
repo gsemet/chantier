@@ -29,7 +29,7 @@ one fault and must be caught by the tool that owns it, naming its criterion:
     setup-prompt       setup's last `prompt` line for each sandbox campaign, and the `set_monitor` rule of the Claude campaigns that open PRs
     behaviour          `behaviour.py` on `kit/behaviour-fixture/` (a child process, `python -I`, the login name `fixtureuser`): the figures of `expected.json`, the regressions against a staged previous file, a record before `--since` not counted, each detector of `detectors.json` matching its positive and not its negative example, the privacy guard refusing a leak (exit 1, no file), and `--prune` printing its candidates and writing nothing
     quiz-cases         the shipped `evals/quiz/` cases load and their `rules` resolve (floor-1..10 or a `J` row of `SCORECARD.md`), the floor table holds its 29 cases, and a prepared broken case (a missing `expected`, an `id` that is not the stem) is refused with exit 2, naming the key
-    quiz-row-id        a case whose `rules` name a row id of `docs/proofs/cards-inventory.md` loads; an id the inventory does not hold is refused with exit 2, naming the file and the key
+    quiz-rule-id       a case whose `rules` name a `J` row of `SCORECARD.md` loads; `X-9999` is refused with exit 2, naming the file and the key
     quiz-staged        `quiz.py` with `run_role`, `run_judge` and the host check replaced by staged functions: each role's boot is `chantier brief`'s (its card, the floor, the facts, the host rows), 2/3 and 0/3 and the role lines, `--save` (no reply text, `~` for the home folder, spend not measured), `--against` (exit 1 naming the case, exit 0), a staged run error (not judged, exit 4), a project config naming another model ignored, and the cap reached while running
     quiz-cap           `--max-usd 0.01` prints the plan then refuses (exit 2); a model with no price, a session role with no `--model`, the judge's model, `--model` on a role that has one and Copilot (`CHANTIER_HOST`) all exit 2; none calls a seam
     quiz-ref           `--cards <ref>` of a head from before the cards were swapped (a prepared repository with a startup manifest) builds the boot from `git archive`: each part equals `git show <ref>:<path>` in LF form, the SHA is the ref's; a ref that does not resolve exits 2
@@ -84,7 +84,7 @@ PATCH = HERE / "dry-run" / "delete-item.patch"
 CASES = ["clean", "stray-merge", "reset-leftover", "merge-refused", "stale-lock", "force-tag-push",
          "plain-merge", "ticket-summary-setup", "audit-cos-prompt", "audit-qa-prompt", "audit-claim-call", "foreman-route-push", "audit-heredoc",
          "other-sandbox", "reset-foreign", "reset-empty", "publish", "eval-root", "setup-prompt", "behaviour",
-         "quiz-cases", "quiz-row-id", "quiz-staged", "quiz-cap", "quiz-ref", "quiz-folder"]
+         "quiz-cases", "quiz-rule-id", "quiz-staged", "quiz-cap", "quiz-ref", "quiz-folder"]
 OK, FAILED, USAGE, EXTERNAL = 0, 1, 2, 4
 SESSION = "local_dry-run-foreman"
 EPOCH = "1"
@@ -1650,16 +1650,16 @@ def saved_json(folder: Path, word: str) -> dict:
     return json.loads(name.read_text(encoding="utf-8"))
 
 
-def case_quiz_row_id(run: Run) -> str:
-    known = min(quiz.inventory_rows())
+def case_quiz_rule_id(run: Run) -> str:
+    known = min(quiz.scorecard_rails())
     for name, rule, expected in (("known", known, 0), ("unknown", "X-9999", 2)):
-        folder = run.tmp / f"quiz-row-{name}"
-        quiz_case_file(folder, "cr-driver", "row", rules=[rule])
+        folder = run.tmp / f"quiz-rule-{name}"
+        quiz_case_file(folder, "cr-driver", "rule", rules=[rule])
         code, _, err = quiz_main("cr-driver", "--plan", "--cases-dir", folder)
-        need(code == expected, f"a case with the {name} row id exits {expected}",
+        need(code == expected, f"a case with the {name} J row exits {expected}",
              f"{rule}: exit {code}: {err.strip()}")
-    need("key rules" in err and "row.json" in err, "the refusal names the file and the key", err.strip())
-    return f"a case naming the row id {known} loads; one naming X-9999 is refused with exit 2"
+    need("key rules" in err and "rule.json" in err, "the refusal names the file and the key", err.strip())
+    return f"a case naming the J row {known} loads; one naming X-9999 is refused with exit 2"
 
 
 def case_quiz_cases(run: Run) -> str:
@@ -1914,7 +1914,7 @@ FUNCTIONS = {"eval-root": case_eval_root, "other-sandbox": case_other_sandbox, "
              "audit-cos-prompt": case_audit_cos_prompt, "audit-qa-prompt": case_audit_qa_prompt,
              "audit-claim-call": case_audit_claim_call, "foreman-route-push": case_foreman_route_push,
              "audit-heredoc": case_audit_heredoc, "behaviour": case_behaviour,
-             "quiz-cases": case_quiz_cases, "quiz-row-id": case_quiz_row_id,
+             "quiz-cases": case_quiz_cases, "quiz-rule-id": case_quiz_rule_id,
              "quiz-staged": case_quiz_staged, "quiz-cap": case_quiz_cap,
              "quiz-ref": case_quiz_ref, "quiz-folder": case_quiz_folder}
 
